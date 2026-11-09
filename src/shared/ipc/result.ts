@@ -1,4 +1,4 @@
-export type IpcErrorCode = 'INVALID_INPUT' | 'FORBIDDEN' | 'READ_ONLY' | 'INTERNAL'
+export type IpcErrorCode = 'INVALID_INPUT' | 'FORBIDDEN' | 'READ_ONLY' | 'UNAVAILABLE' | 'INTERNAL'
 
 export interface IpcError {
   readonly code: IpcErrorCode

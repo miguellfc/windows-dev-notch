@@ -31,6 +31,13 @@ const settings = createDefaultSettings('en-US')
 function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
   return {
     'app:get-info': () => ({ name: 'Developer Notch', version: '0.1.0', platform: 'win32' }),
+    'app:get-runtime': () => ({ isPackaged: false, shortcutRegistered: true }),
+    'app:open-control-center': () => null,
+    'app:hide-notch': () => null,
+    'notch:get-mode': () => 'compact',
+    'notch:request': () => null,
+    'notch:pointer': () => null,
+    'notch:settled': () => null,
     'settings:get': () => settings,
     'settings:update': (patch) => settingsSchema.parse({ ...settings, ...patch }),
     ...overrides,

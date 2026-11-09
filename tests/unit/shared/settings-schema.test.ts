@@ -49,8 +49,14 @@ describe('settingsSchema', () => {
   })
 
   it('accepts well-formed shortcuts', () => {
-    for (const shortcut of ['Control+Alt+Space', 'Alt+N', 'F12']) {
+    for (const shortcut of ['Control+Alt+Space', 'Alt+N', 'Control+F12', 'Super+Shift+1']) {
       expect(settingsSchema.safeParse({ ...valid, shortcut }).success, shortcut).toBe(true)
+    }
+  })
+
+  it('rejects shortcuts that would steal a plain key from every app', () => {
+    for (const shortcut of ['A', 'F12', 'Space', 'Shift+A', 'Control+Alt', 'Alt+Shift']) {
+      expect(settingsSchema.safeParse({ ...valid, shortcut }).success, shortcut).toBe(false)
     }
   })
 })

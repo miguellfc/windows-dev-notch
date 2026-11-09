@@ -1,15 +1,20 @@
 import { z } from 'zod'
+import { isSafeAccelerator } from './accelerator'
 
 export const SETTINGS_VERSION = 1
 
 export const languageSchema = z.enum(['es', 'en'])
 export type Language = z.infer<typeof languageSchema>
 
-/** Electron accelerator such as `Control+Alt+Space`: keys joined by `+`, letters and digits only. */
+/**
+ * Electron accelerator such as `Control+Alt+Space`: keys joined by `+`, letters and digits only,
+ * with Ctrl, Alt or Win plus a real key (never a bare key that every app would lose).
+ */
 const shortcutSchema = z
   .string()
   .max(64)
   .regex(/^[A-Za-z0-9]+(\+[A-Za-z0-9]+)*$/, 'Invalid shortcut')
+  .refine(isSafeAccelerator, 'Shortcut needs Ctrl, Alt or Win plus a key')
 
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
