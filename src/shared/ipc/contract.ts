@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
+import { integrationIds } from '../integrations/registry'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
 import type { ChannelName, EventName } from './channels'
 
@@ -8,11 +9,21 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'expanded', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'expanded', 'terminal', 'mini', 'hidden'])
 
 export const runtimeSchema = z.strictObject({
   isPackaged: z.boolean(),
   shortcutRegistered: z.boolean(),
+})
+
+/** Largest chunk the renderer may send in one terminal write; bigger pastes are split. */
+export const TERMINAL_INPUT_MAX = 65_536
+
+export const terminalOpenSchema = z.strictObject({
+  state: z.enum(['running', 'exited']),
+  exitCode: z.int().optional(),
+  snapshot: z.string(),
+  shell: z.string(),
 })
 
 const none = z.undefined()
@@ -30,12 +41,22 @@ export const contract = {
   'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle']) }), output: ack },
   'notch:pointer': { input: z.strictObject({ inside: z.boolean() }), output: ack },
   'notch:settled': { input: none, output: ack },
+  'notch:open-integration': { input: z.strictObject({ id: z.enum(integrationIds) }), output: ack },
+  'notch:back': { input: none, output: ack },
+  'terminal:open': { input: none, output: terminalOpenSchema },
+  'terminal:input': { input: z.strictObject({ data: z.string().min(1).max(TERMINAL_INPUT_MAX) }), output: ack },
+  'terminal:resize': {
+    input: z.strictObject({ cols: z.int().min(2).max(500), rows: z.int().min(1).max(200) }),
+    output: ack,
+  },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
 export const eventContract = {
   'notch:mode-changed': notchModeSchema,
   'settings:changed': settingsSchema,
+  'terminal:data': z.string(),
+  'terminal:exit': z.strictObject({ exitCode: z.int() }),
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

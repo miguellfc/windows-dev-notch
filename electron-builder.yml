@@ -9,6 +9,12 @@ files:
   - '!**/*.map'
   - package.json
 asar: true
+# node-pty's native binaries (.node, conpty .dll/.exe) must load from disk, not from the asar.
+# node-pty and koffi ship N-API prebuilds that work in Electron as is (M2 spike);
+# rebuilding would need Visual Studio build tools for no benefit.
+npmRebuild: false
+asarUnpack:
+  - '**/node_modules/node-pty/**'
 electronLanguages:
   - en-US
   - es

@@ -176,4 +176,33 @@ describe('notch controller', () => {
     controller.dispatch({ type: 'toggle' })
     expect(controller.mode()).toBe('expanded')
   })
+
+  describe('terminal panel', () => {
+    it('grows into the terminal from the capsule and takes focus', () => {
+      const { controller, calls } = setup()
+      controller.dispatch({ type: 'open-integration', id: 'terminal' })
+      expect(calls).toEqual([size('terminal'), 'mode:terminal', 'focus'])
+    })
+
+    it('keeps focus while moving between the panel and the terminal', () => {
+      const { controller, calls } = setup()
+      controller.dispatch({ type: 'expand' })
+      calls.length = 0
+      controller.dispatch({ type: 'open-integration', id: 'terminal' })
+      expect(calls).toEqual([size('terminal'), 'mode:terminal'])
+      calls.length = 0
+      controller.dispatch({ type: 'back' })
+      expect(calls).toEqual(['mode:expanded'])
+      controller.settled()
+      expect(calls).toEqual(['mode:expanded', size('expanded')])
+    })
+
+    it('gives focus back when the terminal closes', () => {
+      const { controller, calls } = setup()
+      controller.dispatch({ type: 'open-integration', id: 'terminal' })
+      calls.length = 0
+      controller.dispatch({ type: 'dismiss' })
+      expect(calls).toEqual(['mode:compact', 'blur'])
+    })
+  })
 })

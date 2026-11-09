@@ -36,3 +36,16 @@ describe('resizeOrder', () => {
     expect(resizeOrder('mini', 'peek')).toBe('resize-first')
   })
 })
+
+describe('terminal panel geometry', () => {
+  it('is 640x360 plus the shadow margin', () => {
+    expect(CAPSULE_SIZES.terminal).toEqual({ width: 640, height: 360 })
+    expect(windowBoundsFor('terminal', workArea).width).toBe(640 + SHADOW_MARGIN.side * 2)
+  })
+
+  it('grows the window before animating into the terminal and shrinks after leaving it', () => {
+    expect(resizeOrder('expanded', 'terminal')).toBe('resize-first')
+    expect(resizeOrder('terminal', 'expanded')).toBe('animate-first')
+    expect(resizeOrder('terminal', 'compact')).toBe('animate-first')
+  })
+})

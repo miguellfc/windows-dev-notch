@@ -61,4 +61,41 @@ describe('notch state machine', () => {
     expect(reduceNotch(initialNotchState, { type: 'pointer', inside: false })).toBe(initialNotchState)
     expect(reduceNotch(expanded, { type: 'expand' })).toBe(expanded)
   })
+
+  describe('terminal view', () => {
+    const terminal = () => run({ type: 'open-integration', id: 'terminal' })
+
+    it('opens the terminal integration as its own expanded mode', () => {
+      const state = terminal()
+      expect(notchMode(state)).toBe('terminal')
+      expect(state).toMatchObject({ expanded: true, view: 'terminal', userHidden: false })
+      expect(notchMode(run({ type: 'user-visibility', hidden: true }, { type: 'open-integration', id: 'terminal' }))).toBe('terminal')
+    })
+
+    it('goes back to the integrations row without closing the panel', () => {
+      const state = reduceNotch(terminal(), { type: 'back' })
+      expect(notchMode(state)).toBe('expanded')
+      expect(state.view).toBe('home')
+    })
+
+    it('always reopens on the integrations row after closing from the terminal', () => {
+      const dismissed = reduceNotch(terminal(), { type: 'dismiss' })
+      expect(notchMode(dismissed)).toBe('compact')
+      expect(dismissed.view).toBe('home')
+      expect(notchMode(reduceNotch(dismissed, { type: 'expand' }))).toBe('expanded')
+
+      const toggled = reduceNotch(terminal(), { type: 'toggle' })
+      expect(notchMode(toggled)).toBe('compact')
+      expect(toggled.view).toBe('home')
+
+      const hidden = reduceNotch(terminal(), { type: 'user-visibility', hidden: true })
+      expect(notchMode(hidden)).toBe('hidden')
+      expect(hidden.view).toBe('home')
+    })
+
+    it('ignores back when there is no panel', () => {
+      expect(reduceNotch(initialNotchState, { type: 'back' })).toBe(initialNotchState)
+      expect(initialNotchState.view).toBe('home')
+    })
+  })
 })

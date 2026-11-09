@@ -6,6 +6,7 @@ import { ExposedIpcError } from './errors'
 
 /** The parts of Electron's IPC we depend on; lets tests use a fake. */
 export interface IpcEventLike {
+  readonly sender: { readonly id: number }
   readonly senderFrame: { readonly url: string; readonly parent: unknown } | null
 }
 
@@ -22,6 +23,8 @@ export interface RegisterIpcOptions {
   ipcMain: IpcMainLike
   handlers: IpcHandlers
   isTrustedUrl: (url: string) => boolean
+  /** Extra sender checks for channels only one window may use (e.g. the terminal). */
+  channelGuards?: Partial<Record<ChannelName, (event: IpcEventLike) => boolean>>
   logger: Logger
 }
 
@@ -32,7 +35,7 @@ const describeIssues = (issues: ReadonlyArray<{ path: PropertyKey[]; message: st
  * Registers one handler per contract channel. Each call is checked in order:
  * trusted top-level sender → valid input → handler → valid output.
  */
-export function registerIpc({ ipcMain, handlers, isTrustedUrl, logger }: RegisterIpcOptions): () => void {
+export function registerIpc({ ipcMain, handlers, isTrustedUrl, channelGuards = {}, logger }: RegisterIpcOptions): () => void {
   const log = logger.child('ipc')
   const channelNames = Object.keys(contract) as ChannelName[]
 
@@ -44,6 +47,11 @@ export function registerIpc({ ipcMain, handlers, isTrustedUrl, logger }: Registe
       const frame = event.senderFrame
       if (!frame || frame.parent !== null || !isTrustedUrl(frame.url)) {
         log.warn('Rejected IPC from untrusted sender', { channel, url: urlForLog(frame?.url) })
+        return err('FORBIDDEN', 'Untrusted sender')
+      }
+      const guard = channelGuards[channel]
+      if (guard && !guard(event)) {
+        log.warn('Rejected IPC from a window not allowed on this channel', { channel })
         return err('FORBIDDEN', 'Untrusted sender')
       }
 

@@ -18,6 +18,13 @@ export const channels = {
     request: 'notch:request',
     pointer: 'notch:pointer',
     settled: 'notch:settled',
+    openIntegration: 'notch:open-integration',
+    back: 'notch:back',
+  },
+  terminal: {
+    open: 'terminal:open',
+    input: 'terminal:input',
+    resize: 'terminal:resize',
   },
 } as const
 
@@ -25,6 +32,8 @@ export const channels = {
 export const eventChannels = {
   notchModeChanged: 'notch:mode-changed',
   settingsChanged: 'settings:changed',
+  terminalData: 'terminal:data',
+  terminalExit: 'terminal:exit',
 } as const
 
 type ChannelGroups = typeof channels

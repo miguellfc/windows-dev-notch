@@ -2,12 +2,14 @@ import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, type Transition } from 'motion/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { CAPSULE_SIZES, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
-import type { NotchMode } from '../../shared/notch/state'
+import { PANEL_MODES, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
 import { useSettings } from '../shared/settings-store'
 import { useClock } from '../shared/use-clock'
 import { locale, useLanguage, useT } from '../shared/use-t'
 import { Kbd } from '../ui/Kbd'
+import { IntegrationRow } from './IntegrationRow'
+import { TerminalView } from './TerminalView'
 
 // One authored motion: the capsule morphs as a single object. Grow springs, shrink is quicker.
 const GROW: Transition = { type: 'spring', stiffness: 380, damping: 32 }
@@ -52,17 +54,20 @@ export function NotchApp() {
   const settings = useSettings((state) => state.settings)
 
   useEffect(() => {
+    // In the terminal, Esc belongs to PowerShell (it clears the line); leave with the
+    // global shortcut, a click outside or the back button instead.
+    if (mode === 'terminal') return
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') void window.notch.notch.request({ intent: 'dismiss' })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [mode])
 
   if (mode === 'hidden' || !settings) return null
 
   const size = CAPSULE_SIZES[mode]
-  const expanded = mode === 'expanded'
+  const expanded = PANEL_MODES.has(mode)
 
   return (
     <MotionConfig reducedMotion="user">
@@ -88,7 +93,7 @@ export function NotchApp() {
         >
           <AnimatePresence initial={false} mode="popLayout">
             <motion.div
-              key={expanded ? 'panel' : mode}
+              key={mode}
               layout="position"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -112,6 +117,7 @@ function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Setti
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
 
   if (mode === 'mini') return null
+  if (mode === 'terminal') return <TerminalView />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   return (
@@ -138,6 +144,9 @@ function Panel({ time, date, shortcut }: { time: string; date: string; shortcut:
         <span className="tabular font-mono text-title font-medium">{time}</span>
         <span className="text-small text-graphite">{date}</span>
       </header>
+      <div className="mt-3">
+        <IntegrationRow />
+      </div>
       <nav className="mt-3 flex flex-col gap-1" aria-label="Developer Notch">
         <button type="button" className={action} onClick={() => void window.notch.app.openControlCenter()}>
           <SlidersHorizontal size={16} strokeWidth={1.8} className="text-graphite" aria-hidden="true" />
