@@ -34,7 +34,11 @@ export function hardenWebContents(contents: WebContents, logger: Logger): void {
     }
 
   contents.on('will-navigate', block('navigation'))
-  contents.on('will-frame-navigate', block('frame navigation'))
+  // Subframes only: the main frame is covered by will-navigate, and blocking it here would also
+  // block plain reloads (e.g. Vite's full reload in development).
+  contents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame) block('frame navigation')(event, event.url)
+  })
   contents.on('will-redirect', block('redirect'))
   contents.on('will-attach-webview', (event) => {
     event.preventDefault()

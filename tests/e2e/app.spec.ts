@@ -50,7 +50,8 @@ test.beforeEach(() => {
 })
 
 test.afterEach(() => {
-  rmSync(userData, { recursive: true, force: true })
+  // Windows can keep a profile file locked for a moment after Electron exits.
+  rmSync(userData, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
 test('renderer is isolated from Node and locked down by CSP', async () => {
@@ -60,11 +61,15 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'events', 'notch', 'settings'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'events', 'notch', 'settings', 'terminal'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")
-  expect(csp).not.toContain('unsafe')
+  expect(csp).toMatch(/script-src 'self';/)
+  expect(csp).not.toContain('unsafe-eval')
+  // Only styles are relaxed (xterm.js injects <style> at runtime).
+  expect(csp?.match(/'unsafe-inline'/g)).toHaveLength(1)
+  expect(csp).toContain("style-src 'self' 'unsafe-inline'")
 
   const invalid = await notch.evaluate(() =>
     (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'explode' as 'expand' }),
