@@ -1,0 +1,29 @@
+# Minimal Windows packaging. Verified end to end in plan task 1.12.
+appId: dev.developernotch.app
+productName: Developer Notch
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - '!**/*.map'
+  - package.json
+asar: true
+electronLanguages:
+  - en-US
+  - es
+# Hardening: the packaged binary cannot be turned into a generic Node runtime
+# and only loads its own integrity-checked app.asar.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

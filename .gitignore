@@ -3,3 +3,13 @@
 
 # JetBrains IDE settings (per developer)
 .idea/
+
+# Dependencies and build output
+node_modules/
+out/
+dist/
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
