@@ -282,3 +282,32 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 
 *Generated: 2026-11-09*
 *Status: DRAFT - needs validation*
+
+---
+
+## Cambio de dirección (2026-11-09) — Integraciones vivas en el notch
+
+**Decisión del usuario:** el notch no debe ser un lanzador de favoritos que haya que configurar, sino un punto desde el que **interactuar con herramientas sin salir del trabajo**. Cada integración es un icono en el panel que, al pulsarlo, despliega una mini versión de esa herramienta dentro del notch. Se empieza por una **terminal de PowerShell real**; después se decidirán otras integraciones.
+
+**Sustituye a:**
+- M2 "Quick Launcher (favoritos)": construido y probado, pero **aparcado** en la rama `feat/m2-quick-launcher` (sin mergear).
+- "What We're NOT Building → terminal embebida": ahora **dentro de alcance**.
+- Regla "sin ejecución arbitraria de comandos": pasa a **"solo se ejecuta lo que el usuario escribe en la terminal"** (aprobado por el usuario). Mitigaciones: la terminal vive en su propia ventana/webContents aislada, sin contenido remoto, con CSP estricta; la sesión la crea solo el proceso main; ningún otro canal IPC puede escribir en ella.
+
+**Nuevo M2 · Integraciones + terminal PowerShell:**
+- Fila de iconos de integraciones en el panel expandido (la terminal es la primera).
+- Click en el icono → el notch se expande a un panel de ~640×360 con una sesión real de PowerShell (`node-pty` + `xterm.js`): colores, autocompletado, historial, Ctrl+C.
+- La sesión sigue viva al cerrar el panel y se recupera al volver; se termina al salir de la app.
+- Estilo Obsidian (tema de xterm con los tokens de DESIGN.md, Geist Mono).
+
+**Riesgos nuevos:**
+- `node-pty` es un módulo nativo que debe compilarse para Electron 45 (riesgo alto) → validar primero con una prueba aislada; plan B: probar la versión con binarios precompilados o ConPTY directo.
+- El foco del teclado en una ventana transparente siempre encima: la terminal debe recibir el foco al abrirse y devolverlo al cerrarse.
+- El consumo de memoria crece con la sesión de PowerShell y xterm: medir en reposo.
+
+**Criterios de aceptación del nuevo M2:**
+1. Un icono de terminal en el panel abre una sesión real de PowerShell dentro del notch en < 1 s.
+2. Se pueden ejecutar comandos interactivos (p. ej. `Get-ChildItem`, `git status`, Ctrl+C para cortar `ping -t`).
+3. Cerrar el panel no mata la sesión; reabrirlo muestra la misma sesión con su historial.
+4. Ningún canal IPC distinto de la propia terminal puede escribir en la sesión (verificado con tests).
+5. Esc no cierra la terminal mientras tiene el foco (se usa un atajo propio para salir), y el foco vuelve a la app anterior al cerrar.
