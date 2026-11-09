@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+/* Minimal Obsidian palette for the skeleton; the full token set lands in plan task 1.6. */
+@theme {
+  --color-obsidian: rgba(14, 14, 16, 0.86);
+  --color-veil: rgba(255, 255, 255, 0.04);
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-chalk: #ededef;
+  --color-graphite: #8b8b93;
+  --color-ice: #7dd3fc;
+  --color-abyss: #06202b;
+  --color-fail: #f87171;
+  --font-sans: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Cascadia Mono', Consolas, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #0e0e10;
+  color: var(--color-chalk);
+  font-family: var(--font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
