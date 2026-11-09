@@ -1,0 +1,5 @@
+# Brainstorming companion scratch files
+.superpowers/
+
+# JetBrains IDE settings (per developer)
+.idea/
