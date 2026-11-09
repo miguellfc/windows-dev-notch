@@ -1,0 +1,5 @@
+node_modules/
+logs/
+# Raw Claude hook payloads may contain prompts and paths; never commit them unsanitized.
+fixtures/
+captures/
