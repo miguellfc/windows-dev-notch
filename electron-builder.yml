@@ -23,6 +23,7 @@ electronFuses:
   enableCookieEncryption: true
 win:
   target: nsis
+  icon: resources/icon.png
 nsis:
   oneClick: false
   perMachine: false
