@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>M0 spike capsule</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13px 'Segoe UI Variable', 'Segoe UI', sans-serif; color: #ededef; user-select: none; }
+      #cap {
+        position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+        width: 220px; height: 36px; border-radius: 18px;
+        background: rgba(14, 14, 16, 0.86); border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 40px rgba(0, 0, 0, 0.55);
+        transition: width 350ms cubic-bezier(.2, .9, .3, 1), height 350ms cubic-bezier(.2, .9, .3, 1), border-radius 350ms;
+        overflow: hidden; box-sizing: border-box; cursor: default;
+      }
+      #cap.expanded { width: 440px; height: 300px; border-radius: 24px; }
+      #cap.mini { width: 120px; height: 6px; border-radius: 3px; }
+      #cap.collapsing { transition-duration: 180ms; transition-timing-function: ease-out; }
+      .row { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 14px; white-space: nowrap; }
+      .time { font-family: 'Cascadia Mono', Consolas, monospace; font-weight: 500; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+      .dot.warn { background: #fbbf24; }
+      .muted { color: #8b8b93; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+      #panel { padding: 4px 14px; display: none; color: #8b8b93; font-size: 12px; line-height: 1.6; }
+      #cap.expanded #panel { display: block; }
+      #cap.mini .row { visibility: hidden; }
+      button { margin-top: 8px; font: inherit; color: #06202b; background: #7dd3fc; border: 0; border-radius: 10px; padding: 6px 12px; cursor: pointer; }
+      button:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <div id="cap">
+      <div class="row">
+        <span class="time" id="time">--:--</span>
+        <span class="dot" id="dot"></span>
+        <span class="muted" id="status">M0 spike</span>
+      </div>
+      <div id="panel">
+        <div>Estado: <span id="st">compact</span></div>
+        <div>Último hook: <span id="lastHook">—</span></div>
+        <div>Esc o click fuera para cerrar · Ctrl+Alt+Space alterna</div>
+        <button id="claude" type="button">Traer Claude al frente</button>
+      </div>
+    </div>
+    <script>
+      const cap = document.getElementById('cap')
+      const tick = () => {
+        document.getElementById('time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+      tick()
+      setInterval(tick, 15000)
+
+      cap.addEventListener('mouseenter', () => window.spike.hover(true))
+      cap.addEventListener('mouseleave', () => window.spike.hover(false))
+      cap.addEventListener('click', (e) => {
+        if (e.target.id === 'claude') return
+        if (!cap.classList.contains('expanded')) window.spike.request('expanded')
+      })
+      document.getElementById('claude').addEventListener('click', () => window.spike.focusClaude())
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') window.spike.request('compact')
+      })
+      window.addEventListener('blur', () => {
+        if (cap.classList.contains('expanded')) window.spike.request('compact')
+      })
+
+      let current = 'compact'
+      window.spike.onState((next) => {
+        const shrinking = (next !== 'expanded' && current === 'expanded') || next === 'mini'
+        cap.classList.toggle('collapsing', shrinking)
+        cap.classList.remove('expanded', 'mini')
+        if (next !== 'compact') cap.classList.add(next)
+        document.getElementById('st').textContent = next
+        current = next
+        if (shrinking) {
+          cap.addEventListener('transitionend', function done(e) {
+            if (e.propertyName !== 'width') return
+            cap.removeEventListener('transitionend', done)
+            window.spike.settled()
+          })
+        }
+      })
+
+      window.spike.onHook(({ event, notificationType }) => {
+        const waiting = event === 'Notification'
+        document.getElementById('dot').classList.toggle('warn', waiting)
+        document.getElementById('status').textContent = waiting ? `Claude: ${notificationType ?? 'notification'}` : `Claude: ${event}`
+        document.getElementById('lastHook').textContent = `${event}${notificationType ? ` (${notificationType})` : ''}`
+      })
+    </script>
+  </body>
+</html>
