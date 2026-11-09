@@ -292,7 +292,7 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 **Sustituye a:**
 - M2 "Quick Launcher (favoritos)": construido y probado, pero **aparcado** en la rama `feat/m2-quick-launcher` (sin mergear).
 - "What We're NOT Building → terminal embebida": ahora **dentro de alcance**.
-- Regla "sin ejecución arbitraria de comandos": pasa a **"solo se ejecuta lo que el usuario escribe en la terminal"** (aprobado por el usuario). Mitigaciones: la terminal vive en su propia ventana/webContents aislada, sin contenido remoto, con CSP estricta; la sesión la crea solo el proceso main; ningún otro canal IPC puede escribir en ella.
+- Regla "sin ejecución arbitraria de comandos": pasa a **"solo se ejecuta lo que el usuario escribe en la terminal"** (aprobado por el usuario). Mitigaciones: sin contenido remoto y con CSP estricta (solo `style-src` admite `'unsafe-inline'`, que xterm.js necesita); la sesión la crea solo el proceso main; ningún otro canal IPC puede escribir en ella. *Actualizado en el diseño de M2:* la terminal se pinta en el mismo renderer del notch (decisión del usuario) y el aislamiento se garantiza en main: los canales `terminal:*` solo aceptan el webContents del notch (ver `docs/superpowers/specs/2026-11-09-m2-terminal-design.md`).
 
 **Nuevo M2 · Integraciones + terminal PowerShell:**
 - Fila de iconos de integraciones en el panel expandido (la terminal es la primera).
