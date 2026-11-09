@@ -5,14 +5,31 @@
 export const channels = {
   app: {
     getInfo: 'app:get-info',
+    getRuntime: 'app:get-runtime',
+    openControlCenter: 'app:open-control-center',
+    hideNotch: 'app:hide-notch',
   },
   settings: {
     get: 'settings:get',
     update: 'settings:update',
   },
+  notch: {
+    getMode: 'notch:get-mode',
+    request: 'notch:request',
+    pointer: 'notch:pointer',
+    settled: 'notch:settled',
+  },
+} as const
+
+/** Events the main process pushes to renderers. */
+export const eventChannels = {
+  notchModeChanged: 'notch:mode-changed',
+  settingsChanged: 'settings:changed',
 } as const
 
 type ChannelGroups = typeof channels
 export type ChannelName = {
   [Group in keyof ChannelGroups]: ChannelGroups[Group][keyof ChannelGroups[Group]]
 }[keyof ChannelGroups]
+
+export type EventName = (typeof eventChannels)[keyof typeof eventChannels]

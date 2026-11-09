@@ -34,7 +34,7 @@ Estrategia Restrained: neutros negros sin tinte más un acento, y una familia de
 
 ### Neutral
 - **Obsidiana** (rgba(14,14,16,.86)): superficie de la cápsula compacta, la alerta y la píldora `mini`.
-- **Obsidiana Densa** (rgba(14,14,16,.95)): superficie del panel expandido. Más opaca porque sin desenfoque real el texto de la ventana de detrás se lee a través del 86 % (comprobado en el spike M0).
+- **Obsidiana Densa** (#0E0E10, opaca): superficie del panel expandido. Sin desenfoque real, el texto de la ventana de detrás se lee a través del 86 % (spike M0) e incluso del 95 % (QA de M1), así que el panel es totalmente opaco.
 - **Velo** (rgba(255,255,255,.04)): superficies elevadas dentro del panel (buscador, tiles, tarjetas).
 - **Velo Tile** (rgba(255,255,255,.06)): fondo de los iconos de favoritos.
 - **Filo** (rgba(255,255,255,.08)): bordes de 1 px y divisores.
@@ -84,7 +84,7 @@ Todo texto pasa por i18n: las filas truncan con elipsis y nunca saltan de línea
 
 ## Elevation & Depth
 
-Profundidad por sombra profunda y difusa más un brillo interior de 1 px en el borde superior, sobre una superficie casi opaca. No hay desenfoque real del escritorio: en una ventana transparente de Electron `backdrop-filter` no desenfoca lo que hay detrás, así que el efecto cristal viene de la opacidad, el filo de 1 px y la sombra. La cápsula pequeña usa ~86 % porque apenas tapa nada; el panel expandido sube a ~95 % porque, por debajo de eso, el texto de las ventanas de detrás compite con el del panel. El Control Center, que es una ventana rectangular normal, usa el material Mica nativo de Windows 11.
+Profundidad por sombra profunda y difusa más un brillo interior de 1 px en el borde superior, sobre una superficie casi opaca. No hay desenfoque real del escritorio: en una ventana transparente de Electron `backdrop-filter` no desenfoca lo que hay detrás, así que el efecto cristal viene de la opacidad, el filo de 1 px y la sombra. La cápsula pequeña usa ~86 % porque apenas tapa nada; el panel expandido es opaco porque cualquier transparencia deja que el texto de las ventanas de detrás compita con el del panel (medido en M1: al 95 % todavía se leía). El Control Center, que es una ventana rectangular normal, usa el material Mica nativo de Windows 11.
 
 ### Shadow Vocabulary
 - **Levitación** (`box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 50px rgba(0,0,0,.55)`): cápsula compacta, alerta y panel expandido.

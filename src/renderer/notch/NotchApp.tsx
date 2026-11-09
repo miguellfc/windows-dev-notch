@@ -1,66 +1,157 @@
-import { useEffect, useState } from 'react'
-import type { Result } from '../../shared/ipc/result'
-import type { Language, Settings } from '../../shared/settings/schema'
+import { EyeOff, SlidersHorizontal } from 'lucide-react'
+import { AnimatePresence, MotionConfig, motion, type Transition } from 'motion/react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { CAPSULE_SIZES, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
+import type { NotchMode } from '../../shared/notch/state'
+import type { Settings } from '../../shared/settings/schema'
+import { useSettings } from '../shared/settings-store'
+import { useClock } from '../shared/use-clock'
+import { locale, useLanguage, useT } from '../shared/use-t'
+import { Kbd } from '../ui/Kbd'
 
-const LANGUAGES: readonly Language[] = ['es', 'en']
+// One authored motion: the capsule morphs as a single object. Grow springs, shrink is quicker.
+const GROW: Transition = { type: 'spring', stiffness: 380, damping: 32 }
+const SHRINK: Transition = { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
+const LEVITATION = 'inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 50px rgba(0,0,0,0.55)'
+const LEVITATION_LOW = '0 2px 6px rgba(0,0,0,0.4)'
 
-/**
- * Skeleton vertical slice: reads settings through the typed IPC bridge and lets the
- * user switch language, proving renderer → preload → main → disk end to end.
- * The real capsule replaces this after the M0 spike.
- */
+const area = (mode: VisibleMode) => CAPSULE_SIZES[mode].width * CAPSULE_SIZES[mode].height
+
+interface ModeState {
+  mode: NotchMode
+  /** Whether the latest change enlarged the capsule; picks the grow or shrink motion. */
+  growing: boolean
+  lastVisible: VisibleMode
+}
+
+function useNotchMode(): ModeState {
+  const [state, setState] = useState<ModeState>({ mode: 'compact', growing: true, lastVisible: 'compact' })
+  useEffect(() => {
+    const apply = (mode: NotchMode) =>
+      setState((previous) =>
+        mode === 'hidden'
+          ? { ...previous, mode }
+          : { mode, growing: area(mode) >= area(previous.lastVisible), lastVisible: mode },
+      )
+    // Subscribe first; the initial read must not overwrite a newer pushed mode.
+    let pushed = false
+    const unsubscribe = window.notch.events.on('notch:mode-changed', (mode) => {
+      pushed = true
+      apply(mode)
+    })
+    void window.notch.notch.getMode().then((result) => {
+      if (result.ok && !pushed) apply(result.data)
+    })
+    return unsubscribe
+  }, [])
+  return state
+}
+
 export function NotchApp() {
-  const [settings, setSettings] = useState<Settings | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const apply = (result: Result<Settings>) => {
-    if (result.ok) {
-      setSettings(result.data)
-      setError(null)
-    } else {
-      setError(result.error.message)
-    }
-  }
+  const { mode, growing } = useNotchMode()
+  const settings = useSettings((state) => state.settings)
 
   useEffect(() => {
-    void window.notch.settings.get().then(apply)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') void window.notch.notch.request({ intent: 'dismiss' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const choose = (language: Language) => {
-    void window.notch.settings.update({ language }).then(apply)
-  }
+  if (mode === 'hidden' || !settings) return null
+
+  const size = CAPSULE_SIZES[mode]
+  const expanded = mode === 'expanded'
 
   return (
-    <main className="flex h-screen flex-col items-center justify-center gap-3">
-      <section
-        data-testid="notch-capsule"
-        className="flex h-9 items-center gap-3 rounded-full border border-line bg-obsidian px-3.5 text-[13px] text-chalk shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_50px_rgba(0,0,0,0.55)]"
-      >
-        <span className="font-medium">Developer Notch</span>
-        <span className="h-3.5 w-px bg-line" aria-hidden="true" />
-        <div role="group" aria-label="Language" className="flex gap-1">
-          {LANGUAGES.map((language) => (
-            <button
-              key={language}
-              type="button"
-              aria-pressed={settings?.language === language}
-              disabled={!settings}
-              onClick={() => choose(language)}
-              className="cursor-pointer rounded-full px-2 py-0.5 text-[11px] font-medium uppercase text-graphite transition-colors duration-150 hover:text-chalk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ice aria-pressed:bg-ice aria-pressed:text-abyss disabled:cursor-default"
+    <MotionConfig reducedMotion="user">
+      <div className="flex h-screen justify-center" style={{ paddingTop: SHADOW_MARGIN.top }}>
+        <motion.div
+          layout
+          data-testid="notch-capsule"
+          data-mode={mode}
+          transition={growing ? GROW : SHRINK}
+          onLayoutAnimationComplete={() => void window.notch.notch.settled()}
+          onPointerEnter={() => void window.notch.notch.pointer({ inside: true })}
+          onPointerLeave={() => void window.notch.notch.pointer({ inside: false })}
+          onClick={expanded ? undefined : () => void window.notch.notch.request({ intent: 'expand' })}
+          style={{
+            width: size.width,
+            height: size.height,
+            borderRadius: expanded ? 24 : 999,
+            boxShadow: mode === 'mini' ? LEVITATION_LOW : LEVITATION,
+          }}
+          className={`relative overflow-hidden border border-line text-chalk ${
+            expanded ? 'bg-obsidian-dense' : 'cursor-pointer bg-obsidian'
+          }`}
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.div
+              key={expanded ? 'panel' : mode}
+              layout="position"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="absolute inset-0"
             >
-              {language}
-            </button>
-          ))}
-        </div>
-        <span data-testid="notch-language" className="sr-only">
-          {settings?.language ?? ''}
+              <CapsuleContent mode={mode} settings={settings} />
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </MotionConfig>
+  )
+}
+
+function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Settings }): ReactNode {
+  const now = useClock()
+  const language = useLanguage()
+  const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
+  const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
+
+  if (mode === 'mini') return null
+  if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
+
+  return (
+    <div className="flex h-full items-center justify-between gap-3 px-4">
+      <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
+      {mode === 'peek' ? (
+        <span className="min-w-0 overflow-hidden">
+          <Kbd accelerator={settings.shortcut} size="sm" />
         </span>
-      </section>
-      {error ? (
-        <p role="alert" className="text-[12.5px] text-fail">
-          {error}
-        </p>
-      ) : null}
-    </main>
+      ) : (
+        <span className="truncate text-small text-graphite">{date}</span>
+      )}
+    </div>
+  )
+}
+
+function Panel({ time, date, shortcut }: { time: string; date: string; shortcut: string }) {
+  const t = useT()
+  const action =
+    'flex h-10 w-full cursor-pointer items-center gap-3 rounded-tile px-3 text-left text-body text-chalk transition-colors duration-150 hover:bg-veil-tile'
+  return (
+    <div className="flex h-full flex-col px-3 pb-3 pt-4">
+      <header className="flex items-baseline justify-between px-2">
+        <span className="tabular font-mono text-title font-medium">{time}</span>
+        <span className="text-small text-graphite">{date}</span>
+      </header>
+      <nav className="mt-3 flex flex-col gap-1" aria-label="Developer Notch">
+        <button type="button" className={action} onClick={() => void window.notch.app.openControlCenter()}>
+          <SlidersHorizontal size={16} strokeWidth={1.8} className="text-graphite" aria-hidden="true" />
+          {t('notch.panel.controlCenter')}
+        </button>
+        <button type="button" className={action} onClick={() => void window.notch.app.hideNotch()}>
+          <EyeOff size={16} strokeWidth={1.8} className="text-graphite" aria-hidden="true" />
+          {t('notch.panel.hide')}
+        </button>
+      </nav>
+      <footer className="mt-auto flex items-center justify-between px-2 text-label text-graphite">
+        <span>{t('notch.panel.escHint')}</span>
+        <Kbd accelerator={shortcut} size="sm" />
+      </footer>
+    </div>
   )
 }

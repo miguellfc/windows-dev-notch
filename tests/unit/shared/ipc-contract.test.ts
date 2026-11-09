@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildApi } from '../../../src/shared/ipc/build-api'
-import { channels } from '../../../src/shared/ipc/channels'
-import { contract } from '../../../src/shared/ipc/contract'
+import { channels, eventChannels } from '../../../src/shared/ipc/channels'
+import { contract, eventContract } from '../../../src/shared/ipc/contract'
 import { err, ok } from '../../../src/shared/ipc/result'
 
 const channelNames = Object.values(channels).flatMap((group) => Object.values(group))
@@ -9,6 +9,16 @@ const channelNames = Object.values(channels).flatMap((group) => Object.values(gr
 describe('IPC contract', () => {
   it('defines a schema for every exposed channel and nothing else', () => {
     expect([...channelNames].sort()).toEqual(Object.keys(contract).sort())
+  })
+
+  it('defines a payload schema for every event channel', () => {
+    expect(Object.values(eventChannels).sort()).toEqual(Object.keys(eventContract).sort())
+  })
+
+  it('validates request payloads for the notch channels', () => {
+    expect(contract['notch:request'].input.safeParse({ intent: 'toggle' }).success).toBe(true)
+    expect(contract['notch:request'].input.safeParse({ intent: 'explode' }).success).toBe(false)
+    expect(contract['notch:pointer'].input.safeParse({ inside: 'yes' }).success).toBe(false)
   })
 
   it('uses unique, namespaced channel names', () => {
@@ -39,6 +49,17 @@ describe('buildApi', () => {
       ok: false,
       error: { code: 'INTERNAL', message: 'IPC call failed' },
     })
+  })
+
+  it('subscribes only to known event channels and returns an unsubscribe', () => {
+    const unsubscribe = vi.fn()
+    const subscribe = vi.fn(() => unsubscribe)
+    const api = buildApi(vi.fn(), subscribe)
+    const listener = vi.fn()
+
+    expect(api.events.on('notch:mode-changed', listener)).toBe(unsubscribe)
+    expect(subscribe).toHaveBeenCalledWith('notch:mode-changed', listener)
+    expect(() => api.events.on('evil:event' as 'notch:mode-changed', listener)).toThrow(/Unknown event/)
   })
 
   it('returns a frozen object so the renderer cannot add channels', () => {
