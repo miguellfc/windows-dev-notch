@@ -1,5 +1,6 @@
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
+import '@xterm/xterm/css/xterm.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindSettings } from '../shared/settings-store'

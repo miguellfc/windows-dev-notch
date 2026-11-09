@@ -39,10 +39,18 @@ describe('hardenWebContents', () => {
 
   it.each(['will-navigate', 'will-redirect', 'will-frame-navigate'])('blocks %s', (eventName) => {
     const { contents, logger } = setup()
-    const event = { preventDefault: vi.fn(), url: 'https://evil.test/a?token=secret#x' }
+    const event = { preventDefault: vi.fn(), url: 'https://evil.test/a?token=secret#x', isMainFrame: false }
     contents.emit(eventName, event, 'https://evil.test/a?token=secret#x')
     expect(event.preventDefault).toHaveBeenCalled()
     expect(logger.entries[0]).toMatchObject({ level: 'warn', meta: { url: 'https://evil.test/a' } })
+  })
+
+  it('lets the main frame reload (will-frame-navigate with isMainFrame)', () => {
+    const { contents, logger } = setup()
+    const event = { preventDefault: vi.fn(), url: 'http://localhost:5173/notch/index.html', isMainFrame: true }
+    contents.emit('will-frame-navigate', event)
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    expect(logger.entries).toEqual([])
   })
 
   it('blocks webview attachment', () => {

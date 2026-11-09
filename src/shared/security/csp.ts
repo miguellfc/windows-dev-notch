@@ -2,7 +2,8 @@
 export const PRODUCTION_CSP = [
   "default-src 'none'",
   "script-src 'self'",
-  "style-src 'self'",
+  // xterm.js injects <style> elements at runtime. Scripts stay strictly 'self'.
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
   "connect-src 'self'",

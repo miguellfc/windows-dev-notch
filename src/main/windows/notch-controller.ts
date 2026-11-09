@@ -1,5 +1,5 @@
 import { CAPSULE_SIZES, windowBoundsFor, type Rect, type VisibleMode } from '../../shared/notch/geometry'
-import { initialNotchState, notchMode, reduceNotch, type NotchEvent, type NotchMode } from '../../shared/notch/state'
+import { initialNotchState, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchMode } from '../../shared/notch/state'
 import type { Logger } from '../services/logger'
 
 /** What the controller needs from the capsule window; the Electron adapter implements it. */
@@ -90,8 +90,9 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       surface.sendMode(to)
       pendingShrink = { target: to, timer: setTimeout(finishShrink, settleTimeoutMs) }
     }
-    if (to === 'expanded') surface.focus()
-    else if (from === 'expanded') surface.blur()
+    // Focus belongs to the panel; moving between panel views keeps it, leaving gives it back.
+    if (PANEL_MODES.has(to) && !PANEL_MODES.has(from)) surface.focus()
+    else if (PANEL_MODES.has(from) && !PANEL_MODES.has(to)) surface.blur()
   }
 
   return {

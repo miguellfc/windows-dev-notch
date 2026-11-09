@@ -25,7 +25,7 @@ function createFakeIpcMain() {
   return { ipcMain, listeners, invoke }
 }
 
-const trustedEvent: IpcEventLike = { senderFrame: { url: 'app://trusted', parent: null } }
+const trustedEvent: IpcEventLike = { sender: { id: 1 }, senderFrame: { url: 'app://trusted', parent: null } }
 const settings = createDefaultSettings('en-US')
 
 function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
@@ -38,6 +38,11 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'notch:request': () => null,
     'notch:pointer': () => null,
     'notch:settled': () => null,
+    'notch:open-integration': () => null,
+    'notch:back': () => null,
+    'terminal:open': () => ({ state: 'running', snapshot: '', shell: 'pwsh.exe' }),
+    'terminal:input': () => null,
+    'terminal:resize': () => null,
     'settings:get': () => settings,
     'settings:update': (patch) => settingsSchema.parse({ ...settings, ...patch }),
     ...overrides,
@@ -94,9 +99,9 @@ describe('registerIpc', () => {
     const get = vi.fn(() => settings)
     register(createHandlers({ 'settings:get': get }))
 
-    const untrusted = await fake.invoke('settings:get', { senderFrame: { url: 'https://evil.test', parent: null } })
-    const subframe = await fake.invoke('settings:get', { senderFrame: { url: 'app://trusted', parent: {} } })
-    const destroyed = await fake.invoke('settings:get', { senderFrame: null })
+    const untrusted = await fake.invoke('settings:get', { sender: { id: 1 }, senderFrame: { url: 'https://evil.test', parent: null } })
+    const subframe = await fake.invoke('settings:get', { sender: { id: 1 }, senderFrame: { url: 'app://trusted', parent: {} } })
+    const destroyed = await fake.invoke('settings:get', { sender: { id: 1 }, senderFrame: null })
 
     for (const result of [untrusted, subframe, destroyed]) {
       expect(result).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } })
@@ -134,7 +139,7 @@ describe('registerIpc', () => {
 
   it('logs untrusted sender URLs without query strings', async () => {
     register()
-    await fake.invoke('settings:get', { senderFrame: { url: 'https://evil.test/p?token=abc', parent: null } })
+    await fake.invoke('settings:get', { sender: { id: 1 }, senderFrame: { url: 'https://evil.test/p?token=abc', parent: null } })
     expect(logger.entries[0]).toMatchObject({ meta: { url: 'https://evil.test/p' } })
   })
 
@@ -148,5 +153,69 @@ describe('registerIpc', () => {
     const dispose = register()
     dispose()
     expect(fake.listeners.size).toBe(0)
+  })
+
+  it('applies per-channel sender guards before validating or calling the handler', async () => {
+    const input = vi.fn(() => null)
+    registerIpc({
+      ipcMain: fake.ipcMain,
+      handlers: createHandlers({ 'terminal:input': input }),
+      isTrustedUrl: (url) => url === 'app://trusted',
+      logger,
+      channelGuards: { 'terminal:input': (event) => event.sender.id === 1 },
+    })
+    const other = { sender: { id: 2 }, senderFrame: { url: 'app://trusted', parent: null } }
+
+    await expect(fake.invoke('terminal:input', other, { data: 'dir\r' })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    })
+    expect(input).not.toHaveBeenCalled()
+    await expect(fake.invoke('terminal:input', trustedEvent, { data: 'dir\r' })).resolves.toEqual({ ok: true, data: null })
+    expect(input).toHaveBeenCalledOnce()
+  })
+})
+
+// Acceptance criterion 4: no IPC channel other than the terminal's own input can write to the session.
+describe('terminal write isolation', () => {
+  const sampleInput: { [C in keyof typeof contract]: unknown } = {
+    'app:get-info': undefined,
+    'app:get-runtime': undefined,
+    'app:open-control-center': undefined,
+    'app:hide-notch': undefined,
+    'settings:get': undefined,
+    'settings:update': { language: 'es' },
+    'notch:get-mode': undefined,
+    'notch:request': { intent: 'toggle' },
+    'notch:pointer': { inside: true },
+    'notch:settled': undefined,
+    'notch:open-integration': { id: 'terminal' },
+    'notch:back': undefined,
+    'terminal:open': undefined,
+    'terminal:input': { data: 'Get-ChildItem\r' },
+    'terminal:resize': { cols: 80, rows: 24 },
+  }
+
+  it('has a sample input for every channel', () => {
+    expect(Object.keys(sampleInput).sort()).toEqual(Object.keys(contract).sort())
+  })
+
+  it.each(Object.keys(sampleInput) as (keyof typeof contract)[])('%s writes to the session only if it is terminal:input', async (channel) => {
+    const fake = createFakeIpcMain()
+    const write = vi.fn()
+    registerIpc({
+      ipcMain: fake.ipcMain,
+      handlers: createHandlers({
+        'terminal:input': ({ data }) => {
+          write(data)
+          return null
+        },
+      }),
+      isTrustedUrl: (url) => url === 'app://trusted',
+      logger: createMemoryLogger(),
+    })
+    const result = await fake.invoke(channel, trustedEvent, ...(sampleInput[channel] === undefined ? [] : [sampleInput[channel]]))
+    expect(result).toMatchObject({ ok: true })
+    expect(write).toHaveBeenCalledTimes(channel === 'terminal:input' ? 1 : 0)
   })
 })

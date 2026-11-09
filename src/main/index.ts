@@ -1,9 +1,10 @@
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, type Display } from 'electron'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { emitEvent } from './ipc/events'
-import { registerIpc } from './ipc/register'
+import { registerIpc, type IpcEventLike } from './ipc/register'
 import { createSenderGuard } from './ipc/sender-guard'
 import { syncLaunchAtLogin } from './platform/auto-launch'
 import { classifyForeground, type MonitorRect } from './platform/foreground-classifier'
@@ -14,6 +15,8 @@ import { createWin32ForegroundProbe } from './platform/win32'
 import { createFileLogger } from './services/logger'
 import { SettingsStore } from './services/settings-store'
 import { createSettingsUpdater } from './services/settings-update'
+import { pathExists, resolveShell, shellEnvironment } from './terminal/shell-resolver'
+import { createTerminalSession } from './terminal/terminal-session'
 import { controlCenterWindow, openControlCenter } from './windows/control-center-window'
 import { createNotchController } from './windows/notch-controller'
 import { createNotchWindow, nativeHandle } from './windows/notch-window'
@@ -203,11 +206,42 @@ function start(): void {
 
       app.on('second-instance', () => notch.dispatch({ type: 'expand' }))
 
+      // --- Terminal --------------------------------------------------------------------
+      // One PowerShell session owned by main. Only the notch window may read or write it,
+      // and only through the terminal:* channels below.
+      const terminal = createTerminalSession({
+        spawn: (file, args, options) => {
+          // Loaded on first use so the native module costs nothing until the terminal opens.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const pty = require('node-pty') as typeof import('node-pty')
+          return pty.spawn(file, args, options)
+        },
+        shell: resolveShell({ exists: pathExists, env: process.env }),
+        cwd: homedir(),
+        env: shellEnvironment(process.env),
+        // Output can still arrive while the app quits and the window is already gone.
+        onData: (chunk) => {
+          if (!notchWindow.isDestroyed()) emitEvent([notchWindow.webContents], 'terminal:data', chunk, logger)
+        },
+        onExit: (exitCode) => {
+          if (!notchWindow.isDestroyed()) emitEvent([notchWindow.webContents], 'terminal:exit', { exitCode }, logger)
+        },
+        isViewing: () => notch.mode() === 'terminal',
+        logger,
+      })
+      const fromNotchWindow = (event: IpcEventLike) =>
+        !notchWindow.isDestroyed() && event.sender.id === notchWindow.webContents.id
+
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,
         logger,
         isTrustedUrl: createSenderGuard({ rendererDir: join(__dirname, '../renderer'), devServerUrl }),
+        channelGuards: {
+          'terminal:open': fromNotchWindow,
+          'terminal:input': fromNotchWindow,
+          'terminal:resize': fromNotchWindow,
+        },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
           'app:get-runtime': () => ({ isPackaged: app.isPackaged, shortcutRegistered: shortcut.current() !== null }),
@@ -232,6 +266,23 @@ function start(): void {
           },
           'notch:settled': () => {
             notch.settled()
+            return null
+          },
+          'notch:open-integration': ({ id }) => {
+            notch.dispatch({ type: 'open-integration', id })
+            return null
+          },
+          'notch:back': () => {
+            notch.dispatch({ type: 'back' })
+            return null
+          },
+          'terminal:open': () => terminal.open(),
+          'terminal:input': ({ data }) => {
+            terminal.write(data)
+            return null
+          },
+          'terminal:resize': ({ cols, rows }) => {
+            terminal.resize(cols, rows)
             return null
           },
         },

@@ -84,3 +84,9 @@ Sin decidir: enfocar la sesión exacta de Claude en lugar de la app; detección 
 ## Accessibility & Inclusion
 
 Sin necesidades específicas del producto más allá del estándar: contraste WCAG AA, operación completa por teclado con foco visible, respeto a `prefers-reduced-motion` y render correcto con escalado de Windows al 100/125/150 %.
+
+## Cambio de dirección (2026-11-09)
+
+El notch es un punto de **integraciones vivas**: iconos que despliegan una mini versión de una herramienta dentro del propio notch, sin configurar listas de aplicaciones. La primera integración es una **terminal real de PowerShell** embebida. Esto sustituye al Quick Launcher de favoritos (aparcado en `feat/m2-quick-launcher`) y a dos líneas anteriores de este documento:
+- "Fuera de alcance: terminal embebida" → ahora dentro de alcance.
+- "Sin ejecución arbitraria de comandos" → **solo se ejecuta lo que el usuario escribe en la terminal**; la terminal vive aislada, la crea solo el proceso main y ningún otro canal puede escribir en ella.
