@@ -1,26 +1,86 @@
 @import 'tailwindcss';
 
-/* Minimal Obsidian palette for the skeleton; the full token set lands in plan task 1.6. */
+/* Obsidian design tokens (DESIGN.md). Fonts are bundled from @fontsource in each entry. */
 @theme {
   --color-obsidian: rgba(14, 14, 16, 0.86);
+  /* Opaque on purpose: even 5% transparency lets text behind show through (M1 QA). */
+  --color-obsidian-dense: #0e0e10;
   --color-veil: rgba(255, 255, 255, 0.04);
+  --color-veil-tile: rgba(255, 255, 255, 0.06);
   --color-line: rgba(255, 255, 255, 0.08);
   --color-chalk: #ededef;
   --color-graphite: #8b8b93;
   --color-ice: #7dd3fc;
   --color-abyss: #06202b;
+  --color-ok: #4ade80;
+  --color-wait: #fbbf24;
   --color-fail: #f87171;
-  --font-sans: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'Cascadia Mono', Consolas, monospace;
+
+  --font-sans: 'Geist Variable', 'Segoe UI Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Cascadia Mono', Consolas, monospace;
+
+  --text-label: 11px;
+  --text-small: 12.5px;
+  --text-body: 13px;
+  --text-title: 15px;
+
+  --radius-panel: 24px;
+  --radius-card: 16px;
+  --radius-tile: 14px;
+  --radius-control: 10px;
+
+  --shadow-levitation: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 50px rgba(0, 0, 0, 0.55);
+  --shadow-levitation-low: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 html,
 body {
   margin: 0;
   height: 100%;
-  background: #0e0e10;
+  background: transparent;
   color: var(--color-chalk);
   font-family: var(--font-sans);
+  font-size: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Browser surfaces carry the design too. */
+::selection {
+  background: var(--color-ice);
+  color: var(--color-abyss);
+}
+
+* {
+  caret-color: var(--color-ice);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ice);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  background-clip: content-box;
+  border: 4px solid transparent;
+  border-radius: 999px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
 }
 
 @media (prefers-reduced-motion: reduce) {
