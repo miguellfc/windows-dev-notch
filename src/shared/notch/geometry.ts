@@ -13,8 +13,10 @@ export type VisibleMode = Exclude<NotchMode, 'hidden'>
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
   compact: { width: 168, height: 36 },
   peek: { width: 240, height: 40 },
+  alert: { width: 320, height: 44 },
   expanded: { width: 440, height: 236 },
   terminal: { width: 640, height: 360 },
+  permission: { width: 480, height: 300 },
   mini: { width: 120, height: 6 },
 }
 

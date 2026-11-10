@@ -1,4 +1,5 @@
 import type { Logger } from '../services/logger'
+import { ensureHwndType } from './koffi-types'
 import type { ForegroundSnapshot, MonitorRect, NotificationState } from './foreground-classifier'
 
 export interface ForegroundProbe {
@@ -27,7 +28,7 @@ export function createWin32ForegroundProbe(logger: Logger): ForegroundProbe | nu
     const user32 = koffi.load('user32.dll')
     const shell32 = koffi.load('shell32.dll')
 
-    koffi.pointer('HWND', koffi.opaque())
+    ensureHwndType(koffi)
     const RECT = koffi.struct('NOTCH_RECT', { left: 'long', top: 'long', right: 'long', bottom: 'long' })
     const MONITORINFO = koffi.struct('NOTCH_MONITORINFO', {
       cbSize: 'uint32',

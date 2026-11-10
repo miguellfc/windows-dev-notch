@@ -49,3 +49,17 @@ describe('terminal panel geometry', () => {
     expect(resizeOrder('terminal', 'compact')).toBe('animate-first')
   })
 })
+
+describe('alert and permission geometry', () => {
+  it('has the alert capsule and the permission card sizes', () => {
+    expect(CAPSULE_SIZES.alert).toEqual({ width: 320, height: 44 })
+    expect(CAPSULE_SIZES.permission).toEqual({ width: 480, height: 300 })
+  })
+
+  it('orders resizes by area', () => {
+    expect(resizeOrder('compact', 'alert')).toBe('resize-first')
+    expect(resizeOrder('alert', 'permission')).toBe('resize-first')
+    expect(resizeOrder('permission', 'alert')).toBe('animate-first')
+    expect(resizeOrder('permission', 'expanded')).toBe('animate-first')
+  })
+})

@@ -15,6 +15,9 @@ const launch = async (): Promise<{ app: ElectronApplication; notch: Page; errors
   }
   env['NOTCH_USER_DATA_DIR'] = userData
   env['NOTCH_DISABLE_FOREGROUND_WATCH'] = '1'
+  // Never touch the real ~/.claude/settings.json nor collide with an installed notch on 47600.
+  env['NOTCH_CLAUDE_SETTINGS'] = join(userData, 'claude-settings.json')
+  env['NOTCH_CLAUDE_PORT'] = '0'
   const app = await electron.launch({ args: ['.'], env })
   const notch = await app.firstWindow()
   const errors: string[] = []

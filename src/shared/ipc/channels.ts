@@ -26,6 +26,18 @@ export const channels = {
     input: 'terminal:input',
     resize: 'terminal:resize',
   },
+  claude: {
+    getState: 'claude:get-state',
+    decide: 'claude:decide',
+    focusApp: 'claude:focus-app',
+    dismissSession: 'claude:dismiss-session',
+    hooksPreview: 'claude:hooks-preview',
+    hooksInstall: 'claude:hooks-install',
+    hooksUninstall: 'claude:hooks-uninstall',
+    testConnection: 'claude:test-connection',
+    rotateToken: 'claude:rotate-token',
+    rotatePort: 'claude:rotate-port',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
@@ -34,6 +46,7 @@ export const eventChannels = {
   settingsChanged: 'settings:changed',
   terminalData: 'terminal:data',
   terminalExit: 'terminal:exit',
+  claudeStateChanged: 'claude:state-changed',
 } as const
 
 type ChannelGroups = typeof channels
