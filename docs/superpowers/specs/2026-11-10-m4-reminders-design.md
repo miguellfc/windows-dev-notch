@@ -63,14 +63,16 @@ Ajustes nuevos en `settings.json` (migración a la siguiente versión del esquem
 
 ### Main
 
-- **`src/main/services/reminders-store.ts`**: lectura y escritura de `userData/reminders.json` con el patrón de `SettingsStore`: escritura atómica, validación zod, migraciones, cuarentena del archivo corrupto (se renombra y se empieza vacío, con aviso en el log) y actualizaciones serializadas. API: `list()`, `create()`, `update(id, patch)`, `remove(id)`.
-- **`src/main/services/reminder-scheduler.ts`**: un único `setTimeout` al próximo `dueAt` entre los `pending`.
+Todo vive en `src/main/reminders/` (mismo patrón que `src/main/claude/`); el plan detalla los archivos y sus interfaces: `docs/superpowers/plans/2026-11-10-m4-reminders.md`.
+
+- **`reminders-store.ts`**: lectura y escritura de `userData/reminders.json` con el patrón de `SettingsStore`: escritura atómica, validación zod, migraciones, cuarentena del archivo corrupto (se renombra y se empieza vacío, con aviso en el log) y actualizaciones serializadas. API: `load()`, `all()`, `write(lista)`; las operaciones (crear, posponer, completar…) viven en `reminders-service.ts`.
+- **`reminder-scheduler.ts`**: un único `setTimeout` al próximo `dueAt` entre los `pending`.
   - Se reprograma tras cualquier cambio del store y con `powerMonitor` `resume` y `unlock-screen`.
   - Red de seguridad: comprobación cada 60 s (los temporizadores se desfasan durante la suspensión). Si el siguiente vencimiento está a más de 24,8 días, el temporizador se acota (límite de `setTimeout`).
   - Al vencer: `pending → due` (todos los vencidos a la vez), emite un único aviso agrupado.
   - Al arrancar: los `pending` con `dueAt` pasado → `missed` (los repetidos se reprograman a su siguiente ocurrencia y se cuentan como perdidos una sola vez).
   - Reloj inyectable (`now()`), para pruebas.
-- **`src/main/platform/reminder-toast.ts`**: `Notification` nativa con `silent: true` (el sonido lo pone el notch, para no sonar dos veces).
+- **`reminder-toast.ts`**: `Notification` nativa con `silent: true` (el sonido lo pone el notch, para no sonar dos veces).
   - Un toast por tanda: un recordatorio → su texto; varios → "3 recordatorios" con los dos primeros textos; perdidos al arrancar → "Tienes N recordatorios perdidos".
   - Acciones **Posponer N min** y **Completar** si Electron 45 las entrega en Windows (ver "Riesgos"); click en el cuerpo → abre el notch en la vista de recordatorios.
 - **Integración con la máquina de estados** (`src/shared/notch/state.ts`):
@@ -84,7 +86,7 @@ Ajustes nuevos en `settings.json` (migración a la siguiente versión del esquem
 
 | Canal | Entrada | Salida | Quién |
 |---|---|---|---|
-| `reminders:list` | — | `Reminder[]` (sin `done` de más de 7 días) | notch, Control Center |
+| `reminders:list` | — | `{ reminders: Reminder[], notice: 'quarantined' \| 'read-only' \| null }` (sin `done` de más de 7 días) | notch, Control Center |
 | `reminders:create` | `{ input: string }` o `{ text, preset }` | `Reminder` o error de análisis | notch, Control Center |
 | `reminders:update` | `{ id, text?, dueAt?, repeat? }` | `Reminder` | Control Center |
 | `reminders:snooze` | `{ id }` | `Reminder` | notch, Control Center |
@@ -103,7 +105,7 @@ Evento main → renderers: `reminders:changed` (lista completa; son pocos). Todo
   - Lista: primero los `due`/`missed` (con **Posponer N min** y **Completar** visibles), después los `pending` de hoy y mañana (hora, texto, ↻; al pasar el ratón o con foco: **Completar** y **Borrar**). Enlace "Ver todos" al Control Center.
   - Aquí Enter y Espacio funcionan como en cualquier botón: ninguna acción es peligrosa (a diferencia de los permisos de M3).
 - **Cápsula `alert`**: icono de reloj + texto truncado del recordatorio, o "3 recordatorios". Si hay a la vez un permiso de Claude, se muestra el de Claude y un punto Ámbar Espera indica el recordatorio.
-- **Sonido**: tono corto incluido en la app (archivo local, sin red), reproducido por el renderer del notch cuando llega una tanda nueva, si `reminders.sound` está activo y la cápsula no está oculta por pantalla completa o presentación. Respeta el volumen del sistema.
+- **Sonido**: tono corto sintetizado con Web Audio (sin archivo, así la CSP no cambia), reproducido por el renderer del notch cuando llega una tanda nueva, si `reminders.sound` está activo y la cápsula no está oculta por pantalla completa o presentación. Respeta el volumen del sistema.
 - **Control Center → "Recordatorios"** (`RemindersPage.tsx`): grupos *Vencidos*, *Próximos*, *Se repiten* y *Completados (últimos 7 días)*; crear con el mismo campo; editar texto, fecha y hora, y repetición con un formulario normal; borrar; ajustes de duración de posponer y sonido.
 - i18n ES/EN para todo, tokens de `DESIGN.md`, `prefers-reduced-motion` respetado.
 

@@ -1,0 +1,9 @@
+2026-11-10T20:02:07.622Z ready supported=true electron=45.2.3
+2026-11-10T20:02:09.626Z V2 show()
+2026-11-10T20:02:09.635Z V2 show [{}]
+2026-11-10T20:02:09.650Z V2 close [{"reason":"timedOut"}]
+2026-11-10T20:02:23.094Z V2 close [{"reason":"userCanceled"}]
+2026-11-10T20:02:23.095Z V1 close [{"reason":"userCanceled"}]
+2026-11-10T20:02:23.098Z V2 close [{"reason":"userCanceled"}]
+2026-11-10T20:02:23.100Z V1 close [{"reason":"userCanceled"}]
+2026-11-10T20:02:36.720Z quit
