@@ -42,7 +42,7 @@ Sabremos que acertamos cuando, tras 2 semanas de uso diario: (a) ya no compruebo
 | Tiempo para abrir un favorito | < 2 s con teclado (atajo → escribir → Enter) | Medición manual/E2E |
 | Favoritos abiertos desde la cápsula | ≥ 5 por día laborable | Contador local de aperturas |
 | Recordatorios cumplidos | Ningún recordatorio perdido con la app en ejecución | Log de disparos de recordatorios |
-| Consumo en reposo | CPU ≈ 0 %, RAM total < 200 MB | Administrador de tareas |
+| Consumo en reposo | CPU ≈ 0 %; RAM total < 200 MB sin integraciones abiertas (la terminal abierta añade ~100 MB, aceptado) | Administrador de tareas |
 
 ## Open Questions
 
@@ -217,7 +217,7 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 5. Con ventana maximizada debajo pasa a `mini`; con app a pantalla completa o modo presentación pasa a `hidden`; vuelve sola al salir.
 6. El atajo global abre/cierra desde cualquier app; Esc o click fuera cierran; si el atajo está ocupado se avisa.
 7. Tray: mostrar/ocultar, Control Center, inicio con Windows, salir; cerrar la ventana oculta la app, no la cierra.
-8. En reposo: CPU ≈ 0 %, RAM total < 200 MB.
+8. En reposo: CPU ≈ 0 %, RAM total < 200 MB sin integraciones abiertas.
 9. El instalador NSIS instala, arranca con Windows si está activado y desinstala limpio.
 10. `contextIsolation`/`sandbox` activos, CSP sin `unsafe-eval`, todo IPC inválido se rechaza (probado con tests).
 

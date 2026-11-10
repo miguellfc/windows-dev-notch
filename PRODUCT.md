@@ -57,7 +57,7 @@ Restricciones:
 - Sin secretos en el renderer ni credenciales en texto plano; futuros tokens OAuth con `safeStorage` de Electron.
 - Sin APIs no documentadas de Claude Code; los transcripts no se leen como API. No existe forma documentada de abrir una sesión concreta de la app de escritorio por ID: "ir a la sesión" significa traer la app Claude al frente.
 - Debe seguir funcionando con proveedores externos desconectados; cada módulo muestra "no conectado" en lugar de fallar.
-- Coste en reposo casi nulo (CPU ≈ 0 %, RAM total < 200 MB).
+- Coste en reposo casi nulo: CPU ≈ 0 % siempre; RAM total < 200 MB sin integraciones abiertas. Una integración abierta añade el coste de su herramienta (la terminal suma ~100 MB, casi todo el propio `pwsh`, igual que tener abierta una Windows Terminal); decisión del usuario del 2026-11-09.
 - Fuera de alcance: multiplataforma, launcher universal, terminal o chat con Claude embebidos, widgets de multimedia/portapapeles, sync en la nube, cuentas, firma de código y auto-update (por ahora).
 
 Sin decidir: enfocar la sesión exacta de Claude en lugar de la app; detección de compartir pantalla (solo el modo presentación es detectable); si aprobar permisos de Claude desde la cápsula compensa su coste de seguridad.
