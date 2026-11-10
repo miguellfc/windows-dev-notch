@@ -31,7 +31,7 @@ Tiempo desde `spawn` hasta que se ejecuta el primer comando (un marcador que sol
 | Con la sesión de `pwsh` abierta | 286 MB | 539 MB | 0,02 % |
 
 - `pwsh.exe` (con el perfil del usuario, oh-my-posh) aporta ~53 MB privados; renderer y main suben ~13 MB cada uno (xterm y node-pty).
-- **Con la sesión abierta se supera el objetivo de PRODUCT.md "RAM total < 200 MB"**; sin sesión se cumple. La CPU en reposo se mantiene ≈ 0 %.
+- Con la sesión abierta se superaba el objetivo original "RAM total < 200 MB"; sin sesión se cumple. La CPU en reposo se mantiene ≈ 0 %. **Decisión del usuario (2026-11-09):** el objetivo pasa a "< 200 MB sin integraciones abiertas"; el coste de la terminal abierta se acepta (ver PRODUCT.md).
 - Primera salida del shell tras el click en el icono (E2E): 141–213 ms.
 
 ## Hallazgos que cambian la implementación

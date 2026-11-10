@@ -10,7 +10,7 @@ const icons: Readonly<Record<IntegrationId, LucideIcon>> = {
 export function IntegrationRow() {
   const t = useT()
   return (
-    <section aria-label={t('notch.integrations.label')} className="flex gap-2 px-1">
+    <section aria-label={t('notch.integrations.label')} className="flex shrink-0 gap-2 px-1">
       {integrations.map(({ id, labelKey }) => {
         const Icon = icons[id]
         return (

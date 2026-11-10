@@ -99,3 +99,74 @@ describe('notch state machine', () => {
     })
   })
 })
+
+describe('attention (pending Claude permission)', () => {
+  const attention = (on: boolean): NotchEvent => ({ type: 'attention', on })
+
+  it('starts without attention', () => {
+    expect(initialNotchState.attention).toBe(false)
+  })
+
+  it('shows the alert capsule when attention arrives on the compact capsule', () => {
+    expect(notchMode(run(attention(true)))).toBe('alert')
+    expect(notchMode(run(attention(true), attention(false)))).toBe('compact')
+  })
+
+  it('opens on the permission view when expanding with attention', () => {
+    const state = run(attention(true), { type: 'expand' })
+    expect(notchMode(state)).toBe('permission')
+    expect(state).toMatchObject({ expanded: true, view: 'permission' })
+    expect(notchMode(run(attention(true), { type: 'toggle' }))).toBe('permission')
+  })
+
+  it('opens on home when expanding without attention', () => {
+    expect(run({ type: 'expand' }).view).toBe('home')
+    expect(run({ type: 'toggle' }).view).toBe('home')
+  })
+
+  it('still opens the requested integration while attention is on', () => {
+    const state = run(attention(true), { type: 'open-integration', id: 'terminal' })
+    expect(notchMode(state)).toBe('terminal')
+  })
+
+  it('falls back from permission to home on back', () => {
+    const state = run(attention(true), { type: 'expand' }, { type: 'back' })
+    expect(state.view).toBe('home')
+    expect(notchMode(state)).toBe('expanded')
+  })
+
+  it('returns the open permission view to home when attention ends, without closing the panel', () => {
+    const state = run(attention(true), { type: 'expand' }, attention(false))
+    expect(state).toMatchObject({ expanded: true, view: 'home' })
+    expect(notchMode(state)).toBe('expanded')
+  })
+
+  it('does not open or collapse the panel by itself', () => {
+    expect(run(attention(true)).expanded).toBe(false)
+    expect(run({ type: 'expand' }, attention(true)).expanded).toBe(true)
+    expect(notchMode(run({ type: 'expand' }, attention(true)))).toBe('expanded')
+    expect(run({ type: 'expand' }, attention(true), attention(false)).expanded).toBe(true)
+  })
+
+  it('goes back to alert after dismiss while attention remains', () => {
+    const state = run(attention(true), { type: 'expand' }, { type: 'dismiss' })
+    expect(notchMode(state)).toBe('alert')
+    expect(state.view).toBe('home')
+    expect(notchMode(reduceNotch(state, { type: 'expand' }))).toBe('permission')
+  })
+
+  it('lets a hidden capsule win over the alert', () => {
+    expect(notchMode(run(attention(true), { type: 'foreground', verdict: 'hidden' }))).toBe('hidden')
+    expect(notchMode(run(attention(true), { type: 'user-visibility', hidden: true }))).toBe('hidden')
+  })
+
+  it('shows the alert on a mini capsule and over hover', () => {
+    expect(notchMode(run(attention(true), { type: 'foreground', verdict: 'mini' }))).toBe('alert')
+    expect(notchMode(run(attention(true), { type: 'pointer', inside: true }))).toBe('alert')
+  })
+
+  it('ignores repeated attention events', () => {
+    const state = run(attention(true))
+    expect(reduceNotch(state, attention(true))).toBe(state)
+  })
+})

@@ -41,6 +41,55 @@ describe('IPC contract', () => {
     expect(contract['notch:open-integration'].input.safeParse({ id: 'browser' }).success).toBe(false)
   })
 
+  it('decides only on a uuid with allow or deny', () => {
+    const decide = contract['claude:decide'].input
+    const requestId = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+    expect(decide.safeParse({ requestId, decision: 'allow' }).success).toBe(true)
+    expect(decide.safeParse({ requestId, decision: 'deny' }).success).toBe(true)
+    expect(decide.safeParse({ requestId, decision: 'always' }).success).toBe(false)
+    expect(decide.safeParse({ requestId: 'not-a-uuid', decision: 'allow' }).success).toBe(false)
+    expect(decide.safeParse({ requestId, decision: 'allow', rule: 'Bash(*)' }).success).toBe(false)
+  })
+
+  it('keeps the Claude state strict so nothing extra (e.g. a token) can ride along', () => {
+    const state = { connection: 'connected', hooks: 'installed', sessions: [], pending: [] }
+    expect(contract['claude:get-state'].output.safeParse(state).success).toBe(true)
+    expect(contract['claude:get-state'].output.safeParse({ ...state, token: 'x' }).success).toBe(false)
+    expect(eventContract['claude:state-changed'].safeParse({ ...state, connection: 'maybe' }).success).toBe(false)
+    expect(contract['claude:hooks-preview'].output.safeParse({ ok: true, diff: [], next: '{}' }).success).toBe(false)
+  })
+
+  it('carries only the known connection error reason', () => {
+    const state = { connection: 'error', hooks: 'installed', sessions: [], pending: [] }
+    const schema = contract['claude:get-state'].output
+    expect(schema.safeParse({ ...state, reason: 'port-in-use' }).success).toBe(true)
+    expect(schema.safeParse({ ...state, reason: 'something-else' }).success).toBe(false)
+  })
+
+  it('requires the truncation flag and full length on every pending permission', () => {
+    const pending = { id: 'a', sessionId: 's', sessionName: 'n', toolName: 'Bash', preview: 'ls', receivedAt: 1 }
+    const state = { connection: 'connected', hooks: 'installed', sessions: [] }
+    const schema = contract['claude:get-state'].output
+    expect(schema.safeParse({ ...state, pending: [pending] }).success).toBe(false)
+    expect(schema.safeParse({ ...state, pending: [{ ...pending, previewTruncated: true, previewLength: 3000 }] }).success).toBe(true)
+  })
+
+  it('rotations report what happened to the hooks', () => {
+    for (const channel of ['claude:rotate-token', 'claude:rotate-port'] as const) {
+      const output = contract[channel].output
+      expect(output.safeParse({ hooks: 'reinstall-failed' }).success).toBe(true)
+      expect(output.safeParse(null).success).toBe(false)
+      expect(output.safeParse({ hooks: 'reinstalled', port: 50_001 }).success).toBe(false)
+    }
+  })
+
+  it('bounds the session id to dismiss', () => {
+    const dismiss = contract['claude:dismiss-session'].input
+    expect(dismiss.safeParse({ sessionId: 'abc' }).success).toBe(true)
+    expect(dismiss.safeParse({ sessionId: '' }).success).toBe(false)
+    expect(dismiss.safeParse({ sessionId: 'a'.repeat(257) }).success).toBe(false)
+  })
+
   it('uses unique, namespaced channel names', () => {
     expect(new Set(channelNames).size).toBe(channelNames.length)
     for (const name of channelNames) {

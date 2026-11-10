@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, type Display } from 'electron'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
+import { createClaudeIntegration } from './claude/claude-integration'
+import { claudeChannelGuards } from './claude/claude-ipc'
 import { emitEvent } from './ipc/events'
 import { registerIpc, type IpcEventLike } from './ipc/register'
 import { createSenderGuard } from './ipc/sender-guard'
@@ -29,6 +31,10 @@ const APP_USER_MODEL_ID = 'dev.developernotch.app'
 const devServerUrl = app.isPackaged ? undefined : process.env['ELECTRON_RENDERER_URL']
 const isolatedUserData = app.isPackaged ? undefined : process.env['NOTCH_USER_DATA_DIR']
 const foregroundWatchDisabled = !app.isPackaged && process.env['NOTCH_DISABLE_FOREGROUND_WATCH'] === '1'
+const claudeSettingsOverride = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_SETTINGS']
+const claudePortRaw = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_PORT']
+const claudePortOverride =
+  claudePortRaw !== undefined && /^\d{1,5}$/.test(claudePortRaw) && Number(claudePortRaw) <= 65_535 ? Number(claudePortRaw) : undefined
 if (isolatedUserData) app.setPath('userData', isolatedUserData)
 
 if (!app.requestSingleInstanceLock()) {
@@ -225,12 +231,35 @@ function start(): void {
         },
         onExit: (exitCode) => {
           if (!notchWindow.isDestroyed()) emitEvent([notchWindow.webContents], 'terminal:exit', { exitCode }, logger)
+          // `exit` closes the terminal like closing a terminal window: the panel closes and focus
+          // goes back to the previous app. The next open starts a new shell.
+          if (notch.mode() === 'terminal') notch.dispatch({ type: 'dismiss' })
         },
         isViewing: () => notch.mode() === 'terminal',
         logger,
       })
       const fromNotchWindow = (event: IpcEventLike) =>
         !notchWindow.isDestroyed() && event.sender.id === notchWindow.webContents.id
+      // The Control Center may not exist yet; then nothing matches.
+      const fromControlCenter = (event: IpcEventLike) => event.sender.id === controlCenterWindow()?.webContents.id
+
+      // --- Claude Code -----------------------------------------------------------------
+      // Local bridge for Claude Code hooks. If it cannot start (port taken, no safeStorage),
+      // the state says so and the rest of the app keeps working.
+      const claude = createClaudeIntegration({
+        userDataDir: app.getPath('userData'),
+        claudeSettingsFile: claudeSettingsOverride ?? join(homedir(), '.claude', 'settings.json'),
+        ...(claudePortOverride === undefined ? {} : { claudePort: claudePortOverride }),
+        logger,
+        notch,
+        language: () => settings.get().language,
+        eventTargets: () => {
+          const cc = controlCenterWindow()
+          const targets = notchWindow.isDestroyed() ? [] : [notchWindow.webContents]
+          return cc ? [...targets, cc.webContents] : targets
+        },
+      })
+      claude.start().catch((error: unknown) => logger.error('Claude integration failed to start', { error }))
 
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
@@ -241,6 +270,7 @@ function start(): void {
           'terminal:open': fromNotchWindow,
           'terminal:input': fromNotchWindow,
           'terminal:resize': fromNotchWindow,
+          ...claudeChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -285,12 +315,15 @@ function start(): void {
             terminal.resize(cols, rows)
             return null
           },
+          ...claude.handlers,
         },
       })
 
       app.on('will-quit', () => {
         watcher?.stop()
         notch.dispose()
+        // After the notch: releasing held requests must not drive a closing window.
+        claude.dispose()
         shortcut.dispose()
         tray?.destroy()
         screen.off('display-added', onDisplaysChanged)

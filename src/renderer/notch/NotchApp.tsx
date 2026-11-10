@@ -8,6 +8,10 @@ import { useSettings } from '../shared/settings-store'
 import { useClock } from '../shared/use-clock'
 import { locale, useLanguage, useT } from '../shared/use-t'
 import { Kbd } from '../ui/Kbd'
+import { AlertCapsule } from './claude/AlertCapsule'
+import { PermissionCard } from './claude/PermissionCard'
+import { SessionsSection } from './claude/SessionsSection'
+import { StatusDots } from './claude/StatusDots'
 import { IntegrationRow } from './IntegrationRow'
 import { TerminalView } from './TerminalView'
 
@@ -118,6 +122,8 @@ function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Setti
 
   if (mode === 'mini') return null
   if (mode === 'terminal') return <TerminalView />
+  if (mode === 'alert') return <AlertCapsule />
+  if (mode === 'permission') return <PermissionCard />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   return (
@@ -128,7 +134,7 @@ function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Setti
           <Kbd accelerator={settings.shortcut} size="sm" />
         </span>
       ) : (
-        <span className="truncate text-small text-graphite">{date}</span>
+        <StatusDots fallback={<span className="truncate text-small text-graphite">{date}</span>} />
       )}
     </div>
   )
@@ -144,8 +150,9 @@ function Panel({ time, date, shortcut }: { time: string; date: string; shortcut:
         <span className="tabular font-mono text-title font-medium">{time}</span>
         <span className="text-small text-graphite">{date}</span>
       </header>
-      <div className="mt-3">
+      <div className="mt-3 flex items-start gap-2">
         <IntegrationRow />
+        <SessionsSection />
       </div>
       <nav className="mt-3 flex flex-col gap-1" aria-label="Developer Notch">
         <button type="button" className={action} onClick={() => void window.notch.app.openControlCenter()}>

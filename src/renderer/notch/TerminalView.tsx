@@ -6,7 +6,7 @@ import { chunkInput } from '../../shared/terminal/chunk-input'
 import { useT } from '../shared/use-t'
 import { obsidianTerminalTheme } from './terminal-theme'
 
-type Status = 'starting' | 'running' | 'exited' | 'unavailable'
+type Status = 'starting' | 'running' | 'unavailable'
 
 const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path
 
@@ -49,7 +49,6 @@ export function TerminalView() {
     term.open(element)
 
     let attached = false
-    let exited = false
     let disposed = false
 
     const sendSize = () => {
@@ -66,7 +65,6 @@ export function TerminalView() {
         setStatus('unavailable')
         return
       }
-      exited = false
       setShell(fileName(result.data.shell))
       setStatus('running')
       term.reset()
@@ -79,16 +77,8 @@ export function TerminalView() {
     const offData = window.notch.events.on('terminal:data', (chunk) => {
       if (attached) term.write(chunk)
     })
-    const offExit = window.notch.events.on('terminal:exit', () => {
-      if (!attached) return
-      exited = true
-      setStatus('exited')
-    })
+    // When the shell exits (`exit`), main closes the panel; the next open starts a new shell.
     const input = term.onData((data) => {
-      if (exited) {
-        if (data === '\r') void attach()
-        return
-      }
       if (!attached) return
       for (const chunk of chunkInput(data)) void window.notch.terminal.input({ data: chunk })
     })
@@ -121,12 +111,11 @@ export function TerminalView() {
       observer.disconnect()
       input.dispose()
       offData()
-      offExit()
       term.dispose()
     }
   }, [])
 
-  const notice = status === 'exited' ? t('terminal.exited') : status === 'unavailable' ? t('terminal.unavailable') : null
+  const notice = status === 'unavailable' ? t('terminal.unavailable') : null
 
   return (
     <div className="flex h-full flex-col" data-testid="terminal-view" data-status={status}>

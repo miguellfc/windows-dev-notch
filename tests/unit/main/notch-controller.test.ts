@@ -206,3 +206,31 @@ describe('notch controller', () => {
     })
   })
 })
+
+describe('notch controller: attention', () => {
+  it('grows into the alert capsule without taking focus', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'attention', on: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert'])
+  })
+
+  it('takes focus when expanding into the permission card and gives it back on dismiss', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'attention', on: true })
+    calls.length = 0
+    controller.dispatch({ type: 'expand' })
+    expect(calls).toEqual([size('permission'), 'mode:permission', 'focus'])
+    calls.length = 0
+    controller.dispatch({ type: 'dismiss' })
+    expect(calls).toEqual(['mode:alert', 'blur'])
+  })
+
+  it('keeps focus between the permission card and the panel', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'expand' })
+    calls.length = 0
+    controller.dispatch({ type: 'attention', on: false })
+    expect(calls).toEqual(['mode:expanded'])
+  })
+})

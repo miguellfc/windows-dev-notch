@@ -1,13 +1,13 @@
 import type { IntegrationId } from '../integrations/registry'
 
 /** What the capsule shows. `hidden` means the window is not on screen at all. */
-export type NotchMode = 'compact' | 'peek' | 'expanded' | 'terminal' | 'mini' | 'hidden'
+export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
-export type NotchView = 'home' | IntegrationId
+export type NotchView = 'home' | 'permission' | IntegrationId
 
 /** Modes that show the panel and therefore own the keyboard focus. */
-export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal'])
+export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission'])
 
 /** How the capsule yields to the window in front: nothing, shrink to a pill, or disappear. */
 export type Yielding = 'none' | 'mini' | 'hidden'
@@ -17,6 +17,8 @@ export interface NotchState {
   readonly yielding: Yielding
   readonly userHidden: boolean
   readonly pointerInside: boolean
+  /** A Claude permission request is waiting for the user. */
+  readonly attention: boolean
   readonly view: NotchView
 }
 
@@ -29,21 +31,30 @@ export type NotchEvent =
   | { readonly type: 'user-visibility'; readonly hidden: boolean }
   | { readonly type: 'open-integration'; readonly id: IntegrationId }
   | { readonly type: 'back' }
+  | { readonly type: 'attention'; readonly on: boolean }
 
 export const initialNotchState: NotchState = Object.freeze({
   expanded: false,
   yielding: 'none',
   userHidden: false,
   pointerInside: false,
+  attention: false,
   view: 'home',
 })
 
 /** Explicit user intent (expand) beats yielding; yielding beats hover. */
 export function notchMode(state: NotchState): NotchMode {
-  if (state.expanded) return state.view === 'terminal' ? 'terminal' : 'expanded'
+  if (state.expanded) return state.view === 'terminal' ? 'terminal' : state.view === 'permission' ? 'permission' : 'expanded'
   if (state.userHidden || state.yielding === 'hidden') return 'hidden'
+  if (state.attention) return 'alert'
   if (state.pointerInside) return 'peek'
   return state.yielding === 'mini' ? 'mini' : 'compact'
+}
+
+/** A panel opened while a permission is pending lands on the permission card. */
+function openingView(state: NotchState): NotchView {
+  if (state.expanded) return state.view
+  return state.attention ? 'permission' : 'home'
 }
 
 function next(state: NotchState, changes: Partial<NotchState>): NotchState {
@@ -67,11 +78,11 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
     case 'pointer':
       return next(state, { pointerInside: event.inside })
     case 'expand':
-      return next(state, { expanded: true, userHidden: false })
+      return next(state, { expanded: true, userHidden: false, view: openingView(state) })
     case 'toggle':
       return state.expanded
         ? next(state, { expanded: false, view: 'home' })
-        : next(state, { expanded: true, userHidden: false })
+        : next(state, { expanded: true, userHidden: false, view: openingView(state) })
     case 'dismiss':
       // Closing always forgets the view: the panel reopens on the integrations row.
       return next(state, { expanded: false, view: 'home' })
@@ -83,6 +94,9 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
         : next(state, { userHidden: false })
     case 'open-integration':
       return next(state, { expanded: true, userHidden: false, view: event.id })
+    case 'attention':
+      // Attention never opens or closes the panel; only an open permission card has nothing left to show.
+      return next(state, { attention: event.on, ...(!event.on && state.view === 'permission' ? { view: 'home' as const } : {}) })
     case 'back':
       return state.expanded ? next(state, { view: 'home' }) : state
   }

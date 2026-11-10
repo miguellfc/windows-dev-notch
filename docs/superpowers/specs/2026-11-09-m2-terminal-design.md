@@ -38,7 +38,7 @@ El panel expandido del notch muestra una fila de iconos de integraciones. La pri
   - `open()` → `{ state: 'running' | 'exited', exitCode?, snapshot, shell }`; crea el PTY si no hay uno vivo (`xterm-256color`, cwd = carpeta de usuario, 100×20).
   - `write(data)`, `resize(cols, rows)`: no-op si no hay sesión viva.
   - La salida se acumula en un búfer circular (historial para `snapshot`) y se emite en lotes cada ~8 ms (`terminal:data`).
-  - `onExit` → estado `exited` + evento `terminal:exit { exitCode }`; el siguiente `open()` crea otra sesión.
+  - `onExit` → evento `terminal:exit { exitCode }` y, si la terminal está a la vista, main cierra el panel (como cerrar una ventana de terminal; el foco vuelve a la app anterior). El siguiente `open()` crea otra sesión.
   - No expone el PTY ni llama a `kill()`.
 - `node-pty` se inyecta como `spawn`, así los tests usan un PTY falso.
 
@@ -59,8 +59,8 @@ Eventos main → renderer: `terminal:data` (`string`), `terminal:exit` (`{ exitC
 ### Renderer (`src/renderer/notch/`)
 
 - `src/shared/integrations/registry.ts`: lista `{ id, labelKey }` (hoy solo `terminal`); el renderer asocia el icono Lucide (`SquareTerminal`). El panel pinta una fila de tiles con el registro, encima de Control Center / Ocultar.
-- `TerminalView.tsx`: cabecera de 32 px (botón volver, nombre del shell en Geist Mono, aviso «sesión terminada · Enter para reiniciar» tras `exit`) y xterm 6 + `@xterm/addon-fit`, Geist Mono 13 px, tema Obsidian (fondo `#0E0E10`, texto Tiza, cursor/selección Azul Hielo, ANSI ajustado a los tokens de estado).
-  - Al montar: suscribe `terminal:data`/`terminal:exit`, llama a `terminal:open`, escribe el `snapshot`, ajusta tamaño (`terminal:resize`) y enfoca xterm.
+- `TerminalView.tsx`: cabecera de 32 px (botón volver, nombre del shell en Geist Mono, aviso «No se pudo iniciar PowerShell» si el shell no arranca) y xterm 6 + `@xterm/addon-fit`, Geist Mono 13 px, tema Obsidian (fondo `#0E0E10`, texto Tiza, cursor/selección Azul Hielo, ANSI ajustado a los tokens de estado).
+  - Al montar: suscribe `terminal:data`, llama a `terminal:open`, escribe el `snapshot`, ajusta tamaño (`terminal:resize`) y enfoca xterm.
   - `onData` de xterm → `terminal:input`.
 - El listener global de Esc ignora la tecla cuando el modo es `terminal`.
 - i18n ES/EN para todas las etiquetas nuevas.

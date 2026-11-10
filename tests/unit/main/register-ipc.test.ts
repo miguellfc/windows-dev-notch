@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { claudeChannelGuards } from '../../../src/main/claude/claude-ipc'
 import { registerIpc, type IpcEventLike, type IpcHandlers, type IpcMainLike } from '../../../src/main/ipc/register'
 import { SettingsReadOnlyError } from '../../../src/main/services/settings-store'
 import { contract } from '../../../src/shared/ipc/contract'
@@ -45,6 +46,16 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'terminal:resize': () => null,
     'settings:get': () => settings,
     'settings:update': (patch) => settingsSchema.parse({ ...settings, ...patch }),
+    'claude:get-state': () => ({ connection: 'not-installed', hooks: 'missing', sessions: [], pending: [] }),
+    'claude:decide': () => null,
+    'claude:focus-app': () => null,
+    'claude:dismiss-session': () => null,
+    'claude:hooks-preview': () => ({ ok: true, diff: [] }),
+    'claude:hooks-install': () => ({ ok: true, changed: false, diff: [] }),
+    'claude:hooks-uninstall': () => ({ ok: true, changed: false, diff: [] }),
+    'claude:test-connection': () => ({ ok: true }),
+    'claude:rotate-token': () => ({ hooks: 'reinstalled' }),
+    'claude:rotate-port': () => ({ hooks: 'not-installed' }),
     ...overrides,
   }
 }
@@ -194,6 +205,16 @@ describe('terminal write isolation', () => {
     'terminal:open': undefined,
     'terminal:input': { data: 'Get-ChildItem\r' },
     'terminal:resize': { cols: 80, rows: 24 },
+    'claude:get-state': undefined,
+    'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
+    'claude:focus-app': undefined,
+    'claude:dismiss-session': { sessionId: 'session-1' },
+    'claude:hooks-preview': undefined,
+    'claude:hooks-install': undefined,
+    'claude:hooks-uninstall': undefined,
+    'claude:test-connection': undefined,
+    'claude:rotate-token': undefined,
+    'claude:rotate-port': undefined,
   }
 
   it('has a sample input for every channel', () => {
@@ -217,5 +238,58 @@ describe('terminal write isolation', () => {
     const result = await fake.invoke(channel, trustedEvent, ...(sampleInput[channel] === undefined ? [] : [sampleInput[channel]]))
     expect(result).toMatchObject({ ok: true })
     expect(write).toHaveBeenCalledTimes(channel === 'terminal:input' ? 1 : 0)
+  })
+})
+
+// Claude channels: decisions only from the notch, hooks and token only from the Control Center.
+describe('claude channel guards', () => {
+  const NOTCH = 1
+  const CONTROL_CENTER = 2
+  const OTHER = 3
+  const allowed: Record<Extract<keyof typeof contract, `claude:${string}`>, 'notch' | 'control-center' | 'both'> = {
+    'claude:get-state': 'both',
+    'claude:decide': 'notch',
+    'claude:focus-app': 'notch',
+    'claude:dismiss-session': 'notch',
+    'claude:hooks-preview': 'control-center',
+    'claude:hooks-install': 'control-center',
+    'claude:hooks-uninstall': 'control-center',
+    'claude:test-connection': 'control-center',
+    'claude:rotate-token': 'control-center',
+    'claude:rotate-port': 'control-center',
+  }
+  const sample: Record<string, unknown> = {
+    'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
+    'claude:dismiss-session': { sessionId: 'session-1' },
+  }
+
+  it('covers every claude channel', () => {
+    expect(Object.keys(allowed).sort()).toEqual(Object.keys(contract).filter((c) => c.startsWith('claude:')).sort())
+  })
+
+  it.each(Object.entries(allowed))('%s is reachable only from %s', async (channel, who) => {
+    const fake = createFakeIpcMain()
+    const handler = vi.fn(createHandlers()[channel as keyof IpcHandlers] as () => unknown)
+    registerIpc({
+      ipcMain: fake.ipcMain,
+      handlers: createHandlers({ [channel]: handler }),
+      isTrustedUrl: (url) => url === 'app://trusted',
+      logger: createMemoryLogger(),
+      channelGuards: claudeChannelGuards({
+        fromNotch: (event) => event.sender.id === NOTCH,
+        // The Control Center may not exist yet: a guard that never matches.
+        fromControlCenter: (event) => event.sender.id === CONTROL_CENTER,
+      }),
+    })
+    const from = (id: number) => ({ sender: { id }, senderFrame: { url: 'app://trusted', parent: null } })
+    const args = sample[channel] === undefined ? [] : [sample[channel]]
+    const expectFor = (id: number) =>
+      (who === 'both' && id !== OTHER) || (who === 'notch' && id === NOTCH) || (who === 'control-center' && id === CONTROL_CENTER)
+
+    for (const id of [NOTCH, CONTROL_CENTER, OTHER]) {
+      const result = await fake.invoke(channel, from(id), ...args)
+      expect(result).toMatchObject(expectFor(id) ? { ok: true } : { ok: false, error: { code: 'FORBIDDEN' } })
+    }
+    expect(handler).toHaveBeenCalledTimes(who === 'both' ? 2 : 1)
   })
 })

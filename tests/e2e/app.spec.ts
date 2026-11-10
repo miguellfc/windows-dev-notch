@@ -23,6 +23,9 @@ const launch = async (): Promise<{ app: ElectronApplication; notch: Page }> => {
   env['NOTCH_USER_DATA_DIR'] = userData
   // Keep the capsule independent of whatever window happens to be in front during the run.
   env['NOTCH_DISABLE_FOREGROUND_WATCH'] = '1'
+  // Never touch the real ~/.claude/settings.json nor collide with an installed notch on 47600.
+  env['NOTCH_CLAUDE_SETTINGS'] = join(userData, 'claude-settings.json')
+  env['NOTCH_CLAUDE_PORT'] = '0'
   const app = await electron.launch({ args: ['.'], env })
   const notch = await app.firstWindow()
   await notch.emulateMedia({ reducedMotion: 'reduce' })
@@ -61,7 +64,7 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'events', 'notch', 'settings', 'terminal'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'settings', 'terminal'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")

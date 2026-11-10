@@ -91,3 +91,45 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Claude status dots: 8 px with a 3 px halo, the only glow the system allows. */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--dot);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 22%, transparent);
+}
+
+@keyframes wait-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+@keyframes wait-pulse-opacity {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.pulse-wait {
+  animation: wait-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Opacity only, at the authored pace (the blanket rule above would otherwise freeze it into a flicker). */
+  .pulse-wait {
+    animation: wait-pulse-opacity 1.6s ease-in-out infinite !important;
+    animation-duration: 1.6s !important;
+  }
+}
