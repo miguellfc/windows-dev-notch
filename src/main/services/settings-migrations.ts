@@ -1,9 +1,12 @@
-import { SETTINGS_VERSION } from '../../shared/settings/schema'
+import { DEFAULT_REMINDERS_SETTINGS, SETTINGS_VERSION } from '../../shared/settings/schema'
 
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>
 
-/** Step from version N (key) to N+1. Empty while only version 1 exists. */
-export const settingsMigrations: Readonly<Record<number, Migration>> = {}
+/** Step from version N (key) to N+1. */
+export const settingsMigrations: Readonly<Record<number, Migration>> = {
+  // v2 adds the reminders settings (snooze duration and sound).
+  1: (raw) => ({ ...raw, version: 2, reminders: { ...DEFAULT_REMINDERS_SETTINGS } }),
+}
 
 export type MigrationResult =
   | { kind: 'ok'; value: Record<string, unknown>; migrated: boolean }

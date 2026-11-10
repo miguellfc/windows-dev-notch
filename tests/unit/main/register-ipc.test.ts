@@ -28,6 +28,15 @@ function createFakeIpcMain() {
 
 const trustedEvent: IpcEventLike = { sender: { id: 1 }, senderFrame: { url: 'app://trusted', parent: null } }
 const settings = createDefaultSettings('en-US')
+const REMINDER_ID = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+const sampleReminder = {
+  id: REMINDER_ID,
+  text: 'Revisar PR',
+  dueAt: '2026-11-10T10:00:00.000Z',
+  repeat: 'none',
+  state: 'pending',
+  createdAt: '2026-11-10T09:00:00.000Z',
+} as const
 
 function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
   return {
@@ -56,6 +65,12 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'claude:test-connection': () => ({ ok: true }),
     'claude:rotate-token': () => ({ hooks: 'reinstalled' }),
     'claude:rotate-port': () => ({ hooks: 'not-installed' }),
+    'reminders:list': () => ({ reminders: [sampleReminder], notice: null }),
+    'reminders:create': () => sampleReminder,
+    'reminders:update': () => sampleReminder,
+    'reminders:snooze': () => sampleReminder,
+    'reminders:complete': () => sampleReminder,
+    'reminders:delete': () => null,
     ...overrides,
   }
 }
@@ -215,6 +230,12 @@ describe('terminal write isolation', () => {
     'claude:test-connection': undefined,
     'claude:rotate-token': undefined,
     'claude:rotate-port': undefined,
+    'reminders:list': undefined,
+    'reminders:create': { input: 'en 30 min revisar PR' },
+    'reminders:update': { id: REMINDER_ID, text: 'Otro' },
+    'reminders:snooze': { id: REMINDER_ID },
+    'reminders:complete': { id: REMINDER_ID },
+    'reminders:delete': { id: REMINDER_ID },
   }
 
   it('has a sample input for every channel', () => {

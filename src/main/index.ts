@@ -17,6 +17,8 @@ import { createWin32ForegroundProbe } from './platform/win32'
 import { createFileLogger } from './services/logger'
 import { SettingsStore } from './services/settings-store'
 import { createSettingsUpdater } from './services/settings-update'
+import { createRemindersIntegration } from './reminders/reminders-integration'
+import { remindersChannelGuards } from './reminders/reminders-ipc'
 import { pathExists, resolveShell, shellEnvironment } from './terminal/shell-resolver'
 import { createTerminalSession } from './terminal/terminal-session'
 import { controlCenterWindow, openControlCenter } from './windows/control-center-window'
@@ -35,6 +37,7 @@ const claudeSettingsOverride = app.isPackaged ? undefined : process.env['NOTCH_C
 const claudePortRaw = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_PORT']
 const claudePortOverride =
   claudePortRaw !== undefined && /^\d{1,5}$/.test(claudePortRaw) && Number(claudePortRaw) <= 65_535 ? Number(claudePortRaw) : undefined
+const testClockEnabled = !app.isPackaged && process.env['NOTCH_TEST_CLOCK'] === '1'
 if (isolatedUserData) app.setPath('userData', isolatedUserData)
 
 if (!app.requestSingleInstanceLock()) {
@@ -242,6 +245,12 @@ function start(): void {
         !notchWindow.isDestroyed() && event.sender.id === notchWindow.webContents.id
       // The Control Center may not exist yet; then nothing matches.
       const fromControlCenter = (event: IpcEventLike) => event.sender.id === controlCenterWindow()?.webContents.id
+      // Windows that receive integration events: the notch, and the Control Center when open.
+      const notchAndControlCenter = () => {
+        const cc = controlCenterWindow()
+        const targets = notchWindow.isDestroyed() ? [] : [notchWindow.webContents]
+        return cc ? [...targets, cc.webContents] : targets
+      }
 
       // --- Claude Code -----------------------------------------------------------------
       // Local bridge for Claude Code hooks. If it cannot start (port taken, no safeStorage),
@@ -253,14 +262,31 @@ function start(): void {
         logger,
         notch,
         language: () => settings.get().language,
-        eventTargets: () => {
-          const cc = controlCenterWindow()
-          const targets = notchWindow.isDestroyed() ? [] : [notchWindow.webContents]
-          return cc ? [...targets, cc.webContents] : targets
-        },
+        eventTargets: notchAndControlCenter,
       })
       claude.start().catch((error: unknown) => logger.error('Claude integration failed to start', { error }))
 
+      // --- Reminders -------------------------------------------------------------------
+      // Dev/test only: E2E moves this clock forward instead of waiting for real time.
+      let clockOffsetMs = 0
+      const reminders = createRemindersIntegration({
+        userDataDir: app.getPath('userData'),
+        logger,
+        notch,
+        language: () => settings.get().language,
+        snoozeMinutes: () => settings.get().reminders.snoozeMinutes,
+        now: testClockEnabled ? () => new Date(Date.now() + clockOffsetMs) : () => new Date(),
+        notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
+        eventTargets: notchAndControlCenter,
+      })
+      if (testClockEnabled) {
+        globalThis.__notchTestClock = {
+          advance: (ms) => {
+            clockOffsetMs += ms
+            return reminders.check()
+          },
+        }
+      }
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,
@@ -271,6 +297,7 @@ function start(): void {
           'terminal:input': fromNotchWindow,
           'terminal:resize': fromNotchWindow,
           ...claudeChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
+          ...remindersChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -316,14 +343,20 @@ function start(): void {
             return null
           },
           ...claude.handlers,
+          ...reminders.handlers,
         },
       })
+
+      // Started after registerIpc so the renderers never miss a handler; reminders:* calls wait
+      // for this to finish, so the first list already reflects the file.
+      reminders.start().catch((error: unknown) => logger.error('Reminders failed to start', { error }))
 
       app.on('will-quit', () => {
         watcher?.stop()
         notch.dispose()
         // After the notch: releasing held requests must not drive a closing window.
         claude.dispose()
+        reminders.dispose()
         shortcut.dispose()
         tray?.destroy()
         screen.off('display-added', onDisplaysChanged)

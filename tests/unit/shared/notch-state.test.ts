@@ -170,3 +170,72 @@ describe('attention (pending Claude permission)', () => {
     expect(reduceNotch(state, attention(true))).toBe(state)
   })
 })
+
+describe('reminderDue (a reminder is due)', () => {
+  const due = (on: boolean): NotchEvent => ({ type: 'reminders', due: on })
+  const attention = (on: boolean): NotchEvent => ({ type: 'attention', on })
+
+  it('starts without a due reminder', () => {
+    expect(initialNotchState.reminderDue).toBe(false)
+  })
+
+  it('shows the alert capsule when a reminder is due on the compact capsule, and returns to compact when it is cleared', () => {
+    expect(notchMode(run(due(true)))).toBe('alert')
+    expect(notchMode(run(due(true), due(false)))).toBe('compact')
+  })
+
+  it('shows the alert capsule over mini and peek', () => {
+    expect(notchMode(run(due(true), { type: 'foreground', verdict: 'mini' }))).toBe('alert')
+    expect(notchMode(run(due(true), { type: 'pointer', inside: true }))).toBe('alert')
+  })
+
+  it('lets hidden win over the alert', () => {
+    expect(notchMode(run(due(true), { type: 'foreground', verdict: 'hidden' }))).toBe('hidden')
+    expect(notchMode(run(due(true), { type: 'user-visibility', hidden: true }))).toBe('hidden')
+  })
+
+  it('opens on the reminders view when expanding with a due reminder and no attention', () => {
+    const state = run(due(true), { type: 'expand' })
+    expect(state.view).toBe('reminders')
+    expect(notchMode(state)).toBe('reminders')
+    expect(notchMode(run(due(true), { type: 'toggle' }))).toBe('reminders')
+  })
+
+  it('prefers the permission card when both attention and a due reminder are pending', () => {
+    const state = run(due(true), attention(true), { type: 'expand' })
+    expect(state.view).toBe('permission')
+    expect(notchMode(state)).toBe('permission')
+  })
+
+  it('opens on home when expanding with nothing pending', () => {
+    expect(run({ type: 'expand' }).view).toBe('home')
+  })
+
+  it('opens the reminders integration explicitly', () => {
+    expect(notchMode(run({ type: 'open-integration', id: 'reminders' }))).toBe('reminders')
+  })
+
+  it('never opens or closes the panel, and keeps the reminders view open when it is cleared', () => {
+    expect(run(due(true)).expanded).toBe(false)
+    const open = run(due(true), { type: 'expand' }, due(false))
+    expect(open.expanded).toBe(true)
+    expect(open.view).toBe('reminders')
+    expect(notchMode(open)).toBe('reminders')
+  })
+
+  it('goes back to the alert after dismiss while a reminder remains due', () => {
+    const state = run(due(true), { type: 'expand' }, { type: 'dismiss' })
+    expect(state.view).toBe('home')
+    expect(notchMode(state)).toBe('alert')
+  })
+
+  it('still lands on home for a permission view cleared by attention', () => {
+    expect(run(attention(true), { type: 'expand' }, attention(false)).view).toBe('home')
+  })
+
+  it('ignores repeated reminders events', () => {
+    const state = run(due(true))
+    expect(reduceNotch(state, due(true))).toBe(state)
+    expect(reduceNotch(initialNotchState, due(false))).toBe(initialNotchState)
+  })
+})

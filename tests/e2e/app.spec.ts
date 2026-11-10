@@ -64,7 +64,7 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'settings', 'terminal'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'reminders', 'settings', 'terminal'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")

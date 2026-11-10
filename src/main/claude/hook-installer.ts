@@ -1,6 +1,5 @@
-import { randomBytes } from 'node:crypto'
-import { mkdir, readdir, readFile as fsReadFile, realpath as fsRealpath, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { readdir, realpath as fsRealpath, rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { HOOK_EVENT_NAMES } from '../../shared/claude/hook-events'
 
@@ -233,34 +232,12 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 const timestamp = (date: Date): string =>
   `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 
-export const readTextFile = async (path: string): Promise<string | null> => {
-  try {
-    return await fsReadFile(path, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
-    throw error
-  }
-}
-
 /** The real path behind a (possibly symlinked) file; the path itself when it does not exist yet. */
 export const resolveRealPath = async (path: string): Promise<string> => {
   try {
     return await fsRealpath(path)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return path
-    throw error
-  }
-}
-
-/** Writes to a unique temp file in the same directory, then renames over the target. */
-export const writeFileAtomic = async (path: string, text: string): Promise<void> => {
-  await mkdir(dirname(path), { recursive: true })
-  const temp = `${path}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`
-  try {
-    await writeFile(temp, text, 'utf8')
-    await rename(temp, path)
-  } catch (error) {
-    await rm(temp, { force: true })
     throw error
   }
 }

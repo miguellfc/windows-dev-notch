@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { migrateSettings, type Migration } from '../../../src/main/services/settings-migrations'
+import {
+  migrateSettings,
+  settingsMigrations,
+  type Migration,
+} from '../../../src/main/services/settings-migrations'
 
 describe('migrateSettings', () => {
   it('returns current-version data unchanged', () => {
-    const raw = { version: 1, language: 'es' }
+    const raw = { version: 2, language: 'es' }
     expect(migrateSettings(raw)).toEqual({ kind: 'ok', value: raw, migrated: false })
+  })
+
+  it('migrates v1 settings to v2 adding reminder defaults', () => {
+    const raw = { version: 1, language: 'es', shortcut: 'Alt+N', launchAtLogin: false }
+    expect(migrateSettings(raw)).toEqual({
+      kind: 'ok',
+      value: { ...raw, version: 2, reminders: { snoozeMinutes: 10, sound: true } },
+      migrated: true,
+    })
+    expect(settingsMigrations[1]).toBeTypeOf('function')
   })
 
   it('applies each step in order up to the target version', () => {

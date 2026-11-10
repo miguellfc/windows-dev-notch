@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
 import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
 import { integrationIds } from '../integrations/registry'
+import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
 import type { ChannelName, EventName } from './channels'
 
@@ -10,7 +11,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'mini', 'hidden'])
 
 export const runtimeSchema = z.strictObject({
   isPackaged: z.boolean(),
@@ -72,6 +73,14 @@ export const claudeHooksWriteSchema = z.discriminatedUnion('ok', [
   invalidJsonSchema,
 ])
 
+/** Full reminders list plus why it may be incomplete (corrupt file moved aside, or read-only session). */
+export const remindersSnapshotSchema = z.strictObject({
+  reminders: z.array(reminderSchema),
+  notice: z.enum(['quarantined', 'read-only']).nullable(),
+})
+
+const reminderIdSchema = z.strictObject({ id: z.uuid() })
+
 const none = z.undefined()
 const ack = z.null()
 
@@ -108,6 +117,12 @@ export const contract = {
   'claude:test-connection': { input: none, output: z.strictObject({ ok: z.boolean() }) },
   'claude:rotate-token': { input: none, output: claudeRotateSchema },
   'claude:rotate-port': { input: none, output: claudeRotateSchema },
+  'reminders:list': { input: none, output: remindersSnapshotSchema },
+  'reminders:create': { input: createReminderInputSchema, output: reminderSchema },
+  'reminders:update': { input: updateReminderInputSchema, output: reminderSchema },
+  'reminders:snooze': { input: reminderIdSchema, output: reminderSchema },
+  'reminders:complete': { input: reminderIdSchema, output: reminderSchema },
+  'reminders:delete': { input: reminderIdSchema, output: ack },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -117,6 +132,9 @@ export const eventContract = {
   'terminal:data': z.string(),
   'terminal:exit': z.strictObject({ exitCode: z.int() }),
   'claude:state-changed': claudeStateSchema,
+  'reminders:changed': remindersSnapshotSchema,
+  /** A new batch is due (or reminders were missed at startup): the notch plays the chime. */
+  'reminders:fired': z.strictObject({ count: z.int().positive() }),
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

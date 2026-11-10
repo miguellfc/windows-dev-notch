@@ -1,13 +1,20 @@
 import type { CSSProperties } from 'react'
 import { useClaude } from '../../shared/claude-store'
+import { useAttentionCount } from '../../shared/reminders-store'
 import { useT } from '../../shared/use-t'
+import { ReminderAlert } from '../reminders/ReminderAlert'
 
-/** The amber capsule: oldest pending permission (session and tool), plus how many more wait. */
+/**
+ * The amber capsule: oldest pending permission (session and tool), plus how many more wait.
+ * Claude wins when both need attention; a small amber dot then says reminders are due too.
+ * With no pending permission, it shows the reminders alert instead.
+ */
 export function AlertCapsule() {
   const t = useT()
   const pending = useClaude((store) => store.state?.pending)
+  const remindersDue = useAttentionCount()
   const oldest = pending?.[0]
-  if (!pending || !oldest) return null
+  if (!pending || !oldest) return <ReminderAlert />
 
   return (
     <div
@@ -26,6 +33,14 @@ export function AlertCapsule() {
         <span className="tabular shrink-0 text-label font-medium text-wait">
           {t('claude.alert.more', { count: pending.length - 1 })}
         </span>
+      )}
+      {remindersDue > 0 && (
+        <span
+          data-testid="claude-alert-reminder-dot"
+          role="img"
+          aria-label={t('reminders.alert.alsoDue')}
+          className="size-1.5 shrink-0 rounded-full bg-wait"
+        />
       )}
     </div>
   )
