@@ -94,7 +94,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Should | Indicador de reuniones próximas (Google Calendar) | Fase 3; requiere OAuth |
 | Should | Centro de notificaciones con historial (SQLite) y prioridades | Fase 2 |
 | Should | Developer Toolbox | Fase 2; alcance por definir |
-| Could | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`) | Mucho valor, pero decide sobre acciones de Claude; requiere diseño de seguridad propio |
+| Must (M3, decidido 2026-11-10) | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`): solo "permitir una vez" o "denegar", solo con click | Diseño de seguridad en `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` |
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
 | Could | System Monitor (CPU, RAM, batería, disco, red) | Fase 4 |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
