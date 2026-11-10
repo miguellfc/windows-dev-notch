@@ -93,7 +93,7 @@ test('runs interactive commands and interrupts with Ctrl+C', async () => {
   await waitForPrompt(notch)
 
   await run(notch, 'Get-ChildItem -Name -Directory | Select-Object -First 50', /AppData|Desktop|Documents/)
-  await run(notch, `Set-Location '${resolve('.')}'; git branch --show-current`, /feat\/m2-terminal/)
+  await run(notch, `Set-Location '${resolve('.')}'; 'git:' + (git rev-parse --is-inside-work-tree)`, /git:true/)
   await run(notch, 'ping -t 127.0.0.1', /127\.0\.0\.1.*(TTL|ttl)/)
   await notch.keyboard.press('Control+C')
   await expect.poll(() => screenText(notch)).toMatch(/Control-C|\^C/)
@@ -119,6 +119,23 @@ test('keeps the session and its history when the panel closes', async () => {
   await notch.getByTestId('integration-terminal').click()
   await expect.poll(() => screenText(notch)).toMatch(/notch-7/)
   await run(notch, "$m + '-again'", /notch-7-again/)
+  await app.close()
+})
+
+test('exit closes the terminal like a terminal window, and the next open starts a new shell', async () => {
+  const { app, notch } = await launch()
+  await openTerminal(notch)
+  await waitForPrompt(notch)
+  await run(notch, "$m = 'old-session'; $m", /old-session/)
+
+  await notch.keyboard.type('exit')
+  await notch.keyboard.press('Enter')
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
+
+  await openTerminal(notch)
+  await waitForPrompt(notch)
+  expect(await screenText(notch)).not.toMatch(/old-session/)
+  await run(notch, "'new:' + [string]::IsNullOrEmpty($m)", /new:True/)
   await app.close()
 })
 

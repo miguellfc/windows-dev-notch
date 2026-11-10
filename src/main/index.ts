@@ -225,6 +225,9 @@ function start(): void {
         },
         onExit: (exitCode) => {
           if (!notchWindow.isDestroyed()) emitEvent([notchWindow.webContents], 'terminal:exit', { exitCode }, logger)
+          // `exit` closes the terminal like closing a terminal window: the panel closes and focus
+          // goes back to the previous app. The next open starts a new shell.
+          if (notch.mode() === 'terminal') notch.dispatch({ type: 'dismiss' })
         },
         isViewing: () => notch.mode() === 'terminal',
         logger,
