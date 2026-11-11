@@ -1,6 +1,7 @@
 # Monitor del sistema (núcleo) — Diseño
 
 **Fecha:** 2026-11-10 · **Rama:** `feat/system-monitor` (desde `dev`)
+> **Cambio del usuario (2026-11-11):** la lista de procesos muestra el top **5** (antes 8; constante `PROCESS_LIMIT` en `src/shared/system/schema.ts`) y el panel "Sistema" mide **520×280** (antes 520×360, medido con 5 filas: sin hueco ni scroll).
 **Fuentes:** PRD (Could "System Monitor", adelantado tras el MVP), `PRODUCT.md`, `DESIGN.md`, patrón de integraciones de M2 (terminal) y M4 (recordatorios).
 
 ## Objetivo
@@ -21,7 +22,7 @@ Este documento cubre solo el **núcleo**. El monitor completo se divide en tres 
 |---|---|
 | Dónde se ve | **Cápsula compacta siempre** (hora, fecha, CPU, RAM, batería) **y** una vista propia en la fila de integraciones |
 | Cápsula | Hora · fecha · CPU % · RAM % · batería % (la batería solo si el PC tiene) |
-| Procesos | Los 8 que más consumen, ordenables por CPU o RAM, con **Cerrar + confirmación** |
+| Procesos | Los 5 que más consumen, ordenables por CPU o RAM, con **Cerrar + confirmación** |
 | Cierre | Solo procesos del usuario actual; nunca críticos, del sistema, de otros usuarios ni el propio notch |
 | Fuente de datos | **Win32 con koffi + contadores PDH**, en el propio proceso main. Descartados `systeminformation` y PowerShell/WMI (lanzan procesos, cientos de ms y picos de CPU por consulta; incompatibles con "CPU ≈ 0 % en reposo") |
 | Color | Cifras en neutro (Grafito Cristal) hasta el hito de avisos; sin colores de alarma en este hito |
@@ -50,7 +51,7 @@ Primera tarea del plan: **prueba aislada** que confirme con koffi en esta máqui
   - `sampleLight()` → `{ cpu, ram: { used, total }, battery: { percent, charging, secondsLeft } | null }`.
   - `sampleFull()` → lo anterior + `disks: [{ letter, usedPercent, freeBytes, activityPercent | null }]`, `network: { upBytesPerSec, downBytesPerSec } | null`.
   - CPU por diferencia entre dos lecturas; la primera muestra devuelve `cpu: null`.
-- **`process-sampler.ts`** (puro): `top({ by: 'cpu' | 'ram', limit: 8 })` → `[{ pid, name, cpuPercent, privateBytes, startTime, killable }]`. CPU por proceso = Δ tiempo de proceso / (Δ tiempo × núcleos). `killable` = del usuario actual ∧ no crítico ∧ no es el notch ni sus procesos hijos ∧ sesión del usuario.
+- **`process-sampler.ts`** (puro): `top({ by: 'cpu' | 'ram', limit: 5 })` → `[{ pid, name, cpuPercent, privateBytes, startTime, killable }]`. CPU por proceso = Δ tiempo de proceso / (Δ tiempo × núcleos). `killable` = del usuario actual ∧ no crítico ∧ no es el notch ni sus procesos hijos ∧ sesión del usuario.
 - **`system-monitor.ts`** (orquestador con temporizadores inyectados):
   - **Ritmo ligero**: `sampleLight` cada **3 s** mientras la cápsula es visible (`compact`, `peek`, panel abierto).
   - **Ritmo completo**: `sampleFull` + `top` cada **1 s** solo mientras la vista "Sistema" está abierta.
@@ -71,13 +72,13 @@ Todo pasa por `registerIpc` (comprobación de sender, zod de entrada y salida). 
 
 ### Notch
 
-- **Estado y geometría**: integración `system` en `src/shared/integrations/registry.ts`, vista y modo `system` (panel de **520×360**), en `PANEL_MODES`.
+- **Estado y geometría**: integración `system` en `src/shared/integrations/registry.ts`, vista y modo `system` (panel de **520×280**), en `PANEL_MODES`.
 - **Cápsula compacta** (`compact`): `hora · fecha · CPU · RAM · batería` con iconos Lucide (`Cpu`, `MemoryStick`, `Battery` / `BatteryCharging` / `BatteryLow` sin color de alarma), cifras en Grafito Cristal, tabulares. `CAPSULE_SIZES.compact` crece al ancho que quepa en ES y EN (estimado ~300 px; se fija con capturas). Sin batería no se reserva hueco. Sin datos todavía: "—".
 - **Vista "Sistema"** (`src/renderer/notch/system/`):
   - Cabecera: `←` y "Sistema".
   - Tarjetas: CPU % con sparkline de 60 s, RAM usada/total con sparkline, red ↑/↓, batería (% · cargando · tiempo restante). Sparklines en SVG `polyline` sin animación.
   - Discos: una línea por unidad fija (`C: 62 % · 120 GB libres · actividad 3 %`).
-  - Procesos: `Segmented` `CPU | RAM`; 8 filas (nombre, CPU %, RAM); **Cerrar** visible con hover o foco solo si `killable`.
+  - Procesos: `Segmented` `CPU | RAM`; 5 filas (nombre, CPU %, RAM); **Cerrar** visible con hover o foco solo si `killable`.
   - Confirmación en línea: la fila pasa a "¿Cerrar chrome.exe (PID 1234)? `Cancelar` `Cerrar`", foco en Cancelar. Resultados: `killed` → la fila desaparece en el siguiente refresco; `denied` → "Sin permiso"; `gone` → "Ya no existe"; `not-killable` → "No se puede cerrar".
   - Teclado completo; Esc cancela la confirmación y, sin confirmación, vuelve a la fila de integraciones.
 - i18n ES/EN; tokens de `DESIGN.md`; `prefers-reduced-motion` respetado.
@@ -102,14 +103,14 @@ Todo pasa por `registerIpc` (comprobación de sender, zod de entrada y salida). 
 
 ## Pruebas
 
-- **Unitarias** con `SystemApi` falsa: CPU por diferencias (multi-núcleo, primera muestra nula, contadores que no avanzan); RAM; batería con y sin batería y cargando; discos (solo fijas); red (suma de interfaces, PDH ausente → null); top-8 por CPU y por RAM; `killable` (otro usuario, crítico, otra sesión, el notch, hijo del notch); validación de cierre (PID fuera de la lista, `startTime` distinto → `gone`, acceso denegado → `denied`); ritmos 3 s / 1 s / pausa en `mini`, `hidden` y alerta; geometría del modo `system` y de la cápsula compacta nueva; contratos IPC y guards.
+- **Unitarias** con `SystemApi` falsa: CPU por diferencias (multi-núcleo, primera muestra nula, contadores que no avanzan); RAM; batería con y sin batería y cargando; discos (solo fijas); red (suma de interfaces, PDH ausente → null); top-5 por CPU y por RAM; `killable` (otro usuario, crítico, otra sesión, el notch, hijo del notch); validación de cierre (PID fuera de la lista, `startTime` distinto → `gone`, acceso denegado → `denied`); ritmos 3 s / 1 s / pausa en `mini`, `hidden` y alerta; geometría del modo `system` y de la cápsula compacta nueva; contratos IPC y guards.
 - **E2E**: el test lanza un proceso propio (`node -e "setInterval(()=>{},1e3)"`), abre la vista, lo encuentra, lo cierra con confirmación y comprueba que muere; cifras visibles en la cápsula; capturas ES/EN de la cápsula y de la vista.
 - **Medición**: CPU de la app en reposo con la cápsula visible durante 1 min (Administrador de tareas / `process.getCPUUsage`).
 
 ## Criterios de aceptación
 
 1. La cápsula muestra hora, fecha, CPU %, RAM % y batería % (si hay batería), actualizados cada ~3 s, sin truncar en ES ni EN.
-2. La vista "Sistema" muestra CPU, RAM, red, batería, discos y los 8 procesos que más consumen, actualizados cada ~1 s.
+2. La vista "Sistema" muestra CPU, RAM, red, batería, discos y los 5 procesos que más consumen, actualizados cada ~1 s.
 3. Cerrar un proceso propio pide confirmación y lo termina; nunca ofrece cerrar procesos del sistema, de otros usuarios ni el propio notch.
 4. Con la app en reposo y la cápsula visible, la CPU de la app sigue ≈ 0 %.
 5. Con la cápsula en `mini` u oculta no se toma ninguna muestra.
