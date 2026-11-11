@@ -63,10 +63,15 @@ function DiffView({ diff }: { diff: readonly DiffLine[] }) {
   }
   return (
     <div>
-      <div className="mb-2 text-small text-graphite">{t('cc.claude.diffTitle')}</div>
+      <div id="claude-diff-title" className="mb-2 text-small text-graphite">
+        {t('cc.claude.diffTitle')}
+      </div>
+      {/* Focusable so the keyboard can scroll it; named by its title for screen readers. */}
       <pre
         tabIndex={0}
-        className="max-h-64 overflow-auto rounded-control border border-line bg-veil p-3 font-mono text-[12.5px] leading-5"
+        role="region"
+        aria-labelledby="claude-diff-title"
+        className="max-h-64 overflow-auto rounded-control border border-line bg-veil p-3 font-mono text-small leading-5"
       >
         {diff.map((line, index) => (
           <div key={index} className={`whitespace-pre ${DIFF_CLASS[line.kind]}`}>

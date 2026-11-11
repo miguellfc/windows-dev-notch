@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, type Display } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen, session, type Display } from 'electron'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { createClaudeIntegration } from './claude/claude-integration'
@@ -17,6 +17,8 @@ import { createWin32ForegroundProbe } from './platform/win32'
 import { createFileLogger } from './services/logger'
 import { SettingsStore } from './services/settings-store'
 import { createSettingsUpdater } from './services/settings-update'
+import { createUsageIpcHandlers, usageChannelGuards } from './services/usage-ipc'
+import { createUsageLog } from './services/usage-log'
 import { createRemindersIntegration } from './reminders/reminders-integration'
 import { remindersChannelGuards } from './reminders/reminders-ipc'
 import { pathExists, resolveShell, shellEnvironment } from './terminal/shell-resolver'
@@ -27,6 +29,9 @@ import { createNotchWindow, nativeHandle } from './windows/notch-window'
 import { denyAllPermissions, hardenWebContents } from './windows/secure-window'
 
 const APP_USER_MODEL_ID = 'dev.developernotch.app'
+const USAGE_TICK_MS = 60_000
+/** Upper bound on the usage flush at quit, so quitting never hangs on the disk. */
+const USAGE_QUIT_FLUSH_MS = 2_000
 
 // Development-only switches. A packaged build ignores them all, so nothing in the
 // environment can point the installed app at another page, profile or behaviour.
@@ -54,6 +59,9 @@ function physicalRect(display: Display): MonitorRect {
 function start(): void {
   const logger = createFileLogger({ dir: join(app.getPath('userData'), 'logs'), mirrorToConsole: !app.isPackaged })
   let quitting = false
+  // Obsidian is dark-only (DESIGN.md). Mica, the title-bar buttons and native menus follow this
+  // instead of the Windows app theme, so a light system theme never puts Tiza text on light Mica.
+  nativeTheme.themeSource = 'dark'
 
   app.on('web-contents-created', (_event, contents) => hardenWebContents(contents, logger))
   app.on('before-quit', () => {
@@ -86,6 +94,14 @@ function start(): void {
         logger,
       })
       await settings.load()
+
+      // --- Usage log -------------------------------------------------------------------
+      // Daily counts kept only on this PC (userData/usage.json) for the About page. Loading does
+      // not block startup; events recorded meanwhile are merged into the file's.
+      const usage = createUsageLog({ file: join(app.getPath('userData'), 'usage.json'), logger, now: () => new Date() })
+      const usageLoaded = usage.load()
+      usage.record({ type: 'launch' })
+      const usageTimer = setInterval(() => usage.tick(), USAGE_TICK_MS)
 
       const rendererFile = (page: string) => join(__dirname, `../renderer/${page}/index.html`)
       const preloadPath = join(__dirname, '../preload/index.js')
@@ -263,6 +279,7 @@ function start(): void {
         notch,
         language: () => settings.get().language,
         eventTargets: notchAndControlCenter,
+        onAlert: (latencyMs) => usage.record({ type: 'claude-alert', latencyMs }),
       })
       claude.start().catch((error: unknown) => logger.error('Claude integration failed to start', { error }))
 
@@ -278,6 +295,7 @@ function start(): void {
         now: testClockEnabled ? () => new Date(Date.now() + clockOffsetMs) : () => new Date(),
         notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
         eventTargets: notchAndControlCenter,
+        recordUsage: (event) => usage.record(event),
       })
       if (testClockEnabled) {
         globalThis.__notchTestClock = {
@@ -298,6 +316,7 @@ function start(): void {
           'terminal:resize': fromNotchWindow,
           ...claudeChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...remindersChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
+          ...usageChannelGuards({ fromControlCenter }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -344,6 +363,7 @@ function start(): void {
           },
           ...claude.handlers,
           ...reminders.handlers,
+          ...createUsageIpcHandlers(usage, () => usageLoaded),
         },
       })
 
@@ -351,7 +371,21 @@ function start(): void {
       // for this to finish, so the first list already reflects the file.
       reminders.start().catch((error: unknown) => logger.error('Reminders failed to start', { error }))
 
-      app.on('will-quit', () => {
+      let usageSaved = false
+      app.on('will-quit', (event) => {
+        if (!usageSaved) {
+          // First pass: save the usage counts (async), then quit again to run the cleanup below.
+          usageSaved = true
+          event.preventDefault()
+          clearInterval(usageTimer)
+          let timer: ReturnType<typeof setTimeout> | undefined
+          const timeout = new Promise<void>((resolve) => (timer = setTimeout(resolve, USAGE_QUIT_FLUSH_MS)))
+          void Promise.race([usage.flush(), timeout]).finally(() => {
+            clearTimeout(timer)
+            app.quit()
+          })
+          return
+        }
         watcher?.stop()
         notch.dispose()
         // After the notch: releasing held requests must not drive a closing window.

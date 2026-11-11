@@ -2,7 +2,8 @@ import { ArrowLeft, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { NoticeBanner } from '../../shared/reminders/RemindersNotice'
 import { useT } from '../../shared/use-t'
-import { headerIconButton, ReminderForm } from './ReminderForm'
+import { ReminderForm } from './ReminderForm'
+import { headerIconButton } from './styles'
 import { ReminderList } from './ReminderList'
 
 /**
@@ -23,6 +24,7 @@ export function RemindersView() {
   const t = useT()
   const [screen, setScreen] = useState<'list' | 'form'>('list')
   const addButton = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
 
   // The tile that opened the view unmounts, and so does the form on its way back: keep focus in
   // the panel (on "+") so the keyboard, and the panel's Esc, keep working.
@@ -31,7 +33,15 @@ export function RemindersView() {
   }, [screen])
 
   return (
-    <div data-testid="reminders-panel" onKeyDown={onPanelKeyDown} className="flex h-full flex-col gap-2 px-3 pb-3 pt-2">
+    // Focusable (not tabbable): a click on a blank area keeps focus in the panel, so Esc reaches
+    // onPanelKeyDown (back to the row) instead of NotchApp's window-level dismiss.
+    <div
+      ref={panel}
+      data-testid="reminders-panel"
+      tabIndex={-1}
+      onKeyDown={onPanelKeyDown}
+      className="flex h-full flex-col gap-2 px-3 pb-3 pt-2 outline-none"
+    >
       {screen === 'list' ? (
         <>
           <header className="flex h-8 shrink-0 items-center gap-1">
@@ -60,13 +70,13 @@ export function RemindersView() {
               type="button"
               data-testid="reminders-see-all"
               onClick={() => void window.notch.app.openControlCenter()}
-              className="ml-auto cursor-pointer rounded-[8px] px-2 py-1 text-label font-medium text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
+              className="ml-auto cursor-pointer rounded-control-sm px-2 py-1 text-label font-medium text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
             >
               {t('reminders.view.seeAll')}
             </button>
           </header>
           <NoticeBanner />
-          <ReminderList />
+          <ReminderList onFocusLost={() => (addButton.current ?? panel.current)?.focus()} />
         </>
       ) : (
         <ReminderForm onDone={() => setScreen('list')} />

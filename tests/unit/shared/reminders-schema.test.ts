@@ -3,6 +3,7 @@ import {
   REMINDERS_ACTIVE_MAX,
   REMINDER_TEXT_MAX,
   createReminderInputSchema,
+  hasVisibleText,
   reminderPresetSchema,
   reminderSchema,
   reminderTextSchema,
@@ -52,6 +53,25 @@ describe('reminderTextSchema', () => {
     expect(reminderTextSchema.safeParse(text).success).toBe(true)
     // A ZWJ never excuses a neighbouring bidi override.
     expect(reminderTextSchema.safeParse('\u200D\u202Edeploy').success).toBe(false)
+  })
+
+  it('requires at least one visible character', () => {
+    // A lone ZWJ, ZWJ plus spaces, a lone variation selector, a Hangul filler.
+    for (const text of ['\u200D', ' \u200D ', '\u200D \u200D', '\uFE0F', '\u3164']) {
+      expect(reminderTextSchema.safeParse(text).success, JSON.stringify(text)).toBe(false)
+    }
+    expect(reminderTextSchema.safeParse('\u200D x').success).toBe(true)
+  })
+})
+
+describe('hasVisibleText', () => {
+  it('is false for blank or invisible-only text and true otherwise', () => {
+    expect(hasVisibleText('')).toBe(false)
+    expect(hasVisibleText('  ')).toBe(false)
+    expect(hasVisibleText('\u200D')).toBe(false)
+    expect(hasVisibleText(' \u200D  \u200D ')).toBe(false)
+    expect(hasVisibleText('a')).toBe(true)
+    expect(hasVisibleText('\u{1F469}\u200D\u{1F4BB}')).toBe(true)
   })
 })
 

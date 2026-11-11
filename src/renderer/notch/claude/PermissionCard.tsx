@@ -64,7 +64,7 @@ export function PermissionCard() {
     'h-9 flex-1 cursor-pointer rounded-control px-4 text-body font-medium transition-colors duration-150 disabled:cursor-default disabled:opacity-50'
 
   return (
-    <div data-testid="claude-permission" className="flex h-full flex-col px-5 pb-4 pt-5">
+    <div data-testid="claude-permission" className="flex h-full flex-col px-5 pb-4 pt-4">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-label font-medium text-wait">{t('claude.permission.title')}</p>
@@ -103,7 +103,7 @@ export function PermissionCard() {
           onKeyUp={blockKey}
           onPointerDown={onPointerDown}
           onClick={decide('deny', enabled.deny)}
-          className={`${button} border border-line bg-veil-tile text-chalk hover:bg-[rgba(255,255,255,0.09)]`}
+          className={`${button} border border-line bg-veil-tile text-chalk hover:bg-veil-hover`}
         >
           {t('claude.permission.deny')}
         </button>

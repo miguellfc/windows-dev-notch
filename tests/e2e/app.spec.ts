@@ -64,7 +64,7 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'reminders', 'settings', 'terminal'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'reminders', 'settings', 'terminal', 'usage'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")
@@ -139,4 +139,33 @@ test('Control Center changes language live and persists it with the shortcut', a
   expect(runtime).toMatchObject({ ok: true, data: { shortcutRegistered: true } })
   await expect.poll(() => notch.evaluate(() => (globalThis as unknown as { document: { documentElement: { lang: string } } }).document.documentElement.lang)).toBe('es')
   await app.close()
+})
+
+test('About page shows the local usage log, and quitting saves it', async () => {
+  const { app, notch } = await launch()
+
+  // The summary is for the Control Center only.
+  const fromNotch = await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.usage.summary({ days: 14 }))
+  expect(fromNotch).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } })
+
+  const opened = app.waitForEvent('window')
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.app.openControlCenter())
+  const cc = await opened
+  await cc.emulateMedia({ reducedMotion: 'reduce' })
+  await cc.getByRole('radio', { name: 'English' }).click()
+  await cc.getByRole('button', { name: 'About' }).click()
+
+  const usage = cc.getByRole('region', { name: 'Usage (last 14 days)' })
+  await expect(usage).toBeVisible()
+  // This launch is already counted.
+  await expect(usage.getByRole('definition').nth(2)).toHaveText('1')
+  await expect(usage.getByText('Stored only on this PC.')).toBeVisible()
+  await usage.getByRole('radio', { name: '7 days' }).click()
+  await expect(cc.getByRole('region', { name: 'Usage (last 7 days)' })).toBeVisible()
+  await cc.screenshot({ path: 'test-results/polish-about-usage.png' })
+
+  await app.close()
+  const saved = JSON.parse(readFileSync(join(userData, 'usage.json'), 'utf8')) as { version: number; days: Record<string, { launches: number }> }
+  expect(saved.version).toBe(1)
+  expect(Object.values(saved.days).reduce((sum, day) => sum + day.launches, 0)).toBe(1)
 })

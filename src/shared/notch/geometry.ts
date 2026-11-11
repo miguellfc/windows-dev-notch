@@ -21,14 +21,28 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   mini: { width: 120, height: 6 },
 }
 
-/** Transparent room around the capsule so its shadow is not clipped by the window edge. */
-export const SHADOW_MARGIN = { side: 32, top: 6, bottom: 48 } as const
+/**
+ * Transparent room around the capsule so its shadow is not clipped by the window edge. The
+ * levitation shadow (`0 18px 50px`) reaches 50 px sideways and 18 + 50 px below the capsule.
+ */
+export const SHADOW_MARGIN = { side: 56, top: 6, bottom: 72 } as const
 
-/** Window bounds for a mode: horizontally centred at the top of the given work area. */
+/**
+ * Constant window width: the widest capsule plus its shadow. The width never changes between
+ * modes because Motion suspends layout animations for 250 ms whenever `innerWidth` changes,
+ * which turned every growing morph into a jump. Only the height follows the mode.
+ */
+export const WINDOW_WIDTH = Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2
+
+/** Window height for a mode: the capsule plus the shadow room above and below it. */
+export function windowHeightFor(mode: VisibleMode): number {
+  return SHADOW_MARGIN.top + CAPSULE_SIZES[mode].height + SHADOW_MARGIN.bottom
+}
+
+/** Window bounds for a mode: fixed width, horizontally centred at the top of the given work area. */
 export function windowBoundsFor(mode: VisibleMode, workArea: Rect): Rect {
-  const capsule = CAPSULE_SIZES[mode]
-  const width = capsule.width + SHADOW_MARGIN.side * 2
-  const height = SHADOW_MARGIN.top + capsule.height + SHADOW_MARGIN.bottom
+  const width = WINDOW_WIDTH
+  const height = windowHeightFor(mode)
   return {
     x: Math.round(workArea.x + (workArea.width - width) / 2),
     y: Math.round(workArea.y),
@@ -37,12 +51,19 @@ export function windowBoundsFor(mode: VisibleMode, workArea: Rect): Rect {
   }
 }
 
-const area = (mode: VisibleMode) => CAPSULE_SIZES[mode].width * CAPSULE_SIZES[mode].height
+/**
+ * Whether a change grows the window. Only the height changes between modes, so this is the
+ * single rule for the window order (main) and the grow/shrink motion (renderer). Area would
+ * disagree for reminders (420×320) ↔ permission (480×300).
+ */
+export function growsWindow(from: VisibleMode, to: VisibleMode): boolean {
+  return windowHeightFor(to) >= windowHeightFor(from)
+}
 
 /**
- * Growing: enlarge the transparent window first, then animate inside it.
+ * Growing: enlarge the transparent window (its height) first, then animate inside it.
  * Shrinking: animate first, then shrink the window (M0 strategy A).
  */
 export function resizeOrder(from: VisibleMode, to: VisibleMode): 'resize-first' | 'animate-first' {
-  return area(to) >= area(from) ? 'resize-first' : 'animate-first'
+  return growsWindow(from, to) ? 'resize-first' : 'animate-first'
 }

@@ -198,6 +198,38 @@ describe('buildApi', () => {
   })
 })
 
+describe('usage contract', () => {
+  const summary = {
+    days: 3,
+    runningHoursAvg: 2.5,
+    launches: 4,
+    remindersFired: 1,
+    remindersMissed: 0,
+    remindersCompleted: 1,
+    claudeAlerts: 2,
+    claudeLatencyMedianMs: 40,
+    claudeLatencyP95Ms: null,
+    from: '2026-10-28',
+    to: '2026-11-10',
+  }
+
+  it('accepts only the 7, 14 and 30 day ranges (or none)', () => {
+    const input = contract['usage:summary'].input
+    for (const days of [7, 14, 30]) expect(input.safeParse({ days }).success).toBe(true)
+    expect(input.safeParse({}).success).toBe(true)
+    for (const days of [0, 1, 15, 90, '14', 14.5]) expect(input.safeParse({ days }).success).toBe(false)
+    expect(input.safeParse({ days: 14, file: 'usage.json' }).success).toBe(false)
+  })
+
+  it('keeps the summary strict and counts-only', () => {
+    const output = contract['usage:summary'].output
+    expect(output.safeParse(summary).success).toBe(true)
+    expect(output.safeParse({ ...summary, sessions: ['secret'] }).success).toBe(false)
+    expect(output.safeParse({ ...summary, launches: -1 }).success).toBe(false)
+    expect(output.safeParse({ ...summary, from: 'yesterday' }).success).toBe(false)
+  })
+})
+
 describe('result helpers', () => {
   it('builds success and error results', () => {
     expect(ok(1)).toEqual({ ok: true, data: 1 })

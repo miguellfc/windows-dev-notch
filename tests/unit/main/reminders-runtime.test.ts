@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRemindersIpcHandlers } from '../../../src/main/reminders/reminders-ipc'
 import { createRemindersRuntime, type RemindersSnapshot } from '../../../src/main/reminders/reminders-runtime'
 import type { RemindersLoadResult, RemindersStore } from '../../../src/main/reminders/reminders-store'
+import type { UsageEvent } from '../../../src/main/services/usage-log'
 import type { Reminder } from '../../../src/shared/reminders/schema'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -48,6 +49,7 @@ function setup(opts: { load?: RemindersLoadResult; seed?: Reminder[]; loadGate?:
   const setDue = vi.fn<(due: boolean) => void>()
   const emitChanged = vi.fn<(snapshot: RemindersSnapshot) => void>()
   const emitFired = vi.fn<(count: number) => void>()
+  const recordUsage = vi.fn<(event: UsageEvent) => void>()
   const logger = createMemoryLogger()
   const runtime = createRemindersRuntime({
     store,
@@ -60,8 +62,10 @@ function setup(opts: { load?: RemindersLoadResult; seed?: Reminder[]; loadGate?:
     setDue,
     emitChanged,
     emitFired,
+    recordUsage,
   })
   return {
+    recordUsage,
     runtime,
     toast,
     setDue,
@@ -114,6 +118,25 @@ describe('reminders runtime', () => {
     expect(emitFired).toHaveBeenCalledWith(2)
     expect(setDue).toHaveBeenLastCalledWith(true)
     expect(emitChanged.mock.lastCall![0].reminders.map((r) => r.state)).toEqual(['missed', 'missed'])
+  })
+
+  it('records missed, fired and completed reminders in the usage log', async () => {
+    const seed = [
+      reminder(1, new Date(T0.getTime() - 60 * MIN)),
+      reminder(2, new Date(T0.getTime() + 5 * MIN)),
+      reminder(3, new Date(T0.getTime() + 6 * MIN)),
+    ]
+    const { runtime, recordUsage, advance } = setup({ seed })
+    await runtime.start()
+    expect(recordUsage.mock.calls).toEqual([[{ type: 'reminders-missed', count: 1 }]])
+    advance(10 * MIN)
+    await runtime.check()
+    expect(recordUsage).toHaveBeenLastCalledWith({ type: 'reminders-fired', count: 2 })
+    await runtime.service.complete(uuid(2))
+    expect(recordUsage).toHaveBeenLastCalledWith({ type: 'reminder-completed' })
+    // A refused completion (already done) is not counted.
+    await expect(runtime.service.complete(uuid(2))).rejects.toThrow()
+    expect(recordUsage).toHaveBeenCalledTimes(3)
   })
 
   it('after a create: publishes, keeps due off and aims the timer at the new reminder', async () => {

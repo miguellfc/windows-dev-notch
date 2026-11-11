@@ -1,11 +1,11 @@
 import type { ReminderPreset } from './schema'
 
-const MINUTE_MS = 60_000
+export const MINUTE_MS = 60_000
 /** Upper bound for scanning day by day (covers weekends plus slack). */
 const MAX_SCAN_DAYS = 10
 
 /** Same calendar date as `day`, shifted by `days` whole local days, at 00:00 local. */
-function startOfLocalDay(day: Date, days = 0): Date {
+export function startOfLocalDay(day: Date, days = 0): Date {
   return new Date(day.getFullYear(), day.getMonth(), day.getDate() + days)
 }
 

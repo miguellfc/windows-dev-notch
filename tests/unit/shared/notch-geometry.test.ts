@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, SHADOW_MARGIN, resizeOrder, windowBoundsFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, SHADOW_MARGIN, WINDOW_WIDTH, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -12,8 +12,23 @@ describe('windowBoundsFor', () => {
 
   it('leaves room for the shadow around the capsule', () => {
     const bounds = windowBoundsFor('expanded', workArea)
-    expect(bounds.width).toBe(CAPSULE_SIZES.expanded.width + SHADOW_MARGIN.side * 2)
-    expect(bounds.height).toBe(SHADOW_MARGIN.top + CAPSULE_SIZES.expanded.height + SHADOW_MARGIN.bottom)
+    expect(bounds.width).toBe(752)
+    expect(bounds.height).toBe(6 + 236 + 72)
+  })
+
+  it('keeps one width for every mode: the widest capsule plus the shadow', () => {
+    // Motion skips layout animations for 250 ms after innerWidth changes, so the width must not.
+    expect(WINDOW_WIDTH).toBe(752)
+    for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
+      const bounds = windowBoundsFor(mode, workArea)
+      expect(bounds.width).toBe(WINDOW_WIDTH)
+      expect(bounds.x).toBe(windowBoundsFor('compact', workArea).x)
+    }
+  })
+
+  it('does not clip the levitation shadow (0 18px 50px)', () => {
+    expect(SHADOW_MARGIN.side).toBeGreaterThanOrEqual(50)
+    expect(SHADOW_MARGIN.bottom).toBeGreaterThanOrEqual(18 + 50)
   })
 
   it('follows a secondary monitor and a top taskbar', () => {
@@ -41,6 +56,7 @@ describe('terminal panel geometry', () => {
   it('is 640x360 plus the shadow margin', () => {
     expect(CAPSULE_SIZES.terminal).toEqual({ width: 640, height: 360 })
     expect(windowBoundsFor('terminal', workArea).width).toBe(640 + SHADOW_MARGIN.side * 2)
+    expect(windowBoundsFor('terminal', workArea).height).toBe(SHADOW_MARGIN.top + 360 + SHADOW_MARGIN.bottom)
   })
 
   it('grows the window before animating into the terminal and shrinks after leaving it', () => {
@@ -56,18 +72,28 @@ describe('alert and permission geometry', () => {
     expect(CAPSULE_SIZES.permission).toEqual({ width: 480, height: 300 })
   })
 
-  it('orders resizes by area', () => {
+  it('orders resizes by window height', () => {
     expect(resizeOrder('compact', 'alert')).toBe('resize-first')
     expect(resizeOrder('alert', 'permission')).toBe('resize-first')
     expect(resizeOrder('permission', 'alert')).toBe('animate-first')
     expect(resizeOrder('permission', 'expanded')).toBe('animate-first')
   })
+
+  it('orders reminders (420×320) and permission (480×300) by height, not area', () => {
+    // Permission has the larger area but the shorter window: growing into reminders must
+    // enlarge the window first, and moving to permission must animate before it shrinks.
+    expect(windowHeightFor('reminders')).toBeGreaterThan(windowHeightFor('permission'))
+    expect(resizeOrder('permission', 'reminders')).toBe('resize-first')
+    expect(resizeOrder('reminders', 'permission')).toBe('animate-first')
+    expect(growsWindow('permission', 'reminders')).toBe(true)
+    expect(growsWindow('reminders', 'permission')).toBe(false)
+  })
 })
 
 describe('reminders panel geometry', () => {
-  it('is 420x320 plus the shadow margin', () => {
+  it('is 420x320 plus the shadow margin in height', () => {
     expect(CAPSULE_SIZES.reminders).toEqual({ width: 420, height: 320 })
-    expect(windowBoundsFor('reminders', workArea).width).toBe(420 + SHADOW_MARGIN.side * 2)
+    expect(windowBoundsFor('reminders', workArea).height).toBe(SHADOW_MARGIN.top + 320 + SHADOW_MARGIN.bottom)
   })
 
   it('grows the window before animating into the panel and shrinks after leaving it', () => {

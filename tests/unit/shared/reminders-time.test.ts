@@ -1,7 +1,5 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { describe, expect, it } from 'vitest'
-import { atLocalTime, nextOccurrence, presetDueAt } from '../../../src/shared/reminders/time'
+import { atLocalTime, nextOccurrence, presetDueAt, startOfLocalDay } from '../../../src/shared/reminders/time'
 
 const local = (y: number, mo: number, d: number, h = 0, mi = 0, s = 0): Date =>
   new Date(y, mo - 1, d, h, mi, s)
@@ -70,6 +68,32 @@ describe('nextOccurrence', () => {
   })
 })
 
+describe('nextOccurrence pinning', () => {
+  it('daily 02:30 returns to 02:30 the day after the spring-forward gap', () => {
+    expect(nextOccurrence('daily', '02:30', local(2026, 3, 29, 3, 0))).toEqual(
+      local(2026, 3, 30, 2, 30),
+    )
+  })
+
+  it('weekdays starting on Sunday -> Monday', () => {
+    expect(nextOccurrence('weekdays', '09:30', local(2026, 11, 15, 8, 0))).toEqual(
+      local(2026, 11, 16, 9, 30),
+    )
+  })
+
+  it('weekdays on Friday before the time -> same Friday', () => {
+    expect(nextOccurrence('weekdays', '09:30', local(2026, 11, 13, 8, 0))).toEqual(
+      local(2026, 11, 13, 9, 30),
+    )
+  })
+
+  it('daily rolls over the year boundary', () => {
+    expect(nextOccurrence('daily', '09:00', local(2026, 12, 31, 10, 0))).toEqual(
+      local(2027, 1, 1, 9, 0),
+    )
+  })
+})
+
 describe('presetDueAt', () => {
   const now = local(2026, 11, 10, 15, 0, 20)
   it('15m and 1h add minutes to now', () => {
@@ -78,5 +102,13 @@ describe('presetDueAt', () => {
   })
   it('tomorrow-9 is tomorrow 09:00 local', () => {
     expect(presetDueAt('tomorrow-9', now)).toEqual(local(2026, 11, 11, 9, 0))
+  })
+})
+
+describe('startOfLocalDay', () => {
+  it('returns local midnight, shifting whole days across month and year ends', () => {
+    expect(startOfLocalDay(local(2026, 12, 31, 18, 30))).toEqual(local(2026, 12, 31))
+    expect(startOfLocalDay(local(2026, 12, 31, 18, 30), 1)).toEqual(local(2027, 1, 1))
+    expect(startOfLocalDay(local(2026, 1, 31, 18, 30), 1)).toEqual(local(2026, 2, 1))
   })
 })

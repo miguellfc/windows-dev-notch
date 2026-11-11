@@ -1,5 +1,3 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RETRY_MS, createReminderScheduler } from '../../../src/main/reminders/reminder-scheduler'
 import { createRemindersService, type RemindersService } from '../../../src/main/reminders/reminders-service'
@@ -26,7 +24,11 @@ const reminder = (n: number, dueAt: Date, over: Partial<Reminder> = {}): Reminde
 })
 
 function setup(opts: { safetyIntervalMs?: number; noInterval?: boolean; wrapService?: (s: RemindersService) => RemindersService } = {}) {
-  let current = T0
+  // The injected clock follows the fake system time (so it moves in step with the timers); `jump`
+  // adds a wall-clock jump on top. Setting it ahead of the timers instead would make a 1 ms
+  // re-arm loop fire once per fake millisecond.
+  let jumped = 0
+  const clock = (): Date => new Date(Date.now() + jumped)
   let items: readonly Reminder[] = []
   let seq = 100
   const store: RemindersStore = {
@@ -38,7 +40,7 @@ function setup(opts: { safetyIntervalMs?: number; noInterval?: boolean; wrapServ
   }
   const real = createRemindersService({
     store,
-    now: () => current,
+    now: clock,
     newId: () => uuid(++seq),
     snoozeMinutes: () => 10,
     onChange: () => undefined,
@@ -61,7 +63,7 @@ function setup(opts: { safetyIntervalMs?: number; noInterval?: boolean; wrapServ
   const logger = createMemoryLogger()
   const scheduler = createReminderScheduler({
     service,
-    now: () => current,
+    now: clock,
     timers,
     onFired: (b) => fired.push(b),
     onMissed: (b) => missed.push(b),
@@ -82,18 +84,18 @@ function setup(opts: { safetyIntervalMs?: number; noInterval?: boolean; wrapServ
     items: () => items,
     /** Moves the injected clock and the fake timers together. */
     advance: async (ms: number) => {
-      current = new Date(current.getTime() + ms)
       await vi.advanceTimersByTimeAsync(ms)
     },
     /** Moves only the injected clock (a wall-clock jump, e.g. suspend/resume). */
     jump: (ms: number) => {
-      current = new Date(current.getTime() + ms)
+      jumped += ms
     },
   }
 }
 
 beforeEach(() => {
   vi.useFakeTimers()
+  vi.setSystemTime(T0)
 })
 afterEach(() => {
   vi.useRealTimers()

@@ -180,6 +180,25 @@ describe('ClaudeService connection', () => {
 })
 
 describe('ClaudeService permissions', () => {
+  // The usage log measures alert latency in onNewPending as now - receivedAt: that is only valid if
+  // the state carrying the request (which applies `attention`) was published first.
+  it('publishes the state with a new request before announcing it, stamped when the hook arrived', async () => {
+    const order: string[] = []
+    const { service, send, advance } = setup({
+      onState: (s) => order.push(`state:${s.pending.length}`),
+      onNewPending: (p) => order.push(`new:${p.receivedAt}`),
+    })
+    await service.start()
+    advance(500)
+    order.length = 0
+    // The bridge stamps the HTTP arrival (before the body was read); that time wins over the clock.
+    send('PermissionRequest', { toolName: 'Bash', preview: 'npm test' }, 'session-1', { ...fakeReply().reply, arrivedAt: 1_000_420 })
+    expect(order).toEqual(['state:1', `new:${1_000_420}`])
+    // Without an arrival stamp (another transport), the service clock is used.
+    send('PermissionRequest', { toolName: 'Read', preview: 'x' }, 'session-1', fakeReply().reply)
+    expect(order.at(-1)).toBe(`new:${1_000_500}`)
+  })
+
   it('holds a permission request, announces it once, and decides it', async () => {
     const { service, send, status, newPending, states } = setup()
     await service.start()

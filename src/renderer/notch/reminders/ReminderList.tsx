@@ -1,5 +1,5 @@
 import { Check, Repeat, Trash2 } from 'lucide-react'
-import { useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { Result } from '../../../shared/ipc/result'
 import type { Reminder } from '../../../shared/reminders/schema'
@@ -12,10 +12,12 @@ import { useInFlight } from '../../shared/reminders/use-in-flight'
 
 type Run = (id: string, call: () => Promise<Result<unknown>>) => void
 
+// Busy buttons use aria-disabled, not disabled: a disabled button drops focus to <body>, where Esc
+// would dismiss the notch. run() is already a no-op while the reminder's call is in flight.
 const iconButton =
-  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[8px] text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk disabled:cursor-default disabled:opacity-40'
+  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent aria-disabled:hover:text-graphite'
 const textButton =
-  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40'
+  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-veil-tile'
 
 function RepeatMark({ repeat }: { repeat: Reminder['repeat'] }) {
   const t = useT()
@@ -30,7 +32,7 @@ function AttentionRow({ reminder, now, run, busy }: { reminder: Reminder; now: D
   const language = useLanguage()
   const snoozeMinutes = useSettings((state) => state.settings?.reminders.snoozeMinutes ?? 10)
   return (
-    <li data-testid="reminder-item" data-state={reminder.state} className="flex items-center gap-2 rounded-tile bg-veil px-2.5 py-1.5">
+    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="flex items-center gap-2 rounded-tile bg-veil px-2.5 py-1.5">
       <span className="status-dot" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-body text-chalk">{reminder.text}</p>
@@ -44,7 +46,7 @@ function AttentionRow({ reminder, now, run, busy }: { reminder: Reminder; now: D
       <button
         type="button"
         className={textButton}
-        disabled={busy}
+        aria-disabled={busy}
         onClick={() => run(reminder.id, () => window.notch.reminders.snooze({ id: reminder.id }))}
       >
         {t('reminders.action.snooze', { minutes: snoozeMinutes })}
@@ -52,7 +54,7 @@ function AttentionRow({ reminder, now, run, busy }: { reminder: Reminder; now: D
       <button
         type="button"
         className={textButton}
-        disabled={busy}
+        aria-disabled={busy}
         onClick={() => run(reminder.id, () => window.notch.reminders.complete({ id: reminder.id }))}
       >
         {t('reminders.action.complete')}
@@ -66,7 +68,7 @@ function UpcomingRow({ reminder, now, run, busy }: { reminder: Reminder; now: Da
   const t = useT()
   const language = useLanguage()
   return (
-    <li data-testid="reminder-item" data-state={reminder.state} className="group flex h-8 items-center gap-2 rounded-tile px-2.5 hover:bg-veil">
+    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="group flex h-8 items-center gap-2 rounded-tile px-2.5 hover:bg-veil">
       <span className="tabular w-[118px] shrink-0 truncate text-small text-graphite">
         {formatDue(new Date(reminder.dueAt), now, language)}
       </span>
@@ -78,7 +80,7 @@ function UpcomingRow({ reminder, now, run, busy }: { reminder: Reminder; now: Da
           aria-label={t('reminders.action.completeItem', { text: reminder.text })}
           title={t('reminders.action.complete')}
           className={iconButton}
-          disabled={busy}
+          aria-disabled={busy}
           onClick={() => run(reminder.id, () => window.notch.reminders.complete({ id: reminder.id }))}
         >
           <Check size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -88,7 +90,7 @@ function UpcomingRow({ reminder, now, run, busy }: { reminder: Reminder; now: Da
           aria-label={t('reminders.action.deleteItem', { text: reminder.text })}
           title={t('reminders.action.deleteItem', { text: reminder.text })}
           className={iconButton}
-          disabled={busy}
+          aria-disabled={busy}
           onClick={() => run(reminder.id, () => window.notch.reminders.delete({ id: reminder.id }))}
         >
           <Trash2 size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -98,12 +100,43 @@ function UpcomingRow({ reminder, now, run, busy }: { reminder: Reminder; now: Da
   )
 }
 
-/** Due and missed first (oldest first), then every pending reminder (soonest first). Text is always plain text. */
-export function ReminderList() {
+const ROW = '[data-reminder-id]'
+
+/**
+ * Due and missed first (oldest first), then every pending reminder (soonest first). Text is always plain text.
+ * `onFocusLost` is called when the focused row went away and no row is left to take focus.
+ */
+export function ReminderList({ onFocusLost }: { onFocusLost: () => void }) {
   const t = useT()
   const reminders = useReminders((store) => store.reminders)
   const now = useClock()
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null)
+  const list = useRef<HTMLUListElement>(null)
+  // Position of the row that holds focus, so focus can move on when that row is removed
+  // (Complete, Delete) or moves to another section (Snooze) and the browser drops it to <body>.
+  const focusedIndex = useRef<number | null>(null)
+
+  const onListFocus = (event: FocusEvent<HTMLUListElement>) => {
+    const row = (event.target as HTMLElement).closest(ROW)
+    if (row && list.current) focusedIndex.current = [...list.current.querySelectorAll(ROW)].indexOf(row)
+  }
+  const onListBlur = (event: FocusEvent<HTMLUListElement>) => {
+    // Focus moved somewhere else on purpose; a removed element blurs with no related target.
+    if (event.relatedTarget && !list.current?.contains(event.relatedTarget)) focusedIndex.current = null
+  }
+
+  useLayoutEffect(() => {
+    const index = focusedIndex.current
+    if (index === null) return
+    const active = document.activeElement
+    if (active && active !== document.body && active.isConnected) return
+    focusedIndex.current = null
+    // The next row (now at the same position), else the last one; its first action takes focus.
+    const rows = list.current ? [...list.current.querySelectorAll<HTMLElement>(ROW)] : []
+    const button = (rows[index] ?? rows.at(-1))?.querySelector('button')
+    if (button) button.focus()
+    else onFocusLost()
+  })
 
   const inFlight = useInFlight()
 
@@ -137,7 +170,13 @@ export function ReminderList() {
           <p className="text-small text-graphite">{t('reminders.list.emptyHint')}</p>
         </div>
       ) : (
-        <ul aria-label={t('integration.reminders')} data-testid="reminder-list" className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
+        <ul
+          ref={list}
+          aria-label={t('integration.reminders')}
+          data-testid="reminder-list"
+          onFocus={onListFocus}
+          onBlur={onListBlur}
+          className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
           {attention.map((reminder) => (
             <AttentionRow key={reminder.id} reminder={reminder} now={now} run={run} busy={inFlight.has(reminder.id)} />
           ))}

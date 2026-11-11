@@ -42,6 +42,11 @@ export function todayIsoDate(now: Date): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
+/** The local calendar date after `now`'s, as `YYYY-MM-DD` (the "Other day" default). */
+export function tomorrowIsoDate(now: Date): string {
+  return todayIsoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
+}
+
 /** `YYYY-MM-DD` → local midnight of that date, or null when it is not a real calendar date. */
 function parseIsoDate(value: string | undefined): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '')

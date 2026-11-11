@@ -24,8 +24,9 @@ export function nativeHandle(window: BrowserWindow): string {
 }
 
 /**
- * The capsule window: transparent, frameless, always on top, sized to the capsule plus
- * its shadow (M0 strategy A). Clicks pass through unless the pointer is over the capsule.
+ * The capsule window: transparent, frameless, always on top, as wide as the widest capsule plus
+ * its shadow and as tall as the current one (M0 strategy A). Clicks pass through the transparent
+ * area: the window ignores the mouse (forwarding moves) unless the pointer is over the capsule.
  */
 export function createNotchWindow(options: NotchWindowOptions): { window: BrowserWindow; surface: NotchSurface } {
   const window = new BrowserWindow({

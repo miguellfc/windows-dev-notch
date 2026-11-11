@@ -1,6 +1,7 @@
 import type { EventPayload } from '../../shared/ipc/contract'
 import type { Reminder } from '../../shared/reminders/schema'
 import type { Logger } from '../services/logger'
+import type { UsageEvent } from '../services/usage-log'
 import { createReminderScheduler, type SchedulerTimers } from './reminder-scheduler'
 import type { ReminderToast } from './reminder-toast'
 import { createRemindersService, type RemindersService } from './reminders-service'
@@ -24,6 +25,8 @@ export interface RemindersRuntimeOptions {
   emitChanged: (snapshot: RemindersSnapshot) => void
   /** `reminders:fired` to the notch only (plays the chime). */
   emitFired: (count: number) => void
+  /** Counts for the local usage log (never reminder content). */
+  recordUsage?: (event: UsageEvent) => void
 }
 
 export interface RemindersRuntime {
@@ -72,6 +75,7 @@ export function createRemindersRuntime(options: RemindersRuntimeOptions): Remind
     newId: options.newId,
     snoozeMinutes: options.snoozeMinutes,
     onChange: publish,
+    onCompleted: () => options.recordUsage?.({ type: 'reminder-completed' }),
   })
 
   const fired = (count: number) => {
@@ -84,10 +88,12 @@ export function createRemindersRuntime(options: RemindersRuntimeOptions): Remind
     now,
     timers: options.timers,
     onFired: (batch: Reminder[]) => {
+      options.recordUsage?.({ type: 'reminders-fired', count: batch.length })
       options.toast.fired(batch)
       fired(batch.length)
     },
     onMissed: (missed: Reminder[]) => {
+      options.recordUsage?.({ type: 'reminders-missed', count: missed.length })
       options.toast.missed(missed.length)
       fired(missed.length)
     },

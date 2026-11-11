@@ -1,11 +1,12 @@
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
-import { REMINDER_TEXT_MAX, type Reminder } from '../../../shared/reminders/schema'
-import { buildDueAt, nextQuarterHour, todayIsoDate, type FormDay } from '../../shared/reminders/form'
+import { hasVisibleText, REMINDER_TEXT_MAX, type Reminder } from '../../../shared/reminders/schema'
+import { buildDueAt, nextQuarterHour, todayIsoDate, tomorrowIsoDate, type FormDay } from '../../shared/reminders/form'
 import { reminderErrorKey } from '../../shared/reminders/format'
 import { useT } from '../../shared/use-t'
 import { Segmented } from '../../ui/Segmented'
+import { headerIconButton } from './styles'
 
 type RepeatValue = Reminder['repeat']
 
@@ -21,15 +22,12 @@ const REPEAT_OPTIONS: readonly { value: RepeatValue; label: MessageKey }[] = [
   { value: 'weekdays', label: 'reminders.repeat.optionWeekdays' },
 ]
 
-/** Small square icon button of the reminders headers (back, "+"). */
-export const headerIconButton =
-  'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[8px] text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk'
 const fieldClass =
   'h-[34px] rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60 aria-invalid:border-fail/60'
 const secondaryButton =
-  'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40'
+  'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40'
 const primaryButton =
-  'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 disabled:cursor-default disabled:opacity-40'
+  'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
 
 interface Errors {
   text?: MessageKey | undefined
@@ -80,11 +78,12 @@ export function ReminderForm({ onDone }: { onDone: () => void }) {
   const textInput = useRef<HTMLInputElement>(null)
   const [initial] = useState(() => {
     const now = new Date()
-    return { ...nextQuarterHour(now), today: todayIsoDate(now) }
+    return { ...nextQuarterHour(now), today: todayIsoDate(now), tomorrow: tomorrowIsoDate(now) }
   })
   const [text, setText] = useState('')
   const [day, setDay] = useState<FormDay>(initial.day)
-  const [date, setDate] = useState(initial.today)
+  // "Other day" starts on tomorrow (today and tomorrow have their own choices); min stays today.
+  const [date, setDate] = useState(initial.tomorrow)
   const [time, setTime] = useState(initial.time)
   const [repeat, setRepeat] = useState<RepeatValue>('none')
   const [errors, setErrors] = useState<Errors>({})
@@ -99,7 +98,7 @@ export function ReminderForm({ onDone }: { onDone: () => void }) {
     if (inFlight.current) return
     const trimmed = text.trim()
     const next: Errors = {}
-    if (trimmed === '') next.text = 'reminders.form.errorText'
+    if (!hasVisibleText(trimmed)) next.text = 'reminders.form.errorText'
     else if (trimmed.length > REMINDER_TEXT_MAX) next.text = 'reminders.error.tooLong'
     const due = buildDueAt({ day, date, time, repeat }, new Date())
     if ('error' in due) {
@@ -143,7 +142,14 @@ export function ReminderForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div data-testid="reminder-form" onKeyDown={onFormKeyDown} className="flex min-h-0 flex-1 flex-col gap-2">
+    // Focusable (not tabbable) so a click on a blank area keeps focus in the form and Esc still
+    // reaches onFormKeyDown instead of NotchApp's window-level dismiss.
+    <div
+      data-testid="reminder-form"
+      tabIndex={-1}
+      onKeyDown={onFormKeyDown}
+      className="flex min-h-0 flex-1 flex-col gap-2 outline-none"
+    >
       <header className="flex h-8 shrink-0 items-center gap-1">
         <button
           type="button"
@@ -157,7 +163,7 @@ export function ReminderForm({ onDone }: { onDone: () => void }) {
         </button>
         <h2 className="ml-2 text-body font-medium text-chalk">{t('reminders.view.new')}</h2>
       </header>
-      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5">
         <Row label={t('reminders.form.text')} htmlFor="reminder-form-text">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <input
@@ -266,7 +272,9 @@ export function ReminderForm({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           data-testid="reminder-form-save"
-          disabled={busy}
+          // aria-disabled, not disabled: a disabled button drops focus to <body>, where Esc would
+          // dismiss the notch. save() is already a no-op while a call is in flight.
+          aria-disabled={busy}
           onClick={() => void save()}
           className={primaryButton}
         >

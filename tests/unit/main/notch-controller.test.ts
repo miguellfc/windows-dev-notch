@@ -225,6 +225,16 @@ describe('notch controller: attention', () => {
     expect(calls).toEqual(['mode:alert', 'blur'])
   })
 
+  it('grows the window before animating from the permission card into the taller reminders panel', () => {
+    // Permission (480×300) has more area than reminders (420×320) but a shorter window.
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'expand' })
+    calls.length = 0
+    controller.dispatch({ type: 'open-integration', id: 'reminders' })
+    expect(calls).toEqual([size('reminders'), 'mode:reminders'])
+  })
+
   it('keeps focus between the permission card and the panel', () => {
     const { controller, calls } = setup()
     controller.dispatch({ type: 'attention', on: true })
