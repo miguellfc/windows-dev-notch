@@ -5,6 +5,7 @@ import { translate } from '../../shared/i18n/messages'
 import type { Language } from '../../shared/settings/schema'
 import { emitEvent, type EventTarget } from '../ipc/events'
 import type { Logger } from '../services/logger'
+import type { UsageEvent } from '../services/usage-log'
 import type { NotchController } from '../windows/notch-controller'
 import { createReminderToast, type ReminderToastRequest } from './reminder-toast'
 import { createRemindersIpcHandlers } from './reminders-ipc'
@@ -23,6 +24,8 @@ export interface RemindersIntegrationOptions {
   notchTarget: () => EventTarget | null
   /** Windows that receive `reminders:changed` (notch, and the Control Center when open). */
   eventTargets: () => EventTarget[]
+  /** Counts for the local usage log. */
+  recordUsage?: (event: UsageEvent) => void
 }
 
 /** Electron adapter around the reminders runtime: real file, toasts, timers and power events. */
@@ -52,6 +55,7 @@ export function createRemindersIntegration(options: RemindersIntegrationOptions)
     snoozeMinutes: options.snoozeMinutes,
     timers: { setTimeout, clearTimeout, setInterval, clearInterval },
     logger,
+    ...(options.recordUsage ? { recordUsage: options.recordUsage } : {}),
     toast: createReminderToast({
       notify,
       translate: (key, params) => translate(options.language(), key, params),

@@ -1,5 +1,3 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { describe, expect, it, vi } from 'vitest'
 import { createRemindersService } from '../../../src/main/reminders/reminders-service'
 import type { RemindersStore } from '../../../src/main/reminders/reminders-store'

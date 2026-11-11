@@ -4,6 +4,7 @@ import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
 import { integrationIds } from '../integrations/registry'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
+import { usageSummaryInputSchema, usageSummarySchema } from '../usage/schema'
 import type { ChannelName, EventName } from './channels'
 
 interface ChannelContract {
@@ -123,6 +124,7 @@ export const contract = {
   'reminders:snooze': { input: reminderIdSchema, output: reminderSchema },
   'reminders:complete': { input: reminderIdSchema, output: reminderSchema },
   'reminders:delete': { input: reminderIdSchema, output: ack },
+  'usage:summary': { input: usageSummaryInputSchema, output: usageSummarySchema },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */

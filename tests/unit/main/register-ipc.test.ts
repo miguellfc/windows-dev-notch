@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { claudeChannelGuards } from '../../../src/main/claude/claude-ipc'
 import { registerIpc, type IpcEventLike, type IpcHandlers, type IpcMainLike } from '../../../src/main/ipc/register'
 import { SettingsReadOnlyError } from '../../../src/main/services/settings-store'
+import { createUsageIpcHandlers, usageChannelGuards } from '../../../src/main/services/usage-ipc'
 import { contract } from '../../../src/shared/ipc/contract'
 import { createDefaultSettings, settingsSchema } from '../../../src/shared/settings/schema'
 import { createMemoryLogger } from '../helpers/memory-logger'
@@ -71,6 +72,19 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'reminders:snooze': () => sampleReminder,
     'reminders:complete': () => sampleReminder,
     'reminders:delete': () => null,
+    'usage:summary': () => ({
+      days: 0,
+      runningHoursAvg: 0,
+      launches: 0,
+      remindersFired: 0,
+      remindersMissed: 0,
+      remindersCompleted: 0,
+      claudeAlerts: 0,
+      claudeLatencyMedianMs: null,
+      claudeLatencyP95Ms: null,
+      from: '2026-10-28',
+      to: '2026-11-10',
+    }),
     ...overrides,
   }
 }
@@ -236,6 +250,7 @@ describe('terminal write isolation', () => {
     'reminders:snooze': { id: REMINDER_ID },
     'reminders:complete': { id: REMINDER_ID },
     'reminders:delete': { id: REMINDER_ID },
+    'usage:summary': { days: 14 },
   }
 
   it('has a sample input for every channel', () => {
@@ -312,5 +327,63 @@ describe('claude channel guards', () => {
       expect(result).toMatchObject(expectFor(id) ? { ok: true } : { ok: false, error: { code: 'FORBIDDEN' } })
     }
     expect(handler).toHaveBeenCalledTimes(who === 'both' ? 2 : 1)
+  })
+})
+
+// Usage: the summary is for the Control Center's About page only.
+describe('usage channel', () => {
+  const NOTCH = 1
+  const CONTROL_CENTER = 2
+  const OTHER = 3
+  const from = (id: number) => ({ sender: { id }, senderFrame: { url: 'app://trusted', parent: null } })
+
+  const setup = () => {
+    const fake = createFakeIpcMain()
+    let release: () => void = () => undefined
+    const ready = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const summary = vi.fn((days: number) => ({ ...createHandlers()['usage:summary'](undefined as never), days: days === 30 ? 1 : 0 }))
+    const handlers = createUsageIpcHandlers({ summary } as never, () => ready)
+    registerIpc({
+      ipcMain: fake.ipcMain,
+      handlers: createHandlers(handlers),
+      isTrustedUrl: (url) => url === 'app://trusted',
+      logger: createMemoryLogger(),
+      channelGuards: usageChannelGuards({ fromControlCenter: (event) => event.sender.id === CONTROL_CENTER }),
+    })
+    return { fake, summary, release }
+  }
+
+  it('is reachable only from the Control Center', async () => {
+    const { fake, summary, release } = setup()
+    release()
+    for (const id of [NOTCH, OTHER]) {
+      await expect(fake.invoke('usage:summary', from(id), { days: 14 })).resolves.toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } })
+    }
+    expect(summary).not.toHaveBeenCalled()
+    await expect(fake.invoke('usage:summary', from(CONTROL_CENTER), { days: 14 })).resolves.toMatchObject({ ok: true })
+  })
+
+  it('defaults to 14 days, passes the range through and waits for the log to load', async () => {
+    const { fake, summary, release } = setup()
+    const pending = fake.invoke('usage:summary', from(CONTROL_CENTER), {})
+    await Promise.resolve()
+    expect(summary).not.toHaveBeenCalled()
+    release()
+    await expect(pending).resolves.toMatchObject({ ok: true })
+    expect(summary).toHaveBeenLastCalledWith(14)
+    await expect(fake.invoke('usage:summary', from(CONTROL_CENTER), { days: 30 })).resolves.toMatchObject({ ok: true, data: { days: 1 } })
+    expect(summary).toHaveBeenLastCalledWith(30)
+  })
+
+  it('rejects ranges other than 7, 14 and 30 before calling the log', async () => {
+    const { fake, summary, release } = setup()
+    release()
+    await expect(fake.invoke('usage:summary', from(CONTROL_CENTER), { days: 90 })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_INPUT' },
+    })
+    expect(summary).not.toHaveBeenCalled()
   })
 })

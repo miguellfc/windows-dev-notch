@@ -1,5 +1,5 @@
-import { REMINDER_TEXT_MAX, type Reminder } from './schema'
-import { atLocalTime, nextOccurrence } from './time'
+import { hasVisibleText, REMINDER_TEXT_MAX, type Reminder } from './schema'
+import { atLocalTime, MINUTE_MS, nextOccurrence, startOfLocalDay } from './time'
 
 export type ParsedReminder = {
   text: string
@@ -10,7 +10,6 @@ export type ParsedReminder = {
 
 export type ParseError = { error: 'empty-text' | 'no-time' | 'too-long' }
 
-const MINUTE_MS = 60_000
 const MAX_RELATIVE_MINUTES = 7 * 24 * 60
 
 const AT = String.raw`(?:(?:a\s+las|at)\s+)?`
@@ -51,7 +50,7 @@ function finish(
   build: () => Omit<ParsedReminder, 'text'>,
 ): ParsedReminder | ParseError {
   const text = rest.trim()
-  if (text.length === 0) return { error: 'empty-text' }
+  if (!hasVisibleText(text)) return { error: 'empty-text' }
   if (text.length > REMINDER_TEXT_MAX) return { error: 'too-long' }
   return { text, ...build() }
 }
@@ -61,7 +60,7 @@ function finish(
  * Control characters in the text are left to the caller's schema validation.
  */
 export function parseReminder(input: string, now: Date): ParsedReminder | ParseError {
-  const source = input.trim()
+  const source = input.normalize('NFC').trim()
 
   const rel = RELATIVE_RE.exec(source)
   if (rel) {
@@ -95,10 +94,7 @@ export function parseReminder(input: string, now: Date): ParsedReminder | ParseE
     const hhmm = timeFromMatch(tomorrow)
     if (!hhmm) return { error: 'no-time' }
     return finish(source.slice(tomorrow[0].length), () => ({
-      dueAt: atLocalTime(
-        new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
-        hhmm,
-      ),
+      dueAt: atLocalTime(startOfLocalDay(now, 1), hhmm),
       repeat: 'none',
     }))
   }
@@ -107,14 +103,10 @@ export function parseReminder(input: string, now: Date): ParsedReminder | ParseE
   if (plain) {
     const hhmm = timeFromMatch(plain)
     if (!hhmm) return { error: 'no-time' }
-    return finish(source.slice(plain[0].length), () => {
-      const today = atLocalTime(now, hhmm)
-      const dueAt =
-        today.getTime() > now.getTime()
-          ? today
-          : atLocalTime(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1), hhmm)
-      return { dueAt, repeat: 'none' }
-    })
+    return finish(source.slice(plain[0].length), () => ({
+      dueAt: nextOccurrence('daily', hhmm, now),
+      repeat: 'none',
+    }))
   }
 
   return { error: 'no-time' }

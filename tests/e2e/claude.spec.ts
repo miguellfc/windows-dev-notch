@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
+import { settle } from './settle'
 
 type NotchWindow = { notch: NotchApi }
 type HookReply = { status: number; body: string }
@@ -154,7 +155,7 @@ test('shows Claude sessions as dots (working then done) and in the panel', async
   await sendHook(bridge, event('api-server', 'Stop', { last_assistant_message: 'done' }))
   await expect(dots).toHaveAttribute('aria-label', /Claude Code/)
   await expect.poll(() => dots.getAttribute('aria-label')).toMatch(/(listo|done|terminad|finished)/i)
-  await notch.waitForTimeout(600) // let the cross-fade finish
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m3-compact-dots.png' })
 
   await expand(notch)
@@ -163,7 +164,7 @@ test('shows Claude sessions as dots (working then done) and in the panel', async
   await expect(sessions).toBeVisible()
   await expect(sessions).toContainText('api-server')
   await expect(sessions).toContainText('web-client')
-  await notch.waitForTimeout(600) // let the cross-fade finish
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m3-panel-sessions.png' })
   await app.close()
 })
@@ -178,7 +179,7 @@ test('a permission request raises the alert in under 1 s and Permitir answers al
   const alert = notch.getByTestId('claude-alert')
   await expect(alert).toContainText('api-server')
   await expect(alert).toContainText('Bash')
-  await notch.waitForTimeout(600) // let the cross-fade finish
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m3-alert.png' })
 
   await expand(notch)
@@ -187,7 +188,7 @@ test('a permission request raises the alert in under 1 s and Permitir answers al
   await expect(card).toContainText('npm run build')
   const allow = notch.getByTestId('claude-allow')
   await settled(allow)
-  await notch.waitForTimeout(600) // let the cross-fade finish
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m3-permission.png' })
   await allow.click()
 

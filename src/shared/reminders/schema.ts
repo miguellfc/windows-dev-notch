@@ -15,12 +15,19 @@ export const REMINDER_DONE_MESSAGE = 'Reminder is already done'
  */
 const FORBIDDEN_CHARS = /(?!\u200D)[\p{Cc}\p{Cf}]/u
 
+/** Anything that is neither whitespace nor default-ignorable (ZWJ, variation selectors, Hangul fillers...). */
+const VISIBLE_CHAR = /[^\s\p{Default_Ignorable_Code_Point}]/u
+
+/** True when the text shows at least one character; a lone U+200D or only ZWJ and spaces does not. */
+export const hasVisibleText = (text: string): boolean => VISIBLE_CHAR.test(text)
+
 export const reminderTextSchema = z
   .string()
   .trim()
   .min(1)
   .max(REMINDER_TEXT_MAX)
   .refine((text) => !FORBIDDEN_CHARS.test(text), 'Text contains control characters')
+  .refine(hasVisibleText, 'Text has no visible characters')
 
 export const reminderRepeatSchema = z.enum(['none', 'daily', 'weekdays'])
 export const reminderStateSchema = z.enum(['pending', 'due', 'missed', 'done'])

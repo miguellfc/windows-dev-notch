@@ -3,10 +3,13 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { Result } from '../../../shared/ipc/result'
 import { parseReminder } from '../../../shared/reminders/parse'
-import { REMINDER_TEXT_MAX, type Reminder, type ReminderPreset } from '../../../shared/reminders/schema'
+import { hasVisibleText, REMINDER_TEXT_MAX, type Reminder, type ReminderPreset } from '../../../shared/reminders/schema'
 import { useClock } from '../use-clock'
 import { useLanguage, useT } from '../use-t'
-import { formatDue, parseErrorKey, reminderErrorKey } from './format'
+import { formatDue, formatTime, parseErrorKey, reminderErrorKey } from './format'
+
+/** The "tomorrow 9:00" chip's time, formatted like every other time in the language. */
+const NINE_AM = new Date(2000, 0, 1, 9, 0)
 
 const CHIPS: readonly { preset: ReminderPreset; labelKey: MessageKey }[] = [
   { preset: '15m', labelKey: 'reminders.chip.15m' },
@@ -46,6 +49,7 @@ export function ReminderComposer({
   onEscapeWhenEmpty?: () => void
 }) {
   const t = useT()
+  const language = useLanguage()
   const input = useRef<HTMLInputElement>(null)
   const [value, setValue] = useState('')
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null)
@@ -59,12 +63,14 @@ export function ReminderComposer({
 
   const submit = async (call: () => Promise<Result<Reminder>>) => {
     if (inFlight.current) return
+    const submitted = value
     inFlight.current = true
     setBusy(true)
     setErrorKey(null)
     try {
       const result = await call()
-      if (result.ok) setValue('')
+      // Text typed while the call was in flight is kept: only the submitted value is cleared.
+      if (result.ok) setValue((current) => (current === submitted ? '' : current))
       else setErrorKey(reminderErrorKey(result.error))
     } catch {
       setErrorKey('error.generic')
@@ -119,7 +125,7 @@ export function ReminderComposer({
           setErrorKey(null)
         }}
         onKeyDown={onKeyDown}
-        className="h-9 w-full rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60"
+        className="h-9 w-full rounded-control border border-line bg-veil px-3 text-body text-chalk transition-colors duration-150 placeholder:text-graphite focus:border-ice/60"
       />
       {/* One line under the field: the error from the last attempt, else the live reading. */}
       {errorKey ? (
@@ -137,11 +143,11 @@ export function ReminderComposer({
             key={preset}
             type="button"
             data-testid={`reminder-chip-${preset}`}
-            disabled={text === '' || busy}
+            disabled={!hasVisibleText(text) || busy}
             onClick={() => createWithPreset(preset)}
             className="tabular h-7 cursor-pointer rounded-full border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-veil-tile"
           >
-            {t(labelKey)}
+            {t(labelKey, { time: formatTime(NINE_AM, language) })}
           </button>
         ))}
       </div>

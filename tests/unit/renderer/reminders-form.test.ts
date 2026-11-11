@@ -1,7 +1,5 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { describe, expect, it } from 'vitest'
-import { buildDueAt, nextQuarterHour, parseClock, todayIsoDate } from '../../../src/renderer/shared/reminders/form'
+import { buildDueAt, nextQuarterHour, parseClock, todayIsoDate, tomorrowIsoDate } from '../../../src/renderer/shared/reminders/form'
 
 const local = (y: number, mo: number, d: number, h = 0, mi = 0, s = 0): Date => new Date(y, mo - 1, d, h, mi, s)
 
@@ -46,6 +44,15 @@ describe('todayIsoDate', () => {
   it('is the local calendar date as YYYY-MM-DD', () => {
     expect(todayIsoDate(local(2026, 1, 5, 0, 30))).toBe('2026-01-05')
     expect(todayIsoDate(local(2026, 11, 10, 23, 59))).toBe('2026-11-10')
+  })
+})
+
+describe('tomorrowIsoDate', () => {
+  it('is the next local calendar date, across month, year and DST boundaries', () => {
+    expect(tomorrowIsoDate(local(2026, 11, 10, 16, 7))).toBe('2026-11-11')
+    expect(tomorrowIsoDate(local(2026, 11, 30, 23, 59))).toBe('2026-12-01')
+    expect(tomorrowIsoDate(local(2026, 12, 31, 0, 0))).toBe('2027-01-01')
+    expect(tomorrowIsoDate(local(2026, 3, 28, 23, 30))).toBe('2026-03-29')
   })
 })
 

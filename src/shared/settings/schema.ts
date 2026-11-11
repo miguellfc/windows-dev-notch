@@ -21,7 +21,7 @@ const shortcutSchema = z
 export const SNOOZE_MINUTES_OPTIONS = [5, 10, 15, 30] as const
 
 export const remindersSettingsSchema = z.strictObject({
-  snoozeMinutes: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(30)]),
+  snoozeMinutes: z.literal(SNOOZE_MINUTES_OPTIONS),
   sound: z.boolean(),
 })
 

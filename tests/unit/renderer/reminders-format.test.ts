@@ -1,11 +1,11 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { describe, expect, it } from 'vitest'
 import { REMINDER_DONE_MESSAGE, type Reminder } from '../../../src/shared/reminders/schema'
 import {
   attentionReminders,
   formatDue,
+  formatTime,
   parseErrorKey,
+  remindersBadgeLabel,
   reminderErrorKey,
   pendingReminders,
 } from '../../../src/renderer/shared/reminders/format'
@@ -47,6 +47,22 @@ describe('formatDue', () => {
   it('counts calendar days across a DST change', () => {
     const night = local(2026, 10, 24, 23, 0)
     expect(formatDue(local(2026, 10, 25, 23, 30), night, 'es')).toBe('mañana 23:30')
+  })
+})
+
+describe('formatTime', () => {
+  it('formats a wall-clock time like the rest of the language', () => {
+    expect(formatTime(local(2026, 11, 11, 9, 0), 'es')).toBe('9:00')
+    expect(formatTime(local(2026, 11, 11, 9, 0), 'en')).toMatch(/^9:00\sAM$/u)
+  })
+})
+
+describe('remindersBadgeLabel', () => {
+  it('uses the singular for one and the plural otherwise', () => {
+    expect(remindersBadgeLabel(1, 'es')).toBe('1 recordatorio vencido')
+    expect(remindersBadgeLabel(3, 'es')).toBe('3 recordatorios vencidos')
+    expect(remindersBadgeLabel(1, 'en')).toBe('1 due reminder')
+    expect(remindersBadgeLabel(3, 'en')).toBe('3 due reminders')
   })
 })
 

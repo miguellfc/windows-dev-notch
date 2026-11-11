@@ -14,6 +14,8 @@
   --color-abyss: #06202b;
   --color-ok: #4ade80;
   --color-wait: #fbbf24;
+  /* Text on Ámbar Espera (the reminders badge). */
+  --color-on-wait: #1a1205;
   --color-fail: #f87171;
 
   --font-sans: 'Geist Variable', 'Segoe UI Variable', system-ui, sans-serif;

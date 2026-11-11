@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
+import { settle } from './settle'
 
 type NotchWindow = { notch: NotchApi }
 type TestClockHost = { __notchTestClock: { advance: (ms: number) => Promise<void> } }
@@ -64,7 +65,9 @@ const launch = async (): Promise<{ app: ElectronApplication; notch: Page }> => {
   return { app, notch }
 }
 
-const hhmm = (d: Date): string => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+const pad = (n: number): string => String(n).padStart(2, '0')
+const hhmm = (d: Date): string => `${pad(d.getHours())}:${pad(d.getMinutes())}`
+const isoDate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 const capsule = (notch: Page) => notch.getByTestId('notch-capsule')
 const expand = (notch: Page) => notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
@@ -100,15 +103,23 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
   const tile = notch.getByTestId('integration-reminders')
   await expect(tile).toBeVisible()
-  await notch.waitForTimeout(600) // let the cross-fade finish
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-integration-row.png' })
+  // Every tile label keeps at least 4 px from the tile's edges ("Recordatorios" is the longest).
+  for (const id of ['terminal', 'reminders']) {
+    // The label shrinks to its text (truncating only when it would overflow), so its box is the text's.
+    const tileBox = (await notch.getByTestId(`integration-${id}`).boundingBox())!
+    const textBox = (await notch.getByTestId(`integration-${id}`).locator('span').first().boundingBox())!
+    const clearance = Math.min(textBox.x - tileBox.x, tileBox.x + tileBox.width - (textBox.x + textBox.width))
+    expect(clearance, id).toBeGreaterThanOrEqual(4)
+  }
 
   await tile.click()
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
   await expect(notch.getByTestId('reminders-empty')).toBeVisible()
   const add = notch.getByTestId('reminders-add')
   await expect(add).toBeFocused()
-  await notch.waitForTimeout(600)
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-empty.png' })
 
   const form = notch.getByTestId('reminder-form')
@@ -124,7 +135,7 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   if (inThirty.getDate() !== new Date().getDate()) await form.getByRole('radio', { name: 'Mañana' }).click()
   await text.fill('revisar PR')
   await time.fill(hhmm(inThirty))
-  await notch.waitForTimeout(300)
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-form.png' })
   await time.press('Enter')
   await expect(form).toBeHidden()
@@ -137,7 +148,11 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   // Worst case for the panel height: Other day (date row) plus an inline error.
   await form.getByRole('radio', { name: 'Otro día' }).click()
   await expect(notch.getByTestId('reminder-form-date')).toBeVisible()
-  await notch.waitForTimeout(300)
+  // "Other day" starts on tomorrow; today stays selectable.
+  const now = new Date()
+  await expect(notch.getByTestId('reminder-form-date')).toHaveValue(isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)))
+  await expect(notch.getByTestId('reminder-form-date')).toHaveAttribute('min', isoDate(now))
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-form-other-day.png' })
   await form.getByRole('radio', { name: 'Hoy' }).click()
   await text.fill('desplegar build')
@@ -163,7 +178,16 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   await expect(form).toBeHidden()
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
   await expect(add).toBeFocused()
-  await notch.waitForTimeout(300)
+
+  // A click on a blank (non-focusable) part of the form keeps Esc in the form: back to the list.
+  await add.click()
+  // Bottom-left corner: blank, and low enough that the pointer is off the compact capsule later.
+  const formBox = (await form.boundingBox())!
+  await form.click({ position: { x: 4, y: formBox.height - 4 } })
+  await notch.keyboard.press('Escape')
+  await expect(form).toBeHidden()
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-list.png' })
 
   // Back to the compact capsule so the alert can take it over.
@@ -175,19 +199,44 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   const alert = notch.getByTestId('reminder-alert')
   await expect(alert).toBeVisible({ timeout: 1000 })
   await expect(alert).toContainText('2 recordatorios')
-  await notch.waitForTimeout(600)
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-alert.png' })
 
   await expand(notch)
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
   const due = items.filter({ has: notch.getByRole('button', { name: /Posponer/ }) })
   await expect(due).toHaveCount(2)
-  await notch.waitForTimeout(600)
+  await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-due-view.png' })
 
-  // Snooze the first: it leaves the due list; the other one is still due.
-  await due.first().getByRole('button', { name: /Posponer/ }).click()
+  // Snooze the first from the keyboard: it leaves the due list and focus moves to the next row's
+  // action instead of <body>, so Esc goes back to the integrations row and never dismisses.
+  const snoozedId = (await due.first().getAttribute('data-reminder-id'))!
+  await due.first().getByRole('button', { name: /Posponer/ }).focus()
+  await notch.keyboard.press('Enter')
   await expect(items.filter({ has: notch.getByRole('button', { name: /Posponer/ }) })).toHaveCount(1)
+  await expect(due.first().getByRole('button', { name: /Posponer/ })).toBeFocused()
+  // The snoozed reminder is back in the pending list (no longer due), not dropped.
+  await expect(items).toHaveCount(2)
+  const snoozed = items.and(notch.locator(`[data-reminder-id="${snoozedId}"]`))
+  await expect(snoozed).toHaveAttribute('data-state', 'pending')
+  await expect(snoozed.getByRole('button', { name: /Posponer/ })).toHaveCount(0)
+  await notch.keyboard.press('Escape')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
+  const badge = notch.getByTestId('integration-reminders-badge')
+  await expect(badge).toHaveText('1')
+  await expect(tile).toHaveAccessibleName('Recordatorios, 1 recordatorio vencido')
+  await settle(notch)
+  await notch.screenshot({ path: 'test-results/polish-integration-row-badge.png' })
+
+  // A click on a blank part of the list panel keeps Esc in the panel too.
+  await tile.click()
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
+  await notch.getByRole('heading', { name: 'Recordatorios' }).click()
+  await notch.keyboard.press('Escape')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
+  await tile.click()
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
   // Complete the remaining one: nothing is due any more.
   await notch.getByRole('button', { name: 'Completar', exact: true }).click()
   await expect(notch.getByRole('button', { name: /Posponer/ })).toHaveCount(0)
@@ -216,6 +265,7 @@ test('a reminder that came due while the app was closed raises the missed alert 
 test('Control Center rejects editing a reminder to a past date and keeps it unchanged', async () => {
   const future = new Date(Date.now() + DAY_MS)
   writeReminders([{ text: 'revisar informe', dueAt: future }])
+  const stored = (JSON.parse(readFileSync(join(userData, 'reminders.json'), 'utf8')) as { reminders: { dueAt: string; text: string }[] }).reminders[0]!
   const { app, notch } = await launch()
   const cc = await openControlCenter(app, notch)
 
@@ -224,18 +274,24 @@ test('Control Center rejects editing a reminder to a past date and keeps it unch
   await expect(item).toContainText('revisar informe')
   await item.getByRole('button', { name: /Editar/ }).click()
 
-  const when = cc.getByTestId('reminder-edit-when')
-  await when.fill('2020-01-01T10:00')
+  // Date input plus a 24 h HH:mm text field, prefilled with the reminder's local date and time.
+  const date = cc.getByTestId('reminder-edit-date')
+  const time = cc.getByTestId('reminder-edit-time')
+  await expect(date).toHaveValue(isoDate(future))
+  await expect(time).toHaveValue(hhmm(future))
+  await date.fill('2020-01-01')
+  await time.fill('10:00')
   await cc.getByRole('button', { name: 'Guardar' }).click()
   await expect(cc.getByTestId('reminder-edit-when-error')).toHaveText('La fecha ya pasó')
 
   // The window is Mica (transparent page): give it the dark backdrop it shows on screen.
   await cc.addStyleTag({ content: 'html, body { background: #0d0d0f !important }' })
-  await cc.waitForTimeout(1000)
+  await settle(cc)
   await cc.screenshot({ path: 'test-results/m4-control-center.png' })
 
-  const saved = JSON.parse(readFileSync(join(userData, 'reminders.json'), 'utf8')) as { reminders: { dueAt: string }[] }
+  const saved = JSON.parse(readFileSync(join(userData, 'reminders.json'), 'utf8')) as { reminders: { dueAt: string; text: string }[] }
   expect(saved.reminders).toHaveLength(1)
-  expect(new Date(saved.reminders[0]!.dueAt).getTime()).toBeGreaterThan(Date.now())
+  expect(saved.reminders[0]!.dueAt).toBe(stored.dueAt)
+  expect(saved.reminders[0]!.text).toBe(stored.text)
   await app.close()
 })

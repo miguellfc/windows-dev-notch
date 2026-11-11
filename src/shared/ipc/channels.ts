@@ -46,6 +46,9 @@ export const channels = {
     complete: 'reminders:complete',
     delete: 'reminders:delete',
   },
+  usage: {
+    summary: 'usage:summary',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */

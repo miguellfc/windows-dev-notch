@@ -1,5 +1,3 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { describe, expect, it } from 'vitest'
 import { parseReminder } from '../../../src/shared/reminders/parse'
 
@@ -85,6 +83,34 @@ describe('parseReminder clock times', () => {
   })
 })
 
+describe('parseReminder rollover and normalization', () => {
+  const NEW_YEARS_EVE = local(2026, 12, 31, 20, 0)
+
+  it('mañana on Dec 31 is Jan 1', () => {
+    expect(parseReminder('mañana 9:00 x', NEW_YEARS_EVE)).toMatchObject({
+      dueAt: local(2027, 1, 1, 9, 0),
+    })
+  })
+
+  it('a plain time already past on Dec 31 falls back to Jan 1', () => {
+    expect(parseReminder('9:00 x', NEW_YEARS_EVE)).toEqual({
+      text: 'x',
+      dueAt: local(2027, 1, 1, 9, 0),
+      repeat: 'none',
+    })
+  })
+
+  it('parses decomposed accents (NFC normalization)', () => {
+    expect(parseReminder('cada día 9:00 x', NOW)).toMatchObject({
+      repeat: 'daily',
+      dueAt: local(2026, 11, 11, 9, 0),
+    })
+    expect(parseReminder('mañana 9:00 x', NOW)).toMatchObject({
+      dueAt: local(2026, 11, 11, 9, 0),
+    })
+  })
+})
+
 describe('parseReminder repeating', () => {
   it('daily', () => {
     for (const input of [
@@ -124,6 +150,10 @@ describe('parseReminder errors', () => {
   it('empty text', () => {
     expect(parseReminder('16:00', NOW)).toEqual({ error: 'empty-text' })
     expect(parseReminder('en 5 min   ', NOW)).toEqual({ error: 'empty-text' })
+  })
+  it('invisible-only text counts as empty', () => {
+    expect(parseReminder('16:00 ‍', NOW)).toEqual({ error: 'empty-text' })
+    expect(parseReminder('en 5 min ‍ ‍', NOW)).toEqual({ error: 'empty-text' })
   })
   it('no time', () => {
     expect(parseReminder('revisar PR', NOW)).toEqual({ error: 'no-time' })

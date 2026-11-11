@@ -8,7 +8,7 @@ import {
   type UpdateReminderInput,
 } from '../../shared/reminders/schema'
 import { parseReminder } from '../../shared/reminders/parse'
-import { nextOccurrence, presetDueAt } from '../../shared/reminders/time'
+import { MINUTE_MS, nextOccurrence, presetDueAt } from '../../shared/reminders/time'
 import { ExposedIpcError } from '../ipc/errors'
 import type { RemindersStore } from './reminders-store'
 
@@ -18,6 +18,8 @@ export interface RemindersServiceOptions {
   newId: () => string
   snoozeMinutes: () => number
   onChange: () => void
+  /** Called after a completion is saved (any caller: notch or Control Center). */
+  onCompleted?: () => void
 }
 
 export interface RemindersService {
@@ -34,7 +36,6 @@ export interface RemindersService {
   attentionCount(): number
 }
 
-const MINUTE_MS = 60_000
 const DAY_MS = 24 * 60 * MINUTE_MS
 const DONE_RETENTION_MS = 7 * DAY_MS
 /** Safety cap when walking occurrences forward (about 270 years of daily repeats). */
@@ -89,6 +90,7 @@ export const createRemindersService = ({
   newId,
   snoozeMinutes,
   onChange,
+  onCompleted,
 }: RemindersServiceOptions): RemindersService => {
   let chain: Promise<unknown> = Promise.resolve()
 
@@ -229,6 +231,7 @@ export const createRemindersService = ({
           dueAt: nextOccurrence(current.repeat, current.localTime, from).toISOString(),
         })
       })
+      onCompleted?.()
       return saved!
     },
 

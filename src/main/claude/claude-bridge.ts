@@ -40,9 +40,10 @@ const hostMatches = (host: string | undefined, port: number): boolean => {
 const isJson = (contentType: string | undefined): boolean =>
   /^application\/json\s*(;|$)/i.test(contentType ?? '')
 
-const createReply = (res: ServerResponse): PendingReply => {
+const createReply = (res: ServerResponse, arrivedAt: number): PendingReply => {
   let sent = false
   return {
+    arrivedAt,
     send(body) {
       if (sent) return
       sent = true
@@ -84,6 +85,8 @@ export const createClaudeBridge = (options: ClaudeBridgeOptions): ClaudeBridge =
   }
 
   const handle = (req: IncomingMessage, res: ServerResponse): void => {
+    // Start of the alert latency the usage log measures: body read + parse + dispatch.
+    const arrivedAt = Date.now()
     const method = req.method ?? ''
     const path = (req.url ?? '').split('?')[0] ?? ''
     if (!hostMatches(req.headers.host, listeningPort)) return finish(res, method, path, 403)
@@ -124,7 +127,7 @@ export const createClaudeBridge = (options: ClaudeBridgeOptions): ClaudeBridge =
 
       if (event.name === 'PermissionRequest') {
         log.info('hook request', { method, path, status: 'held', event: event.name })
-        deliver(event, createReply(res))
+        deliver(event, createReply(res, arrivedAt))
         return
       }
       finish(res, method, path, 200, event.name)

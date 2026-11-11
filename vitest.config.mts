@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
+    // Sets TZ before any test module loads (DST-sensitive reminder tests).
+    setupFiles: ['tests/unit/setup-tz.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/main/**/*.ts', 'src/shared/**/*.ts'],

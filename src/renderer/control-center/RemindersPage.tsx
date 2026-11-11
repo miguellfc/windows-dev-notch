@@ -2,10 +2,11 @@ import { Pencil, Repeat, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import type { Result } from '../../shared/ipc/result'
-import { REMINDER_TEXT_MAX, type Reminder } from '../../shared/reminders/schema'
+import { hasVisibleText, REMINDER_TEXT_MAX, type Reminder } from '../../shared/reminders/schema'
 import { SNOOZE_MINUTES_OPTIONS, type Settings } from '../../shared/settings/schema'
 import { formatDue, reminderErrorKey } from '../shared/reminders/format'
-import { groupReminders, isDraftLive, isNotInFuture, isoToLocalInput, localInputToIso } from '../shared/reminders/groups'
+import { buildDueAt, parseClock } from '../shared/reminders/form'
+import { groupReminders, isDraftLive, isoToDueFields } from '../shared/reminders/groups'
 import { useInFlight } from '../shared/reminders/use-in-flight'
 import { ReminderComposer } from '../shared/reminders/ReminderComposer'
 import { NoticeBanner } from '../shared/reminders/RemindersNotice'
@@ -30,8 +31,9 @@ const iconButton =
   'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[8px] text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk disabled:cursor-default disabled:opacity-40'
 const textButton =
   'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40'
-const fieldClass =
-  'h-9 w-full rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-ice/60 aria-invalid:border-fail/60'
+const fieldBase =
+  'h-9 rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-ice/60 aria-invalid:border-fail/60'
+const fieldClass = `${fieldBase} w-full`
 
 function RepeatMark({ repeat }: { repeat: RepeatValue }) {
   const t = useT()
@@ -53,6 +55,13 @@ function errorsFor(key: MessageKey): FormErrors {
   return { form: key }
 }
 
+/** Local check of the date and time fields, by the notch form's rules (main re-checks the past). */
+const WHEN_ERRORS: Readonly<Record<'time' | 'date' | 'past', MessageKey>> = {
+  time: 'reminders.form.errorTime',
+  date: 'reminders.error.invalidDate',
+  past: 'reminders.error.past',
+}
+
 /**
  * The open edit, held by the page so it survives a row moving between groups (a remount).
  * `initial` is captured when editing starts: "unchanged" is judged against it, not the live reminder.
@@ -60,15 +69,18 @@ function errorsFor(key: MessageKey): FormErrors {
 interface Draft {
   id: string
   text: string
-  when: string
+  /** `YYYY-MM-DD` from the date input. */
+  date: string
+  /** What the user typed in the 24 h time field (`H:mm` or `HH:mm`). */
+  time: string
   repeat: RepeatValue
-  initial: { text: string; when: string; repeat: RepeatValue }
+  initial: { text: string; date: string; time: string; repeat: RepeatValue }
   errors: FormErrors
   busy: boolean
 }
 
 const startDraft = (reminder: Reminder): Draft => {
-  const initial = { text: reminder.text, when: isoToLocalInput(reminder.dueAt), repeat: reminder.repeat }
+  const initial = { text: reminder.text, ...isoToDueFields(reminder.dueAt), repeat: reminder.repeat }
   return { id: reminder.id, ...initial, initial, errors: {}, busy: false }
 }
 
@@ -86,7 +98,7 @@ interface Editor {
 function EditForm({ draft, editor }: { draft: Draft; editor: Editor }) {
   const t = useT()
   const ids = useId()
-  const { text, when, repeat, errors, initial } = draft
+  const { text, date, time, repeat, errors, initial } = draft
   const id = draft.id
   const change = (patch: Partial<Draft>) => editor.change(id, patch)
   const close = () => editor.close(id)
@@ -96,15 +108,15 @@ function EditForm({ draft, editor }: { draft: Draft; editor: Editor }) {
     if (editor.inFlight.current) return
     const trimmed = text.trim()
     const patch: { text?: string; dueAt?: string; repeat?: RepeatValue } = {}
-    if (trimmed === '') return change({ errors: { text: 'reminders.error.emptyText' } })
+    if (!hasVisibleText(trimmed)) return change({ errors: { text: 'reminders.error.emptyText' } })
     if (trimmed.length > REMINDER_TEXT_MAX) return change({ errors: { text: 'reminders.error.tooLong' } })
     if (trimmed !== initial.text) patch.text = trimmed
     // An untouched date is never sent: a due reminder's date is in the past and would be rejected.
-    if (when !== initial.when) {
-      const iso = localInputToIso(when)
-      if (iso === null) return change({ errors: { when: 'reminders.error.invalidDate' } })
-      if (isNotInFuture(iso, new Date())) return change({ errors: { when: 'reminders.error.past' } })
-      patch.dueAt = iso
+    // Normalized: retyping "09:00" as "9:00" is no change (a due reminder's past date would be rejected).
+    if (date !== initial.date || (parseClock(time) ?? time) !== initial.time) {
+      const due = buildDueAt({ day: 'other', date, time, repeat: 'none' }, new Date())
+      if ('error' in due) return change({ errors: { when: WHEN_ERRORS[due.error] } })
+      patch.dueAt = due.dueAt.toISOString()
     }
     if (repeat !== initial.repeat) patch.repeat = repeat
     if (Object.keys(patch).length === 0) return close()
@@ -162,21 +174,40 @@ function EditForm({ draft, editor }: { draft: Draft; editor: Editor }) {
       </div>
       <div className="flex gap-3">
         <div className="min-w-0 flex-1">
-          <label htmlFor={`${ids}-when`} className={labelClass}>
+          <span id={`${ids}-when`} className={labelClass}>
             {t('cc.reminders.field.when')}
-          </label>
-          <input
-            id={`${ids}-when`}
-            type="datetime-local"
-            data-testid="reminder-edit-when"
-            value={when}
-            aria-invalid={errors.when !== undefined}
-            aria-describedby={errors.when ? `${ids}-when-error` : undefined}
-            onChange={(event) => {
-              change({ when: event.target.value, errors: {} })
-            }}
-            className={`${fieldClass} tabular [color-scheme:dark]`}
-          />
+          </span>
+          <div role="group" aria-labelledby={`${ids}-when`} className="flex gap-2">
+            <input
+              type="date"
+              data-testid="reminder-edit-date"
+              aria-label={t('reminders.form.date')}
+              value={date}
+              aria-invalid={errors.when !== undefined}
+              aria-describedby={errors.when ? `${ids}-when-error` : undefined}
+              onChange={(event) => {
+                change({ date: event.target.value, errors: {} })
+              }}
+              className={`${fieldBase} tabular min-w-0 flex-1 [color-scheme:dark]`}
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              data-testid="reminder-edit-time"
+              aria-label={t('reminders.form.time')}
+              value={time}
+              maxLength={5}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder="HH:mm"
+              aria-invalid={errors.when !== undefined}
+              aria-describedby={errors.when ? `${ids}-when-error` : undefined}
+              onChange={(event) => {
+                change({ time: event.target.value, errors: {} })
+              }}
+              className={`${fieldBase} tabular w-[72px] shrink-0 text-center`}
+            />
+          </div>
           {errors.when && (
             <p id={`${ids}-when-error`} role="alert" data-testid="reminder-edit-when-error" className="mt-1 text-small text-fail">
               {t(errors.when)}

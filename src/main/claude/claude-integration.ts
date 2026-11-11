@@ -29,6 +29,12 @@ export interface ClaudeIntegrationOptions {
   language: () => Language
   /** Windows that receive `claude:state-changed` (notch, and the Control Center when open). */
   eventTargets: () => EventTarget[]
+  /**
+   * A new permission request reached the capsule: ms from the bridge receiving the HTTP request
+   * (before its body is read) to the notch controller applying `attention`. Main-side only; the
+   * renderer's paint is not included.
+   */
+  onAlert?: (latencyMs: number) => void
 }
 
 /** Electron adapter around the ClaudeService: real files, safeStorage, toasts and timers. */
@@ -90,6 +96,8 @@ export function createClaudeIntegration(options: ClaudeIntegrationOptions) {
       emitEvent(options.eventTargets(), 'claude:state-changed', state, logger)
     },
     onNewPending: (permission) => {
+      // Called after onState above has dispatched `attention` for this request.
+      options.onAlert?.(Date.now() - permission.receivedAt)
       // The open panel already shows the request; otherwise tell the user even if the capsule is hidden.
       if (!PANEL_MODES.has(notch.mode())) toast.show(permission, () => notch.dispatch({ type: 'expand' }))
     },

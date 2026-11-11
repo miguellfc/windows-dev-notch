@@ -1,4 +1,5 @@
 import type { Reminder } from '../../../shared/reminders/schema'
+import { todayIsoDate } from './form'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const dueMs = (r: Reminder): number => new Date(r.dueAt).getTime()
@@ -25,30 +26,15 @@ export function groupReminders(reminders: readonly Reminder[], now: Date): Remin
   return { overdue, upcoming, repeating, completed }
 }
 
-const pad = (n: number, width = 2): string => String(n).padStart(width, '0')
+const pad = (n: number): string => String(n).padStart(2, '0')
 
-/** ISO instant to the `YYYY-MM-DDTHH:mm` local value of a datetime-local input (seconds dropped). */
-export function isoToLocalInput(iso: string): string {
+/**
+ * ISO instant to the edit form's fields: the local date (`YYYY-MM-DD`, the date input's value)
+ * and the 24 h `HH:mm` time (seconds dropped). The form reads them back with `buildDueAt`.
+ */
+export function isoToDueFields(iso: string): { date: string; time: string } {
   const d = new Date(iso)
-  return `${pad(d.getFullYear(), 4)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-const LOCAL_INPUT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
-
-/** A datetime-local value (local wall clock) to an ISO instant, or null if empty or not a real time. */
-export function localInputToIso(value: string): string | null {
-  const m = LOCAL_INPUT.exec(value)
-  if (!m) return null
-  const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number]
-  const date = new Date(y, mo - 1, d, h, mi)
-  const exact =
-    date.getFullYear() === y && date.getMonth() === mo - 1 && date.getDate() === d && date.getHours() === h && date.getMinutes() === mi
-  return exact ? date.toISOString() : null
-}
-
-/** True when an ISO instant is not strictly after `now` (the main process rejects those on update). */
-export function isNotInFuture(iso: string, now: Date): boolean {
-  return new Date(iso).getTime() <= now.getTime()
+  return { date: todayIsoDate(d), time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }
 }
 
 /** An open edit stays valid only while its reminder exists and is not done (done rows are read-only). */

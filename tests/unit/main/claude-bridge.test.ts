@@ -114,6 +114,27 @@ describe('createClaudeBridge', () => {
     expect(await pending).toEqual({ status: 200, body: '{"ok":true}' })
   })
 
+  it('stamps a held request when it arrives, before its body is read', async () => {
+    const port = await boot()
+    const req = request({
+      host: '127.0.0.1',
+      port,
+      method: 'POST',
+      path: '/hook',
+      headers: { 'x-notch-token': TOKEN, 'content-type': 'application/json' },
+    })
+    req.on('error', () => undefined)
+    req.flushHeaders()
+    await new Promise((r) => setTimeout(r, 150))
+    req.end(hook('PermissionRequest'))
+    await new Promise((r) => setTimeout(r, 100))
+    const reply = events[0]?.reply
+    expect(reply?.arrivedAt).toBeTypeOf('number')
+    // The body came ~150 ms after the headers: the stamp is from the headers.
+    expect(Date.now() - reply!.arrivedAt!).toBeGreaterThanOrEqual(200)
+    reply?.send(null)
+  })
+
   it('replies 200 empty for send(null) and never throws on a finished response', async () => {
     const port = await boot()
     const pending = send(port, { body: hook('PermissionRequest') })

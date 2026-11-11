@@ -1,7 +1,6 @@
-process.env.TZ = 'Europe/Madrid'
-
 import { describe, expect, it } from 'vitest'
-import { groupReminders, isDraftLive, isNotInFuture, isoToLocalInput, localInputToIso } from '../../../src/renderer/shared/reminders/groups'
+import { buildDueAt } from '../../../src/renderer/shared/reminders/form'
+import { groupReminders, isDraftLive, isoToDueFields } from '../../../src/renderer/shared/reminders/groups'
 import type { Reminder } from '../../../src/shared/reminders/schema'
 
 const local = (y: number, mo: number, d: number, h = 0, mi = 0, s = 0): Date => new Date(y, mo - 1, d, h, mi, s)
@@ -46,35 +45,17 @@ describe('groupReminders', () => {
   })
 })
 
-describe('datetime-local conversion', () => {
-  it('formats an ISO instant as local wall clock without seconds', () => {
-    expect(isoToLocalInput(local(2026, 11, 10, 9, 5, 42).toISOString())).toBe('2026-11-10T09:05')
-    expect(isoToLocalInput(local(2026, 7, 1, 23, 59).toISOString())).toBe('2026-07-01T23:59')
+describe('isoToDueFields', () => {
+  it('splits an ISO instant into the local date and 24 h time fields (seconds dropped)', () => {
+    expect(isoToDueFields(local(2026, 11, 10, 9, 5, 42).toISOString())).toEqual({ date: '2026-11-10', time: '09:05' })
+    expect(isoToDueFields(local(2026, 7, 1, 23, 59).toISOString())).toEqual({ date: '2026-07-01', time: '23:59' })
   })
 
-  it('parses a local value back to the matching instant', () => {
-    expect(localInputToIso('2026-11-10T09:05')).toBe(local(2026, 11, 10, 9, 5).toISOString())
-    expect(localInputToIso('2026-07-01T23:59')).toBe(local(2026, 7, 1, 23, 59).toISOString())
-  })
-
-  it('round-trips', () => {
-    const iso = local(2026, 3, 28, 22, 30).toISOString()
-    expect(localInputToIso(isoToLocalInput(iso))).toBe(iso)
-  })
-
-  it('rejects empty, malformed and non-existent times', () => {
-    expect(localInputToIso('')).toBeNull()
-    expect(localInputToIso('2026-11-10')).toBeNull()
-    expect(localInputToIso('2026-02-30T10:00')).toBeNull()
-    expect(localInputToIso('2026-03-29T02:30')).toBeNull() // skipped by the DST jump in Madrid
-  })
-})
-
-describe('isNotInFuture', () => {
-  it('treats the past and the exact present as rejected, the future as accepted', () => {
-    expect(isNotInFuture(local(2026, 11, 10, 11, 59).toISOString(), NOW)).toBe(true)
-    expect(isNotInFuture(NOW.toISOString(), NOW)).toBe(true)
-    expect(isNotInFuture(local(2026, 11, 10, 12, 1).toISOString(), NOW)).toBe(false)
+  it('round-trips through the shared form builder', () => {
+    const due = local(2026, 3, 28, 22, 30)
+    const fields = isoToDueFields(due.toISOString())
+    expect(buildDueAt({ day: 'other', ...fields, repeat: 'none' }, NOW)).toEqual({ error: 'past' })
+    expect(buildDueAt({ day: 'other', ...fields, repeat: 'none' }, local(2026, 3, 1))).toEqual({ dueAt: due })
   })
 })
 

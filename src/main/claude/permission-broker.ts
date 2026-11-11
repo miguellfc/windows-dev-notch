@@ -3,6 +3,8 @@ import type { PendingPermission } from '../../shared/claude/types'
 
 /** Transport-agnostic handle on a held hook response (the HTTP bridge implements it). */
 export interface PendingReply {
+  /** When the transport received the request (ms, before its body was read), if it knows. */
+  readonly arrivedAt?: number
   send(body: string | null): void
   onClose(cb: () => void): void
 }
@@ -101,7 +103,7 @@ export const createPermissionBroker = (options: PermissionBrokerOptions): Permis
           preview: e.preview ?? '',
           previewTruncated: e.previewTruncated ?? false,
           previewLength: e.previewLength ?? (e.preview ?? '').length,
-          receivedAt: options.now(),
+          receivedAt: reply.arrivedAt ?? options.now(),
         },
         reply,
         toolUseId: bindToolCall(e),

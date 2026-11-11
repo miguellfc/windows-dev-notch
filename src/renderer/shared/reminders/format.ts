@@ -15,13 +15,23 @@ function dayOffset(date: Date, now: Date): number {
   return Math.round((a - b) / DAY_MS)
 }
 
+/** A wall-clock time in the user's language: "9:00" / "9:00 AM". */
+export function formatTime(date: Date, language: Language): string {
+  return new Intl.DateTimeFormat(localeOf(language), { hour: 'numeric', minute: '2-digit' }).format(date)
+}
+
+/** Accessible label of the reminders badge: "1 recordatorio vencido" / "3 recordatorios vencidos". */
+export function remindersBadgeLabel(count: number, language: Language): string {
+  return count === 1 ? translate(language, 'reminders.badge.labelOne') : translate(language, 'reminders.badge.label', { count })
+}
+
 /**
  * When a reminder is due, in the user's language: "hoy 16:30" / "today 4:30 PM",
  * "mañana 9:00" / "tomorrow 9:00 AM", a short weekday within a week, else day and month.
  */
 export function formatDue(due: Date, now: Date, language: Language): string {
   const locale = localeOf(language)
-  const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(due)
+  const time = formatTime(due, language)
   const offset = dayOffset(due, now)
   if (offset === 0) return translate(language, 'reminders.when.today', { time })
   if (offset === 1) return translate(language, 'reminders.when.tomorrow', { time })
