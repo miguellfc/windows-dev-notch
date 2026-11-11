@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_SYSTEM_ALERTS } from '../../../src/shared/settings/schema'
 import {
   migrateSettings,
   settingsMigrations,
@@ -7,18 +8,35 @@ import {
 
 describe('migrateSettings', () => {
   it('returns current-version data unchanged', () => {
-    const raw = { version: 2, language: 'es' }
+    const raw = { version: 3, language: 'es' }
     expect(migrateSettings(raw)).toEqual({ kind: 'ok', value: raw, migrated: false })
   })
 
   it('migrates v1 settings to v2 adding reminder defaults', () => {
     const raw = { version: 1, language: 'es', shortcut: 'Alt+N', launchAtLogin: false }
+    expect(settingsMigrations[1]!(raw)).toEqual({ ...raw, version: 2, reminders: { snoozeMinutes: 10, sound: true } })
+  })
+
+  it('migrates v2 settings to v3 adding the system alert defaults', () => {
+    const raw = { version: 2, language: 'es', reminders: { snoozeMinutes: 10, sound: true } }
     expect(migrateSettings(raw)).toEqual({
       kind: 'ok',
-      value: { ...raw, version: 2, reminders: { snoozeMinutes: 10, sound: true } },
+      value: { ...raw, version: 3, systemAlerts: DEFAULT_SYSTEM_ALERTS },
       migrated: true,
     })
-    expect(settingsMigrations[1]).toBeTypeOf('function')
+  })
+
+  it('chains v1 through v3', () => {
+    const result = migrateSettings({ version: 1, language: 'en' })
+    expect(result).toMatchObject({ kind: 'ok', migrated: true, value: { version: 3, systemAlerts: DEFAULT_SYSTEM_ALERTS } })
+  })
+
+  it('gives each migrated file its own copy of the defaults', () => {
+    const a = migrateSettings({ version: 2 })
+    const b = migrateSettings({ version: 2 })
+    if (a.kind !== 'ok' || b.kind !== 'ok') throw new Error('expected ok')
+    expect(a.value['systemAlerts']).not.toBe(b.value['systemAlerts'])
+    expect(a.value['systemAlerts']).not.toBe(DEFAULT_SYSTEM_ALERTS)
   })
 
   it('applies each step in order up to the target version', () => {

@@ -3,6 +3,18 @@ import { z } from 'zod'
 const percentSchema = z.number().min(0).max(100)
 const bytesSchema = z.number().nonnegative()
 
+/** Which system alerts are active; `disk` is the worst fixed drive below its threshold, if any. */
+export const systemAlertsSchema = z.strictObject({
+  cpu: z.boolean(),
+  ram: z.boolean(),
+  battery: z.boolean(),
+  disk: z.strictObject({ letter: z.string().regex(/^[A-Z]$/), freePercent: percentSchema }).nullable(),
+})
+export type SystemAlerts = z.infer<typeof systemAlertsSchema>
+
+/** Every alert off; frozen, so spread it (`{ ...NO_ALERTS }`) to get an object you may change. */
+export const NO_ALERTS: Readonly<SystemAlerts> = Object.freeze({ cpu: false, ram: false, battery: false, disk: null })
+
 export const lightSampleSchema = z.strictObject({
   cpuPercent: percentSchema.nullable(),
   ram: z.strictObject({ usedBytes: bytesSchema, totalBytes: bytesSchema }).nullable(),
@@ -15,6 +27,7 @@ export const lightSampleSchema = z.strictObject({
       secondsLeft: z.int().nonnegative().nullable(),
     })
     .nullable(),
+  alerts: systemAlertsSchema,
 })
 export type LightSample = z.infer<typeof lightSampleSchema>
 

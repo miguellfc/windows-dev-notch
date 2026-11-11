@@ -96,7 +96,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Should | Developer Toolbox | Fase 2; alcance por definir |
 | Must (M3, decidido 2026-11-10, hecho) | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`): solo "permitir una vez" o "denegar", solo con click | Diseño de seguridad en `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` |
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
-| Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos y batería Bluetooth pendientes |
+| Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos por umbral hechos en `feat/system-alerts`; batería Bluetooth pendiente |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -359,8 +359,14 @@ Estaba como "Could" en la Fase 4; se adelantó al terminar el MVP. Diseño: `doc
 
 **Seguridad al cerrar procesos:** el botón solo aparece en procesos cerrables; hay confirmación en línea ("Cerrar" a la izquierda de "Cancelar"), foco en "Cancelar" y 300 ms de armado antes de que "Cerrar" responda; el resultado se informa en la fila.
 
+**Hito 2: avisos por umbral — hecho (rama `feat/system-alerts`).** Diseño: `docs/superpowers/specs/2026-11-11-system-alerts-design.md`; plan: `docs/superpowers/plans/2026-11-11-system-alerts.md`.
+- CPU ≥ 90 % sostenido 30 s, RAM ≥ 90 %, batería ≤ 15 % desenchufada y peor unidad fija < 10 % libre, con histéresis fija de 5 puntos; umbrales ajustables y desactivables en Control Center → Sistema (campos enteros que rechazan lo inválido mostrando el rango, sin recortar).
+- Solo color (Rojo Fallo en icono y cifra de la cápsula y en la cifra de la vista Sistema) más un bloque de disco en la cápsula mientras el aviso está enganchado (anchos 168 / 299 / 358 / 376 / 435 px). Un aviso nunca abre la cápsula, cambia de modo, lanza un toast ni suena.
+- Evaluación en el main, que falla en abierto (si falla, la muestra sale sin avisos); el espacio libre se lee como mucho cada 60 s en el ritmo ligero.
+- Coste en reposo medido: 0,034 % de CPU de media (todos los procesos de la app, compact, E2E).
+- Posible futuro: excluir unidades concretas del aviso de disco (hoy cuenta toda unidad fija).
+
 **Pendiente**
-- Hito 2: avisos y umbrales (hasta entonces no hay colores de alarma).
 - Hito 3: batería Bluetooth; empieza con una sonda de viabilidad.
 - Comprobaciones manuales: comparar las cifras con el Administrador de tareas y cerrar un proceso real propio.
 

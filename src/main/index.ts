@@ -130,6 +130,7 @@ function start(): void {
       const system = createSystemIntegration({
         logger,
         mode: () => notch.mode(),
+        alertSettings: () => settings.get().systemAlerts,
         notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
       })
       notchWindow.webContents.on('did-finish-load', () => system.resync())

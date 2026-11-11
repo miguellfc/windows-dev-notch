@@ -1,9 +1,19 @@
 import type { FullSample, LightSample } from '../../shared/system/schema'
+import type { DiskFree } from './alerts'
 import type { SystemApi } from './win32-system'
 
+/** What the sampler measures; the monitor adds `alerts` before a sample leaves main. */
+export type MetricsLight = Omit<LightSample, 'alerts'>
+export type MetricsFull = Omit<FullSample, 'alerts'>
+
 export interface MetricsSampler {
-  light(): LightSample
-  full(): FullSample
+  light(): MetricsLight
+  full(): MetricsFull
+  /**
+   * Free space per fixed drive only (no PDH, no CPU baseline): the light rhythm's disk-alert reading.
+   * Null when the drive list could not be read, so the alert keeps its last reading instead of clearing.
+   */
+  disks(): DiskFree[] | null
   /** Forgets the CPU baseline: the next sample reports `cpuPercent: null`. */
   reset(): void
 }
@@ -68,9 +78,9 @@ export function createMetricsSampler(api: SystemApi): MetricsSampler {
     return { percent, charging: power.charging, pluggedIn: power.acOnline || power.charging, secondsLeft }
   }
 
-  const light = (): LightSample => ({ cpuPercent: cpuPercent(), ram: ram(), battery: battery() })
+  const light = (): MetricsLight => ({ cpuPercent: cpuPercent(), ram: ram(), battery: battery() })
 
-  const disks = (): FullSample['disks'] => {
+  const fullDisks = (): FullSample['disks'] => {
     const idle = attempt(() => api.diskIdlePercent())
     const activityPercent = idle === null ? null : clampPercent(100 - idle)
     const letters = attempt(() => api.fixedDrives()) ?? []
@@ -86,6 +96,19 @@ export function createMetricsSampler(api: SystemApi): MetricsSampler {
     return result
   }
 
+  const freeSpace = (): DiskFree[] | null => {
+    const letters = attempt(() => api.fixedDrives())
+    if (letters === null) return null
+    const result: DiskFree[] = []
+    for (const letter of letters) {
+      const space = attempt(() => api.diskSpace(letter))
+      if (!space || !(space.totalBytes > 0) || !Number.isFinite(space.totalBytes)) continue
+      const freePercent = clampPercent((100 * space.freeBytes) / space.totalBytes)
+      if (freePercent !== null) result.push({ letter, freePercent })
+    }
+    return result
+  }
+
   const network = (): FullSample['network'] => {
     const rates = attempt(() => api.networkBytesPerSec())
     if (!rates) return null
@@ -96,7 +119,8 @@ export function createMetricsSampler(api: SystemApi): MetricsSampler {
 
   return {
     light,
-    full: (): FullSample => ({ ...light(), disks: disks(), network: network() }),
+    full: (): MetricsFull => ({ ...light(), disks: fullDisks(), network: network() }),
+    disks: freeSpace,
     reset: () => {
       previous = null
       lastCpu = null

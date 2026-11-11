@@ -18,11 +18,17 @@ const writeSettings = (): void => {
   writeFileSync(
     join(userData, 'settings.json'),
     JSON.stringify({
-      version: 2,
+      version: 3,
       language: 'es',
       shortcut: 'Control+Alt+Space',
       launchAtLogin: false,
       reminders: { snoozeMinutes: 10, sound: false },
+      systemAlerts: {
+        cpu: { enabled: true, percent: 90, sustainSeconds: 30 },
+        ram: { enabled: true, percent: 90 },
+        battery: { enabled: true, percent: 15 },
+        disk: { enabled: true, freePercent: 10 },
+      },
     }),
     'utf8',
   )

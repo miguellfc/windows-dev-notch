@@ -1,4 +1,4 @@
-import { DEFAULT_REMINDERS_SETTINGS, SETTINGS_VERSION } from '../../shared/settings/schema'
+import { DEFAULT_REMINDERS_SETTINGS, SETTINGS_VERSION, cloneDefaultSystemAlerts } from '../../shared/settings/schema'
 
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>
 
@@ -6,6 +6,8 @@ export type Migration = (raw: Record<string, unknown>) => Record<string, unknown
 export const settingsMigrations: Readonly<Record<number, Migration>> = {
   // v2 adds the reminders settings (snooze duration and sound).
   1: (raw) => ({ ...raw, version: 2, reminders: { ...DEFAULT_REMINDERS_SETTINGS } }),
+  // v3 adds the system alert thresholds (CPU, RAM, battery, disk).
+  2: (raw) => ({ ...raw, version: 3, systemAlerts: cloneDefaultSystemAlerts() }),
 }
 
 export type MigrationResult =

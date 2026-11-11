@@ -23,19 +23,28 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
 }
 
 /**
- * Compact capsule widths by content. `CAPSULE_SIZES.compact` is the widest (time, date, CPU, RAM
- * and battery); without a battery its slot is dropped, and with no sample yet or the monitor
- * unavailable the capsule keeps its original time-and-date width.
+ * Compact capsule widths by content, measured with Playwright in ES and EN (worst time and date,
+ * every value at its reserved "100 %" width). `CAPSULE_SIZES.compact` is the usual one (time, date,
+ * CPU, RAM and battery); without a battery its slot is dropped, and with no sample yet or the
+ * monitor unavailable the capsule keeps its original time-and-date width. The low-disk block
+ * (reserving "W: 100 %", the widest drive letter) only exists while that alert is latched:
+ * EN 374.7 px without a battery and 433.8 px with one.
  */
 export const COMPACT_WIDTHS = {
   plain: 168,
   metrics: 299,
   metricsBattery: CAPSULE_SIZES.compact.width,
+  metricsDisk: 376,
+  metricsBatteryDisk: 435,
 } as const
 
-/** Width of the compact capsule for what it shows: null is time and date only. */
-export function compactWidthFor(content: { battery: object | null } | null): number {
+/**
+ * Width of the compact capsule for what it shows: null is time and date only. Alerts only change
+ * colours, never the width; the low-disk block is the one alert that adds a slot.
+ */
+export function compactWidthFor(content: { battery: object | null; disk: object | null } | null): number {
   if (!content) return COMPACT_WIDTHS.plain
+  if (content.disk) return content.battery ? COMPACT_WIDTHS.metricsBatteryDisk : COMPACT_WIDTHS.metricsDisk
   return content.battery ? COMPACT_WIDTHS.metricsBattery : COMPACT_WIDTHS.metrics
 }
 

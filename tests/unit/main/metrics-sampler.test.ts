@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createMetricsSampler } from '../../../src/main/system/metrics-sampler'
 import type { SystemApi } from '../../../src/main/system/win32-system'
-import { fullSampleSchema, lightSampleSchema } from '../../../src/shared/system/schema'
+import { NO_ALERTS, fullSampleSchema, lightSampleSchema } from '../../../src/shared/system/schema'
 
 type Times = { idleMs: number; kernelMs: number; userMs: number } | null
 
@@ -11,7 +11,7 @@ interface Fake {
     times: Times
     memory: { totalBytes: number; availBytes: number } | null
     power: { hasBattery: boolean; percent: number | null; charging: boolean; acOnline: boolean; secondsLeft: number | null } | null
-    drives: string[]
+    drives: string[] | null
     space: Record<string, { totalBytes: number; freeBytes: number } | null>
     diskIdle: number | null
     network: { up: number; down: number } | null
@@ -141,7 +141,7 @@ describe('createMetricsSampler', () => {
       expect(sample.disks).toEqual([{ letter: 'C', usedPercent: 75, freeBytes: 250, activityPercent: null }])
       expect(sample.network).toEqual({ upBytesPerSec: 100, downBytesPerSec: 200 })
       expect(sample.ram).not.toBeNull()
-      expect(fullSampleSchema.safeParse(sample).success).toBe(true)
+      expect(fullSampleSchema.safeParse({ ...sample, alerts: NO_ALERTS }).success).toBe(true)
     })
 
     it('a non-finite network rate nulls only the network', () => {
@@ -150,7 +150,7 @@ describe('createMetricsSampler', () => {
       const sample = createMetricsSampler(api).full()
       expect(sample.network).toBeNull()
       expect(sample.disks).toHaveLength(1)
-      expect(fullSampleSchema.safeParse(sample).success).toBe(true)
+      expect(fullSampleSchema.safeParse({ ...sample, alerts: NO_ALERTS }).success).toBe(true)
     })
 
     it('non-finite memory or disk space drops only that metric', () => {
@@ -161,7 +161,7 @@ describe('createMetricsSampler', () => {
       expect(sample.ram).toBeNull()
       expect(sample.disks).toEqual([])
       expect(sample.network).not.toBeNull()
-      expect(fullSampleSchema.safeParse(sample).success).toBe(true)
+      expect(fullSampleSchema.safeParse({ ...sample, alerts: NO_ALERTS }).success).toBe(true)
     })
   })
 
@@ -285,6 +285,58 @@ describe('createMetricsSampler', () => {
     })
   })
 
+  describe('disks() (space only)', () => {
+    it('reports rounded free percent per fixed drive without touching PDH', () => {
+      const { api, state } = fakeApi()
+      state.drives = ['C', 'D']
+      state.space = { C: { totalBytes: 3, freeBytes: 1 }, D: { totalBytes: 1000, freeBytes: 1000 } }
+      state.throwing.add('diskIdlePercent')
+      state.throwing.add('systemTimes')
+      expect(createMetricsSampler(api).disks()).toEqual([
+        { letter: 'C', freePercent: 33 },
+        { letter: 'D', freePercent: 100 },
+      ])
+    })
+
+    it('skips drives with total 0, no space info or non-finite numbers, and clamps to 0-100', () => {
+      const { api, state } = fakeApi()
+      state.drives = ['C', 'D', 'E', 'F', 'G']
+      state.space = {
+        C: { totalBytes: 0, freeBytes: 0 },
+        D: null,
+        E: { totalBytes: Number.NaN, freeBytes: 1 },
+        F: { totalBytes: 10, freeBytes: 20 },
+        G: { totalBytes: 10, freeBytes: 1 },
+      }
+      expect(createMetricsSampler(api).disks()).toEqual([
+        { letter: 'F', freePercent: 100 },
+        { letter: 'G', freePercent: 10 },
+      ])
+    })
+
+    it('is null (keep the last reading) when the drive list cannot be read, empty when diskSpace throws', () => {
+      const { api, state } = fakeApi()
+      const sampler = createMetricsSampler(api)
+      state.throwing.add('fixedDrives')
+      expect(sampler.disks()).toBeNull()
+      state.throwing.delete('fixedDrives')
+      state.drives = null
+      expect(sampler.disks()).toBeNull()
+      state.drives = ['C']
+      state.throwing.add('diskSpace')
+      expect(sampler.disks()).toEqual([])
+    })
+
+    it('does not disturb the CPU baseline', () => {
+      const { api, state } = fakeApi()
+      const sampler = createMetricsSampler(api)
+      sampler.light()
+      state.times = { idleMs: 50, kernelMs: 100, userMs: 100 }
+      sampler.disks()
+      expect(sampler.light().cpuPercent).toBe(75)
+    })
+  })
+
   describe('network', () => {
     it('maps up/down to rounded integers', () => {
       const { api, state } = fakeApi()
@@ -315,8 +367,8 @@ describe('createMetricsSampler', () => {
       const { api, state } = fakeApi()
       const sampler = createMetricsSampler(api)
       const check = (): void => {
-        expect(lightSampleSchema.safeParse(sampler.light()).success).toBe(true)
-        expect(fullSampleSchema.safeParse(sampler.full()).success).toBe(true)
+        expect(lightSampleSchema.safeParse({ ...sampler.light(), alerts: NO_ALERTS }).success).toBe(true)
+        expect(fullSampleSchema.safeParse({ ...sampler.full(), alerts: NO_ALERTS }).success).toBe(true)
       }
       check()
       state.times = { idleMs: 70, kernelMs: 200, userMs: 100 }

@@ -3,7 +3,7 @@ import { buildApi } from '../../../src/shared/ipc/build-api'
 import { channels, eventChannels } from '../../../src/shared/ipc/channels'
 import { contract, eventContract } from '../../../src/shared/ipc/contract'
 import { err, ok } from '../../../src/shared/ipc/result'
-import { PROCESS_LIMIT } from '../../../src/shared/system/schema'
+import { NO_ALERTS, PROCESS_LIMIT } from '../../../src/shared/system/schema'
 
 const channelNames = Object.values(channels).flatMap((group) => Object.values(group))
 
@@ -232,7 +232,7 @@ describe('usage contract', () => {
 })
 
 describe('system monitor contract', () => {
-  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null }
+  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS }
   const row = { pid: 42, name: 'node.exe', cpuPercent: 1.5, privateBytes: 1024, startTime: '2026-11-10T09:00:00.000Z', killable: true }
 
   it('exposes the system channels and events', () => {

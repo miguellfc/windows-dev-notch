@@ -119,7 +119,7 @@ export function SystemView() {
       ) : (
         <>
           <MetricCards sample={sample} network={full?.network} cpuHistory={history.cpu} ramHistory={history.ram} />
-          <DiskList disks={full?.disks} />
+          <DiskList disks={full?.disks} alertLetter={sample?.alerts.disk?.letter} />
           <ProcessList order={order} onFocusLost={() => panel.current?.focus()} />
         </>
       )}

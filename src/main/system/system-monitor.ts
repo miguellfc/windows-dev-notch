@@ -1,7 +1,9 @@
 import type { NotchMode } from '../../shared/notch/state'
-import type { KillInput, KillResult, ProcessOrder, ProcessRow, SystemMetrics } from '../../shared/system/schema'
+import type { SystemAlertSettings } from '../../shared/settings/schema'
+import { NO_ALERTS, type KillInput, type KillResult, type ProcessOrder, type ProcessRow, type SystemAlerts, type SystemMetrics } from '../../shared/system/schema'
 import type { Logger } from '../services/logger'
-import type { MetricsSampler } from './metrics-sampler'
+import type { AlertEvaluator, DiskFree } from './alerts'
+import type { MetricsFull, MetricsLight, MetricsSampler } from './metrics-sampler'
 import type { ProcessSampler } from './process-sampler'
 
 export const LIGHT_INTERVAL_MS = 3000
@@ -14,6 +16,8 @@ export const LONG_PAUSE_MS = 10_000
  * 500 ms apart) are real values instead of "—".
  */
 export const WARMUP_MS = 600
+/** The light rhythm reads free disk space (no PDH) at most this often, for the disk alert. */
+export const DISK_CHECK_MS = 60_000
 
 /** Modes where nothing is sampled: the capsule is a pill, off screen, or showing an alert. */
 const PAUSED_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['mini', 'hidden', 'alert'])
@@ -34,6 +38,10 @@ export interface SystemMonitorOptions {
   now: () => number
   onMetrics: (metrics: SystemMetrics) => void
   onProcesses: (rows: ProcessRow[]) => void
+  /** Turns each emitted sample into its `alerts`. */
+  alerts: AlertEvaluator
+  /** The live alert settings, read on every tick. */
+  alertSettings: () => SystemAlertSettings
   logger: Logger
 }
 
@@ -71,6 +79,8 @@ export function createSystemMonitor(options: SystemMonitorOptions): SystemMonito
   let lastFullAt: number | null = null
   /** When the current pause began; null before the first rhythm (always a fresh start). */
   let pausedAt: number | null = null
+  /** When the light rhythm last read free disk space; null = read on its next tick. */
+  let lastDiskAt: number | null = null
   let disposed = false
 
   const unavailable = () => onMetrics({ kind: 'unavailable' })
@@ -94,14 +104,60 @@ export function createSystemMonitor(options: SystemMonitorOptions): SystemMonito
     guarded('processes', () => onProcesses(processes.top(order)))
   }
 
+  /**
+   * Evaluates one emitted sample; always a fresh object, never shared between samples. Fails open:
+   * if the settings or the evaluator throw, the sample still goes out with no alerts.
+   */
+  const evaluate = (sample: MetricsLight, disks: DiskFree[] | null, now: number): SystemAlerts => {
+    try {
+      return evaluateUnsafe(sample, disks, now)
+    } catch (error) {
+      log.error('Alert evaluation failed', { error: error instanceof Error ? error.name : typeof error })
+      return { ...NO_ALERTS }
+    }
+  }
+
+  const evaluateUnsafe = (sample: MetricsLight, disks: DiskFree[] | null, now: number): SystemAlerts => {
+    const { ram, battery } = sample
+    const result = options.alerts.evaluate(
+      {
+        now,
+        cpuPercent: sample.cpuPercent,
+        ramPercent: ram && ram.totalBytes > 0 ? Math.round((100 * ram.usedBytes) / ram.totalBytes) : null,
+        battery: battery && { percent: battery.percent, pluggedIn: battery.pluggedIn },
+        disks,
+      },
+      options.alertSettings(),
+    )
+    return { ...result, disk: result.disk && { ...result.disk } }
+  }
+
+  /** Free space from a full sample, so the full rhythm needs no extra disk read. */
+  const freeFromFull = (sample: MetricsFull): DiskFree[] =>
+    sample.disks.map((disk) => ({ letter: disk.letter, freePercent: 100 - disk.usedPercent }))
+
+  /** Free disk space on the first light tick after a (re)start, then every DISK_CHECK_MS; else null. */
+  const lightDisks = (now: number): DiskFree[] | null => {
+    if (!metrics || (lastDiskAt !== null && now - lastDiskAt < DISK_CHECK_MS)) return null
+    lastDiskAt = now
+    return metrics.disks()
+  }
+
   const tick = () => {
     if (!metrics) return
+    const now = options.now()
     if (rhythm === 'full') {
-      lastFullAt = options.now()
-      guarded('full', () => onMetrics({ kind: 'full', ...metrics.full() }))
+      lastFullAt = now
+      guarded('full', () => {
+        const sample = metrics.full()
+        onMetrics({ kind: 'full', ...sample, alerts: evaluate(sample, freeFromFull(sample), now) })
+      })
       emitProcesses()
     } else if (rhythm === 'light') {
-      guarded('light', () => onMetrics({ kind: 'light', ...metrics.light() }))
+      guarded('light', () => {
+        const sample = metrics.light()
+        onMetrics({ kind: 'light', ...sample, alerts: evaluate(sample, lightDisks(now), now) })
+      })
     }
   }
 
@@ -150,7 +206,13 @@ export function createSystemMonitor(options: SystemMonitorOptions): SystemMonito
     }
     // After a long pause the old CPU baseline is stale: forget it (the next CPU is null). A short
     // pause (e.g. a brief alert) keeps it, so the capsule does not flash "—".
-    if (previous === 'paused' && (pausedAt === null || options.now() - pausedAt >= LONG_PAUSE_MS)) metrics.reset()
+    // The alert state (CPU window, last disk reading) is as stale as the baseline: it resets with it.
+    if (previous === 'paused' && (pausedAt === null || options.now() - pausedAt >= LONG_PAUSE_MS)) {
+      metrics.reset()
+      options.alerts.reset()
+    }
+    // Entering the light rhythm (from a pause or the view) reads disk space on its first tick.
+    if (next === 'light') lastDiskAt = null
     if (next === 'full') {
       // A fresh view may only close rows it shows. Per-process CPU baselines survive a short
       // close (the delta is then a true average); after a long one they are stale.
