@@ -43,7 +43,7 @@ Estrategia Restrained: neutros negros sin tinte más un acento, y una familia de
 
 ### Estados
 - **Verde Listo** (#4ADE80): terminado / OK; aparece de forma breve.
-- **Ámbar Espera** (#FBBF24): esperando permiso o input; pulsa mientras haya algo pendiente. Texto sobre él: #1A1205.
+- **Ámbar Espera** (#FBBF24): esperando permiso o input; pulsa mientras haya algo pendiente. Texto sobre él: #1A1205 (token `--color-on-wait`).
 - **Rojo Fallo** (#F87171): error.
 
 ### Named Rules

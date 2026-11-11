@@ -26,8 +26,8 @@ Sabremos que acertamos cuando, tras 2 semanas de uso diario: (a) ya no compruebo
 
 - Multiplataforma (macOS/Linux) - solo Windows 11 por ahora.
 - Launcher universal (indexar todo el PC, Menú Inicio, archivos) - PowerToys/Flow Launcher ya lo resuelven; aquí solo favoritos curados en el MVP.
-- Terminal embebida o chat con Claude desde la cápsula - duplica la app Claude y amplía mucho el alcance.
-- Aprobar/denegar permisos de Claude desde la cápsula - pospuesto tras el MVP por impacto en seguridad (ver Could).
+- Chat con Claude desde la cápsula - duplica la app Claude y amplía mucho el alcance. (La terminal embebida ya NO está aquí: entró en alcance con el cambio de dirección de 2026-11-09 y está hecha en M2.)
+- ~~Aprobar/denegar permisos de Claude desde la cápsula~~ - ya NO está excluido: se decidió el 2026-11-10 y está hecho en M3 (solo "permitir una vez" o "denegar", solo con click).
 - Multimedia, portapapeles, widgets decorativos - no resuelven el problema planteado.
 - Sincronización en la nube, cuentas, multiusuario - herramienta personal.
 - Firma de código y auto-update - innecesario mientras sea de uso personal.
@@ -46,12 +46,12 @@ Sabremos que acertamos cuando, tras 2 semanas de uso diario: (a) ya no compruebo
 
 ## Open Questions
 
-- [ ] ¿Las sesiones de la app de escritorio Claude disparan los hooks de `~/.claude/settings.json` de forma fiable? (indicio positivo; se valida en M0)
+- [x] ¿Las sesiones de la app de escritorio Claude disparan los hooks de `~/.claude/settings.json` de forma fiable? **Sí** (M0; en M3 también `PermissionRequest` y `Notification`, en caliente y sin reiniciar Claude)
 - [ ] ¿Qué campos trae exactamente `StopFailure` en su stdin/body? (no verificado en la documentación)
 - [ ] ¿Se puede enfocar la sesión exacta en la app Claude y no solo la app? (no hay deep link documentado por ID de sesión)
-- [ ] ¿Cómo se comporta `setIgnoreMouseEvents` + redimensionado de ventana transparente en Windows 11 con DPI mixto? (M0)
+- [x] ¿Cómo se comporta `setIgnoreMouseEvents` + redimensionado de ventana transparente en Windows 11? **Bien**: ventana transparente y click-through funcionan (M0, confirmado por el usuario). **Sigue abierto: DPI mixto / multi-monitor** (solo se probó un monitor al 100 %)
 - [ ] ¿Detección de compartir pantalla? Solo existe la de modo presentación; ¿basta el atajo manual?
-- [ ] ¿Aprobar permisos de Claude desde la cápsula aporta lo suficiente para justificar su riesgo? (post-MVP)
+- [x] ¿Aprobar permisos de Claude desde la cápsula aporta lo suficiente para justificar su riesgo? Decidido el 2026-11-10 y hecho en M3 con diseño de seguridad propio; su valor real se evalúa en la validación de 2 semanas
 
 ---
 
@@ -86,23 +86,25 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Must | Auto `mini` con ventana maximizada debajo y `hidden` en pantalla completa / presentación | Principal queja de las islas en Windows: tapan contenido |
 | Must | Multi-monitor (sigue al cursor) y escalado DPI correcto | Uso real con varios monitores |
 | Must | System tray, ocultar sin cerrar, inicio con Windows | Integración nativa básica |
-| Must | Quick Launcher con favoritos manuales (app, carpeta, proyecto, URL, comando de lista blanca) | Resuelve "ir a la app X" |
+| Must (sustituido) | Quick Launcher con favoritos manuales (app, carpeta, proyecto, URL, comando de lista blanca) | Aparcado en la rama `feat/m2-quick-launcher` (sin mergear); sustituido por integraciones vivas + terminal PowerShell (ver "Cambio de dirección") |
 | Must | Estado en vivo de sesiones de Claude Code (trabajando / esperando / terminada / error / inactiva) con alerta y toast nativo | Resuelve "no me entero de que Claude me espera" |
 | Must | Instalación de hooks de Claude Code desde la app con diff, backup, fusión y desinstalación | Integración segura con la configuración del usuario |
-| Must | Recordatorios locales rápidos (relativos, a una hora, repetición diaria) con alerta en cápsula + toast | Resuelve "se me olvidan cosas" |
+| Must (hecho en M4) | Recordatorios locales rápidos (relativos, a una hora, repetición diaria) con alerta en cápsula + toast | Resuelve "se me olvidan cosas"; implementado como integración del notch (ver "M4: cambios respecto al PRD original") |
 | Must | Control Center: favoritos, atajos, apariencia, integraciones, recordatorios | Configuración sin editar archivos |
 | Should | Indicador de reuniones próximas (Google Calendar) | Fase 3; requiere OAuth |
 | Should | Centro de notificaciones con historial (SQLite) y prioridades | Fase 2 |
 | Should | Developer Toolbox | Fase 2; alcance por definir |
-| Must (M3, decidido 2026-11-10) | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`): solo "permitir una vez" o "denegar", solo con click | Diseño de seguridad en `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` |
+| Must (M3, decidido 2026-11-10, hecho) | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`): solo "permitir una vez" o "denegar", solo con click | Diseño de seguridad en `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` |
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
 | Could | System Monitor (CPU, RAM, batería, disco, red) | Fase 4 |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
-| Won't | Multiplataforma, launcher universal, terminal/chat embebido, sync en la nube | Ver "What We're NOT Building" |
+| Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
 ### MVP Scope
 
-M0 spike técnico + M1 Foundation + M2 Quick Launcher (favoritos) + M3 estado de Claude Code + M4 recordatorios locales. Es lo mínimo para probar la hipótesis: estado en vivo de agentes, acción rápida por teclado y avisos de lo pendiente, en una cápsula que no estorba.
+M0 spike técnico + M1 Foundation + M2 (redirigido a Integraciones + terminal PowerShell; el Quick Launcher de favoritos está aparcado) + M3 estado de Claude Code y permisos desde el notch + M4 recordatorios locales. Es lo mínimo para probar la hipótesis: estado en vivo de agentes, acción rápida y avisos de lo pendiente, en una cápsula que no estorba.
+
+**Estado (2026-11-10): MVP terminado.** M0-M4 están mergeados en `dev` (merges `65e1ba3` M0, `32bdb9f` M1, `8a8b5f7` M2, `1753fbb` M3, `92b0c4c` M4; PRs #2-#6 de miguellfc/windows-dev-notch). Falta la validación de 2 semanas (ver "Validación (2 semanas)").
 
 ### User Flow
 
@@ -163,11 +165,11 @@ M0 spike técnico + M1 Foundation + M2 Quick Launcher (favoritos) + M3 estado de
 
 | # | Phase | Description | Status | Parallel | Depends | PRP Plan |
 |---|-------|-------------|--------|----------|---------|----------|
-| 1 | M0 · Spike técnico | Código desechable que resuelve las 4 incertidumbres críticas | pending | - | - | - |
-| 2 | M1 · Foundation | Scaffold, contrato IPC, tokens, cápsula con todos los estados, ventanas, Windows integration, instalador | pending | - | 1 | - |
-| 3 | M2 · Quick Launcher | Favoritos (CRUD), búsqueda, teclado, lanzamiento por ID | pending | with 4, 5 | 2 | - |
-| 4 | M3 · Claude Code status | Bridge, instalador de hooks, registro de sesiones, alertas, toast | pending | with 3, 5 | 2 | - |
-| 5 | M4 · Recordatorios | Recordatorios locales rápidos con alerta y toast | pending | with 3, 4 | 2 | - |
+| 1 | M0 · Spike técnico | Código desechable que resuelve las 4 incertidumbres críticas | complete | - | - | - |
+| 2 | M1 · Foundation | Scaffold, contrato IPC, tokens, cápsula con todos los estados, ventanas, Windows integration, instalador | complete | - | 1 | - |
+| 3 | M2 · Integraciones + terminal PowerShell | Fila de integraciones en el panel y terminal PowerShell real (`node-pty` + `xterm.js`). El launcher de favoritos (CRUD, búsqueda, lanzamiento por ID) queda aparcado en `feat/m2-quick-launcher` | complete | with 4, 5 | 2 | - |
+| 4 | M3 · Claude Code status | Bridge, instalador de hooks, registro de sesiones, alertas, toast, aprobar/denegar permisos desde el notch | complete | with 3, 5 | 2 | - |
+| 5 | M4 · Recordatorios | Recordatorios locales rápidos con alerta y toast | complete | with 3, 4 | 2 | - |
 | 6 | Fase 2 · Productivity | Centro de notificaciones (SQLite), Developer Toolbox, ajustes avanzados, indexado Menú Inicio/repos | pending | - | 3, 4, 5 | - |
 | 7 | Fase 3 · Intelligence | Meetings (Google Calendar/Gmail vía OAuth + `safeStorage`), más proveedores de agentes, aprobar permisos desde la cápsula (si se valida) | pending | - | 6 | - |
 | 8 | Fase 4 · Advanced | System Monitor, automatizaciones, n8n, personalización avanzada, firma y auto-update | pending | - | 7 | - |
@@ -184,10 +186,10 @@ M0 spike técnico + M1 Foundation + M2 Quick Launcher (favoritos) + M3 estado de
 - **Scope**: Proyecto Electron + React + TS (electron-vite), contrato IPC, `settings.json` con zod, tokens Obsidian + Tailwind, máquina de estados de la cápsula, morph con Motion, WindowManager (monitor del cursor, DPI), ForegroundWatcher, tray, atajo global, inicio con Windows, Control Center (esqueleto), instalador NSIS, base de Vitest y Playwright.
 - **Success signal**: Criterios de aceptación 1-10 cumplidos con screenshots de todos los estados.
 
-**Phase 3: M2 · Quick Launcher**
-- **Goal**: Abrir cualquier favorito en < 2 s solo con teclado.
+**Phase 3: M2 · Quick Launcher (sustituido por Integraciones + terminal PowerShell; ver "Cambio de dirección")**
+- **Goal** (original, aparcado): Abrir cualquier favorito en < 2 s solo con teclado.
 - **Scope**: CRUD de favoritos (app, carpeta, proyecto, URL, comando) en Control Center, búsqueda filtrada, navegación por teclado, LauncherService por ID, gestión de favoritos rotos.
-- **Success signal**: Criterios 11-14 cumplidos.
+- **Success signal**: Criterios 11-14 cumplidos. (Sustituidos por los criterios 1-5 del nuevo M2; ver abajo.)
 
 **Phase 4: M3 · Claude Code status**
 - **Goal**: Enterarse al momento de cuándo una sesión de Claude necesita atención.
@@ -209,25 +211,27 @@ M2, M3 y M4 solo dependen de M1 y tocan módulos distintos (`features/launcher`,
 
 Verificados en la máquina real con screenshots de cada estado, no solo compilando.
 
-**M1 · Foundation**
+**Estado de verificación (2026-11-10):** M1 1-10 verificados en M1, con las salvedades indicadas. Criterios 11-14 del launcher original: no aplican (aparcado). Nuevo M2 1-5: verificados por E2E. M3 15-20: verificados (E2E + prueba manual con la app Claude, ver `docs/spikes/m3-hooks-findings.md`). M4 21 y 22 verificados en su forma actual (formulario del notch; toast sin botones — los botones del toast siguen sin verificar) y 24: por E2E y por la prueba manual del usuario ("Los recordatorios funcionan perfectamente"); 23: cubierto por tests unitarios y por la prueba del usuario. Pendiente de verificación manual: DPI mixto y multi-monitor, y los botones del toast.
+
+**M1 · Foundation** — verificados (1-10), salvo lo indicado en 2
 1. La app arranca en < 2 s; instancia única (un segundo arranque enfoca la existente).
-2. La cápsula aparece arriba al centro del monitor correcto, nítida a 100/125/150 % y se reposiciona al conectar/desconectar monitores.
+2. La cápsula aparece arriba al centro del monitor correcto, nítida a 100/125/150 % y se reposiciona al conectar/desconectar monitores. *(Verificado solo con un monitor al 100 %; DPI mixto, 125/150 % y multi-monitor: pendiente de verificación manual.)*
 3. Fuera de la cápsula visible, los clicks llegan siempre a la app de debajo, en todos los estados.
 4. `compact → expanded → compact` anima sin parpadeos ni saltos, a 60 fps percibidos; con reduced-motion solo fundidos.
 5. Con ventana maximizada debajo pasa a `mini`; con app a pantalla completa o modo presentación pasa a `hidden`; vuelve sola al salir.
 6. El atajo global abre/cierra desde cualquier app; Esc o click fuera cierran; si el atajo está ocupado se avisa.
 7. Tray: mostrar/ocultar, Control Center, inicio con Windows, salir; cerrar la ventana oculta la app, no la cierra.
-8. En reposo: CPU ≈ 0 %, RAM total < 200 MB sin integraciones abiertas.
-9. El instalador NSIS instala, arranca con Windows si está activado y desinstala limpio.
+8. En reposo: CPU ≈ 0 %, RAM total < 200 MB sin integraciones abiertas. *(Medido por el controlador en M1 con el Administrador de tareas, app empaquetada en reposo y sin integraciones abiertas, columna de memoria del grupo de procesos: CPU 0,02 %, RAM 124 MB; sin registro en el repo. El spike M2 (`docs/spikes/m2-pty-findings.md`) midió 183 MB privados / 354 MB de working set en desarrollo y sin sesión de terminal, así que la métrica a seguir es la memoria del Administrador de tareas de la app instalada.)*
+9. El instalador NSIS instala, arranca con Windows si está activado y desinstala limpio. *(Probado por el usuario.)*
 10. `contextIsolation`/`sandbox` activos, CSP sin `unsafe-eval`, todo IPC inválido se rechaza (probado con tests).
 
-**M2 · Quick Launcher**
+**M2 · Quick Launcher** — criterios originales aparcados con la rama `feat/m2-quick-launcher` (no aplican al MVP)
 11. Crear, editar, reordenar y borrar favoritos de los 5 tipos en Control Center, con validación en el formulario.
 12. `Ctrl+Alt+Space` → escribir → `Enter` abre el favorito en < 2 s sin ratón.
 13. Un favorito roto muestra un error claro y no rompe nada.
 14. Los comandos se ejecutan con argumentos fijos y sin shell; el renderer solo envía IDs (verificado con tests).
 
-**M3 · Claude Code status**
+**M3 · Claude Code status** — verificados (15-20)
 15. Instalar los hooks muestra diff, crea backup y conserva los hooks existentes; desinstalar deja `settings.json` como estaba.
 16. Con una sesión en la app Claude, la cápsula refleja trabajando / esperando / terminado en < 1 s desde el evento.
 17. "Claude espera permiso" dispara la alerta de la cápsula y, si está oculta, un toast nativo.
@@ -235,10 +239,10 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 19. Con la app Claude cerrada o sin hooks, el módulo muestra "no conectado" y el resto funciona.
 20. Sesiones sin eventos durante 30 min pasan a "inactiva" y se pueden descartar.
 
-**M4 · Recordatorios**
+**M4 · Recordatorios** — 21 y 22 verificados en su forma actual (formulario del notch; toast sin botones — los botones del toast siguen sin verificar), 24 verificado; 23 ver nota (la forma de crear y el toast cambiaron, ver "M4: cambios respecto al PRD original")
 21. Crear un recordatorio desde el buscador ("en 30 min revisar PR", "16:00 standup") en < 5 s.
 22. A su hora: alerta en la cápsula y toast nativo, con acciones posponer y completar.
-23. Tras suspender/reanudar el PC, los recordatorios se re-programan correctamente.
+23. Tras suspender/reanudar el PC, los recordatorios se re-programan correctamente. *(Cubierto por tests unitarios y probado por el usuario.)*
 24. Los recordatorios vencidos con la app cerrada se muestran como "perdidos" al arrancar.
 
 ---
@@ -260,7 +264,8 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 | Persistencia MVP | JSON validado con zod | SQLite desde el inicio | Evitar módulo nativo hasta que haya historial (Fase 2) |
 | Tooling | electron-vite + electron-builder | Electron Forge + Vite | Combinación estable y madura para este stack |
 | Recordatorios | Adelantados al MVP como M4 | Dejar en Fase 2 | El usuario reporta olvidos frecuentes |
-| Aprobar permisos de Claude | Post-MVP (Could) | En el MVP; nunca | Alto valor pero requiere diseño de seguridad propio |
+| Aprobar permisos de Claude | Post-MVP (Could) → **en el MVP como M3 (2026-11-10)** | Nunca | Alto valor; se resolvió con diseño de seguridad propio (solo "permitir una vez"/"denegar", solo click) |
+| Toast de recordatorios (M4) | Sin botones; el click en el cuerpo abre la vista de recordatorios | Botones Posponer/Completar | No se pudo verificar el click en botones (ver `docs/spikes/m4-toast-findings.md`) |
 | Plataforma | Solo Windows 11 | Multiplataforma | Foco y hueco de mercado en Windows |
 
 ---
@@ -281,7 +286,7 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 ---
 
 *Generated: 2026-11-09*
-*Status: DRAFT - needs validation*
+*Status: MVP terminado (M0-M4 en `dev`, 2026-11-10); en validación de 2 semanas*
 
 ---
 
@@ -311,3 +316,32 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 3. Cerrar el panel no mata la sesión; reabrirlo muestra la misma sesión con su historial.
 4. Ningún canal IPC distinto de la propia terminal puede escribir en la sesión (verificado con tests).
 5. Esc no cierra la terminal mientras tiene el foco (se usa un atajo propio para salir), y el foco vuelve a la app anterior al cerrar.
+
+---
+
+## M4: cambios respecto al PRD original (2026-11-10)
+
+- Los recordatorios son una **integración del notch**, no un buscador en la cápsula: no hay caja de búsqueda en la cápsula.
+- Vista del notch: lista + botón "+" que abre un formulario (texto, Hoy/Mañana/Otro día, hora en 24 h, repetición Una vez/Cada día/Laborables).
+- La página de Control Center conserva los atajos de texto ("en 30 min …", "16:00 …", "laborables 9:30 …") y la edición.
+- Toast **sin botones**: el click en el cuerpo abre la vista de recordatorios, porque no se pudo verificar que el click en un botón llegara a la app (ver `docs/spikes/m4-toast-findings.md`).
+- Sonido propio (chime).
+- Con "No molestar" activado en la máquina del usuario, los toasts van directos al Centro de notificaciones.
+
+## Validación (2 semanas) — desde 2026-11-10
+
+La app guarda un registro local de uso (Control Center → Acerca de): días de uso, horas de uso por día, arranques, recordatorios disparados/perdidos/completados, alertas de Claude y latencia de las alertas (desde que la petición del hook llega al bridge local hasta el cambio de estado de la cápsula; **no incluye** el pintado del renderer).
+
+| Métrica del PRD | Cómo se mide ahora |
+|-----------------|--------------------|
+| Uso diario sostenido | Días de uso y horas por día del registro local, más autoevaluación |
+| Comprobaciones manuales de la app Claude | Solo autoevaluación al final de las 2 semanas (el registro no lo mide); se puede contrastar con las alertas de Claude registradas |
+| Latencia de aviso de Claude | Latencia del registro (hook → bridge → cambio de estado de la cápsula). Sin el pintado, por lo que es un límite inferior del tiempo percibido |
+| Tiempo para abrir un favorito | **Ya no aplica** (launcher aparcado) |
+| Favoritos abiertos desde la cápsula | **Ya no aplica** (launcher aparcado) |
+| Recordatorios cumplidos | Recordatorios disparados / perdidos / completados del registro |
+| Consumo en reposo | Administrador de tareas (medido en M1 por el controlador: 0,02 % CPU, 124 MB con la app empaquetada, sin fuente en el repo; el spike M2 midió 183 MB privados / 354 MB working set en desarrollo); el objetivo de 200 MB queda **pendiente de confirmar con la app instalada**; repetir tras días de uso |
+
+Sugerencia, no compromiso: sustituir las dos métricas del launcher por "aperturas de integraciones" (terminal, recordatorios…) si resulta útil medirlas.
+
+Siguen sin verificarse: DPI mixto y multi-monitor, y los botones del toast (ver arriba).
