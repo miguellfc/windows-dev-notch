@@ -1,6 +1,6 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, type Transition } from 'motion/react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { CAPSULE_SIZES, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
 import { PANEL_MODES, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
@@ -13,6 +13,8 @@ import { PermissionCard } from './claude/PermissionCard'
 import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots } from './claude/StatusDots'
 import { IntegrationRow } from './IntegrationRow'
+import { playChime } from './reminders/chime'
+import { RemindersView } from './reminders/RemindersView'
 import { TerminalView } from './TerminalView'
 
 // One authored motion: the capsule morphs as a single object. Grow springs, shrink is quicker.
@@ -53,9 +55,26 @@ function useNotchMode(): ModeState {
   return state
 }
 
+/** Plays the chime for each new batch of due reminders, if sound is on and the capsule is shown. */
+function useReminderChime(mode: NotchMode): void {
+  const current = useRef(mode)
+  useEffect(() => {
+    current.current = mode
+  }, [mode])
+  useEffect(
+    () =>
+      window.notch.events.on('reminders:fired', () => {
+        const sound = useSettings.getState().settings?.reminders.sound ?? false
+        if (sound && current.current !== 'hidden') playChime()
+      }),
+    [],
+  )
+}
+
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
+  useReminderChime(mode)
 
   useEffect(() => {
     // In the terminal, Esc belongs to PowerShell (it clears the line); leave with the
@@ -124,6 +143,7 @@ function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Setti
   if (mode === 'terminal') return <TerminalView />
   if (mode === 'alert') return <AlertCapsule />
   if (mode === 'permission') return <PermissionCard />
+  if (mode === 'reminders') return <RemindersView />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   return (

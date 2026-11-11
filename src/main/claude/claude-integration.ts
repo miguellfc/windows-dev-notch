@@ -12,7 +12,8 @@ import { bringClaudeToFront, createWin32FocusApi, type Win32FocusApi } from './b
 import { createClaudeBridge } from './claude-bridge'
 import { createClaudeIpcHandlers } from './claude-ipc'
 import { createClaudeService } from './claude-service'
-import { createHookInstaller, readTextFile, writeFileAtomic } from './hook-installer'
+import { createHookInstaller } from './hook-installer'
+import { readTextFile, writeFileAtomic } from '../services/fs-atomic'
 import { createPermissionToast, type ToastRequest } from './toast'
 
 const TICK_MS = 60_000

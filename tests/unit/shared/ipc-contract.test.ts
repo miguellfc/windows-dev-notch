@@ -90,6 +90,66 @@ describe('IPC contract', () => {
     expect(dismiss.safeParse({ sessionId: 'a'.repeat(257) }).success).toBe(false)
   })
 
+  it('exposes the reminders channels and events', () => {
+    expect(channels.reminders).toEqual({
+      list: 'reminders:list',
+      create: 'reminders:create',
+      update: 'reminders:update',
+      snooze: 'reminders:snooze',
+      complete: 'reminders:complete',
+      delete: 'reminders:delete',
+    })
+    expect(eventChannels.remindersChanged).toBe('reminders:changed')
+    expect(eventChannels.remindersFired).toBe('reminders:fired')
+  })
+
+  it('validates reminder ids and inputs', () => {
+    const id = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+    for (const channel of ['reminders:snooze', 'reminders:complete', 'reminders:delete'] as const) {
+      const input = contract[channel].input
+      expect(input.safeParse({ id }).success).toBe(true)
+      expect(input.safeParse({ id: 'nope' }).success).toBe(false)
+      expect(input.safeParse({ id, text: 'x' }).success).toBe(false)
+    }
+    const create = contract['reminders:create'].input
+    expect(create.safeParse({ input: 'en 30 min revisar PR' }).success).toBe(true)
+    expect(create.safeParse({ text: 'Revisar PR', preset: 'tomorrow-9' }).success).toBe(true)
+    expect(create.safeParse({ text: 'Revisar PR', preset: 'never' }).success).toBe(false)
+    const dueAt = '2026-11-10T15:15:00.000Z'
+    expect(create.safeParse({ text: 'Revisar PR', dueAt, repeat: 'none' }).success).toBe(true)
+    expect(create.safeParse({ text: 'Revisar PR', dueAt, repeat: 'weekdays' }).success).toBe(true)
+    expect(create.safeParse({ text: 'Revisar PR', dueAt, repeat: 'hourly' }).success).toBe(false)
+    expect(create.safeParse({ text: 'Revisar PR', dueAt: 'mañana', repeat: 'none' }).success).toBe(false)
+    expect(create.safeParse({ text: '', dueAt, repeat: 'none' }).success).toBe(false)
+    expect(create.safeParse({ text: 'Revisar PR', dueAt }).success).toBe(false)
+    expect(create.safeParse({ text: 'Revisar PR', dueAt, repeat: 'none', preset: '1h' }).success).toBe(false)
+    const update = contract['reminders:update'].input
+    expect(update.safeParse({ id, repeat: 'daily' }).success).toBe(true)
+    expect(update.safeParse({ id }).success).toBe(false)
+  })
+
+  it('keeps the reminders list strict and the notice closed', () => {
+    const reminder = {
+      id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f',
+      text: 'Revisar PR',
+      dueAt: '2026-11-10T10:00:00.000Z',
+      repeat: 'none',
+      state: 'due',
+      createdAt: '2026-11-10T09:00:00.000Z',
+    }
+    const list = contract['reminders:list'].output
+    for (const notice of [null, 'quarantined', 'read-only']) {
+      expect(list.safeParse({ reminders: [reminder], notice }).success).toBe(true)
+    }
+    expect(list.safeParse({ reminders: [reminder], notice: 'other' }).success).toBe(false)
+    expect(list.safeParse({ reminders: [reminder] }).success).toBe(false)
+    expect(list.safeParse({ reminders: [{ ...reminder, extra: 1 }], notice: null }).success).toBe(false)
+    expect(eventContract['reminders:changed'].safeParse({ reminders: [], notice: null }).success).toBe(true)
+    expect(eventContract['reminders:fired'].safeParse({ count: 2 }).success).toBe(true)
+    expect(eventContract['reminders:fired'].safeParse({ count: 0 }).success).toBe(false)
+    expect(eventContract['reminders:fired'].safeParse({ count: 1, text: 'x' }).success).toBe(false)
+  })
+
   it('uses unique, namespaced channel names', () => {
     expect(new Set(channelNames).size).toBe(channelNames.length)
     for (const name of channelNames) {

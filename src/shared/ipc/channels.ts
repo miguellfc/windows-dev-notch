@@ -38,6 +38,14 @@ export const channels = {
     rotateToken: 'claude:rotate-token',
     rotatePort: 'claude:rotate-port',
   },
+  reminders: {
+    list: 'reminders:list',
+    create: 'reminders:create',
+    update: 'reminders:update',
+    snooze: 'reminders:snooze',
+    complete: 'reminders:complete',
+    delete: 'reminders:delete',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
@@ -47,6 +55,8 @@ export const eventChannels = {
   terminalData: 'terminal:data',
   terminalExit: 'terminal:exit',
   claudeStateChanged: 'claude:state-changed',
+  remindersChanged: 'reminders:changed',
+  remindersFired: 'reminders:fired',
 } as const
 
 type ChannelGroups = typeof channels

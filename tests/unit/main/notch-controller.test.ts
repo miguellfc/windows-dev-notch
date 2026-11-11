@@ -234,3 +234,37 @@ describe('notch controller: attention', () => {
     expect(calls).toEqual(['mode:expanded'])
   })
 })
+
+describe('notch controller: reminders', () => {
+  it('grows into the alert capsule without taking focus when a reminder is due', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'reminders', due: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert'])
+  })
+
+  it('grows before animating into the reminders panel and takes focus', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'reminders', due: true })
+    calls.length = 0
+    controller.dispatch({ type: 'expand' })
+    expect(calls).toEqual([size('reminders'), 'mode:reminders', 'focus'])
+  })
+
+  it('takes focus when opening the reminders integration and gives it back on dismiss', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'open-integration', id: 'reminders' })
+    expect(calls).toEqual([size('reminders'), 'mode:reminders', 'focus'])
+    calls.length = 0
+    controller.dispatch({ type: 'dismiss' })
+    expect(calls).toEqual(['mode:compact', 'blur'])
+  })
+
+  it('keeps the panel open and focused when the reminder is cleared', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'reminders', due: true })
+    controller.dispatch({ type: 'expand' })
+    calls.length = 0
+    controller.dispatch({ type: 'reminders', due: false })
+    expect(calls).toEqual([])
+  })
+})

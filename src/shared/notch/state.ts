@@ -1,13 +1,13 @@
 import type { IntegrationId } from '../integrations/registry'
 
 /** What the capsule shows. `hidden` means the window is not on screen at all. */
-export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'mini' | 'hidden'
+export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'reminders' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
 export type NotchView = 'home' | 'permission' | IntegrationId
 
 /** Modes that show the panel and therefore own the keyboard focus. */
-export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission'])
+export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'reminders'])
 
 /** How the capsule yields to the window in front: nothing, shrink to a pill, or disappear. */
 export type Yielding = 'none' | 'mini' | 'hidden'
@@ -19,6 +19,8 @@ export interface NotchState {
   readonly pointerInside: boolean
   /** A Claude permission request is waiting for the user. */
   readonly attention: boolean
+  /** At least one reminder is due and not yet dismissed. */
+  readonly reminderDue: boolean
   readonly view: NotchView
 }
 
@@ -32,6 +34,7 @@ export type NotchEvent =
   | { readonly type: 'open-integration'; readonly id: IntegrationId }
   | { readonly type: 'back' }
   | { readonly type: 'attention'; readonly on: boolean }
+  | { readonly type: 'reminders'; readonly due: boolean }
 
 export const initialNotchState: NotchState = Object.freeze({
   expanded: false,
@@ -39,22 +42,27 @@ export const initialNotchState: NotchState = Object.freeze({
   userHidden: false,
   pointerInside: false,
   attention: false,
+  reminderDue: false,
   view: 'home',
 })
 
 /** Explicit user intent (expand) beats yielding; yielding beats hover. */
 export function notchMode(state: NotchState): NotchMode {
-  if (state.expanded) return state.view === 'terminal' ? 'terminal' : state.view === 'permission' ? 'permission' : 'expanded'
+  if (state.expanded) {
+    if (state.view === 'terminal' || state.view === 'permission' || state.view === 'reminders') return state.view
+    return 'expanded'
+  }
   if (state.userHidden || state.yielding === 'hidden') return 'hidden'
-  if (state.attention) return 'alert'
+  if (state.attention || state.reminderDue) return 'alert'
   if (state.pointerInside) return 'peek'
   return state.yielding === 'mini' ? 'mini' : 'compact'
 }
 
-/** A panel opened while a permission is pending lands on the permission card. */
+/** A panel opened while something is pending lands on it: a permission first, then a due reminder. */
 function openingView(state: NotchState): NotchView {
   if (state.expanded) return state.view
-  return state.attention ? 'permission' : 'home'
+  if (state.attention) return 'permission'
+  return state.reminderDue ? 'reminders' : 'home'
 }
 
 function next(state: NotchState, changes: Partial<NotchState>): NotchState {
@@ -97,6 +105,9 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
     case 'attention':
       // Attention never opens or closes the panel; only an open permission card has nothing left to show.
       return next(state, { attention: event.on, ...(!event.on && state.view === 'permission' ? { view: 'home' as const } : {}) })
+    case 'reminders':
+      // Like attention, a due reminder never opens or closes the panel; an open reminders view stays as it is.
+      return next(state, { reminderDue: event.due })
     case 'back':
       return state.expanded ? next(state, { view: 'home' }) : state
   }

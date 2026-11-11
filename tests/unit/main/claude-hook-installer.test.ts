@@ -7,9 +7,8 @@ import {
   hookStatus,
   planInstall,
   planUninstall,
-  readTextFile,
-  writeFileAtomic,
 } from '../../../src/main/claude/hook-installer'
+import { readTextFile, writeFileAtomic } from '../../../src/main/services/fs-atomic'
 import { HOOK_EVENT_NAMES } from '../../../src/shared/claude/hook-events'
 
 const OPTS = { port: 47600, token: 'tok-1' }

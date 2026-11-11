@@ -63,3 +63,16 @@ describe('alert and permission geometry', () => {
     expect(resizeOrder('permission', 'expanded')).toBe('animate-first')
   })
 })
+
+describe('reminders panel geometry', () => {
+  it('is 420x320 plus the shadow margin', () => {
+    expect(CAPSULE_SIZES.reminders).toEqual({ width: 420, height: 320 })
+    expect(windowBoundsFor('reminders', workArea).width).toBe(420 + SHADOW_MARGIN.side * 2)
+  })
+
+  it('grows the window before animating into the panel and shrinks after leaving it', () => {
+    expect(resizeOrder('expanded', 'reminders')).toBe('resize-first')
+    expect(resizeOrder('alert', 'reminders')).toBe('resize-first')
+    expect(resizeOrder('reminders', 'alert')).toBe('animate-first')
+  })
+})

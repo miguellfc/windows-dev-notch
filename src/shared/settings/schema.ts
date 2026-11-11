@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { isSafeAccelerator } from './accelerator'
 
-export const SETTINGS_VERSION = 1
+export const SETTINGS_VERSION = 2
+
+export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
 export const languageSchema = z.enum(['es', 'en'])
 export type Language = z.infer<typeof languageSchema>
@@ -16,11 +18,19 @@ const shortcutSchema = z
   .regex(/^[A-Za-z0-9]+(\+[A-Za-z0-9]+)*$/, 'Invalid shortcut')
   .refine(isSafeAccelerator, 'Shortcut needs Ctrl, Alt or Win plus a key')
 
+export const SNOOZE_MINUTES_OPTIONS = [5, 10, 15, 30] as const
+
+export const remindersSettingsSchema = z.strictObject({
+  snoozeMinutes: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(30)]),
+  sound: z.boolean(),
+})
+
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
   language: languageSchema,
   shortcut: shortcutSchema,
   launchAtLogin: z.boolean(),
+  reminders: remindersSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -41,5 +51,6 @@ export function createDefaultSettings(locale: string): Settings {
     language: languageFromLocale(locale),
     shortcut: 'Control+Alt+Space',
     launchAtLogin: false,
+    reminders: { ...DEFAULT_REMINDERS_SETTINGS },
   }
 }
