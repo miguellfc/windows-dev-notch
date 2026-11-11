@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { CAPSULE_MISSES, EMPTY_CAPSULE, nextCapsule, type CapsuleLatch } from '../../../src/renderer/notch/system/capsule-latch'
-import type { SystemMetrics } from '../../../src/shared/system/schema'
+import { NO_ALERTS, type SystemAlerts, type SystemMetrics } from '../../../src/shared/system/schema'
 
 const GB = 1024 ** 3
-const light = (battery: { percent: number; charging: boolean; pluggedIn: boolean } | null, cpuPercent: number | null = 30): SystemMetrics => ({
+const light = (
+  battery: { percent: number; charging: boolean; pluggedIn: boolean } | null,
+  cpuPercent: number | null = 30,
+  alerts: SystemAlerts = NO_ALERTS,
+): SystemMetrics => ({
   kind: 'light',
   cpuPercent,
   ram: { usedBytes: 8 * GB, totalBytes: 16 * GB },
   battery: battery && { ...battery, secondsLeft: null },
+  alerts,
 })
+const QUIET = { cpu: false, ram: false, battery: false }
+const ON_BATTERY = { percent: 12, charging: false, pluggedIn: false }
+const lowDisk = (letter = 'C', freePercent = 6): SystemAlerts => ({ ...NO_ALERTS, disk: { letter, freePercent } })
 const UNAVAILABLE: SystemMetrics = { kind: 'unavailable' }
 const feed = (samples: SystemMetrics[], from: CapsuleLatch = EMPTY_CAPSULE): CapsuleLatch => samples.reduce(nextCapsule, from)
 
@@ -19,6 +27,8 @@ describe('nextCapsule', () => {
       cpuPercent: 30,
       ramPercent: 50,
       battery: { percent: 82, charging: true, pluggedIn: true },
+      alerts: QUIET,
+      disk: null,
     })
   })
 
@@ -30,8 +40,9 @@ describe('nextCapsule', () => {
       battery: null,
       disks: [],
       network: null,
+      alerts: NO_ALERTS,
     }
-    expect(feed([full]).view).toEqual({ cpuPercent: 30, ramPercent: 50, battery: null })
+    expect(feed([full]).view).toEqual({ cpuPercent: 30, ramPercent: 50, battery: null, alerts: QUIET, disk: null })
   })
 
   it('never shows a battery slot on a machine that never reported one', () => {
@@ -58,6 +69,8 @@ describe('nextCapsule', () => {
       cpuPercent: 10,
       ramPercent: 50,
       battery: { percent: 82, charging: false, pluggedIn: false },
+      alerts: QUIET,
+      disk: null,
     })
   })
 
@@ -66,7 +79,48 @@ describe('nextCapsule', () => {
   })
 
   it('treats an empty RAM total as unknown', () => {
-    const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null }
-    expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null })
+    const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null, alerts: NO_ALERTS }
+    expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null, alerts: QUIET, disk: null })
+  })
+
+  it('carries the CPU, RAM and battery alerts of each sample, unlatched', () => {
+    const alerting = feed([light(ON_BATTERY, 95, { cpu: true, ram: true, battery: true, disk: null })])
+    expect(alerting.view?.alerts).toEqual({ cpu: true, ram: true, battery: true })
+    expect(feed([light(ON_BATTERY)], alerting).view?.alerts).toEqual(QUIET)
+  })
+
+  it('keeps the battery alert with the held battery value while the battery is missing', () => {
+    const alerting = feed([light(ON_BATTERY, 30, { ...NO_ALERTS, battery: true })])
+    const held = feed([light(null), light(null)], alerting)
+    expect(held.view?.battery).toEqual(ON_BATTERY)
+    expect(held.view?.alerts.battery).toBe(true)
+    expect(feed([light(null)], held).view?.alerts.battery).toBe(false)
+  })
+
+  it('shows the disk block with the first low-disk sample and follows its value', () => {
+    const shown = feed([light(null, 30, lowDisk('C', 6))])
+    expect(shown.view?.disk).toEqual({ letter: 'C', freePercent: 6 })
+    expect(feed([light(null, 30, lowDisk('D', 4))], shown).view?.disk).toEqual({ letter: 'D', freePercent: 4 })
+  })
+
+  it('keeps the disk block until the disk alert is gone in 3 samples in a row', () => {
+    const shown = feed([light(null, 30, lowDisk())])
+    expect(feed([light(null), light(null)], shown).view?.disk).toEqual({ letter: 'C', freePercent: 6 })
+    expect(feed([light(null), light(null), light(null)], shown).view?.disk).toBeNull()
+  })
+
+  it('resets the disk miss count when the disk alert comes back', () => {
+    const latch = feed([light(null, 30, lowDisk()), light(null), light(null), light(null, 30, lowDisk('C', 5)), light(null), light(null)])
+    expect(latch.view?.disk).toEqual({ letter: 'C', freePercent: 5 })
+  })
+
+  it('never shows a disk block without a disk alert', () => {
+    expect(feed([light(null), light(null)]).view?.disk).toBeNull()
+  })
+
+  it('drops the disk block with the rest of the metrics when the monitor is lost', () => {
+    const shown = feed([light(null, 30, lowDisk())])
+    expect(feed([UNAVAILABLE, UNAVAILABLE], shown).view?.disk).toEqual({ letter: 'C', freePercent: 6 })
+    expect(feed([UNAVAILABLE, UNAVAILABLE, UNAVAILABLE], shown).view).toBeNull()
   })
 })

@@ -2,7 +2,9 @@ import { performance } from 'node:perf_hooks'
 import type { NotchMode } from '../../shared/notch/state'
 import type { KillInput, KillResult, ProcessOrder } from '../../shared/system/schema'
 import { emitEvent, type EventTarget } from '../ipc/events'
+import type { SystemAlertSettings } from '../../shared/settings/schema'
 import type { Logger } from '../services/logger'
+import { createAlertEvaluator } from './alerts'
 import { createMetricsSampler } from './metrics-sampler'
 import { createProcessSampler } from './process-sampler'
 import { createSystemIpcHandlers } from './system-ipc'
@@ -13,6 +15,8 @@ export interface SystemIntegrationOptions {
   logger: Logger
   /** Current notch mode, read once the monitor starts. */
   mode: () => NotchMode
+  /** The live alert settings (read on every sample, so a change applies to the next one). */
+  alertSettings: () => SystemAlertSettings
   /** The notch window, when it exists: the only receiver of `system:*` events. */
   notchTarget: () => EventTarget | null
 }
@@ -63,6 +67,8 @@ export function createSystemIntegration(options: SystemIntegrationOptions) {
         },
         onMetrics: (metrics) => toNotch((target) => emitEvent([target], 'system:metrics', metrics, logger)),
         onProcesses: (rows) => toNotch((target) => emitEvent([target], 'system:processes', rows, logger)),
+        alerts: createAlertEvaluator(),
+        alertSettings: options.alertSettings,
         logger,
       })
       if (pendingOrder) monitor.setOrder(pendingOrder)

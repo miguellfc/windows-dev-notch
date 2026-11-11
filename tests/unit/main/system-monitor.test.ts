@@ -1,15 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSystemMonitor, LONG_PAUSE_MS, WARMUP_MS, type MonitorTimers } from '../../../src/main/system/system-monitor'
 import type { NotchMode } from '../../../src/shared/notch/state'
-import type { ProcessRow } from '../../../src/shared/system/schema'
+import { NO_ALERTS, type ProcessRow, type SystemAlerts } from '../../../src/shared/system/schema'
+import { cloneDefaultSystemAlerts, type SystemAlertSettings } from '../../../src/shared/settings/schema'
+import { createAlertEvaluator, type AlertInput } from '../../../src/main/system/alerts'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
 const light = { cpuPercent: 10, ram: { usedBytes: 1, totalBytes: 2 }, battery: null }
-const full = { ...light, disks: [], network: null }
+const full = { ...light, disks: [] as { letter: string; usedPercent: number; freeBytes: number; activityPercent: number | null }[], network: null }
+const DISKS = [{ letter: 'C', freePercent: 40 }]
 const row = (pid: number): ProcessRow => ({ pid, name: 'x.exe', cpuPercent: 1, privateBytes: 1, startTime: 't', killable: true })
 
 function setup(options: { available?: boolean } = {}) {
-  const metrics = { light: vi.fn(() => light), full: vi.fn(() => full), reset: vi.fn() }
+  const metrics = { light: vi.fn(() => light), full: vi.fn(() => full), disks: vi.fn(() => DISKS), reset: vi.fn() }
+  const alerts = {
+    evaluate: vi.fn<(input: AlertInput, settings: SystemAlertSettings) => SystemAlerts>(() => ({ ...NO_ALERTS })),
+    reset: vi.fn(),
+  }
+  let settings = cloneDefaultSystemAlerts()
+  const alertSettings = vi.fn(() => settings)
+  const setSettings = (next: SystemAlertSettings) => {
+    settings = next
+  }
   const processes = {
     top: vi.fn((by: 'cpu' | 'ram') => [row(by === 'cpu' ? 1 : 2)]),
     kill: vi.fn(() => 'killed' as const),
@@ -33,9 +45,11 @@ function setup(options: { available?: boolean } = {}) {
     now: () => Date.now(),
     onMetrics,
     onProcesses,
+    alerts,
+    alertSettings,
     logger,
   })
-  return { monitor, metrics, processes, onMetrics, onProcesses, logger }
+  return { monitor, metrics, processes, onMetrics, onProcesses, logger, alerts, alertSettings, setSettings }
 }
 
 /** Enters 'system' and lets the first-time warm-up finish: the full rhythm is running. */
@@ -54,7 +68,7 @@ describe('system monitor rhythms', () => {
       const { monitor, metrics, onMetrics, processes } = setup()
       monitor.setMode(mode)
       expect(metrics.light).toHaveBeenCalledTimes(1)
-      expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'light', ...light })
+      expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'light', ...light, alerts: NO_ALERTS })
       vi.advanceTimersByTime(2999)
       expect(metrics.light).toHaveBeenCalledTimes(1)
       vi.advanceTimersByTime(1)
@@ -91,7 +105,7 @@ describe('system monitor rhythms', () => {
     vi.advanceTimersByTime(WARMUP_MS - 1)
     expect(onMetrics).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
-    expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full })
+    expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full, alerts: NO_ALERTS })
     expect(onProcesses).toHaveBeenLastCalledWith([row(1)])
     expect(metrics.full).toHaveBeenCalledTimes(2)
     vi.advanceTimersByTime(3000)
@@ -112,7 +126,7 @@ describe('system monitor rhythms', () => {
     expect(s.processes.reset).not.toHaveBeenCalled()
     expect(s.processes.forgetList).toHaveBeenCalledTimes(1)
     expect(s.onProcesses).toHaveBeenCalledTimes(1)
-    expect(s.onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full })
+    expect(s.onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full, alerts: NO_ALERTS })
   })
 
   it('a reopen after a long close resets per-process CPU and warms up again', () => {
@@ -142,7 +156,7 @@ describe('system monitor rhythms', () => {
     metrics.full.mockClear()
     vi.advanceTimersByTime(WARMUP_MS * 2)
     expect(metrics.full).not.toHaveBeenCalled()
-    expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'light', ...light })
+    expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'light', ...light, alerts: NO_ALERTS })
   })
 
   it('leaving system mode drops to the light rhythm', () => {
@@ -304,6 +318,28 @@ describe('system monitor rhythms', () => {
     expect(logger.entries.some((e) => e.level === 'error')).toBe(true)
   })
 
+  it.each([
+    ['the evaluator', 'evaluate'],
+    ['the alert settings', 'settings'],
+  ] as const)('fails open when %s throws: the sample still goes out with no alerts', (_, which) => {
+    const s = setup()
+    const boom = () => {
+      throw new RangeError('secret C:\Users\me')
+    }
+    if (which === 'evaluate') s.alerts.evaluate.mockImplementation(boom)
+    else s.alertSettings.mockImplementation(boom)
+    s.monitor.setMode('compact')
+    expect(s.onMetrics).toHaveBeenCalledTimes(1)
+    expect(s.onMetrics).toHaveBeenLastCalledWith({ kind: 'light', ...light, alerts: NO_ALERTS })
+    const sent = s.onMetrics.mock.calls[0]?.[0] as { alerts: SystemAlerts }
+    expect(sent.alerts).not.toBe(NO_ALERTS)
+    expect(Object.isFrozen(sent.alerts)).toBe(false)
+    openView(s)
+    expect(s.onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full, alerts: NO_ALERTS })
+    expect(JSON.stringify(s.logger.entries)).not.toContain('secret')
+    expect(s.logger.entries.some((e) => e.level === 'error' && JSON.stringify(e.meta).includes('RangeError'))).toBe(true)
+  })
+
   it('a failing warm-up still starts the full rhythm', () => {
     const { monitor, metrics, onMetrics } = setup()
     metrics.full.mockImplementationOnce(() => {
@@ -311,7 +347,171 @@ describe('system monitor rhythms', () => {
     })
     monitor.setMode('system')
     vi.advanceTimersByTime(WARMUP_MS)
-    expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full })
+    expect(onMetrics).toHaveBeenLastCalledWith({ kind: 'full', ...full, alerts: NO_ALERTS })
+  })
+})
+
+describe('system monitor alerts', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const inputs = (s: ReturnType<typeof setup>) => s.alerts.evaluate.mock.calls.map(([input]) => input)
+
+  it('every light sample carries the evaluator result, built from the sample', () => {
+    const s = setup()
+    const flagged: SystemAlerts = { cpu: true, ram: false, battery: true, disk: { letter: 'C', freePercent: 4 } }
+    s.alerts.evaluate.mockReturnValue(flagged)
+    s.metrics.light.mockReturnValue({
+      cpuPercent: 91,
+      ram: { usedBytes: 2, totalBytes: 3 },
+      battery: { percent: 12, charging: false, pluggedIn: false, secondsLeft: 60 },
+    } as never)
+    s.monitor.setMode('compact')
+    vi.advanceTimersByTime(3000)
+    expect(inputs(s)[0]).toEqual({
+      now: expect.any(Number),
+      cpuPercent: 91,
+      ramPercent: 67,
+      battery: { percent: 12, pluggedIn: false },
+      disks: DISKS,
+    })
+    const [first, second] = s.onMetrics.mock.calls.map(([m]) => m.alerts as SystemAlerts)
+    expect(first).toEqual(flagged)
+    // A fresh object per sample, never the evaluator's own (or a shared) instance.
+    expect(first).not.toBe(flagged)
+    expect(first).not.toBe(second)
+    expect(first?.disk).not.toBe(flagged.disk)
+  })
+
+  it('passes null ram/battery percent when the sample has none', () => {
+    const s = setup()
+    s.metrics.light.mockReturnValue({ cpuPercent: null, ram: null, battery: null } as never)
+    s.monitor.setMode('compact')
+    expect(inputs(s)[0]).toMatchObject({ cpuPercent: null, ramPercent: null, battery: null })
+  })
+
+  it('reads disk space on the first light tick and then every 60 000 ms, passing null in between', () => {
+    const s = setup()
+    s.monitor.setMode('compact')
+    expect(s.metrics.disks).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(57_000)
+    expect(s.metrics.disks).toHaveBeenCalledTimes(1)
+    expect(inputs(s).slice(1).every((input) => input.disks === null)).toBe(true)
+    expect(inputs(s)).toHaveLength(20)
+    vi.advanceTimersByTime(3000)
+    expect(s.metrics.disks).toHaveBeenCalledTimes(2)
+    expect(inputs(s).at(-1)?.disks).toEqual(DISKS)
+    vi.advanceTimersByTime(3000)
+    expect(inputs(s).at(-1)?.disks).toBeNull()
+  })
+
+  it('a resync within the light rhythm does not re-read disk space early', () => {
+    const s = setup()
+    s.monitor.setMode('compact')
+    vi.advanceTimersByTime(1000)
+    s.monitor.resync()
+    expect(s.metrics.disks).toHaveBeenCalledTimes(1)
+  })
+
+  it('the full rhythm feeds the full sample disks as free percent and never calls disks()', () => {
+    const s = setup()
+    s.metrics.full.mockReturnValue({
+      ...full,
+      disks: [
+        { letter: 'C', usedPercent: 93, freeBytes: 7, activityPercent: null },
+        { letter: 'D', usedPercent: 10, freeBytes: 90, activityPercent: 5 },
+      ],
+    })
+    openView(s)
+    vi.advanceTimersByTime(1000)
+    expect(s.metrics.disks).not.toHaveBeenCalled()
+    expect(inputs(s)).toHaveLength(2)
+    for (const input of inputs(s))
+      expect(input.disks).toEqual([
+        { letter: 'C', freePercent: 7 },
+        { letter: 'D', freePercent: 90 },
+      ])
+    expect(s.onMetrics.mock.calls.every(([m]) => m.kind === 'full' && m.alerts !== undefined)).toBe(true)
+  })
+
+  it('the silent warm-up sample is not evaluated', () => {
+    const s = setup()
+    s.monitor.setMode('system')
+    expect(s.metrics.full).toHaveBeenCalledTimes(1)
+    expect(s.alerts.evaluate).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(WARMUP_MS)
+    expect(s.alerts.evaluate).toHaveBeenCalledTimes(1)
+  })
+
+  it('back to light after the view reads disk space again on its first tick', () => {
+    const s = setup()
+    s.monitor.setMode('compact')
+    vi.advanceTimersByTime(3000)
+    s.monitor.setMode('system')
+    vi.advanceTimersByTime(WARMUP_MS + 2000)
+    s.monitor.setMode('compact')
+    expect(s.metrics.disks).toHaveBeenCalledTimes(2)
+    expect(inputs(s).at(-1)?.disks).toEqual(DISKS)
+  })
+
+  it('resets the evaluator on the first start and after a pause of 10 s or more, before the first tick', () => {
+    const s = setup()
+    const order: string[] = []
+    s.alerts.reset.mockImplementation(() => void order.push('reset'))
+    s.alerts.evaluate.mockImplementation(() => {
+      order.push('evaluate')
+      return { ...NO_ALERTS }
+    })
+    s.monitor.setMode('compact')
+    expect(order).toEqual(['reset', 'evaluate'])
+    s.monitor.setMode('alert')
+    vi.advanceTimersByTime(LONG_PAUSE_MS)
+    order.length = 0
+    s.metrics.disks.mockClear()
+    s.monitor.setMode('compact')
+    expect(order).toEqual(['reset', 'evaluate'])
+    // A restart re-reads disk space at once.
+    expect(s.metrics.disks).toHaveBeenCalledTimes(1)
+  })
+
+  it('a short pause keeps the evaluator state', () => {
+    const s = setup()
+    s.monitor.setMode('compact')
+    s.alerts.reset.mockClear()
+    s.monitor.setMode('mini')
+    vi.advanceTimersByTime(LONG_PAUSE_MS - 1)
+    s.monitor.setMode('compact')
+    expect(s.alerts.reset).not.toHaveBeenCalled()
+  })
+
+  it('reads the alert settings on every tick', () => {
+    const s = setup()
+    s.monitor.setMode('compact')
+    const changed = cloneDefaultSystemAlerts()
+    changed.ram.percent = 60
+    s.setSettings(changed)
+    vi.advanceTimersByTime(3000)
+    expect(s.alertSettings).toHaveBeenCalledTimes(2)
+    expect(s.alerts.evaluate.mock.calls[0]?.[1].ram.percent).toBe(90)
+    expect(s.alerts.evaluate.mock.calls[1]?.[1].ram.percent).toBe(60)
+  })
+
+  it('works end to end with the real evaluator', () => {
+    const s = setup()
+    const real = createAlertEvaluator()
+    s.alerts.evaluate.mockImplementation((input, settings) => real.evaluate(input, settings))
+    s.alerts.reset.mockImplementation(() => real.reset())
+    s.metrics.light.mockReturnValue({ cpuPercent: 5, ram: { usedBytes: 95, totalBytes: 100 }, battery: null } as never)
+    s.metrics.disks.mockReturnValue([{ letter: 'D', freePercent: 3 }])
+    s.monitor.setMode('compact')
+    vi.advanceTimersByTime(3000)
+    expect(s.onMetrics).toHaveBeenLastCalledWith({
+      kind: 'light',
+      cpuPercent: 5,
+      ram: { usedBytes: 95, totalBytes: 100 },
+      battery: null,
+      alerts: { cpu: false, ram: true, battery: false, disk: { letter: 'D', freePercent: 3 } },
+    })
   })
 })
 

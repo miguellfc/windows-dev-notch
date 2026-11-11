@@ -132,7 +132,7 @@ describe('compact capsule width', () => {
   it('fits time, the longest date and "100 %" three times in ES and EN (measured with Playwright)', () => {
     // Widest measured content + border: EN "12:59 PM · Wed, May 20 · 100% ×3" = 357.3 px.
     expect(CAPSULE_SIZES.compact).toEqual({ width: 358, height: 36 })
-    expect(COMPACT_WIDTHS).toEqual({ plain: 168, metrics: 299, metricsBattery: 358 })
+    expect(COMPACT_WIDTHS).toEqual({ plain: 168, metrics: 299, metricsBattery: 358, metricsDisk: 376, metricsBatteryDisk: 435 })
   })
 
   it('keeps time and date only, at the original width, when there is nothing to show', () => {
@@ -140,12 +140,27 @@ describe('compact capsule width', () => {
   })
 
   it('drops the battery slot on a machine without a battery', () => {
-    expect(compactWidthFor({ battery: { percent: 82, charging: false } })).toBe(358)
-    expect(compactWidthFor({ battery: null })).toBe(299)
+    expect(compactWidthFor({ battery: { percent: 82, charging: false }, disk: null })).toBe(358)
+    expect(compactWidthFor({ battery: null, disk: null })).toBe(299)
+  })
+
+  it('adds the low-disk block after the battery, or after RAM without one', () => {
+    expect(compactWidthFor({ battery: { percent: 82, charging: false }, disk: { letter: 'C', freePercent: 6 } })).toBe(COMPACT_WIDTHS.metricsBatteryDisk)
+    expect(compactWidthFor({ battery: null, disk: { letter: 'C', freePercent: 6 } })).toBe(COMPACT_WIDTHS.metricsDisk)
+    expect(COMPACT_WIDTHS.metricsDisk).toBeGreaterThan(COMPACT_WIDTHS.metrics)
+    expect(COMPACT_WIDTHS.metricsBatteryDisk).toBeGreaterThan(COMPACT_WIDTHS.metricsBattery)
+  })
+
+  it('keeps the width when only an alert colour changes', () => {
+    const base = { battery: { percent: 12, charging: false }, disk: null }
+    const red = { ...base, alerts: { cpu: true, ram: true, battery: true } }
+    expect(compactWidthFor(red)).toBe(compactWidthFor(base))
   })
 
   it('stays narrower than the panels, so the window width is unchanged', () => {
     expect(CAPSULE_SIZES.compact.width).toBeLessThan(CAPSULE_SIZES.terminal.width)
+    // Widest compact content (EN, battery and low-disk block: 433.8 px) still fits the fixed window.
+    expect(Math.max(...Object.values(COMPACT_WIDTHS)) + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
     expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
   })
 })

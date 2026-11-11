@@ -31,7 +31,8 @@ export interface SystemApi {
   memory(): { totalBytes: number; availBytes: number } | null
   /** `charging`: the battery is charging (flag 8); `acOnline`: on AC power, charging or not (full on AC). */
   power(): { hasBattery: boolean; percent: number | null; charging: boolean; acOnline: boolean; secondsLeft: number | null } | null
-  fixedDrives(): string[]
+  /** Letters of the fixed drives; null when they could not be listed (not the same as none). */
+  fixedDrives(): string[] | null
   diskSpace(letter: string): { totalBytes: number; freeBytes: number } | null
   diskIdlePercent(): number | null
   networkBytesPerSec(): { up: number; down: number } | null
@@ -413,7 +414,7 @@ export function createWin32SystemApi(logger: Logger): SystemApi | null {
         }),
 
       fixedDrives: () =>
-        guard('fixedDrives', [], () => {
+        guard<string[] | null>('fixedDrives', null, () => {
           const mask = (GetLogicalDrives() as number) >>> 0
           const letters: string[] = []
           for (let i = 0; i < 26; i++) {

@@ -1,4 +1,4 @@
-import { AlarmClock, Bot, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, Bot, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import { useSettings } from '../shared/settings-store'
@@ -8,14 +8,16 @@ import { ClaudePage } from './ClaudePage'
 import { GeneralPage } from './GeneralPage'
 import { RemindersPage } from './RemindersPage'
 import { ShortcutPage } from './ShortcutPage'
+import { SystemPage } from './SystemPage'
 
-type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'about'
+type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'about'
 
 const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'general', label: 'cc.nav.general', icon: Settings2 },
   { id: 'shortcut', label: 'cc.nav.shortcut', icon: Keyboard },
   { id: 'claude', label: 'cc.nav.claude', icon: Bot },
   { id: 'reminders', label: 'cc.nav.reminders', icon: AlarmClock },
+  { id: 'system', label: 'cc.nav.system', icon: Activity },
   { id: 'about', label: 'cc.nav.about', icon: Info },
 ]
 
@@ -45,6 +47,7 @@ export function ControlCenterApp() {
     else if (page === 'shortcut') content = <ShortcutPage settings={settings} runtime={runtime} onChanged={refreshRuntime} />
     else if (page === 'claude') content = <ClaudePage />
     else if (page === 'reminders') content = <RemindersPage settings={settings} />
+    else if (page === 'system') content = <SystemPage settings={settings} />
     else content = <AboutPage />
   }
 
