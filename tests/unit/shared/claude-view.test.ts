@@ -7,6 +7,7 @@ import {
   formatAgo,
   hiddenPreviewChars,
   nextDoneExpiry,
+  orderSessions,
   permissionButtons,
   relativeAgo,
   summarizeDots,
@@ -138,5 +139,25 @@ describe('permissionButtons', () => {
 
   it('keeps Deny but not Allow for a truncated preview', () => {
     expect(permissionButtons(request('b', true), { settledId: 'b', submittedId: null })).toEqual({ deny: true, allow: false })
+  })
+})
+
+describe('orderSessions', () => {
+  it('puts sessions that need attention first, newest first within a status', () => {
+    const ordered = orderSessions([
+      session('idle', 50, 'old-idle'),
+      session('done', 40, 'done'),
+      session('working', 10, 'working-old'),
+      session('working', 30, 'working-new'),
+      session('error', 5, 'error'),
+      session('waiting', 1, 'waiting'),
+    ])
+    expect(ordered.map((s) => s.id)).toEqual(['waiting', 'error', 'working-new', 'working-old', 'done', 'old-idle'])
+  })
+
+  it('does not mutate its input', () => {
+    const input = [session('done', 1, 'a'), session('waiting', 2, 'b')]
+    orderSessions(input)
+    expect(input.map((s) => s.id)).toEqual(['a', 'b'])
   })
 })

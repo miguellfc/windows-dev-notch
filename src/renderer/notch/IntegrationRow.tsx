@@ -3,6 +3,7 @@ import { integrations, type IntegrationId } from '../../shared/integrations/regi
 import { useAttentionCount } from '../shared/reminders-store'
 import { remindersBadgeLabel } from '../shared/reminders/format'
 import { useLanguage, useT } from '../shared/use-t'
+import { loadTerminal } from './terminal-loader'
 
 const icons: Readonly<Record<IntegrationId, LucideIcon>> = {
   terminal: SquareTerminal,
@@ -27,7 +28,10 @@ export function IntegrationRow() {
             data-testid={`integration-${id}`}
             aria-label={badge > 0 ? `${label}, ${remindersBadgeLabel(badge, language)}` : undefined}
             onClick={() => void window.notch.notch.openIntegration({ id })}
-            className="relative flex h-[60px] min-w-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-tile border border-line bg-veil-tile px-2 text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)]"
+            // Intent to open the terminal: fetch its chunk now so it is ready by the click.
+            onPointerEnter={id === 'terminal' ? () => void loadTerminal() : undefined}
+            onFocus={id === 'terminal' ? () => void loadTerminal() : undefined}
+            className="relative flex h-[60px] min-w-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-tile border border-line bg-veil-tile px-2 text-chalk transition-colors duration-150 hover:bg-veil-hover"
           >
             <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
             <span className="max-w-full truncate text-label font-medium">{label}</span>

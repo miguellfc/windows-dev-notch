@@ -145,7 +145,7 @@ export function ReminderComposer({
             data-testid={`reminder-chip-${preset}`}
             disabled={!hasVisibleText(text) || busy}
             onClick={() => createWithPreset(preset)}
-            className="tabular h-7 cursor-pointer rounded-full border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-veil-tile"
+            className="tabular h-7 cursor-pointer rounded-full border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40 disabled:hover:bg-veil-tile"
           >
             {t(labelKey, { time: formatTime(NINE_AM, language) })}
           </button>

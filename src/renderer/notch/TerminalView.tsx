@@ -1,5 +1,6 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
+import '@xterm/xterm/css/xterm.css'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { chunkInput } from '../../shared/terminal/chunk-input'
@@ -125,7 +126,7 @@ export function TerminalView() {
           onClick={() => void window.notch.notch.back()}
           aria-label={t('terminal.back')}
           title={t('terminal.back')}
-          className="flex size-6 cursor-pointer items-center justify-center rounded-[8px] text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
+          className="flex size-6 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
         >
           <ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />
         </button>

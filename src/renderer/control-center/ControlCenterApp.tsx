@@ -50,7 +50,7 @@ export function ControlCenterApp() {
 
   return (
     <div className="flex h-screen text-body text-chalk">
-      <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-black/20">
+      <aside className="flex w-44 shrink-0 flex-col border-r border-line bg-black/20">
         <div className="drag flex h-10 items-center px-4 text-small text-graphite">{t('cc.title')}</div>
         <nav aria-label={t('cc.title')} className="flex flex-col gap-0.5 px-2 py-2">
           {PAGES.map(({ id, label, icon: Icon }) => (

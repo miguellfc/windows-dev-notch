@@ -37,9 +37,11 @@ Estrategia Restrained: neutros negros sin tinte más un acento, y una familia de
 - **Obsidiana Densa** (#0E0E10, opaca): superficie del panel expandido. Sin desenfoque real, el texto de la ventana de detrás se lee a través del 86 % (spike M0) e incluso del 95 % (QA de M1), así que el panel es totalmente opaco.
 - **Velo** (rgba(255,255,255,.04)): superficies elevadas dentro del panel (buscador, tiles, tarjetas).
 - **Velo Tile** (rgba(255,255,255,.06)): fondo de los iconos de favoritos.
+- **Velo Hover** (rgba(255,255,255,.09)): hover de las superficies Velo Tile (tiles, chips, botones secundarios). Token `--color-veil-hover`.
 - **Filo** (rgba(255,255,255,.08)): bordes de 1 px y divisores.
 - **Tiza** (#EDEDEF): texto principal.
 - **Grafito** (#8B8B93): texto secundario, etiquetas, tiempos, hints de teclado.
+- **Grafito Cristal** (#A3A3AB): texto secundario sobre la Obsidiana translúcida (fecha de la cápsula compacta, herramienta de la alerta, teclas del peek, "+N" de los puntos). Sobre la Obsidiana al 86 % encima de una ventana blanca da 5,3:1 (4,7:1 sobre Velo), donde Grafito se queda en 3,9:1. Token `--color-graphite-glass`; en las superficies opacas se sigue usando Grafito.
 
 ### Estados
 - **Verde Listo** (#4ADE80): terminado / OK; aparece de forma breve.
@@ -68,15 +70,15 @@ Ambas fuentes van empaquetadas en la app; nunca se cargan desde un CDN.
 - **Data** (Geist Mono 400/500, 11–13px): hora, rutas, tiempos transcurridos, teclas.
 
 ### Named Rules
-**The Short Scale Rule.** Solo existen 11 / 12.5 / 13 / 15 px. Si algo necesita otro tamaño, la jerarquía está mal resuelta.
+**The Short Scale Rule.** Solo existen 11 / 12.5 / 13 / 15 px. Si algo necesita otro tamaño, la jerarquía está mal resuelta. Única excepción: las etiquetas de grupo en mayúsculas, a 10.5 px con tracking 0.09em (token `text-caps`, que ya lleva el tracking), porque la mayúscula pesa ópticamente más que la minúscula al mismo tamaño.
 
 **The Mono Is Data Rule.** Geist Mono solo para valores que el usuario lee como dato (hora, ruta, duración, atajo); nunca para etiquetas ni títulos.
 
 ## Layout
 
-Escala de espaciado en múltiplos de 4 px. El panel usa padding de 14 px y separaciones de 8 px entre elementos hermanos y 12 px entre bloques. Los favoritos se muestran en una cuadrícula de 4 columnas con gaps de 8 px.
+Escala de espaciado en múltiplos de 4 px: 1rem = 16 px (el tamaño de 13 px del cuerpo se fija en `body`, nunca en `html`, para no encoger toda la escala). Todo objetivo interactivo mide al menos 24×24 px (WCAG 2.5.8): filas de sesión de 24 px, botones de icono de 24–28 px, Switch de 40×24. El panel usa padding de 14 px y separaciones de 8 px entre elementos hermanos y 12 px entre bloques. Los favoritos se muestran en una cuadrícula de 4 columnas con gaps de 8 px.
 
-La cápsula está centrada en el borde superior del monitor donde está el cursor y se posiciona en píxeles independientes de densidad (100/125/150 %). La ventana de la cápsula mide lo mismo que la cápsula visible más el margen que necesita la sombra: fuera de ese margen no debe haber área que bloquee clicks.
+La cápsula está centrada en el borde superior del monitor donde está el cursor y se posiciona en píxeles independientes de densidad (100/125/150 %). La ventana de la cápsula tiene un ancho fijo (la cápsula más ancha, 640 px, más 56 px de margen de sombra por lado = 752 px) y el alto de la cápsula visible más el margen de sombra (6 px arriba, 72 px abajo, para que la cola de `0 18px 50px` no se recorte). Como solo cambia el alto, «crecer» y «encoger» se deciden por el alto de la ventana (no por el área): al crecer se agranda la ventana y después se anima; al encoger se anima y después se achica, y la curva (spring de apertura o cierre de 200 ms) sigue la misma regla. El área transparente nunca bloquea clicks: la ventana ignora el ratón salvo cuando el puntero está sobre la cápsula.
 
 Los tamaños exactos de la cápsula (compacta ~36 px de alto, alerta ~44 px) y el ancho del panel (~440 px en las maquetas) son orientativos: `[to be resolved during implementation]`.
 
@@ -84,11 +86,12 @@ Todo texto pasa por i18n: las filas truncan con elipsis y nunca saltan de línea
 
 ## Elevation & Depth
 
-Profundidad por sombra profunda y difusa más un brillo interior de 1 px en el borde superior, sobre una superficie casi opaca. No hay desenfoque real del escritorio: en una ventana transparente de Electron `backdrop-filter` no desenfoca lo que hay detrás, así que el efecto cristal viene de la opacidad, el filo de 1 px y la sombra. La cápsula pequeña usa ~86 % porque apenas tapa nada; el panel expandido es opaco porque cualquier transparencia deja que el texto de las ventanas de detrás compita con el del panel (medido en M1: al 95 % todavía se leía). El Control Center, que es una ventana rectangular normal, usa el material Mica nativo de Windows 11.
+Profundidad por sombra profunda y difusa más un brillo interior de 1 px en el borde superior, sobre una superficie casi opaca. No hay desenfoque real del escritorio: en una ventana transparente de Electron `backdrop-filter` no desenfoca lo que hay detrás, así que el efecto cristal viene de la opacidad, el filo de 1 px y la sombra. La cápsula pequeña usa ~86 % porque apenas tapa nada; el panel expandido es opaco porque cualquier transparencia deja que el texto de las ventanas de detrás compita con el del panel (medido en M1: al 95 % todavía se leía). El Control Center, que es una ventana rectangular normal, usa el material Mica nativo de Windows 11, siempre en su variante oscura: el proceso main fija `nativeTheme.themeSource = 'dark'`, así que un tema claro de Windows nunca pone texto Tiza sobre Mica claro.
 
 ### Shadow Vocabulary
 - **Levitación** (`box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 50px rgba(0,0,0,.55)`): cápsula compacta, alerta y panel expandido.
 - **Levitación Baja** (`box-shadow: 0 2px 6px rgba(0,0,0,.4)`): solo la píldora `mini`; con la sombra completa deja un halo visible debajo de una pieza de 6 px.
+- Fuente única: `src/renderer/notch/motion.ts`. La sombra exterior es un `filter: drop-shadow()` en un contenedor que no se escala, para que el morph no la estire; el brillo de 1 px sigue siendo un `box-shadow` inset en la cápsula.
 
 ### Named Rules
 **The Denser When Busier Rule.** Cuanto más texto muestra una superficie, más opaca es: la cápsula puede dejar intuir el fondo, el panel no. Nunca se lee contenido ajeno a través de Developer Notch.
@@ -97,20 +100,22 @@ Profundidad por sombra profunda y difusa más un brillo interior de 1 px en el b
 
 ## Shapes
 
-Formas redondeadas y blandas que anidan con coherencia: la cápsula es una píldora completa (999px); el panel, 24 px; las tarjetas, 16 px; los tiles e input del buscador, 14 px; los controles pequeños (kbd, chips), 6–10 px. Bordes siempre de 1 px con el color Filo. Los iconos son Lucide con trazo de 1.8 px a 16 px (13 px en la cápsula); sin emojis.
+Formas redondeadas y blandas que anidan con coherencia: la cápsula es una píldora completa (radio = mitad de su altura, nunca 999px, para que el radio se anime con el morph); el panel, 24 px; las tarjetas, 16 px; los tiles e input del buscador, 14 px; los controles (botones, campos, Segmented), 10 px; los botones de icono pequeños y las opciones anidadas dentro de un control de 10 px, 8 px (token `--radius-control-sm`); las teclas (kbd), 6 px (`--radius-key`); el icono de la app en Acerca de, 12 px (`--radius-icon`). Bordes siempre de 1 px con el color Filo. Los iconos son Lucide con trazo de 1.8 px a 16 px (13 px en la cápsula); sin emojis.
 
 **The Nested Radius Rule.** El radio interior es el exterior menos el padding; nada dentro del panel puede ser más redondo que el panel.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** anima el morph cápsula→panel con un spring (stiffness ~380, damping ~32; ~350 ms), animando solo `transform`, `opacity` y `clip-path`.
-- **Do** cierra más rápido de lo que abres (~180 ms, ease-out).
-- **Do** entra el contenido del panel con un escalonado leve (30 ms entre tarjetas).
+- **Do** anima el morph cápsula→panel con un spring (`visualDuration` 0.32 s, `bounce` 0.1) y los crecimientos pequeños (peek, alerta, compacta, mini) con un spring de 0.22 s sin rebote; el radio (24 px ↔ mitad de la altura) se anima con la misma curva. Anima solo `transform`, `opacity` y `clip-path` (más el radio y la sombra que Motion corrige por la escala).
+- **Do** cierra más rápido de lo que abres (200 ms, `cubic-bezier(0.23, 1, 0.32, 1)`).
+- **Do** cruza el contenido sin doble exposición (sale en 90 ms; entra en 180 ms tras 60 ms de espera, al crecer y al encoger) y entra el del panel con un escalonado leve (30 ms entre secciones, opacidad + 4 px), sin bloquear clics.
+- **Do** mantén constante el ancho de la ventana del notch (cápsula más ancha + márgenes de sombra): Motion omite las animaciones de layout durante 250 ms cuando cambia `innerWidth`.
 - **Do** usa un único ensanche al llegar una alerta y un pulso de 1.6 s en el punto mientras siga pendiente.
 - **Do** reduce todo a fundidos de opacidad con `prefers-reduced-motion`.
 - **Do** muestra el foco de teclado con un anillo de 2 px en Azul Hielo, siempre.
-- **Do** mantén el contraste de texto ≥ 4.5:1 sobre Obsidiana.
+- **Do** mantén el contraste de texto ≥ 4.5:1 sobre Obsidiana, también sobre la Obsidiana translúcida encima de una ventana blanca (Grafito Cristal para el texto secundario).
+- **Do** usa un único punto de Tab por grupo de opciones (Segmented): las flechas mueven y seleccionan, como el patrón Radio Group de WAI-ARIA.
 
 ### Don't:
 - **Don't** animes `width`, `height` ni posición de layout; no rebotes ni overshoot en las alertas.

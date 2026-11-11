@@ -21,13 +21,13 @@ export function AlertCapsule() {
       data-testid="claude-alert"
       role="status"
       aria-label={`${t('claude.alert.label')}: ${oldest.sessionName}, ${oldest.toolName}`}
-      className="flex h-full items-center gap-2.5 px-4"
+      className="flex h-full items-center gap-2 px-3.5"
     >
       <span className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         <span className="font-medium">{oldest.sessionName}</span>
-        <span className="text-graphite"> · </span>
-        <span className="font-mono text-small text-graphite">{oldest.toolName}</span>
+        <span className="text-graphite-glass"> · </span>
+        <span className="font-mono text-small text-graphite-glass">{oldest.toolName}</span>
       </span>
       {pending.length > 1 && (
         <span className="tabular shrink-0 text-label font-medium text-wait">

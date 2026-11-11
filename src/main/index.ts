@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, type Display } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen, session, type Display } from 'electron'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { createClaudeIntegration } from './claude/claude-integration'
@@ -59,6 +59,9 @@ function physicalRect(display: Display): MonitorRect {
 function start(): void {
   const logger = createFileLogger({ dir: join(app.getPath('userData'), 'logs'), mirrorToConsole: !app.isPackaged })
   let quitting = false
+  // Obsidian is dark-only (DESIGN.md). Mica, the title-bar buttons and native menus follow this
+  // instead of the Windows app theme, so a light system theme never puts Tiza text on light Mica.
+  nativeTheme.themeSource = 'dark'
 
   app.on('web-contents-created', (_event, contents) => hardenWebContents(contents, logger))
   app.on('before-quit', () => {

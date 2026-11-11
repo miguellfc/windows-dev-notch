@@ -28,9 +28,9 @@ const REPEAT_OPTIONS: readonly { value: RepeatValue; label: MessageKey }[] = [
 ]
 
 const iconButton =
-  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[8px] text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk disabled:cursor-default disabled:opacity-40'
+  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk disabled:cursor-default disabled:opacity-40'
 const textButton =
-  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40'
+  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40'
 const fieldBase =
   'h-9 rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-ice/60 aria-invalid:border-fail/60'
 const fieldClass = `${fieldBase} w-full`
@@ -172,8 +172,10 @@ function EditForm({ draft, editor }: { draft: Draft; editor: Editor }) {
           </p>
         )}
       </div>
-      <div className="flex gap-3">
-        <div className="min-w-0 flex-1">
+      {/* Repeat wraps under the date and time when the window is narrow (min 640 px), so the
+          date field never gets too short to show the whole date. */}
+      <div className="flex flex-wrap gap-3">
+        <div className="min-w-[248px] flex-1">
           <span id={`${ids}-when`} className={labelClass}>
             {t('cc.reminders.field.when')}
           </span>
@@ -350,7 +352,7 @@ function Group({
   if (items.length === 0) return null
   return (
     <section aria-labelledby={headingId} data-testid="reminder-group">
-      <h2 id={headingId} className="mb-1 px-2.5 text-label font-medium uppercase tracking-wide text-graphite">
+      <h2 id={headingId} className="mb-1 px-2.5 text-caps font-medium uppercase text-graphite">
         {t(title)}
       </h2>
       <ul className="flex flex-col gap-1">

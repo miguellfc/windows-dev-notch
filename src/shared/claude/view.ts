@@ -9,6 +9,13 @@ export type DotStatus = Exclude<ClaudeSessionStatus, 'idle'>
 /** Attention first: what needs the user comes before what is merely running. */
 const DOT_ORDER: Readonly<Record<DotStatus, number>> = { waiting: 0, error: 1, working: 2, done: 3 }
 
+/** Row order of the panel: attention first (waiting, error, working, done, idle), newest first within each. */
+const ROW_ORDER: Readonly<Record<ClaudeSessionStatus, number>> = { ...DOT_ORDER, idle: 4 }
+
+export function orderSessions(sessions: readonly ClaudeSession[]): ClaudeSession[] {
+  return [...sessions].sort((a, b) => ROW_ORDER[a.status] - ROW_ORDER[b.status] || b.updatedAt - a.updatedAt)
+}
+
 /** The status a session shows as a dot, or null when it has none (idle, or done for too long). */
 export function dotStatus(session: ClaudeSession, now: number): DotStatus | null {
   if (session.status === 'idle') return null

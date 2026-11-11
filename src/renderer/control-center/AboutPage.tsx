@@ -18,7 +18,7 @@ export function AboutPage() {
   return (
     <div>
       <div className="flex items-start gap-4 py-2">
-        <img src={icon} alt="" width={48} height={48} className="rounded-[12px]" />
+        <img src={icon} alt="" width={48} height={48} className="rounded-icon" />
         <div>
           <div className="text-body font-medium">{info?.name ?? 'Developer Notch'}</div>
           {info ? <div className="tabular mt-1 text-small text-graphite">{t('cc.about.version', { version: info.version })}</div> : null}

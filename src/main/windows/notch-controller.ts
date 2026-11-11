@@ -1,4 +1,4 @@
-import { CAPSULE_SIZES, windowBoundsFor, type Rect, type VisibleMode } from '../../shared/notch/geometry'
+import { resizeOrder, windowBoundsFor, type Rect, type VisibleMode } from '../../shared/notch/geometry'
 import { initialNotchState, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchMode } from '../../shared/notch/state'
 import type { Logger } from '../services/logger'
 
@@ -34,8 +34,6 @@ export interface NotchController {
   /** Stops pending work; the controller ignores everything afterwards. */
   dispose(): void
 }
-
-const area = (mode: VisibleMode) => CAPSULE_SIZES[mode].width * CAPSULE_SIZES[mode].height
 
 /**
  * Owns the capsule's state and drives the window in the order M0 validated:
@@ -83,7 +81,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       resizeTo(to)
       surface.sendMode(to)
       surface.show()
-    } else if (area(to) >= area(windowMode)) {
+    } else if (resizeOrder(windowMode, to) === 'resize-first') {
       resizeTo(to)
       surface.sendMode(to)
     } else {

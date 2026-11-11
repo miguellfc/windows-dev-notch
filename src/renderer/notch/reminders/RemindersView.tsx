@@ -70,7 +70,7 @@ export function RemindersView() {
               type="button"
               data-testid="reminders-see-all"
               onClick={() => void window.notch.app.openControlCenter()}
-              className="ml-auto cursor-pointer rounded-[8px] px-2 py-1 text-label font-medium text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
+              className="ml-auto cursor-pointer rounded-control-sm px-2 py-1 text-label font-medium text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
             >
               {t('reminders.view.seeAll')}
             </button>

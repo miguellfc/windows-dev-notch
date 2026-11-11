@@ -15,9 +15,9 @@ type Run = (id: string, call: () => Promise<Result<unknown>>) => void
 // Busy buttons use aria-disabled, not disabled: a disabled button drops focus to <body>, where Esc
 // would dismiss the notch. run() is already a no-op while the reminder's call is in flight.
 const iconButton =
-  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[8px] text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent aria-disabled:hover:text-graphite'
+  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent aria-disabled:hover:text-graphite'
 const textButton =
-  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-veil-tile'
+  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-veil-tile'
 
 function RepeatMark({ repeat }: { repeat: Reminder['repeat'] }) {
   const t = useT()

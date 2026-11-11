@@ -25,7 +25,7 @@ const REPEAT_OPTIONS: readonly { value: RepeatValue; label: MessageKey }[] = [
 const fieldClass =
   'h-[34px] rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60 aria-invalid:border-fail/60'
 const secondaryButton =
-  'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-[rgba(255,255,255,0.09)] disabled:cursor-default disabled:opacity-40'
+  'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40'
 const primaryButton =
   'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
 
@@ -163,7 +163,7 @@ export function ReminderForm({ onDone }: { onDone: () => void }) {
         </button>
         <h2 className="ml-2 text-body font-medium text-chalk">{t('reminders.view.new')}</h2>
       </header>
-      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5">
         <Row label={t('reminders.form.text')} htmlFor="reminder-form-text">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <input

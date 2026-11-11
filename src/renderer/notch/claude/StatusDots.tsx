@@ -45,7 +45,7 @@ export function StatusDots({ fallback = null }: { fallback?: ReactNode }) {
       {dots.map((status, index) => (
         <span key={index} className="status-dot" style={{ '--dot': DOT_COLOR[status] } as CSSProperties} />
       ))}
-      {extra > 0 && <span className="tabular text-label font-medium text-graphite">+{extra}</span>}
+      {extra > 0 && <span className="tabular text-label font-medium text-graphite-glass">+{extra}</span>}
     </span>
   )
 }
