@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialNotchState, notchMode, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
+import { initialNotchState, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
 
 const run = (...events: NotchEvent[]): NotchState => events.reduce(reduceNotch, initialNotchState)
 
@@ -231,6 +231,20 @@ describe('reminderDue (a reminder is due)', () => {
 
   it('still lands on home for a permission view cleared by attention', () => {
     expect(run(attention(true), { type: 'expand' }, attention(false)).view).toBe('home')
+  })
+
+  it('opens the system integration and goes back to the integrations row', () => {
+    const open = run({ type: 'open-integration', id: 'system' })
+    expect(open).toMatchObject({ expanded: true, view: 'system' })
+    expect(notchMode(open)).toBe('system')
+    const back = reduceNotch(open, { type: 'back' })
+    expect(back.view).toBe('home')
+    expect(notchMode(back)).toBe('expanded')
+  })
+
+  it('treats system as a panel mode that dismisses to compact', () => {
+    expect(PANEL_MODES.has('system')).toBe(true)
+    expect(notchMode(run({ type: 'open-integration', id: 'system' }, { type: 'dismiss' }))).toBe('compact')
   })
 
   it('ignores repeated reminders events', () => {

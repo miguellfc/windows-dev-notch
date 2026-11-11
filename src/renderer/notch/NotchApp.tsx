@@ -1,10 +1,11 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react'
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
-import { CAPSULE_SIZES, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
+import { CAPSULE_SIZES, compactWidthFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
 import { PANEL_MODES, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
 import { useSettings } from '../shared/settings-store'
+import { useSystem } from '../shared/system-store'
 import { useClock } from '../shared/use-clock'
 import { locale, useLanguage, useT } from '../shared/use-t'
 import { Kbd } from '../ui/Kbd'
@@ -27,6 +28,9 @@ import {
 } from './motion'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
+import type { CapsuleView } from './system/capsule-latch'
+import { CapsuleMetrics } from './system/CapsuleMetrics'
+import { SystemView } from './system/SystemView'
 import { TerminalBoundary } from './TerminalBoundary'
 import { LazyTerminalView } from './terminal-loader'
 
@@ -79,6 +83,7 @@ function useReminderChime(mode: NotchMode): void {
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
+  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view))
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime(mode)
 
@@ -101,7 +106,9 @@ export function NotchApp() {
 
   if (mode === 'hidden' || !settings) return null
 
-  const size = CAPSULE_SIZES[mode]
+  // The compact capsule is only as wide as what it shows: it grows (one capsule morph) when the
+  // first sample arrives and narrows back to time and date if the monitor stays unavailable.
+  const size = mode === 'compact' ? { ...CAPSULE_SIZES.compact, width: compactWidth } : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
 
@@ -133,7 +140,9 @@ export function NotchApp() {
           >
             <AnimatePresence initial={false} mode="popLayout">
               <motion.div
-                key={mode}
+                // A compact width change (first sample, battery, monitor lost) cross-fades its content
+                // like a mode change; re-laid-out in place, the time would slide while the edge moves.
+                key={mode === 'compact' ? `compact-${size.width}` : mode}
                 layout="position"
                 // Project the content from the capsule's top-centre (its anchor at the screen edge), not its
                 // top-left: during the morph it is clipped evenly on both sides, so the reveal reads as one
@@ -144,7 +153,7 @@ export function NotchApp() {
                 exit={{ opacity: 0, transition: CONTENT_EXIT }}
                 className="absolute inset-0"
               >
-                <CapsuleContent mode={mode} settings={settings} />
+                <CapsuleContent mode={mode} settings={settings} compactWidth={size.width} />
               </motion.div>
             </AnimatePresence>
           </motion.div>
@@ -154,11 +163,33 @@ export function NotchApp() {
   )
 }
 
-function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Settings }): ReactNode {
+/**
+ * The capsule view this copy of the content was keyed for. A width change cross-fades two copies;
+ * the outgoing one keeps the `compactWidth` it was rendered with (AnimatePresence freezes its
+ * props), so it holds the last view of that width instead of re-rendering with the new sample.
+ */
+function useCompactView(compactWidth: number): CapsuleView | null {
+  const live = useSystem((state) => state.capsule.view)
+  const matches = compactWidthFor(live) === compactWidth
+  const [kept, setKept] = useState(live)
+  if (matches && kept !== live) setKept(live)
+  return matches ? live : kept
+}
+
+function CapsuleContent({
+  mode,
+  settings,
+  compactWidth,
+}: {
+  mode: VisibleMode
+  settings: Settings
+  compactWidth: number
+}): ReactNode {
   const now = useClock()
   const language = useLanguage()
   const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
+  const view = useCompactView(compactWidth)
 
   if (mode === 'mini') return null
   if (mode === 'terminal')
@@ -174,17 +205,32 @@ function CapsuleContent({ mode, settings }: { mode: VisibleMode; settings: Setti
   if (mode === 'alert') return <AlertCapsule />
   if (mode === 'permission') return <PermissionCard />
   if (mode === 'reminders') return <RemindersView />
+  if (mode === 'system') return <SystemView />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
+
+  const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
+  const dateOrDots = <StatusDots fallback={<span className="truncate text-small text-graphite-glass">{date}</span>} />
+
+  if (mode === 'compact' && view)
+    return (
+      <div className="flex h-full items-center justify-between gap-3 px-3.5">
+        <span className="flex min-w-0 items-center gap-2.5">
+          {timeText}
+          {dateOrDots}
+        </span>
+        <CapsuleMetrics view={view} />
+      </div>
+    )
 
   return (
     <div className="flex h-full items-center justify-between gap-2 px-3.5">
-      <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
+      {timeText}
       {mode === 'peek' ? (
         <span className="min-w-0 overflow-hidden">
           <Kbd accelerator={settings.shortcut} size="sm" glass />
         </span>
       ) : (
-        <StatusDots fallback={<span className="truncate text-small text-graphite-glass">{date}</span>} />
+        dateOrDots
       )}
     </div>
   )

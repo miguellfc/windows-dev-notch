@@ -177,6 +177,25 @@ describe('notch controller', () => {
     expect(controller.mode()).toBe('expanded')
   })
 
+  describe('system panel', () => {
+    it('grows into the system panel and takes focus, then gives it back on dismiss', () => {
+      const { controller, calls } = setup()
+      controller.dispatch({ type: 'open-integration', id: 'system' })
+      expect(calls).toEqual([size('system'), 'mode:system', 'focus'])
+      calls.length = 0
+      controller.dispatch({ type: 'dismiss' })
+      expect(calls).toEqual(['mode:compact', 'blur'])
+    })
+
+    it('keeps focus when going back to the integrations row', () => {
+      const { controller, calls } = setup()
+      controller.dispatch({ type: 'open-integration', id: 'system' })
+      calls.length = 0
+      controller.dispatch({ type: 'back' })
+      expect(calls).toEqual(['mode:expanded'])
+    })
+  })
+
   describe('terminal panel', () => {
     it('grows into the terminal from the capsule and takes focus', () => {
       const { controller, calls } = setup()
