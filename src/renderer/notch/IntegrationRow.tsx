@@ -1,4 +1,4 @@
-import { AlarmClock, SquareTerminal, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, SquareTerminal, type LucideIcon } from 'lucide-react'
 import { integrations, type IntegrationId } from '../../shared/integrations/registry'
 import { useAttentionCount } from '../shared/reminders-store'
 import { remindersBadgeLabel } from '../shared/reminders/format'
@@ -8,6 +8,7 @@ import { loadTerminal } from './terminal-loader'
 const icons: Readonly<Record<IntegrationId, LucideIcon>> = {
   terminal: SquareTerminal,
   reminders: AlarmClock,
+  system: Activity,
 }
 
 /** One tile per live integration; clicking opens its mini tool inside the notch. */

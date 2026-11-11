@@ -3,6 +3,7 @@ import { buildApi } from '../../../src/shared/ipc/build-api'
 import { channels, eventChannels } from '../../../src/shared/ipc/channels'
 import { contract, eventContract } from '../../../src/shared/ipc/contract'
 import { err, ok } from '../../../src/shared/ipc/result'
+import { PROCESS_LIMIT } from '../../../src/shared/system/schema'
 
 const channelNames = Object.values(channels).flatMap((group) => Object.values(group))
 
@@ -227,6 +228,52 @@ describe('usage contract', () => {
     expect(output.safeParse({ ...summary, sessions: ['secret'] }).success).toBe(false)
     expect(output.safeParse({ ...summary, launches: -1 }).success).toBe(false)
     expect(output.safeParse({ ...summary, from: 'yesterday' }).success).toBe(false)
+  })
+})
+
+describe('system monitor contract', () => {
+  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null }
+  const row = { pid: 42, name: 'node.exe', cpuPercent: 1.5, privateBytes: 1024, startTime: '2026-11-10T09:00:00.000Z', killable: true }
+
+  it('exposes the system channels and events', () => {
+    expect(channels.system).toEqual({ view: 'system:view', killProcess: 'system:kill-process' })
+    expect(eventChannels.systemMetrics).toBe('system:metrics')
+    expect(eventChannels.systemProcesses).toBe('system:processes')
+  })
+
+  it('sets the view order to cpu or ram (open/close follows the notch mode)', () => {
+    const view = contract['system:view'].input
+    expect(view.safeParse({ by: 'cpu' }).success).toBe(true)
+    expect(view.safeParse({ by: 'ram' }).success).toBe(true)
+    expect(view.safeParse({}).success).toBe(false)
+    expect(view.safeParse({ open: true }).success).toBe(false)
+    expect(view.safeParse({ open: false, by: 'ram' }).success).toBe(false)
+    expect(view.safeParse({ by: 'disk' }).success).toBe(false)
+    expect(view.safeParse({ by: 'cpu', path: 'C:/' }).success).toBe(false)
+    expect(contract['system:view'].output.safeParse(null).success).toBe(true)
+  })
+
+  it('closes by pid and start time only, and returns a known result', () => {
+    const kill = contract['system:kill-process']
+    expect(kill.input.safeParse({ pid: 42, startTime: row.startTime }).success).toBe(true)
+    expect(kill.input.safeParse({ pid: -1, startTime: row.startTime }).success).toBe(false)
+    expect(kill.input.safeParse({ pid: 42, startTime: row.startTime, name: 'node.exe' }).success).toBe(false)
+    for (const result of ['killed', 'gone', 'denied', 'not-killable']) expect(kill.output.safeParse(result).success).toBe(true)
+    expect(kill.output.safeParse('maybe').success).toBe(false)
+  })
+
+  it('validates metrics and process events', () => {
+    const metrics = eventContract['system:metrics']
+    expect(metrics.safeParse({ kind: 'light', ...light }).success).toBe(true)
+    expect(metrics.safeParse({ kind: 'full', ...light, disks: [], network: null }).success).toBe(true)
+    expect(metrics.safeParse({ kind: 'unavailable' }).success).toBe(true)
+    expect(metrics.safeParse({ kind: 'light', ...light, cpuPercent: 101 }).success).toBe(false)
+    const rows = eventContract['system:processes']
+    expect(rows.safeParse([row]).success).toBe(true)
+    expect(rows.safeParse(Array.from({ length: PROCESS_LIMIT }, (_, i) => ({ ...row, pid: i + 1 }))).success).toBe(true)
+    expect(rows.safeParse(Array.from({ length: PROCESS_LIMIT + 1 }, (_, i) => ({ ...row, pid: i + 1 }))).success).toBe(false)
+    expect(PROCESS_LIMIT).toBe(5)
+    expect(rows.safeParse([{ ...row, path: 'C:/x' }]).success).toBe(false)
   })
 })
 

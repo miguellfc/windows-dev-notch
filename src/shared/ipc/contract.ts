@@ -4,6 +4,7 @@ import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
 import { integrationIds } from '../integrations/registry'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
+import { killInputSchema, killResultSchema, PROCESS_LIMIT, processRowSchema, systemMetricsSchema, viewInputSchema } from '../system/schema'
 import { usageSummaryInputSchema, usageSummarySchema } from '../usage/schema'
 import type { ChannelName, EventName } from './channels'
 
@@ -12,7 +13,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'mini', 'hidden'])
 
 export const runtimeSchema = z.strictObject({
   isPackaged: z.boolean(),
@@ -125,6 +126,8 @@ export const contract = {
   'reminders:complete': { input: reminderIdSchema, output: reminderSchema },
   'reminders:delete': { input: reminderIdSchema, output: ack },
   'usage:summary': { input: usageSummaryInputSchema, output: usageSummarySchema },
+  'system:view': { input: viewInputSchema, output: ack },
+  'system:kill-process': { input: killInputSchema, output: killResultSchema },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -137,6 +140,9 @@ export const eventContract = {
   'reminders:changed': remindersSnapshotSchema,
   /** A new batch is due (or reminders were missed at startup): the notch plays the chime. */
   'reminders:fired': z.strictObject({ count: z.int().positive() }),
+  'system:metrics': systemMetricsSchema,
+  /** Top processes of the System view (at most PROCESS_LIMIT). */
+  'system:processes': z.array(processRowSchema).max(PROCESS_LIMIT),
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

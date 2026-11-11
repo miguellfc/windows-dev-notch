@@ -49,6 +49,10 @@ export const channels = {
   usage: {
     summary: 'usage:summary',
   },
+  system: {
+    view: 'system:view',
+    killProcess: 'system:kill-process',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
@@ -60,6 +64,8 @@ export const eventChannels = {
   claudeStateChanged: 'claude:state-changed',
   remindersChanged: 'reminders:changed',
   remindersFired: 'reminders:fired',
+  systemMetrics: 'system:metrics',
+  systemProcesses: 'system:processes',
 } as const
 
 type ChannelGroups = typeof channels

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, SHADOW_MARGIN, WINDOW_WIDTH, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, COMPACT_WIDTHS, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -90,6 +90,31 @@ describe('alert and permission geometry', () => {
   })
 })
 
+describe('system panel geometry', () => {
+  it('is 520x280 (5 process rows) and keeps the window width set by the terminal', () => {
+    expect(CAPSULE_SIZES.system).toEqual({ width: 520, height: 280 })
+    expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
+    expect(windowBoundsFor('system', workArea).height).toBe(SHADOW_MARGIN.top + 280 + SHADOW_MARGIN.bottom)
+  })
+
+  it('orders the window against the other panels by height', () => {
+    // 236 (expanded) < 280 (system) < 300 (permission) < 320 (reminders) < 360 (terminal).
+    expect(growsWindow('expanded', 'system')).toBe(true)
+    expect(growsWindow('system', 'permission')).toBe(true)
+    expect(growsWindow('system', 'reminders')).toBe(true)
+    expect(growsWindow('system', 'terminal')).toBe(true)
+    expect(growsWindow('permission', 'system')).toBe(false)
+    expect(growsWindow('reminders', 'system')).toBe(false)
+    expect(growsWindow('terminal', 'system')).toBe(false)
+    expect(growsWindow('system', 'expanded')).toBe(false)
+    expect(resizeOrder('system', 'expanded')).toBe('animate-first')
+    expect(resizeOrder('expanded', 'system')).toBe('resize-first')
+    expect(resizeOrder('system', 'reminders')).toBe('resize-first')
+    expect(resizeOrder('reminders', 'system')).toBe('animate-first')
+    expect(resizeOrder('terminal', 'system')).toBe('animate-first')
+  })
+})
+
 describe('reminders panel geometry', () => {
   it('is 420x320 plus the shadow margin in height', () => {
     expect(CAPSULE_SIZES.reminders).toEqual({ width: 420, height: 320 })
@@ -100,5 +125,27 @@ describe('reminders panel geometry', () => {
     expect(resizeOrder('expanded', 'reminders')).toBe('resize-first')
     expect(resizeOrder('alert', 'reminders')).toBe('resize-first')
     expect(resizeOrder('reminders', 'alert')).toBe('animate-first')
+  })
+})
+
+describe('compact capsule width', () => {
+  it('fits time, the longest date and "100 %" three times in ES and EN (measured with Playwright)', () => {
+    // Widest measured content + border: EN "12:59 PM · Wed, May 20 · 100% ×3" = 357.3 px.
+    expect(CAPSULE_SIZES.compact).toEqual({ width: 358, height: 36 })
+    expect(COMPACT_WIDTHS).toEqual({ plain: 168, metrics: 299, metricsBattery: 358 })
+  })
+
+  it('keeps time and date only, at the original width, when there is nothing to show', () => {
+    expect(compactWidthFor(null)).toBe(168)
+  })
+
+  it('drops the battery slot on a machine without a battery', () => {
+    expect(compactWidthFor({ battery: { percent: 82, charging: false } })).toBe(358)
+    expect(compactWidthFor({ battery: null })).toBe(299)
+  })
+
+  it('stays narrower than the panels, so the window width is unchanged', () => {
+    expect(CAPSULE_SIZES.compact.width).toBeLessThan(CAPSULE_SIZES.terminal.width)
+    expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
   })
 })

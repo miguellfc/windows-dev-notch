@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
+import { bindSystem } from '../shared/system-store'
 import '../styles/global.css'
 import { NotchApp } from './NotchApp'
 
@@ -14,6 +15,7 @@ if (!root) throw new Error('Missing #root element')
 bindSettings()
 bindClaude()
 bindReminders()
+bindSystem()
 
 createRoot(root).render(
   <StrictMode>

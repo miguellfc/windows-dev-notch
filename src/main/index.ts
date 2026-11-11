@@ -18,9 +18,12 @@ import { createFileLogger } from './services/logger'
 import { SettingsStore } from './services/settings-store'
 import { createSettingsUpdater } from './services/settings-update'
 import { createUsageIpcHandlers, usageChannelGuards } from './services/usage-ipc'
+import { createQuitFlush } from './services/quit-flush'
 import { createUsageLog } from './services/usage-log'
 import { createRemindersIntegration } from './reminders/reminders-integration'
 import { remindersChannelGuards } from './reminders/reminders-ipc'
+import { createSystemIntegration } from './system/system-integration'
+import { systemChannelGuards } from './system/system-ipc'
 import { pathExists, resolveShell, shellEnvironment } from './terminal/shell-resolver'
 import { createTerminalSession } from './terminal/terminal-session'
 import { controlCenterWindow, openControlCenter } from './windows/control-center-window'
@@ -123,11 +126,21 @@ function start(): void {
         onLoadFailed,
       })
       let tray: AppTray | null = null
+      // System monitor: samples by notch mode; events go to the notch only. Started after registerIpc.
+      const system = createSystemIntegration({
+        logger,
+        mode: () => notch.mode(),
+        notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
+      })
+      notchWindow.webContents.on('did-finish-load', () => system.resync())
       const notch = createNotchController({
         surface,
         workArea: display.workArea,
         logger,
-        onModeChange: () => tray?.refresh(),
+        onModeChange: (mode) => {
+          tray?.refresh()
+          system.setMode(mode)
+        },
       })
       notchWindow.once('ready-to-show', () => notch.start())
       notchWindow.on('blur', () => notch.dispatch({ type: 'dismiss' }))
@@ -317,6 +330,7 @@ function start(): void {
           ...claudeChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...remindersChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...usageChannelGuards({ fromControlCenter }),
+          ...systemChannelGuards({ fromNotch: fromNotchWindow }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -364,39 +378,38 @@ function start(): void {
           ...claude.handlers,
           ...reminders.handlers,
           ...createUsageIpcHandlers(usage, () => usageLoaded),
+          ...system.handlers,
         },
       })
 
       // Started after registerIpc so the renderers never miss a handler; reminders:* calls wait
       // for this to finish, so the first list already reflects the file.
       reminders.start().catch((error: unknown) => logger.error('Reminders failed to start', { error }))
+      system.start().catch((error: unknown) => logger.error('System monitor failed to start', { error }))
 
-      let usageSaved = false
-      app.on('will-quit', (event) => {
-        if (!usageSaved) {
+      app.on(
+        'will-quit',
+        createQuitFlush({
           // First pass: save the usage counts (async), then quit again to run the cleanup below.
-          usageSaved = true
-          event.preventDefault()
-          clearInterval(usageTimer)
-          let timer: ReturnType<typeof setTimeout> | undefined
-          const timeout = new Promise<void>((resolve) => (timer = setTimeout(resolve, USAGE_QUIT_FLUSH_MS)))
-          void Promise.race([usage.flush(), timeout]).finally(() => {
-            clearTimeout(timer)
-            app.quit()
-          })
-          return
-        }
-        watcher?.stop()
-        notch.dispose()
-        // After the notch: releasing held requests must not drive a closing window.
-        claude.dispose()
-        reminders.dispose()
-        shortcut.dispose()
-        tray?.destroy()
-        screen.off('display-added', onDisplaysChanged)
-        screen.off('display-removed', onDisplaysChanged)
-        screen.off('display-metrics-changed', onDisplaysChanged)
-      })
+          flush: () => usage.flush(),
+          timeoutMs: USAGE_QUIT_FLUSH_MS,
+          quit: () => app.quit(),
+          onFlushStart: () => clearInterval(usageTimer),
+          cleanup: () => {
+            watcher?.stop()
+            notch.dispose()
+            // After the notch: releasing held requests must not drive a closing window.
+            claude.dispose()
+            reminders.dispose()
+            system.dispose()
+            shortcut.dispose()
+            tray?.destroy()
+            screen.off('display-added', onDisplaysChanged)
+            screen.off('display-removed', onDisplaysChanged)
+            screen.off('display-metrics-changed', onDisplaysChanged)
+          },
+        }),
+      )
 
       logger.info('Developer Notch started', {
         version: app.getVersion(),

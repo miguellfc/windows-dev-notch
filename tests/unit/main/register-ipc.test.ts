@@ -85,6 +85,8 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
       from: '2026-10-28',
       to: '2026-11-10',
     }),
+    'system:view': () => null,
+    'system:kill-process': () => 'gone',
     ...overrides,
   }
 }
@@ -251,6 +253,8 @@ describe('terminal write isolation', () => {
     'reminders:complete': { id: REMINDER_ID },
     'reminders:delete': { id: REMINDER_ID },
     'usage:summary': { days: 14 },
+    'system:view': { by: 'cpu' },
+    'system:kill-process': { pid: 42, startTime: '2026-11-10T09:00:00.000Z' },
   }
 
   it('has a sample input for every channel', () => {

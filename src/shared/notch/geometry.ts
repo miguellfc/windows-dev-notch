@@ -11,14 +11,32 @@ export type VisibleMode = Exclude<NotchMode, 'hidden'>
 
 /** Size of the visible capsule per mode, in DIP. */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
-  compact: { width: 168, height: 36 },
+  compact: { width: 358, height: 36 },
   peek: { width: 240, height: 40 },
   alert: { width: 320, height: 44 },
   expanded: { width: 440, height: 236 },
   terminal: { width: 640, height: 360 },
   permission: { width: 480, height: 300 },
   reminders: { width: 420, height: 320 },
+  system: { width: 520, height: 280 },
   mini: { width: 120, height: 6 },
+}
+
+/**
+ * Compact capsule widths by content. `CAPSULE_SIZES.compact` is the widest (time, date, CPU, RAM
+ * and battery); without a battery its slot is dropped, and with no sample yet or the monitor
+ * unavailable the capsule keeps its original time-and-date width.
+ */
+export const COMPACT_WIDTHS = {
+  plain: 168,
+  metrics: 299,
+  metricsBattery: CAPSULE_SIZES.compact.width,
+} as const
+
+/** Width of the compact capsule for what it shows: null is time and date only. */
+export function compactWidthFor(content: { battery: object | null } | null): number {
+  if (!content) return COMPACT_WIDTHS.plain
+  return content.battery ? COMPACT_WIDTHS.metricsBattery : COMPACT_WIDTHS.metrics
 }
 
 /**

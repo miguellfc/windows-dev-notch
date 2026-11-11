@@ -64,7 +64,7 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'reminders', 'settings', 'terminal', 'usage'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'notch', 'reminders', 'settings', 'system', 'terminal', 'usage'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")
@@ -168,4 +168,32 @@ test('About page shows the local usage log, and quitting saves it', async () => 
   const saved = JSON.parse(readFileSync(join(userData, 'usage.json'), 'utf8')) as { version: number; days: Record<string, { launches: number }> }
   expect(saved.version).toBe(1)
   expect(Object.values(saved.days).reduce((sum, day) => sum + day.launches, 0)).toBe(1)
+})
+
+test('quits cleanly after a minute idle, once the usage log has nothing left to save', async () => {
+  // Real time on purpose: the 60 s usage tick saves the log, so the quit-time flush settles at once.
+  // That used to swallow the second app.quit() and the app never exited (tray "Salir" included).
+  test.slow()
+  const { app } = await launch()
+  const mainPid = await app.evaluate(() => process.pid)
+
+  await expect
+    .poll(() => {
+      try {
+        const saved = JSON.parse(readFileSync(join(userData, 'usage.json'), 'utf8')) as { days: Record<string, { runningMinutes: number }> }
+        return Object.values(saved.days).reduce((sum, day) => sum + day.runningMinutes, 0)
+      } catch {
+        return 0
+      }
+    }, { timeout: 75_000, intervals: [1_000] })
+    .toBeGreaterThanOrEqual(1)
+  // Give the tick's write time to finish so nothing is pending at quit.
+  await new Promise((resolve) => setTimeout(resolve, 2_000))
+
+  const closed = await Promise.race([
+    app.close().then(() => true),
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 15_000)),
+  ])
+  if (!closed) process.kill(mainPid) // Only the Electron this test launched; keeps a failure from leaking it.
+  expect(closed).toBe(true)
 })

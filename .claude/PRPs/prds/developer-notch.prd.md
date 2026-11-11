@@ -96,7 +96,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Should | Developer Toolbox | Fase 2; alcance por definir |
 | Must (M3, decidido 2026-11-10, hecho) | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`): solo "permitir una vez" o "denegar", solo con click | Diseño de seguridad en `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` |
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
-| Could | System Monitor (CPU, RAM, batería, disco, red) | Fase 4 |
+| Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos y batería Bluetooth pendientes |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -345,3 +345,23 @@ La app guarda un registro local de uso (Control Center → Acerca de): días de 
 Sugerencia, no compromiso: sustituir las dos métricas del launcher por "aperturas de integraciones" (terminal, recordatorios…) si resulta útil medirlas.
 
 Siguen sin verificarse: DPI mixto y multi-monitor, y los botones del toast (ver arriba).
+
+## System Monitor (núcleo) — hecho tras el MVP (rama `feat/system-monitor`)
+
+Estaba como "Could" en la Fase 4; se adelantó al terminar el MVP. Diseño: `docs/superpowers/specs/2026-11-10-system-monitor-design.md`; plan: `docs/superpowers/plans/2026-11-10-system-monitor.md`; hallazgos: `docs/spikes/system-monitor-findings.md`.
+
+**Qué hace**
+- La cápsula compacta muestra CPU, RAM y batería junto a hora y fecha; su ancho tiene tres valores (168 / 299 / 358 px) con un latch de 3 muestras para que no parpadee.
+- Un panel "Sistema" (520×280) con tarjetas y sparklines de 60 s, línea de discos y lista de procesos, con opción de cerrar un proceso. _(Cambio del usuario, 2026-11-11: 5 procesos y panel de 520×280, antes 8 y 520×360.)_
+- Muestreo en el main: ligero cada 3 s; completo cada 1 s solo con la vista abierta; en pausa en `mini`, `hidden` y alerta. La línea base de las métricas solo se reinicia tras una pausa ≥ 10 s.
+
+**Coste en reposo medido:** media de 0,061 % de CPU sumada sobre todos los procesos de la app, en compact (E2E).
+
+**Seguridad al cerrar procesos:** el botón solo aparece en procesos cerrables; hay confirmación en línea ("Cerrar" a la izquierda de "Cancelar"), foco en "Cancelar" y 300 ms de armado antes de que "Cerrar" responda; el resultado se informa en la fila.
+
+**Pendiente**
+- Hito 2: avisos y umbrales (hasta entonces no hay colores de alarma).
+- Hito 3: batería Bluetooth; empieza con una sonda de viabilidad.
+- Comprobaciones manuales: comparar las cifras con el Administrador de tareas y cerrar un proceso real propio.
+
+**Bug previo encontrado y corregido en esta rama (cuelgue al salir):** la app no terminaba tras ~60 s en reposo, porque el segundo `app.quit()` se ejecutaba en una microtarea dentro del `will-quit` ya cancelado (`preventDefault`). Afectaba también a "Salir" de la bandeja. Introducido en el commit `7db549b`.
