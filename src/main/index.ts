@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, screen, session, type Display } from 'electron'
+import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, nativeTheme, screen, session, type Display } from 'electron'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { createClaudeIntegration } from './claude/claude-integration'
@@ -20,6 +20,8 @@ import { createSettingsUpdater } from './services/settings-update'
 import { createUsageIpcHandlers, usageChannelGuards } from './services/usage-ipc'
 import { createQuitFlush } from './services/quit-flush'
 import { createUsageLog } from './services/usage-log'
+import { createNotesIntegration } from './notes/notes-integration'
+import { notesChannelGuards } from './notes/notes-ipc'
 import { createRemindersIntegration } from './reminders/reminders-integration'
 import { remindersChannelGuards } from './reminders/reminders-ipc'
 import { createSystemIntegration } from './system/system-integration'
@@ -33,7 +35,7 @@ import { denyAllPermissions, hardenWebContents } from './windows/secure-window'
 
 const APP_USER_MODEL_ID = 'dev.developernotch.app'
 const USAGE_TICK_MS = 60_000
-/** Upper bound on the usage flush at quit, so quitting never hangs on the disk. */
+/** Upper bound on the quit flush (usage counts, in-flight note writes), so quitting never hangs on the disk. */
 const USAGE_QUIT_FLUSH_MS = 2_000
 
 // Development-only switches. A packaged build ignores them all, so nothing in the
@@ -319,6 +321,14 @@ function start(): void {
           },
         }
       }
+      // --- Notes -----------------------------------------------------------------------
+      const notes = createNotesIntegration({
+        userDataDir: app.getPath('userData'),
+        logger,
+        now: () => new Date(),
+        notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
+        writeClipboard: (text) => clipboard.writeText(text),
+      })
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,
@@ -332,6 +342,7 @@ function start(): void {
           ...remindersChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...usageChannelGuards({ fromControlCenter }),
           ...systemChannelGuards({ fromNotch: fromNotchWindow }),
+          ...notesChannelGuards({ fromNotch: fromNotchWindow }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -378,6 +389,7 @@ function start(): void {
           },
           ...claude.handlers,
           ...reminders.handlers,
+          ...notes.handlers,
           ...createUsageIpcHandlers(usage, () => usageLoaded),
           ...system.handlers,
         },
@@ -386,13 +398,15 @@ function start(): void {
       // Started after registerIpc so the renderers never miss a handler; reminders:* calls wait
       // for this to finish, so the first list already reflects the file.
       reminders.start().catch((error: unknown) => logger.error('Reminders failed to start', { error }))
+      notes.start().catch((error: unknown) => logger.error('Notes failed to start', { error }))
       system.start().catch((error: unknown) => logger.error('System monitor failed to start', { error }))
 
       app.on(
         'will-quit',
         createQuitFlush({
-          // First pass: save the usage counts (async), then quit again to run the cleanup below.
-          flush: () => usage.flush(),
+          // First pass: save the usage counts and let any in-flight note write finish (async),
+          // then quit again to run the cleanup below.
+          flush: () => Promise.all([usage.flush(), notes.flush()]).then(() => undefined),
           timeoutMs: USAGE_QUIT_FLUSH_MS,
           quit: () => app.quit(),
           onFlushStart: () => clearInterval(usageTimer),

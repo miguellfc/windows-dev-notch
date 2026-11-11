@@ -30,6 +30,14 @@ function createFakeIpcMain() {
 const trustedEvent: IpcEventLike = { sender: { id: 1 }, senderFrame: { url: 'app://trusted', parent: null } }
 const settings = createDefaultSettings('en-US')
 const REMINDER_ID = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+const sampleNote = {
+  id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f',
+  text: 'Recordar',
+  pinned: false,
+  createdAt: '2026-11-10T09:00:00.000Z',
+  updatedAt: '2026-11-10T09:00:00.000Z',
+}
+
 const sampleReminder = {
   id: REMINDER_ID,
   text: 'Revisar PR',
@@ -72,6 +80,13 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'reminders:snooze': () => sampleReminder,
     'reminders:complete': () => sampleReminder,
     'reminders:delete': () => null,
+    'notes:list': () => ({ notes: [sampleNote], notice: null }),
+    'notes:create': () => sampleNote,
+    'notes:update': () => sampleNote,
+    'notes:pin': () => sampleNote,
+    'notes:delete': () => sampleNote,
+    'notes:restore': () => sampleNote,
+    'notes:copy': () => null,
     'usage:summary': () => ({
       days: 0,
       runningHoursAvg: 0,
@@ -252,6 +267,13 @@ describe('terminal write isolation', () => {
     'reminders:snooze': { id: REMINDER_ID },
     'reminders:complete': { id: REMINDER_ID },
     'reminders:delete': { id: REMINDER_ID },
+    'notes:list': undefined,
+    'notes:create': { text: 'Recordar' },
+    'notes:update': { id: REMINDER_ID, text: 'Otro' },
+    'notes:pin': { id: REMINDER_ID, pinned: true },
+    'notes:delete': { id: REMINDER_ID },
+    'notes:restore': { id: REMINDER_ID },
+    'notes:copy': { id: REMINDER_ID },
     'usage:summary': { days: 14 },
     'system:view': { by: 'cpu' },
     'system:kill-process': { pid: 42, startTime: '2026-11-10T09:00:00.000Z' },

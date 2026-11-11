@@ -26,6 +26,7 @@ import {
   PANEL_ITEM,
   PANEL_STAGGER,
 } from './motion'
+import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
 import type { CapsuleView } from './system/capsule-latch'
@@ -206,6 +207,7 @@ function CapsuleContent({
   if (mode === 'permission') return <PermissionCard />
   if (mode === 'reminders') return <RemindersView />
   if (mode === 'system') return <SystemView />
+  if (mode === 'notes') return <NotesView />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>

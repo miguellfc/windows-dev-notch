@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
 import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
 import { integrationIds } from '../integrations/registry'
+import { createNoteInputSchema, noteIdInputSchema, noteSchema, pinNoteInputSchema, updateNoteInputSchema } from '../notes/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
 import { killInputSchema, killResultSchema, PROCESS_LIMIT, processRowSchema, systemMetricsSchema, viewInputSchema } from '../system/schema'
@@ -13,7 +14,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'mini', 'hidden'])
 
 export const runtimeSchema = z.strictObject({
   isPackaged: z.boolean(),
@@ -81,6 +82,12 @@ export const remindersSnapshotSchema = z.strictObject({
   notice: z.enum(['quarantined', 'read-only']).nullable(),
 })
 
+/** Full notes list (pinned first) plus why it may be incomplete (corrupt file moved aside, or read-only session). */
+export const notesSnapshotSchema = z.strictObject({
+  notes: z.array(noteSchema),
+  notice: z.enum(['quarantined', 'read-only']).nullable(),
+})
+
 const reminderIdSchema = z.strictObject({ id: z.uuid() })
 
 const none = z.undefined()
@@ -125,6 +132,13 @@ export const contract = {
   'reminders:snooze': { input: reminderIdSchema, output: reminderSchema },
   'reminders:complete': { input: reminderIdSchema, output: reminderSchema },
   'reminders:delete': { input: reminderIdSchema, output: ack },
+  'notes:list': { input: none, output: notesSnapshotSchema },
+  'notes:create': { input: createNoteInputSchema, output: noteSchema },
+  'notes:update': { input: updateNoteInputSchema, output: noteSchema },
+  'notes:pin': { input: pinNoteInputSchema, output: noteSchema },
+  'notes:delete': { input: noteIdInputSchema, output: noteSchema },
+  'notes:restore': { input: noteIdInputSchema, output: noteSchema },
+  'notes:copy': { input: noteIdInputSchema, output: ack },
   'usage:summary': { input: usageSummaryInputSchema, output: usageSummarySchema },
   'system:view': { input: viewInputSchema, output: ack },
   'system:kill-process': { input: killInputSchema, output: killResultSchema },
@@ -140,6 +154,7 @@ export const eventContract = {
   'reminders:changed': remindersSnapshotSchema,
   /** A new batch is due (or reminders were missed at startup): the notch plays the chime. */
   'reminders:fired': z.strictObject({ count: z.int().positive() }),
+  'notes:changed': notesSnapshotSchema,
   'system:metrics': systemMetricsSchema,
   /** Top processes of the System view (at most PROCESS_LIMIT). */
   'system:processes': z.array(processRowSchema).max(PROCESS_LIMIT),

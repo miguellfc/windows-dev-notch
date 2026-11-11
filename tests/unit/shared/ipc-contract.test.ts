@@ -91,6 +91,35 @@ describe('IPC contract', () => {
     expect(dismiss.safeParse({ sessionId: 'a'.repeat(257) }).success).toBe(false)
   })
 
+  it('exposes the notes channels and event', () => {
+    expect(channels.notes).toEqual({
+      list: 'notes:list',
+      create: 'notes:create',
+      update: 'notes:update',
+      pin: 'notes:pin',
+      delete: 'notes:delete',
+      restore: 'notes:restore',
+      copy: 'notes:copy',
+    })
+    expect(eventChannels.notesChanged).toBe('notes:changed')
+  })
+
+  it('validates notes inputs', () => {
+    const id = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+    expect(contract['notes:create'].input.safeParse({ text: 'Hola' }).success).toBe(true)
+    expect(contract['notes:create'].input.safeParse({ text: '' }).success).toBe(false)
+    expect(contract['notes:create'].input.safeParse({ text: 'a', id }).success).toBe(false)
+    expect(contract['notes:update'].input.safeParse({ id, text: 'Hola' }).success).toBe(true)
+    expect(contract['notes:pin'].input.safeParse({ id, pinned: true }).success).toBe(true)
+    expect(contract['notes:pin'].input.safeParse({ id }).success).toBe(false)
+    for (const channel of ['notes:delete', 'notes:restore', 'notes:copy'] as const) {
+      const input = contract[channel].input
+      expect(input.safeParse({ id }).success).toBe(true)
+      expect(input.safeParse({ id: 'nope' }).success).toBe(false)
+      expect(input.safeParse({ id, text: 'x' }).success).toBe(false)
+    }
+  })
+
   it('exposes the reminders channels and events', () => {
     expect(channels.reminders).toEqual({
       list: 'reminders:list',
