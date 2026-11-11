@@ -164,3 +164,21 @@ describe('compact capsule width', () => {
     expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
   })
 })
+
+describe('notes panel geometry', () => {
+  it('is 420×320 and its window is as tall as reminders', () => {
+    expect(CAPSULE_SIZES.notes).toEqual({ width: 420, height: 320 })
+    expect(windowBoundsFor('notes', workArea).height).toBe(SHADOW_MARGIN.top + 320 + SHADOW_MARGIN.bottom)
+  })
+
+  it('orders the window changes by height', () => {
+    expect(growsWindow('expanded', 'notes')).toBe(true)
+    expect(growsWindow('notes', 'expanded')).toBe(false)
+    expect(growsWindow('permission', 'notes')).toBe(true)
+    expect(growsWindow('notes', 'permission')).toBe(false)
+    expect(growsWindow('notes', 'terminal')).toBe(true)
+    expect(growsWindow('terminal', 'notes')).toBe(false)
+    expect(resizeOrder('expanded', 'notes')).toBe('resize-first')
+    expect(resizeOrder('notes', 'expanded')).toBe('animate-first')
+  })
+})

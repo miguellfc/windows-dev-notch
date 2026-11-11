@@ -19,6 +19,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   permission: { width: 480, height: 300 },
   reminders: { width: 420, height: 320 },
   system: { width: 520, height: 280 },
+  notes: { width: 420, height: 320 },
   mini: { width: 120, height: 6 },
 }
 

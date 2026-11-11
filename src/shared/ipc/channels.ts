@@ -46,6 +46,15 @@ export const channels = {
     complete: 'reminders:complete',
     delete: 'reminders:delete',
   },
+  notes: {
+    list: 'notes:list',
+    create: 'notes:create',
+    update: 'notes:update',
+    pin: 'notes:pin',
+    delete: 'notes:delete',
+    restore: 'notes:restore',
+    copy: 'notes:copy',
+  },
   usage: {
     summary: 'usage:summary',
   },
@@ -64,6 +73,7 @@ export const eventChannels = {
   claudeStateChanged: 'claude:state-changed',
   remindersChanged: 'reminders:changed',
   remindersFired: 'reminders:fired',
+  notesChanged: 'notes:changed',
   systemMetrics: 'system:metrics',
   systemProcesses: 'system:processes',
 } as const

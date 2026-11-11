@@ -247,6 +247,15 @@ describe('reminderDue (a reminder is due)', () => {
     expect(notchMode(run({ type: 'open-integration', id: 'system' }, { type: 'dismiss' }))).toBe('compact')
   })
 
+  it('opens the notes integration, goes back to the integrations row, and dismisses to compact', () => {
+    const open = run({ type: 'open-integration', id: 'notes' })
+    expect(open).toMatchObject({ expanded: true, view: 'notes' })
+    expect(notchMode(open)).toBe('notes')
+    expect(PANEL_MODES.has('notes')).toBe(true)
+    expect(notchMode(run({ type: 'open-integration', id: 'notes' }, { type: 'back' }))).toBe('expanded')
+    expect(notchMode(run({ type: 'open-integration', id: 'notes' }, { type: 'dismiss' }))).toBe('compact')
+  })
+
   it('ignores repeated reminders events', () => {
     const state = run(due(true))
     expect(reduceNotch(state, due(true))).toBe(state)

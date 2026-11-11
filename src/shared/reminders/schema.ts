@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { hasVisibleText } from '../text'
 
 export const REMINDER_TEXT_MAX = 200
 export const REMINDERS_ACTIVE_MAX = 500
@@ -15,11 +16,8 @@ export const REMINDER_DONE_MESSAGE = 'Reminder is already done'
  */
 const FORBIDDEN_CHARS = /(?!\u200D)[\p{Cc}\p{Cf}]/u
 
-/** Anything that is neither whitespace nor default-ignorable (ZWJ, variation selectors, Hangul fillers...). */
-const VISIBLE_CHAR = /[^\s\p{Default_Ignorable_Code_Point}]/u
-
-/** True when the text shows at least one character; a lone U+200D or only ZWJ and spaces does not. */
-export const hasVisibleText = (text: string): boolean => VISIBLE_CHAR.test(text)
+// Kept exported from here so existing reminder imports keep working; it lives in shared/text.
+export { hasVisibleText }
 
 export const reminderTextSchema = z
   .string()

@@ -16,6 +16,4 @@ export function useT(): (key: MessageKey, params?: MessageParams) => string {
   return useCallback((key, params) => translate(language, key, params), [language])
 }
 
-export function locale(language: Language): string {
-  return language === 'es' ? 'es-ES' : 'en-US'
-}
+export { locale } from './locale'
