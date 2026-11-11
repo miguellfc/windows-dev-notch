@@ -97,6 +97,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Must (M3, decidido 2026-11-10, hecho) | Aprobar / denegar permisos de Claude desde la alerta (hook `PermissionRequest`): solo "permitir una vez" o "denegar", solo con click | Diseño de seguridad en `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` |
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
 | Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos por umbral hechos en `feat/system-alerts`; batería Bluetooth pendiente |
+| Could (hecho tras el MVP) | Notas rápidas en el notch (lista con buscar, copiar, editar, fijar y borrar con Deshacer) | Integración viva más tras el cambio de dirección; hecha en `feat/notes` (ver "Notas rápidas — hecho tras el MVP") |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -371,3 +372,17 @@ Estaba como "Could" en la Fase 4; se adelantó al terminar el MVP. Diseño: `doc
 - Comprobaciones manuales: comparar las cifras con el Administrador de tareas y cerrar un proceso real propio.
 
 **Bug previo encontrado y corregido en esta rama (cuelgue al salir):** la app no terminaba tras ~60 s en reposo, porque el segundo `app.quit()` se ejecutaba en una microtarea dentro del `will-quit` ya cancelado (`preventDefault`). Afectaba también a "Salir" de la bandeja. Introducido en el commit `7db549b`.
+
+## Notas rápidas — hecho tras el MVP (rama `feat/notes`)
+
+Nueva integración viva del notch, solo en el notch (sin página en Control Center). Diseño: `docs/superpowers/specs/2026-11-11-notes-design.md`; plan: `docs/superpowers/plans/2026-11-11-notes.md`.
+
+**Qué hace**
+- Panel "Notas" (420×320): lista de notas cortas (hasta 2000 caracteres, multilínea; máximo 500), fijadas arriba y después por fecha de edición; buscador inmediato que ignora mayúsculas y acentos.
+- Copiar (main escribe el portapapeles a partir del `id`; el renderer nunca envía el texto), editar (Ctrl+Enter guarda, Esc cancela), fijar/desfijar y borrar con barra "Deshacer" durante 5 s (main conserva la borrada 10 s).
+- Guardado en `userData/notes.json` con el patrón de los recordatorios: escritura atómica y serializada, cuarentena si el archivo está corrupto y solo lectura si viene de una versión más nueva. Al salir, la app espera a que termine la escritura en curso (acotado por el mismo límite de 2 s del vaciado de uso).
+
+**Privacidad:** el texto de las notas nunca se escribe en el log (solo ids, recuentos y nombre/código de los errores); todos los canales `notes:*` solo aceptan el notch.
+
+**Pendiente**
+- Comprobaciones manuales: copiar y pegar en otra app real, y el uso diario durante la validación.
