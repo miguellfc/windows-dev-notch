@@ -1,13 +1,13 @@
 import type { IntegrationId } from '../integrations/registry'
 
 /** What the capsule shows. `hidden` means the window is not on screen at all. */
-export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'reminders' | 'system' | 'notes' | 'mini' | 'hidden'
+export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'reminders' | 'system' | 'notes' | 'gmail' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
 export type NotchView = 'home' | 'permission' | IntegrationId
 
 /** Modes that show the panel and therefore own the keyboard focus. */
-export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'reminders', 'system', 'notes'])
+export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'gmail'])
 
 /** How the capsule yields to the window in front: nothing, shrink to a pill, or disappear. */
 export type Yielding = 'none' | 'mini' | 'hidden'
@@ -49,8 +49,7 @@ export const initialNotchState: NotchState = Object.freeze({
 /** Explicit user intent (expand) beats yielding; yielding beats hover. */
 export function notchMode(state: NotchState): NotchMode {
   if (state.expanded) {
-    if (state.view === 'terminal' || state.view === 'permission' || state.view === 'reminders' || state.view === 'system' || state.view === 'notes') return state.view
-    return 'expanded'
+    return state.view === 'home' ? 'expanded' : state.view
   }
   if (state.userHidden || state.yielding === 'hidden') return 'hidden'
   if (state.attention || state.reminderDue) return 'alert'

@@ -1,3 +1,4 @@
+import type { GmailState } from '../../../shared/gmail/schema'
 import type { SystemMetrics } from '../../../shared/system/schema'
 
 /** What the compact capsule shows: percentages only, battery slot or not, low-disk block or not. */
@@ -72,4 +73,31 @@ export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): Cap
     batteryMissRun,
     diskMissRun,
   }
+}
+
+/** The unread-mail block of the compact capsule: the count it shows, or null when it takes no room. */
+export interface MailLatch {
+  /** 1–100 (100 shows as "99+"); null while there is no block. */
+  unread: number | null
+  /** Consecutive readings without unread mail while the block is shown. */
+  missRun: number
+}
+
+export const EMPTY_MAIL: MailLatch = { unread: null, missRun: 0 }
+
+/**
+ * Folds one Gmail reading (`gmail:state`) into the mail block (pure; the store keeps the result).
+ * Like the disk block: shown with the first reading that has unread mail in a live session (`ok`
+ * or `offline`, which keeps the last data), given up only after CAPSULE_MISSES readings in a row
+ * without, keeping the last count meanwhile, since it changes the capsule width. A session that
+ * ends (signed out, expired, unconfigured, signing in again) hides it at once: no more readings
+ * would arrive to release it.
+ */
+export function nextMail(previous: MailLatch, state: GmailState): MailLatch {
+  const live = state.status === 'ok' || state.status === 'offline'
+  if (!live) return EMPTY_MAIL
+  if (state.unread !== null && state.unread > 0) return { unread: state.unread, missRun: 0 }
+  if (previous.unread === null) return EMPTY_MAIL
+  const missRun = previous.missRun + 1
+  return missRun >= CAPSULE_MISSES ? EMPTY_MAIL : { unread: previous.unread, missRun }
 }

@@ -1,4 +1,5 @@
-import { Battery, BatteryCharging, BatteryLow, Cpu, HardDrive, MemoryStick, type LucideIcon } from 'lucide-react'
+import { Battery, BatteryCharging, BatteryLow, Cpu, HardDrive, Mail, MemoryStick, type LucideIcon } from 'lucide-react'
+import { unreadLabel, unreadText } from '../../shared/gmail/format'
 import { useLanguage, useT } from '../../shared/use-t'
 import type { CapsuleView } from './capsule-latch'
 import { formatPercent } from './format'
@@ -69,11 +70,36 @@ export function CapsuleMetrics({ view }: { view: CapsuleView }) {
   )
 }
 
+/** Widest unread count the mail block can show (the cap, 100); it fixes the block width. */
+const WIDEST_UNREAD = unreadText(100)
+
+/**
+ * Unread mail in Primary, last in the compact capsule (`Mail` + "3" / "99+"), in Grafito Cristal.
+ * Only rendered while the mail latch holds a count; it reserves the width of "99+" (so the
+ * measured COMPACT_WIDTHS hold) but sits left, next to its icon: it is the last block, so the
+ * spare room falls at the capsule's edge instead of between the icon and the figure.
+ */
+export function CapsuleMail({ unread }: { unread: number }) {
+  const language = useLanguage()
+  return (
+    <Metric
+      icon={Mail}
+      text={unreadText(unread)}
+      reserve={WIDEST_UNREAD}
+      alert={false}
+      align="left"
+      label={unreadLabel(unread, language)}
+      testId="metric-mail"
+    />
+  )
+}
+
 function Metric({
   icon: Icon,
   text,
   reserve,
   alert,
+  align = 'right',
   label,
   testId,
 }: {
@@ -83,6 +109,8 @@ function Metric({
   reserve: string
   /** Rojo Fallo on icon and number while the metric is alerting; colour only, same width. */
   alert: boolean
+  /** Right for the percentages (a column of figures); left for the mail count. */
+  align?: 'left' | 'right'
   label: string
   testId: string
 }) {
@@ -96,10 +124,10 @@ function Metric({
     >
       <Icon size={12} strokeWidth={2} aria-hidden="true" className="shrink-0" />
       {/* Both texts share one grid cell: the invisible widest value fixes the width, so the capsule
-          never jitters as digits change. Right-aligned like a column of figures. */}
+          never jitters as digits change. Right-aligned like a column of figures unless told otherwise. */}
       <span className="tabular grid whitespace-nowrap text-small font-medium" aria-hidden="true">
         <span className="invisible [grid-area:1/1]">{reserve}</span>
-        <span className="text-right [grid-area:1/1]">{text}</span>
+        <span className={`${align === 'left' ? 'text-left' : 'text-right'} [grid-area:1/1]`}>{text}</span>
       </span>
     </span>
   )

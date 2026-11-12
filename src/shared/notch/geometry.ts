@@ -9,17 +9,34 @@ export interface Rect {
 
 export type VisibleMode = Exclude<NotchMode, 'hidden'>
 
+/**
+ * Heights of the home panel (integrations row), measured with Playwright: Claude sessions get
+ * their own line under the tiles (12 px gap, 12 px heading and one 24 px row per session, two
+ * visible, the rest scroll). The window is always sized for the tallest (`CAPSULE_SIZES.expanded`);
+ * with fewer sessions the capsule is shorter inside it, like the compact capsule is narrower than
+ * the window, and the transparent strip below lets clicks through (the window ignores the mouse
+ * outside the capsule).
+ */
+export const EXPANDED_HEIGHTS = { plain: 236, oneSession: 284, sessions: 308 } as const
+
+/** Height of the home panel for the number of Claude sessions it lists: no gap, no empty row. */
+export function expandedHeightFor(sessions: number): number {
+  if (sessions <= 0) return EXPANDED_HEIGHTS.plain
+  return sessions === 1 ? EXPANDED_HEIGHTS.oneSession : EXPANDED_HEIGHTS.sessions
+}
+
 /** Size of the visible capsule per mode, in DIP. */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
   compact: { width: 358, height: 36 },
   peek: { width: 240, height: 40 },
   alert: { width: 320, height: 44 },
-  expanded: { width: 440, height: 236 },
+  expanded: { width: 440, height: EXPANDED_HEIGHTS.sessions },
   terminal: { width: 640, height: 360 },
   permission: { width: 480, height: 300 },
   reminders: { width: 420, height: 320 },
   system: { width: 520, height: 280 },
   notes: { width: 420, height: 320 },
+  gmail: { width: 420, height: 382 },
   mini: { width: 120, height: 6 },
 }
 
@@ -29,7 +46,11 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
  * CPU, RAM and battery); without a battery its slot is dropped, and with no sample yet or the
  * monitor unavailable the capsule keeps its original time-and-date width. The low-disk block
  * (reserving "W: 100 %", the widest drive letter) only exists while that alert is latched:
- * EN 374.7 px without a battery and 433.8 px with one.
+ * EN 374.7 px without a battery and 433.8 px with one. The unread-mail block (`Mail` + "99+", its
+ * widest value) goes last and only exists while unread mail is latched: it measures 38.3 px in ES
+ * and EN and adds 48.3 px after the metrics (its 10 px gap) or 52.3 px after time and date (that
+ * layout's wider gaps); each variant is its width without mail plus that, rounded up (worst case
+ * EN, battery, disk and "99+": 482.1 px).
  */
 export const COMPACT_WIDTHS = {
   plain: 168,
@@ -37,16 +58,26 @@ export const COMPACT_WIDTHS = {
   metricsBattery: CAPSULE_SIZES.compact.width,
   metricsDisk: 376,
   metricsBatteryDisk: 435,
+  plainMail: 221,
+  metricsMail: 348,
+  metricsBatteryMail: 407,
+  metricsDiskMail: 425,
+  metricsBatteryDiskMail: 484,
 } as const
 
 /**
- * Width of the compact capsule for what it shows: null is time and date only. Alerts only change
- * colours, never the width; the low-disk block is the one alert that adds a slot.
+ * Width of the compact capsule for what it shows: null is time and date only; `mail` adds the
+ * unread-mail block. Alerts only change colours, never the width; the low-disk block is the one
+ * alert that adds a slot.
  */
-export function compactWidthFor(content: { battery: object | null; disk: object | null } | null): number {
-  if (!content) return COMPACT_WIDTHS.plain
-  if (content.disk) return content.battery ? COMPACT_WIDTHS.metricsBatteryDisk : COMPACT_WIDTHS.metricsDisk
-  return content.battery ? COMPACT_WIDTHS.metricsBattery : COMPACT_WIDTHS.metrics
+export function compactWidthFor(content: { battery: object | null; disk: object | null } | null, mail = false): number {
+  if (!content) return mail ? COMPACT_WIDTHS.plainMail : COMPACT_WIDTHS.plain
+  if (content.disk) {
+    if (content.battery) return mail ? COMPACT_WIDTHS.metricsBatteryDiskMail : COMPACT_WIDTHS.metricsBatteryDisk
+    return mail ? COMPACT_WIDTHS.metricsDiskMail : COMPACT_WIDTHS.metricsDisk
+  }
+  if (content.battery) return mail ? COMPACT_WIDTHS.metricsBatteryMail : COMPACT_WIDTHS.metricsBattery
+  return mail ? COMPACT_WIDTHS.metricsMail : COMPACT_WIDTHS.metrics
 }
 
 /**

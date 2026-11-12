@@ -1,10 +1,18 @@
 import { homedir } from 'node:os'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, nativeTheme, screen, session, type Display } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, nativeTheme, net, safeStorage, screen, session, shell, type Display } from 'electron'
+import type { ControlCenterPage } from '../shared/ipc/contract'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { createClaudeIntegration } from './claude/claude-integration'
 import { claudeChannelGuards } from './claude/claude-ipc'
+import { createGmailAuth, GOOGLE_OAUTH_BASE } from './gmail/gmail-auth'
+import { createGmailClient, GMAIL_API_BASE } from './gmail/gmail-client'
+import { createGmailIntegration, isGmailVisibleMode, parseGmailBaseOverride, type GmailIntegration } from './gmail/gmail-integration'
+import { createClientFilePicker } from './gmail/client-file'
+import { createGmailIpcHandlers, gmailChannelGuards } from './gmail/gmail-ipc'
+import { createTokenStore } from './gmail/token-store'
 import { emitEvent } from './ipc/events'
 import { registerIpc, type IpcEventLike } from './ipc/register'
 import { createSenderGuard } from './ipc/sender-guard'
@@ -48,6 +56,9 @@ const claudePortRaw = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_POR
 const claudePortOverride =
   claudePortRaw !== undefined && /^\d{1,5}$/.test(claudePortRaw) && Number(claudePortRaw) <= 65_535 ? Number(claudePortRaw) : undefined
 const testClockEnabled = !app.isPackaged && process.env['NOTCH_TEST_CLOCK'] === '1'
+// One fake server for E2E: replaces the Gmail API and the OAuth token/revoke/consent origins.
+// Only an exact http://127.0.0.1:<port> origin is accepted.
+const gmailBaseOverride = parseGmailBaseOverride(app.isPackaged ? undefined : process.env['NOTCH_GMAIL_BASE_URL'])
 if (isolatedUserData) app.setPath('userData', isolatedUserData)
 
 if (!app.requestSingleInstanceLock()) {
@@ -136,6 +147,8 @@ function start(): void {
         notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
       })
       notchWindow.webContents.on('did-finish-load', () => system.resync())
+      // Gmail polls only while the capsule is on screen; created further down, after the IPC targets.
+      let gmail: GmailIntegration | null = null
       const notch = createNotchController({
         surface,
         workArea: display.workArea,
@@ -143,6 +156,7 @@ function start(): void {
         onModeChange: (mode) => {
           tray?.refresh()
           system.setMode(mode)
+          gmail?.setVisible(isGmailVisibleMode(mode))
         },
       })
       notchWindow.once('ready-to-show', () => notch.start())
@@ -202,7 +216,7 @@ function start(): void {
       })
 
       // --- Control Center & tray -----------------------------------------------------
-      const showControlCenter = () => {
+      const showControlCenter = (page?: ControlCenterPage) => {
         notch.dispatch({ type: 'dismiss' })
         openControlCenter({
           preloadPath,
@@ -210,6 +224,8 @@ function start(): void {
           rendererFile: rendererFile('control-center'),
           devTools: !app.isPackaged,
           onLoadFailed,
+          onPageFailed: (error) => logger.warn('Control Center could not switch page', { error }),
+          ...(page ? { page } : {}),
         })
       }
 
@@ -223,7 +239,7 @@ function start(): void {
             // "Show" must always show, even while a fullscreen app made the capsule yield.
             toggleVisibility: () =>
               notch.dispatch(notch.mode() === 'hidden' ? { type: 'expand' } : { type: 'user-visibility', hidden: true }),
-            openControlCenter: showControlCenter,
+            openControlCenter: () => showControlCenter(),
             setLaunchAtLogin: (enabled) => {
               updateSettings({ launchAtLogin: enabled }).catch((error: unknown) =>
                 logger.error('Could not change start with Windows', { error }),
@@ -329,6 +345,32 @@ function start(): void {
         notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
         writeClipboard: (text) => clipboard.writeText(text),
       })
+      // --- Gmail -----------------------------------------------------------------------
+      // Read-only Gmail (Primary): the refresh token stays in main, encrypted with safeStorage.
+      // Loading the token is async and never blocks registerIpc; gmail:* calls wait for it.
+      const gmailOauthBase = gmailBaseOverride ?? GOOGLE_OAUTH_BASE
+      // Electron's network stack, so the system proxy applies to Gmail and OAuth requests.
+      const gmailFetch = (url: string, init?: RequestInit) => net.fetch(url, init)
+      gmail = createGmailIntegration({
+        settings,
+        tokenStore: createTokenStore({ file: join(app.getPath('userData'), 'gmail-token.bin'), safeStorage, logger }),
+        authFactory: ({ clientId, clientSecret }) =>
+          createGmailAuth({
+            fetch: gmailFetch,
+            openExternal: (url) => shell.openExternal(url),
+            oauthBase: gmailOauthBase,
+            clientId,
+            clientSecret,
+            ...(gmailBaseOverride === undefined ? {} : { authUrl: `${gmailBaseOverride}/o/oauth2/v2/auth` }),
+          }),
+        clientFactory: (access) => createGmailClient({ fetch: gmailFetch, apiBase: gmailBaseOverride ?? GMAIL_API_BASE, ...access }),
+        timers: { setTimeout, clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) },
+        now: () => Date.now(),
+        emit: (state) => emitEvent(notchAndControlCenter(), 'gmail:state', state, logger),
+        openExternal: (url) => shell.openExternal(url),
+        logger,
+      })
+      gmail.setVisible(isGmailVisibleMode(notch.mode()))
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,
@@ -343,12 +385,13 @@ function start(): void {
           ...usageChannelGuards({ fromControlCenter }),
           ...systemChannelGuards({ fromNotch: fromNotchWindow }),
           ...notesChannelGuards({ fromNotch: fromNotchWindow }),
+          ...gmailChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
           'app:get-runtime': () => ({ isPackaged: app.isPackaged, shortcutRegistered: shortcut.current() !== null }),
-          'app:open-control-center': () => {
-            showControlCenter()
+          'app:open-control-center': (input) => {
+            showControlCenter(input?.page)
             return null
           },
           'app:hide-notch': () => {
@@ -392,6 +435,17 @@ function start(): void {
           ...notes.handlers,
           ...createUsageIpcHandlers(usage, () => usageLoaded),
           ...system.handlers,
+          ...createGmailIpcHandlers(
+            gmail,
+            createClientFilePicker({
+              showOpenDialog: (options) => {
+                const parent = controlCenterWindow()
+                return parent ? dialog.showOpenDialog(parent, options) : dialog.showOpenDialog(options)
+              },
+              stat: (path) => stat(path),
+              readFile: (path) => readFile(path, 'utf8'),
+            }),
+          ),
         },
       })
 
@@ -417,6 +471,7 @@ function start(): void {
             claude.dispose()
             reminders.dispose()
             system.dispose()
+            gmail?.dispose()
             shortcut.dispose()
             tray?.destroy()
             screen.off('display-added', onDisplaysChanged)

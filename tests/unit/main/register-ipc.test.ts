@@ -102,6 +102,15 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     }),
     'system:view': () => null,
     'system:kill-process': () => 'gone',
+    'gmail:get-state': () => ({ status: 'signed-out', account: null, unread: null, updatedAt: null, persistent: true }),
+    'gmail:recent': () => [],
+    'gmail:view': () => null,
+    'gmail:refresh': () => null,
+    'gmail:open': () => null,
+    'gmail:sign-in': () => 'cancelled',
+    'gmail:cancel-sign-in': () => null,
+    'gmail:sign-out': () => null,
+    'gmail:pick-client-file': () => null,
     ...overrides,
   }
 }
@@ -277,6 +286,15 @@ describe('terminal write isolation', () => {
     'usage:summary': { days: 14 },
     'system:view': { by: 'cpu' },
     'system:kill-process': { pid: 42, startTime: '2026-11-10T09:00:00.000Z' },
+    'gmail:get-state': undefined,
+    'gmail:recent': undefined,
+    'gmail:view': { open: true },
+    'gmail:refresh': undefined,
+    'gmail:open': { id: 'm1' },
+    'gmail:sign-in': undefined,
+    'gmail:cancel-sign-in': undefined,
+    'gmail:sign-out': undefined,
+    'gmail:pick-client-file': undefined,
   }
 
   it('has a sample input for every channel', () => {

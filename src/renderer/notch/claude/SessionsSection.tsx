@@ -16,9 +16,10 @@ const ICONS: Readonly<Record<ClaudeSessionStatus, LucideIcon>> = {
 }
 
 /**
- * "Claude Code" block of the home panel; absent when there are no sessions. Sits beside the
- * integration tiles: two rows visible, attention first, the rest one wheel tick or Tab away
- * (the list snaps by row and the heading says how many are below).
+ * "Claude Code" block of the home panel; absent when there are no sessions. Sits on its own line
+ * under the integration tiles (the row of 5 tiles fills the panel width), and the panel is only
+ * taller (`EXPANDED_HEIGHTS.sessions`) while it exists: two rows visible, attention first, the
+ * rest one wheel tick or Tab away (the list snaps by row and the heading says how many are below).
  */
 export function SessionsSection() {
   const t = useT()
@@ -55,7 +56,7 @@ export function SessionsSection() {
           </span>
         )}
       </h2>
-      {/* Rows are 24 px (WCAG 2.5.8 minimum target): two fit beside the 60 px tiles. */}
+      {/* Rows are 24 px (WCAG 2.5.8 minimum target): two are visible, the height the panel reserves. */}
       <ul ref={list} onScroll={measure} className="max-h-12 snap-y snap-mandatory overflow-y-auto">
         {ordered.map((session) => {
           const Icon = ICONS[session.status]

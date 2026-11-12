@@ -10,7 +10,9 @@ type RendererOutput<C extends ChannelName> = z.output<Contract[C]['output']>
 type Method<C extends ChannelName> =
   RendererInput<C> extends undefined
     ? () => Promise<Result<RendererOutput<C>>>
-    : (input: RendererInput<C>) => Promise<Result<RendererOutput<C>>>
+    : undefined extends RendererInput<C>
+      ? (input?: RendererInput<C>) => Promise<Result<RendererOutput<C>>>
+      : (input: RendererInput<C>) => Promise<Result<RendererOutput<C>>>
 
 export type Unsubscribe = () => void
 

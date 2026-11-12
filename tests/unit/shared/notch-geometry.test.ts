@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, COMPACT_WIDTHS, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -13,7 +13,8 @@ describe('windowBoundsFor', () => {
   it('leaves room for the shadow around the capsule', () => {
     const bounds = windowBoundsFor('expanded', workArea)
     expect(bounds.width).toBe(752)
-    expect(bounds.height).toBe(6 + 236 + 72)
+    // The window fits the panel with Claude sessions; without them the capsule is shorter inside it.
+    expect(bounds.height).toBe(6 + 308 + 72)
   })
 
   it('keeps one width for every mode: the widest capsule plus the shadow', () => {
@@ -76,7 +77,7 @@ describe('alert and permission geometry', () => {
     expect(resizeOrder('compact', 'alert')).toBe('resize-first')
     expect(resizeOrder('alert', 'permission')).toBe('resize-first')
     expect(resizeOrder('permission', 'alert')).toBe('animate-first')
-    expect(resizeOrder('permission', 'expanded')).toBe('animate-first')
+    expect(resizeOrder('permission', 'expanded')).toBe('resize-first')
   })
 
   it('orders reminders (420×320) and permission (480×300) by height, not area', () => {
@@ -98,17 +99,17 @@ describe('system panel geometry', () => {
   })
 
   it('orders the window against the other panels by height', () => {
-    // 236 (expanded) < 280 (system) < 300 (permission) < 320 (reminders) < 360 (terminal).
-    expect(growsWindow('expanded', 'system')).toBe(true)
+    // 280 (system) < 300 (permission) < 308 (expanded window) < 320 (reminders) < 360 (terminal).
+    expect(growsWindow('expanded', 'system')).toBe(false)
     expect(growsWindow('system', 'permission')).toBe(true)
     expect(growsWindow('system', 'reminders')).toBe(true)
     expect(growsWindow('system', 'terminal')).toBe(true)
     expect(growsWindow('permission', 'system')).toBe(false)
     expect(growsWindow('reminders', 'system')).toBe(false)
     expect(growsWindow('terminal', 'system')).toBe(false)
-    expect(growsWindow('system', 'expanded')).toBe(false)
-    expect(resizeOrder('system', 'expanded')).toBe('animate-first')
-    expect(resizeOrder('expanded', 'system')).toBe('resize-first')
+    expect(growsWindow('system', 'expanded')).toBe(true)
+    expect(resizeOrder('system', 'expanded')).toBe('resize-first')
+    expect(resizeOrder('expanded', 'system')).toBe('animate-first')
     expect(resizeOrder('system', 'reminders')).toBe('resize-first')
     expect(resizeOrder('reminders', 'system')).toBe('animate-first')
     expect(resizeOrder('terminal', 'system')).toBe('animate-first')
@@ -132,7 +133,19 @@ describe('compact capsule width', () => {
   it('fits time, the longest date and "100 %" three times in ES and EN (measured with Playwright)', () => {
     // Widest measured content + border: EN "12:59 PM · Wed, May 20 · 100% ×3" = 357.3 px.
     expect(CAPSULE_SIZES.compact).toEqual({ width: 358, height: 36 })
-    expect(COMPACT_WIDTHS).toEqual({ plain: 168, metrics: 299, metricsBattery: 358, metricsDisk: 376, metricsBatteryDisk: 435 })
+    expect(COMPACT_WIDTHS).toEqual({
+      plain: 168,
+      metrics: 299,
+      metricsBattery: 358,
+      metricsDisk: 376,
+      metricsBatteryDisk: 435,
+      // The mail block (Mail + "99+", 38.3 px measured in ES and EN) plus its gap, added to each.
+      plainMail: 221,
+      metricsMail: 348,
+      metricsBatteryMail: 407,
+      metricsDiskMail: 425,
+      metricsBatteryDiskMail: 484,
+    })
   })
 
   it('keeps time and date only, at the original width, when there is nothing to show', () => {
@@ -180,5 +193,63 @@ describe('notes panel geometry', () => {
     expect(growsWindow('terminal', 'notes')).toBe(false)
     expect(resizeOrder('expanded', 'notes')).toBe('resize-first')
     expect(resizeOrder('notes', 'expanded')).toBe('animate-first')
+  })
+})
+
+describe('compact capsule width with the unread-mail block', () => {
+  const battery = { percent: 82, charging: false }
+  const disk = { letter: 'C', freePercent: 6 }
+
+  it('adds the mail block after every other slot', () => {
+    expect(compactWidthFor(null, true)).toBe(COMPACT_WIDTHS.plainMail)
+    expect(compactWidthFor({ battery: null, disk: null }, true)).toBe(COMPACT_WIDTHS.metricsMail)
+    expect(compactWidthFor({ battery, disk: null }, true)).toBe(COMPACT_WIDTHS.metricsBatteryMail)
+    expect(compactWidthFor({ battery: null, disk }, true)).toBe(COMPACT_WIDTHS.metricsDiskMail)
+    expect(compactWidthFor({ battery, disk }, true)).toBe(COMPACT_WIDTHS.metricsBatteryDiskMail)
+  })
+
+  it('takes no room without mail', () => {
+    expect(compactWidthFor(null, false)).toBe(COMPACT_WIDTHS.plain)
+    expect(compactWidthFor({ battery, disk }, false)).toBe(COMPACT_WIDTHS.metricsBatteryDisk)
+    expect(compactWidthFor({ battery, disk })).toBe(COMPACT_WIDTHS.metricsBatteryDisk)
+  })
+
+  it('is wider than the same capsule without mail', () => {
+    expect(COMPACT_WIDTHS.plainMail).toBeGreaterThan(COMPACT_WIDTHS.plain)
+    expect(COMPACT_WIDTHS.metricsMail).toBeGreaterThan(COMPACT_WIDTHS.metrics)
+    expect(COMPACT_WIDTHS.metricsBatteryMail).toBeGreaterThan(COMPACT_WIDTHS.metricsBattery)
+    expect(COMPACT_WIDTHS.metricsDiskMail).toBeGreaterThan(COMPACT_WIDTHS.metricsDisk)
+    expect(COMPACT_WIDTHS.metricsBatteryDiskMail).toBeGreaterThan(COMPACT_WIDTHS.metricsBatteryDisk)
+  })
+
+  it('still fits the fixed window in the worst case ("99+" with battery and disk)', () => {
+    expect(COMPACT_WIDTHS.metricsBatteryDiskMail + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
+  })
+})
+
+describe('gmail panel geometry', () => {
+  it('is 420×382 (5 rows of 58 px, measured with Playwright: no gap, no scroll) and keeps the window width', () => {
+    expect(CAPSULE_SIZES.gmail).toEqual({ width: 420, height: 382 })
+    expect(windowBoundsFor('gmail', workArea).height).toBe(SHADOW_MARGIN.top + 382 + SHADOW_MARGIN.bottom)
+    expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
+  })
+
+  it('grows the window from the integrations row and shrinks back to it', () => {
+    expect(resizeOrder('expanded', 'gmail')).toBe('resize-first')
+    expect(resizeOrder('gmail', 'expanded')).toBe('animate-first')
+  })
+})
+
+describe('expanded panel height', () => {
+  it('is 236 without Claude sessions, 284 with one and 308 with two or more (sessions on their own line)', () => {
+    expect(EXPANDED_HEIGHTS).toEqual({ plain: 236, oneSession: 284, sessions: 308 })
+    expect(expandedHeightFor(0)).toBe(236)
+    expect(expandedHeightFor(1)).toBe(284)
+    expect(expandedHeightFor(2)).toBe(308)
+    expect(expandedHeightFor(7)).toBe(308)
+  })
+
+  it('sizes the window for the taller panel, so sessions appearing never outgrow it', () => {
+    expect(CAPSULE_SIZES.expanded).toEqual({ width: 440, height: EXPANDED_HEIGHTS.sessions })
   })
 })

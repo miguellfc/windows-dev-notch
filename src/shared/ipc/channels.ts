@@ -62,6 +62,17 @@ export const channels = {
     view: 'system:view',
     killProcess: 'system:kill-process',
   },
+  gmail: {
+    getState: 'gmail:get-state',
+    recent: 'gmail:recent',
+    view: 'gmail:view',
+    refresh: 'gmail:refresh',
+    open: 'gmail:open',
+    signIn: 'gmail:sign-in',
+    cancelSignIn: 'gmail:cancel-sign-in',
+    signOut: 'gmail:sign-out',
+    pickClientFile: 'gmail:pick-client-file',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
@@ -76,6 +87,7 @@ export const eventChannels = {
   notesChanged: 'notes:changed',
   systemMetrics: 'system:metrics',
   systemProcesses: 'system:processes',
+  gmailState: 'gmail:state',
 } as const
 
 type ChannelGroups = typeof channels
