@@ -68,6 +68,9 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'claude:decide': () => null,
     'claude:focus-app': () => null,
     'claude:dismiss-session': () => null,
+    'claude:get-questions': () => [],
+    'claude:answer': () => 'sent',
+    'claude:release-question': () => null,
     'claude:hooks-preview': () => ({ ok: true, diff: [] }),
     'claude:hooks-install': () => ({ ok: true, changed: false, diff: [] }),
     'claude:hooks-uninstall': () => ({ ok: true, changed: false, diff: [] }),
@@ -281,6 +284,9 @@ describe('terminal write isolation', () => {
     'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
     'claude:focus-app': undefined,
     'claude:dismiss-session': { sessionId: 'session-1' },
+    'claude:get-questions': undefined,
+    'claude:answer': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', answers: [{ selected: [0] }] },
+    'claude:release-question': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f' },
     'claude:hooks-preview': undefined,
     'claude:hooks-install': undefined,
     'claude:hooks-uninstall': undefined,
@@ -353,6 +359,9 @@ describe('claude channel guards', () => {
     'claude:decide': 'notch',
     'claude:focus-app': 'notch',
     'claude:dismiss-session': 'notch',
+    'claude:get-questions': 'notch',
+    'claude:answer': 'notch',
+    'claude:release-question': 'notch',
     'claude:hooks-preview': 'control-center',
     'claude:hooks-install': 'control-center',
     'claude:hooks-uninstall': 'control-center',
@@ -363,6 +372,8 @@ describe('claude channel guards', () => {
   const sample: Record<string, unknown> = {
     'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
     'claude:dismiss-session': { sessionId: 'session-1' },
+    'claude:answer': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', answers: [{ selected: [0] }] },
+    'claude:release-question': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f' },
   }
 
   it('covers every claude channel', () => {

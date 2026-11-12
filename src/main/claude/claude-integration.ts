@@ -14,7 +14,8 @@ import { createClaudeIpcHandlers } from './claude-ipc'
 import { createClaudeService } from './claude-service'
 import { createHookInstaller } from './hook-installer'
 import { readTextFile, writeFileAtomic } from '../services/fs-atomic'
-import { createPermissionToast, type ToastRequest } from './toast'
+import { createQuestionAlerts } from './question-alerts'
+import { createPermissionToast, createQuestionToast, type ToastRequest } from './toast'
 
 const TICK_MS = 60_000
 
@@ -24,11 +25,15 @@ export interface ClaudeIntegrationOptions {
   claudeSettingsFile: string
   /** Dev/test only (never set in a packaged build): bridge port override, 0 = ephemeral. */
   claudePort?: number
+  /** Dev/test only (never set in a packaged build): never bring Claude's window forward (E2E must not drive the desktop). */
+  focusDisabled?: boolean
   logger: Logger
   notch: NotchController
   language: () => Language
   /** Windows that receive `claude:state-changed` (notch, and the Control Center when open). */
   eventTargets: () => EventTarget[]
+  /** The notch alone: receives `claude:questions` (the Control Center never gets Claude's question texts). */
+  notchTarget: () => EventTarget | null
   /**
    * A new permission request reached the capsule: ms from the bridge receiving the HTTP request
    * (before its body is read) to the notch controller applying `attention`. Main-side only; the
@@ -65,9 +70,19 @@ export function createClaudeIntegration(options: ClaudeIntegrationOptions) {
     toast.show()
   }
   const toast = createPermissionToast({ notify, translate: (key) => translate(options.language(), key) })
+  const questionAlerts = createQuestionAlerts({
+    notch,
+    notchTarget: options.notchTarget,
+    toast: createQuestionToast({ notify, translate: (key) => translate(options.language(), key) }),
+    logger,
+  })
 
   let focusApi: Win32FocusApi | null | undefined
   const focusClaude = () => {
+    if (options.focusDisabled) {
+      log.info('Bring Claude to front', { result: 'disabled' })
+      return
+    }
     focusApi ??= createWin32FocusApi(logger)
     if (!focusApi) return
     log.info('Bring Claude to front', { result: bringClaudeToFront(focusApi) })
@@ -92,6 +107,7 @@ export function createClaudeIntegration(options: ClaudeIntegrationOptions) {
     }),
     focusClaude,
     onState: (state) => {
+      questionAlerts.onPermissions(state.pending)
       notch.dispatch({ type: 'attention', on: state.pending.length > 0 })
       emitEvent(options.eventTargets(), 'claude:state-changed', state, logger)
     },
@@ -101,6 +117,8 @@ export function createClaudeIntegration(options: ClaudeIntegrationOptions) {
       // The open panel already shows the request; otherwise tell the user even if the capsule is hidden.
       if (!PANEL_MODES.has(notch.mode())) toast.show(permission, () => notch.dispatch({ type: 'expand' }))
     },
+    onQuestions: questionAlerts.onQuestions,
+    onNewQuestion: questionAlerts.onNewQuestion,
   })
 
   let timer: ReturnType<typeof setInterval> | null = null
@@ -113,7 +131,7 @@ export function createClaudeIntegration(options: ClaudeIntegrationOptions) {
         service.tick().catch((error: unknown) => log.error('Claude tick failed', { error }))
       }, TICK_MS)
     },
-    /** Releases every held request (Claude falls back to its own prompt) and stops the bridge. */
+    /** Releases every held permission and question (Claude falls back to its own prompt) and stops the bridge. */
     dispose: () => {
       if (timer) clearInterval(timer)
       timer = null

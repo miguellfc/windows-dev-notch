@@ -37,6 +37,9 @@ export const channels = {
     testConnection: 'claude:test-connection',
     rotateToken: 'claude:rotate-token',
     rotatePort: 'claude:rotate-port',
+    getQuestions: 'claude:get-questions',
+    answer: 'claude:answer',
+    releaseQuestion: 'claude:release-question',
   },
   reminders: {
     list: 'reminders:list',
@@ -88,6 +91,7 @@ export const eventChannels = {
   terminalData: 'terminal:data',
   terminalExit: 'terminal:exit',
   claudeStateChanged: 'claude:state-changed',
+  claudeQuestions: 'claude:questions',
   remindersChanged: 'reminders:changed',
   remindersFired: 'reminders:fired',
   notesChanged: 'notes:changed',

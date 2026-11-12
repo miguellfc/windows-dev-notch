@@ -1,13 +1,16 @@
 import type { IntegrationId } from '../integrations/registry'
 
 /** What the capsule shows. `hidden` means the window is not on screen at all. */
-export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'reminders' | 'system' | 'notes' | 'gmail' | 'mini' | 'hidden'
+export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'question' | 'reminders' | 'system' | 'notes' | 'gmail' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
-export type NotchView = 'home' | 'permission' | IntegrationId
+export type NotchView = 'home' | ClaudeItem | IntegrationId
+
+/** The two kinds of pending Claude item: a permission request and an `AskUserQuestion` question. */
+export type ClaudeItem = 'permission' | 'question'
 
 /** Modes that show the panel and therefore own the keyboard focus. */
-export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'gmail'])
+export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail'])
 
 /** How long the new-mail alert stays in the capsule before it goes away on its own (main owns the timer). */
 export const MAIL_ALERT_MS = 6_000
@@ -22,6 +25,13 @@ export interface NotchState {
   readonly pointerInside: boolean
   /** A Claude permission request is waiting for the user. */
   readonly attention: boolean
+  /** At least one Claude question is waiting for an answer: the same alert level as a permission. */
+  readonly question: boolean
+  /**
+   * Which pending Claude item arrived first (main knows both lists and their shared clock). Only
+   * matters while a permission and a question both wait: the panel opens on the earliest.
+   */
+  readonly claudeFirst: ClaudeItem
   /** At least one reminder is due and not yet dismissed. */
   readonly reminderDue: boolean
   /** New mail arrived: the lowest-priority alert; main turns it off after 6 s. */
@@ -43,6 +53,12 @@ export type NotchEvent =
   | { readonly type: 'attention'; readonly on: boolean }
   | { readonly type: 'reminders'; readonly due: boolean }
   | { readonly type: 'mail'; readonly on: boolean }
+  /** At least one Claude question is (or no longer is) waiting for an answer. */
+  | { readonly type: 'question'; readonly on: boolean }
+  /** The earliest pending Claude item changed kind (main sends it with the permission and question lists). */
+  | { readonly type: 'claude-first'; readonly kind: ClaudeItem }
+  /** The open question card is done (answered or gone): land on the next pending Claude item, or close. */
+  | { readonly type: 'next' }
 
 export const initialNotchState: NotchState = Object.freeze({
   expanded: false,
@@ -50,6 +66,8 @@ export const initialNotchState: NotchState = Object.freeze({
   userHidden: false,
   pointerInside: false,
   attention: false,
+  question: false,
+  claudeFirst: 'permission',
   reminderDue: false,
   mailAlert: false,
   view: 'home',
@@ -64,7 +82,7 @@ export function notchMode(state: NotchState): NotchMode {
   if (state.expanded) {
     return state.view === 'home' ? 'expanded' : state.view
   }
-  if (state.attention || state.reminderDue || state.mailAlert) return 'alert'
+  if (state.attention || state.question || state.reminderDue || state.mailAlert) return 'alert'
   if (isCapsuleHidden(state)) return 'hidden'
   if (state.pointerInside) return 'peek'
   return state.yielding === 'mini' ? 'mini' : 'compact'
@@ -85,17 +103,28 @@ const userHiddenOnOpen = (state: NotchState): boolean =>
 
 /**
  * Whether the alert capsule shows the new-mail alert: the capsule is in `alert` and neither a
- * permission nor a due reminder (both outrank mail) owns it. Main sends this to the notch so the
+ * permission, a question nor a due reminder (all outrank mail) owns it. Main sends this to the notch so the
  * renderer never guesses the alert's kind from its own, possibly late, stores.
  */
 export function mailAlertShown(state: NotchState): boolean {
-  return notchMode(state) === 'alert' && !state.attention && !state.reminderDue
+  return notchMode(state) === 'alert' && !state.attention && !state.question && !state.reminderDue
 }
 
-/** A panel opened while something is pending lands on it: a permission, a due reminder, then new mail. */
+/** The pending Claude item the panel shows first: a permission or a question, whichever arrived first. */
+export function firstClaudeItem(state: Pick<NotchState, 'attention' | 'question' | 'claudeFirst'>): ClaudeItem | null {
+  if (state.attention && state.question) return state.claudeFirst
+  if (state.attention) return 'permission'
+  return state.question ? 'question' : null
+}
+
+/**
+ * A panel opened while something is pending lands on it: the earliest Claude permission or question
+ * (same level), a due reminder, then new mail.
+ */
 function openingView(state: NotchState): NotchView {
   if (state.expanded) return state.view
-  if (state.attention) return 'permission'
+  const claude = firstClaudeItem(state)
+  if (claude) return claude
   if (state.reminderDue) return 'reminders'
   return state.mailAlert ? 'gmail' : 'home'
 }
@@ -114,6 +143,17 @@ export function reduceNotch(state: NotchState, event: NotchEvent): NotchState {
   const nextState = applyEvent(state, event)
   // A hidden window never receives pointerleave, so forget the pointer when the capsule disappears.
   return nextState.pointerInside && notchMode(nextState) === 'hidden' ? next(nextState, { pointerInside: false }) : nextState
+}
+
+/**
+ * Applies a change to the Claude flags. An open permission card (it has no "sent" step) moves at once
+ * to the Claude item that now comes first, or back to the integrations row when none is left.
+ */
+function withPermissionCard(state: NotchState, changes: Partial<Pick<NotchState, 'attention' | 'question' | 'claudeFirst'>>): NotchState {
+  const changed = next(state, changes)
+  if (changed === state || !state.expanded || state.view !== 'permission') return changed
+  const claude = firstClaudeItem(changed)
+  return claude === 'permission' ? changed : next(changed, { view: claude ?? 'home' })
 }
 
 function applyEvent(state: NotchState, event: NotchEvent): NotchState {
@@ -142,14 +182,25 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
     case 'open-integration':
       return next(state, { expanded: true, userHidden: userHiddenOnOpen(state), mailAlert: false, view: event.id })
     case 'attention':
-      // Attention never opens or closes the panel; only an open permission card has nothing left to show.
-      return next(state, { attention: event.on, ...(!event.on && state.view === 'permission' ? { view: 'home' as const } : {}) })
+      // Attention never opens or closes the panel; an open permission card moves on to what waits next.
+      return withPermissionCard(state, { attention: event.on })
+    case 'claude-first':
+      return withPermissionCard(state, { claudeFirst: event.kind })
     case 'reminders':
       // Like attention, a due reminder never opens or closes the panel; an open reminders view stays as it is.
       return next(state, { reminderDue: event.due })
     case 'mail':
       // The lowest-priority alert: with a panel open it is dropped, not queued.
       return event.on && state.expanded ? state : next(state, { mailAlert: event.on })
+    case 'question':
+      // Never opens or closes the panel. An open question card stays: it shows "sent" or "no longer
+      // pending" and then asks for the next item itself (`next`).
+      return withPermissionCard(state, { question: event.on })
+    case 'next': {
+      if (!state.expanded || (state.view !== 'question' && state.view !== 'permission')) return state
+      const claude = firstClaudeItem(state)
+      return claude ? next(state, { view: claude }) : next(state, { expanded: false, view: 'home' })
+    }
     case 'back':
       return state.expanded ? next(state, { view: 'home' }) : state
   }

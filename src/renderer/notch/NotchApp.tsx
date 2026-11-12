@@ -14,6 +14,7 @@ import { locale, useLanguage, useT } from '../shared/use-t'
 import { Kbd } from '../ui/Kbd'
 import { AlertCapsule } from './claude/AlertCapsule'
 import { PermissionCard } from './claude/PermissionCard'
+import { QuestionCard } from './claude/QuestionCard'
 import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots } from './claude/StatusDots'
 import { GmailView } from './gmail/GmailView'
@@ -261,6 +262,7 @@ function CapsuleContent({
     )
   if (mode === 'alert') return <Alert />
   if (mode === 'permission') return <PermissionCard />
+  if (mode === 'question') return <QuestionCard />
   if (mode === 'reminders') return <RemindersView />
   if (mode === 'system') return <SystemView />
   if (mode === 'notes') return <NotesView />

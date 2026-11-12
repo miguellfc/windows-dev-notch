@@ -457,3 +457,95 @@ describe('isCapsuleHidden', () => {
     expect(isCapsuleHidden(run({ type: 'foreground', verdict: 'hidden' }, { type: 'toggle' }))).toBe(false)
   })
 })
+
+describe('question (pending Claude question)', () => {
+  const question = (on: boolean): NotchEvent => ({ type: 'question', on })
+  const attention = (on: boolean): NotchEvent => ({ type: 'attention', on })
+  const first = (kind: 'permission' | 'question'): NotchEvent => ({ type: 'claude-first', kind })
+
+  it('starts without a question', () => {
+    expect(initialNotchState.question).toBe(false)
+    expect(initialNotchState.claudeFirst).toBe('permission')
+  })
+
+  it('shows the alert capsule over compact, mini and hidden, and goes back when it ends', () => {
+    expect(notchMode(run(question(true)))).toBe('alert')
+    expect(notchMode(run(question(true), question(false)))).toBe('compact')
+    const mini = run({ type: 'foreground', verdict: 'mini' })
+    expect(notchMode(reduceNotch(mini, question(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, question(true), question(false)))).toBe('mini')
+    for (const hidden of [run({ type: 'foreground', verdict: 'hidden' }), run({ type: 'user-visibility', hidden: true })]) {
+      expect(notchMode(reduceNotch(hidden, question(true)))).toBe('alert')
+      expect(notchMode(reduceNotch(reduceNotch(hidden, question(true)), question(false)))).toBe('hidden')
+    }
+  })
+
+  it('opens on the question view, a panel mode that goes back to the integrations row', () => {
+    expect(PANEL_MODES.has('question')).toBe(true)
+    const open = run(question(true), { type: 'expand' })
+    expect(open).toMatchObject({ expanded: true, view: 'question' })
+    expect(notchMode(open)).toBe('question')
+    expect(notchMode(run(question(true), { type: 'toggle' }))).toBe('question')
+    expect(notchMode(run(question(true), { type: 'show' }))).toBe('question')
+    expect(notchMode(reduceNotch(open, { type: 'back' }))).toBe('expanded')
+    expect(notchMode(reduceNotch(open, { type: 'dismiss' }))).toBe('alert')
+  })
+
+  it('outranks a due reminder and new mail, which never own the alert while it is pending', () => {
+    const state = run({ type: 'mail', on: true }, { type: 'reminders', due: true }, question(true))
+    expect(notchMode(state)).toBe('alert')
+    expect(mailAlertShown(run({ type: 'mail', on: true }, question(true)))).toBe(false)
+    expect(reduceNotch(state, { type: 'expand' }).view).toBe('question')
+  })
+
+  it('opens the permission or the question, whichever arrived first (Review Focus 4)', () => {
+    expect(run(attention(true), question(true), first('permission'), { type: 'expand' }).view).toBe('permission')
+    expect(run(question(true), attention(true), first('question'), { type: 'expand' }).view).toBe('question')
+    // The order only matters while both wait.
+    expect(run(first('question'), attention(true), { type: 'expand' }).view).toBe('permission')
+    expect(run(first('permission'), question(true), { type: 'expand' }).view).toBe('question')
+  })
+
+  it('moves an open permission card to the question that waits next', () => {
+    // Permission first: deciding it lands on the question.
+    const permissionOpen = run(attention(true), question(true), first('permission'), { type: 'expand' })
+    expect(notchMode(reduceNotch(permissionOpen, attention(false)))).toBe('question')
+    // Another permission still waits but the question arrived before it.
+    expect(notchMode(reduceNotch(permissionOpen, first('question')))).toBe('question')
+    // Nothing left: back to the integrations row, as before.
+    expect(run(attention(true), { type: 'expand' }, attention(false)).view).toBe('home')
+  })
+
+  it('keeps the question card open when its question goes, until the card asks for the next item', () => {
+    const open = run(question(true), attention(true), first('question'), { type: 'expand' })
+    const answered = run(question(true), attention(true), first('question'), { type: 'expand' }, first('permission'), question(false))
+    expect(notchMode(answered)).toBe('question')
+    expect(notchMode(reduceNotch(answered, { type: 'next' }))).toBe('permission')
+    // Answering the last pending item closes the panel; the capsule leaves the alert.
+    const last = run(question(true), { type: 'expand' }, question(false))
+    expect(notchMode(last)).toBe('question')
+    const closed = reduceNotch(last, { type: 'next' })
+    expect(closed).toMatchObject({ expanded: false, view: 'home' })
+    expect(notchMode(closed)).toBe('compact')
+    // More questions wait: the view stays (the card shows the next one).
+    expect(reduceNotch(open, { type: 'next' })).toBe(open)
+  })
+
+  it('closes back to a hidden capsule after answering from the alert over it', () => {
+    const state = run({ type: 'user-visibility', hidden: true }, question(true), { type: 'expand' }, question(false), { type: 'next' })
+    expect(notchMode(state)).toBe('hidden')
+  })
+
+  it('ignores next outside a Claude card', () => {
+    for (const start of [initialNotchState, run({ type: 'expand' }), run({ type: 'open-integration', id: 'notes' }), run(question(true))]) {
+      expect(reduceNotch(start, { type: 'next' })).toBe(start)
+    }
+  })
+
+  it('ignores repeated question and order events', () => {
+    const on = run(question(true))
+    expect(reduceNotch(on, question(true))).toBe(on)
+    expect(reduceNotch(initialNotchState, question(false))).toBe(initialNotchState)
+    expect(reduceNotch(initialNotchState, first('permission'))).toBe(initialNotchState)
+  })
+})

@@ -52,6 +52,8 @@ const USAGE_QUIT_FLUSH_MS = 2_000
 const devServerUrl = app.isPackaged ? undefined : process.env['ELECTRON_RENDERER_URL']
 const isolatedUserData = app.isPackaged ? undefined : process.env['NOTCH_USER_DATA_DIR']
 const foregroundWatchDisabled = !app.isPackaged && process.env['NOTCH_DISABLE_FOREGROUND_WATCH'] === '1'
+// E2E: "Answer in Claude" / "Go to session" must not bring the real Claude window forward.
+const claudeFocusDisabled = !app.isPackaged && process.env['NOTCH_DISABLE_CLAUDE_FOCUS'] === '1'
 const claudeSettingsOverride = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_SETTINGS']
 const claudePortRaw = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_PORT']
 const claudePortOverride =
@@ -312,10 +314,12 @@ function start(): void {
         userDataDir: app.getPath('userData'),
         claudeSettingsFile: claudeSettingsOverride ?? join(homedir(), '.claude', 'settings.json'),
         ...(claudePortOverride === undefined ? {} : { claudePort: claudePortOverride }),
+        ...(claudeFocusDisabled ? { focusDisabled: true } : {}),
         logger,
         notch,
         language: () => settings.get().language,
         eventTargets: notchAndControlCenter,
+        notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
         onAlert: (latencyMs) => usage.record({ type: 'claude-alert', latencyMs }),
       })
       claude.start().catch((error: unknown) => logger.error('Claude integration failed to start', { error }))

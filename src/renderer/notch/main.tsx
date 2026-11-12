@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'
 import { bindGmail } from '../shared/gmail-store'
 import { bindNotes } from '../shared/notes-store'
+import { bindQuestions } from '../shared/questions-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
 import { bindSystem } from '../shared/system-store'
@@ -16,6 +17,7 @@ if (!root) throw new Error('Missing #root element')
 
 bindSettings()
 bindClaude()
+bindQuestions()
 bindReminders()
 bindNotes()
 bindSystem()

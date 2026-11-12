@@ -12,10 +12,10 @@ export type VisibleMode = Exclude<NotchMode, 'hidden'>
 /**
  * Heights of the home panel (integrations row), measured with Playwright: Claude sessions get
  * their own line under the tiles (12 px gap, 12 px heading and one 24 px row per session, two
- * visible, the rest scroll). The window is always sized for the tallest (`CAPSULE_SIZES.expanded`);
- * with fewer sessions the capsule is shorter inside it, like the compact capsule is narrower than
- * the window, and the transparent strip below lets clicks through (the window ignores the mouse
- * outside the capsule).
+ * visible, the rest scroll). The window height follows the mode (the question
+ * card, 520×504 in a 582 px window, is the tallest panel); with fewer sessions the capsule is
+ * shorter inside its window, like the compact capsule is narrower than the window, and the
+ * transparent strip below lets clicks through (the window ignores the mouse outside the capsule).
  */
 export const EXPANDED_HEIGHTS = { plain: 236, oneSession: 284, sessions: 308 } as const
 
@@ -41,6 +41,15 @@ export function gmailSizeFor(reading: boolean): { width: number; height: number 
   return reading ? GMAIL_SIZES.reader : GMAIL_SIZES.list
 }
 
+/**
+ * The Claude question card (`QuestionCard`), measured with Playwright on the built app: 137 px of
+ * header and footer around the questions' own scroll. One question with 4 options whose
+ * descriptions take two lines, one picked and "Other…" open with its field, needs 367 px of body,
+ * so it shows whole (ES and EN alike); 4 questions scroll inside the body and the header and the
+ * footer never clip. The tallest panel: the window grows for it (resize first, then animate).
+ */
+export const QUESTION_SIZE = { width: 520, height: 504 } as const
+
 /** Size of the visible capsule per mode, in DIP. */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
   compact: { width: 358, height: 36 },
@@ -49,6 +58,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   expanded: { width: 440, height: EXPANDED_HEIGHTS.sessions },
   terminal: { width: 640, height: 360 },
   permission: { width: 480, height: 300 },
+  question: QUESTION_SIZE,
   reminders: { width: 420, height: 320 },
   system: { width: 520, height: 280 },
   notes: { width: 420, height: 320 },

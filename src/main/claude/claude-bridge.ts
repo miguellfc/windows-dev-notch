@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
-import { parseHookEvent, type HookEvent } from '../../shared/claude/hook-events'
+import { ASK_USER_QUESTION_TOOL, parseHookEvent, type HookEvent } from '../../shared/claude/hook-events'
 import type { Logger } from '../services/logger'
 import type { PendingReply } from './permission-broker'
 
@@ -10,10 +10,18 @@ const TOKEN_HEADER = 'x-notch-token'
 /** How long stop() lets pending replies (e.g. releaseAll's empty 200s) flush before destroying sockets. */
 export const STOP_GRACE_MS = 500
 
+/**
+ * Which hook URL an event came in on. `hook`: every event of our hook groups. `question`: only our
+ * AskUserQuestion group (`/hook/question`), the one route whose requests are held for an answer.
+ */
+export type HookRoute = 'hook' | 'question'
+
+const ROUTES: Readonly<Record<string, HookRoute>> = { '/hook': 'hook', '/hook/question': 'question' }
+
 export type ClaudeBridgeOptions = {
   port: number
   token: string
-  onEvent: (e: HookEvent, reply: PendingReply | null) => void
+  onEvent: (e: HookEvent, reply: PendingReply | null, route: HookRoute) => void
   logger: Logger
 }
 
@@ -73,6 +81,8 @@ export const createClaudeBridge = (options: ClaudeBridgeOptions): ClaudeBridge =
   const expectedToken = Buffer.from(options.token, 'utf8')
   const sockets = new Set<Socket>()
   let listeningPort = options.port
+  /** Arrival stamp of the last held request. */
+  let heldAt = 0
 
   const finish = (res: ServerResponse, method: string, path: string, status: number, event?: string): void => {
     try {
@@ -91,7 +101,8 @@ export const createClaudeBridge = (options: ClaudeBridgeOptions): ClaudeBridge =
     const path = (req.url ?? '').split('?')[0] ?? ''
     if (!hostMatches(req.headers.host, listeningPort)) return finish(res, method, path, 403)
     if (!tokenMatches(expectedToken, req.headers[TOKEN_HEADER])) return finish(res, method, path, 403)
-    if (path !== '/hook') return finish(res, method, path, 404)
+    const route = Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined
+    if (route === undefined) return finish(res, method, path, 404)
     if (method !== 'POST') return finish(res, method, path, 405)
     if (!isJson(req.headers['content-type'])) return finish(res, method, path, 415)
 
@@ -125,19 +136,32 @@ export const createClaudeBridge = (options: ClaudeBridgeOptions): ClaudeBridge =
       const event = parseHookEvent(parsed)
       if (!event) return finish(res, method, path, 400)
 
-      if (event.name === 'PermissionRequest') {
+      if (holds(event, route)) {
         log.info('hook request', { method, path, status: 'held', event: event.name })
-        deliver(event, createReply(res, arrivedAt))
+        // One strictly increasing stamp across held permissions and questions, so the notch can open
+        // the earliest even when two arrive within the same millisecond.
+        heldAt = Math.max(arrivedAt, heldAt + 1)
+        deliver(event, createReply(res, heldAt), route)
         return
       }
       finish(res, method, path, 200, event.name)
-      deliver(event, null)
+      deliver(event, null, route)
     })
   }
 
-  const deliver = (event: HookEvent, reply: PendingReply | null): void => {
+  /**
+   * Permission requests are held on /hook; a valid AskUserQuestion only on /hook/question (on /hook the
+   * same call is answered at once: Claude sends it to both of our PreToolUse groups). Anything else
+   * gets an empty 200 right away, which Claude reads as no decision.
+   */
+  const holds = (event: HookEvent, route: HookRoute): boolean =>
+    route === 'hook'
+      ? event.name === 'PermissionRequest'
+      : event.name === 'PreToolUse' && event.toolName === ASK_USER_QUESTION_TOOL && !!event.askUserQuestion
+
+  const deliver = (event: HookEvent, reply: PendingReply | null, route: HookRoute): void => {
     try {
-      options.onEvent(event, reply)
+      options.onEvent(event, reply, route)
     } catch (error) {
       log.error('onEvent failed', { event: event.name, error })
     }

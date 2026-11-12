@@ -1,7 +1,7 @@
 import { readdir, realpath as fsRealpath, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
-import { HOOK_EVENT_NAMES } from '../../shared/claude/hook-events'
+import { ASK_USER_QUESTION_TOOL, HOOK_EVENT_NAMES } from '../../shared/claude/hook-events'
 
 export type DiffLine = { kind: 'add' | 'remove' | 'same'; text: string }
 export type HookInstallOptions = { port: number; token: string }
@@ -12,6 +12,7 @@ export type HookPlan = { ok: true; next: string; diff: DiffLine[] } | InvalidJso
 const HOOK_MARKER_HEADER = 'x-notch-hook'
 const TOKEN_HEADER = 'x-notch-token'
 const PERMISSION_TIMEOUT_SECONDS = 3600
+const QUESTION_TIMEOUT_SECONDS = 3600
 const DEFAULT_TIMEOUT_SECONDS = 2
 
 type Json = Record<string, unknown>
@@ -29,16 +30,26 @@ const isOurHook = (hook: unknown): boolean =>
 const isOurGroup = (group: unknown): boolean =>
   isRecord(group) && Array.isArray(group.hooks) && group.hooks.length > 0 && group.hooks.every(isOurHook)
 
-const ourGroup = (event: string, { port, token }: HookInstallOptions): Json => ({
-  hooks: [
-    {
-      type: 'http',
-      url: `http://127.0.0.1:${port}/hook`,
-      headers: { [TOKEN_HEADER]: token, [HOOK_MARKER_HEADER]: '1' },
-      timeout: event === 'PermissionRequest' ? PERMISSION_TIMEOUT_SECONDS : DEFAULT_TIMEOUT_SECONDS,
-    },
-  ],
+const ourHook = ({ port, token }: HookInstallOptions, path: string, timeout: number): Json => ({
+  type: 'http',
+  url: `http://127.0.0.1:${port}${path}`,
+  headers: { [TOKEN_HEADER]: token, [HOOK_MARKER_HEADER]: '1' },
+  timeout,
 })
+
+const ourGroup = (event: string, options: HookInstallOptions): Json => ({
+  hooks: [ourHook(options, '/hook', event === 'PermissionRequest' ? PERMISSION_TIMEOUT_SECONDS : DEFAULT_TIMEOUT_SECONDS)],
+})
+
+/** Claude waits on this one while the user answers in the notch (the bridge holds /hook/question). */
+const questionGroup = (options: HookInstallOptions): Json => ({
+  matcher: ASK_USER_QUESTION_TOOL,
+  hooks: [ourHook(options, '/hook/question', QUESTION_TIMEOUT_SECONDS)],
+})
+
+/** Every group of ours an event must have, in order. */
+const ourGroups = (event: string, options: HookInstallOptions): Json[] =>
+  event === 'PreToolUse' ? [ourGroup(event, options), questionGroup(options)] : [ourGroup(event, options)]
 
 /**
  * Parses settings text into a top-level object whose `hooks` (when present) is an
@@ -154,7 +165,7 @@ export const planInstall = (current: string | null, options: HookInstallOptions)
   }
   for (const event of HOOK_EVENT_NAMES) {
     const existing = hooks[event]
-    hooks[event] = [...(Array.isArray(existing) ? existing : []), ourGroup(event, options)]
+    hooks[event] = [...(Array.isArray(existing) ? existing : []), ...ourGroups(event, options)]
   }
   const next: Json = {}
   for (const [key, entry] of Object.entries(settings)) next[key] = key === 'hooks' ? hooks : entry
@@ -189,7 +200,7 @@ export const hookStatus = (current: string | null, options: HookInstallOptions):
     const ours = (groups as unknown[]).filter(isOurGroup)
     if (ours.length > 0) anyOurs = true
     const expected = (HOOK_EVENT_NAMES as readonly string[]).includes(event)
-    if (expected ? ours.length !== 1 || !isDeepStrictEqual(ours[0], ourGroup(event, options)) : ours.length > 0) {
+    if (expected ? !isDeepStrictEqual(ours, ourGroups(event, options)) : ours.length > 0) {
       allExact = false
     }
   }

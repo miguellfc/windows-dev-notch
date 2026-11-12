@@ -1,4 +1,4 @@
-import type { PendingPermission } from '../../shared/claude/types'
+import type { PendingPermission, PendingQuestionView } from '../../shared/claude/types'
 import type { MessageKey } from '../../shared/i18n/messages'
 
 export type ToastRequest = { title: string; body: string; onClick: () => void }
@@ -21,6 +21,19 @@ export function createPermissionToast(options: PermissionToastOptions): Permissi
         body: permission.sessionName,
         onClick,
       })
+    },
+  }
+}
+
+export interface QuestionToast {
+  show(question: PendingQuestionView, onClick: () => void): void
+}
+
+/** Informational toast: the project only, never the question, its options or anything to answer with. */
+export function createQuestionToast(options: PermissionToastOptions): QuestionToast {
+  return {
+    show(question, onClick) {
+      options.notify({ title: options.translate('claude.toast.question'), body: question.project, onClick })
     },
   }
 }

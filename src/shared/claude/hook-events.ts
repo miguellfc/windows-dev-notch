@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { askUserQuestionInputSchema, type AskUserQuestionInput, type AskUserQuestionRawInput } from './questions'
 
 export const HOOK_EVENT_NAMES = [
   'UserPromptSubmit',
@@ -20,7 +21,8 @@ export type HookEventName = (typeof HOOK_EVENT_NAMES)[number]
 /**
  * Sanitised view of a Claude Code hook payload. It deliberately carries no
  * prompt, message, tool_response or last_assistant_message; `preview` exists
- * only for PermissionRequest and must stay in memory.
+ * only for PermissionRequest and must stay in memory. `askUserQuestion` exists only for a PreToolUse of
+ * AskUserQuestion: its texts go back to Claude unchanged, so they must stay in memory and never be logged.
  */
 export type HookEvent = {
   name: HookEventName
@@ -38,7 +40,13 @@ export type HookEvent = {
   /** Length of the whole sanitised preview, before the cut. */
   previewLength?: number
   reason?: string
+  /** Only for PreToolUse of AskUserQuestion: the validated `tool_input`, or null when it does not fit the schema. */
+  askUserQuestion?: AskUserQuestionInput | null
+  /** Only with a valid `askUserQuestion`: the `tool_input` exactly as received, echoed back to Claude. Never logged. */
+  askUserQuestionRaw?: AskUserQuestionRawInput
 }
+
+export const ASK_USER_QUESTION_TOOL = 'AskUserQuestion'
 
 export const PREVIEW_MAX_CHARS = 2_000
 export const TOOL_NAME_MAX_CHARS = 64
@@ -149,6 +157,11 @@ export const parseHookEvent = (raw: unknown): HookEvent | null => {
       event.previewTruncated = preview.truncated
       event.previewLength = preview.length
     }
+  }
+  if (data.hook_event_name === 'PreToolUse' && data.tool_name === ASK_USER_QUESTION_TOOL) {
+    const input = askUserQuestionInputSchema.safeParse(data.tool_input)
+    event.askUserQuestion = input.success ? input.data : null
+    if (input.success && isRecord(data.tool_input)) event.askUserQuestionRaw = data.tool_input
   }
   return event
 }

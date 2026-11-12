@@ -14,7 +14,10 @@ export type SessionRegistry = {
   /** Idle after the quiet window; only sessions in `heldSessions` (a request held by the broker) are exempt. */
   tick: (heldSessions?: ReadonlySet<string>) => boolean
   dismiss: (id: string) => boolean
-  nameOf: (id: string) => string
+  /** The session's name; for one not seen yet, the last segment of `cwd` (else the id prefix). */
+  nameOf: (id: string, cwd?: string) => string
+  /** Something is held for the user (permission or question): `waiting`, creating the session if new. True if it changed. */
+  markWaiting: (id: string, cwd?: string) => boolean
   /** A pending permission went away (decided, dropped or released): leave `waiting`. */
   resolveWaiting: (id: string) => boolean
 }
@@ -94,7 +97,20 @@ export const createSessionRegistry = (options: SessionRegistryOptions): SessionR
     return true
   }
 
-  const nameOf = (id: string): string => entries.get(id)?.name ?? fallbackName(id)
+  const nameOf = (id: string, cwd?: string): string => entries.get(id)?.name ?? nameFromCwd(cwd) ?? fallbackName(id)
+
+  const markWaiting = (id: string, cwd?: string): boolean => {
+    const entry = entries.get(id)
+    if (entry?.status === 'waiting') return false
+    entries.set(id, {
+      id,
+      name: entry?.name ?? nameFromCwd(cwd) ?? fallbackName(id),
+      status: 'waiting',
+      updatedAt: options.now(),
+      resumeStatus: 'waiting',
+    })
+    return true
+  }
 
   const resolveWaiting = (id: string): boolean => {
     const entry = entries.get(id)
@@ -105,5 +121,5 @@ export const createSessionRegistry = (options: SessionRegistryOptions): SessionR
     return true
   }
 
-  return { apply, sessions, tick, dismiss, nameOf, resolveWaiting }
+  return { apply, sessions, tick, dismiss, nameOf, markWaiting, resolveWaiting }
 }

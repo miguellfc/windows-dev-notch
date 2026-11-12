@@ -84,6 +84,63 @@ describe('IPC contract', () => {
     }
   })
 
+  describe('Claude questions', () => {
+    const id = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+    const question = {
+      question: '¿Cuál?',
+      header: 'Elige',
+      multiSelect: false,
+      options: [
+        { label: 'A', description: 'a' },
+        { label: 'B', description: '' },
+      ],
+    }
+    const view = { id, project: 'my-project', questions: [question], arrivedAt: 1 }
+
+    it('exposes the question channels and event', () => {
+      expect(channels.claude).toMatchObject({
+        getQuestions: 'claude:get-questions',
+        answer: 'claude:answer',
+        releaseQuestion: 'claude:release-question',
+      })
+      expect(eventChannels.claudeQuestions).toBe('claude:questions')
+    })
+
+    it('pending questions are strict and never carry the session id', () => {
+      for (const schema of [eventContract['claude:questions'], contract['claude:get-questions'].output]) {
+        expect(schema.safeParse([view]).success).toBe(true)
+        expect(schema.safeParse([]).success).toBe(true)
+        expect(schema.safeParse([{ ...view, sessionId: 's' }]).success).toBe(false)
+        expect(schema.safeParse([{ ...view, questions: [{ ...question, extra: 1 }] }]).success).toBe(false)
+        expect(schema.safeParse([{ ...view, questions: [] }]).success).toBe(false)
+        expect(schema.safeParse([{ ...view, questions: [{ ...question, options: [question.options[0]] }] }]).success).toBe(false)
+      }
+      expect(contract['claude:get-questions'].input.safeParse(undefined).success).toBe(true)
+    })
+
+    it('answers carry only positions and free text, and return sent or gone', () => {
+      const answer = contract['claude:answer']
+      expect(answer.input.safeParse({ id, answers: [{ selected: [0] }] }).success).toBe(true)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [], other: 'Otra cosa' }] }).success).toBe(true)
+      expect(answer.input.safeParse({ id, answers: [] }).success).toBe(false)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [-1] }] }).success).toBe(false)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [0], label: 'A' }] }).success).toBe(false)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [0] }], questions: [] }).success).toBe(false)
+      expect(answer.input.safeParse({ id: '', answers: [{ selected: [0] }] }).success).toBe(false)
+      expect(answer.output.safeParse('sent').success).toBe(true)
+      expect(answer.output.safeParse('gone').success).toBe(true)
+      expect(answer.output.safeParse('invalid').success).toBe(false)
+    })
+
+    it('releases a question by id only', () => {
+      const release = contract['claude:release-question']
+      expect(release.input.safeParse({ id }).success).toBe(true)
+      expect(release.input.safeParse({ id: '' }).success).toBe(false)
+      expect(release.input.safeParse({ id, answers: [] }).success).toBe(false)
+      expect(release.output.safeParse(null).success).toBe(true)
+    })
+  })
+
   it('bounds the session id to dismiss', () => {
     const dismiss = contract['claude:dismiss-session'].input
     expect(dismiss.safeParse({ sessionId: 'abc' }).success).toBe(true)

@@ -178,3 +178,41 @@ describe('SessionRegistry', () => {
     expect(registry.sessions().map((s) => s.id)).toEqual(['a-session-1', 'b-session-2'])
   })
 })
+
+describe('SessionRegistry markWaiting and nameOf', () => {
+  it('marks a known session waiting (status and resume status) and reports whether it changed', () => {
+    const { registry, send, status, advance } = setup()
+    send('PreToolUse', { toolName: 'Bash' })
+    expect(registry.markWaiting('abcdef123456')).toBe(true)
+    expect(status()).toBe('waiting')
+    const at = registry.sessions()[0]!.updatedAt
+    advance(100)
+    expect(registry.markWaiting('abcdef123456')).toBe(false)
+    expect(registry.sessions()[0]!.updatedAt).toBe(at)
+    // Resume status is waiting too: an idle session comes back waiting.
+    advance(31 * 60_000)
+    registry.tick()
+    expect(status()).toBe('idle')
+    registry.apply({ name: 'Notification', sessionId: 'abcdef123456', notificationType: 'idle_prompt' })
+    expect(status()).toBe('waiting')
+    expect(registry.resolveWaiting('abcdef123456')).toBe(true)
+    expect(status()).toBe('working')
+  })
+
+  it('creates a session first seen waiting, named from its cwd', () => {
+    const { registry, status } = setup()
+    expect(registry.markWaiting('newsession99', 'C:\\work\\fresh-project\\')).toBe(true)
+    expect(registry.sessions()).toEqual([{ id: 'newsession99', name: 'fresh-project', status: 'waiting', updatedAt: 1_000 }])
+    expect(status('newsession99')).toBe('waiting')
+    expect(registry.markWaiting('nocwd-session')).toBe(true)
+    expect(registry.nameOf('nocwd-session')).toBe('nocwd-se')
+  })
+
+  it('nameOf falls back to the cwd before the id prefix for an unknown session', () => {
+    const { registry, send } = setup()
+    send('UserPromptSubmit')
+    expect(registry.nameOf('abcdef123456', 'C:\\work\\other')).toBe('my-project')
+    expect(registry.nameOf('unknown-session', 'C:\\work\\from-cwd')).toBe('from-cwd')
+    expect(registry.nameOf('unknown-session')).toBe('unknown-')
+  })
+})

@@ -523,3 +523,52 @@ describe('notch controller: alerts over a hidden capsule', () => {
     expect(onHiddenChange).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('notch controller: Claude question', () => {
+  it('grows into the alert capsule without taking focus, also from mini', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'foreground', verdict: 'mini' })
+    calls.length = 0
+    controller.dispatch({ type: 'question', on: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert'])
+  })
+
+  it('opens the question card with focus, and closes once the card is done with the last item', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'question', on: true })
+    calls.length = 0
+    controller.dispatch({ type: 'expand' })
+    expect(calls).toEqual([size('question'), 'mode:question', 'focus'])
+    calls.length = 0
+    // Answered: the card stays to say so, then asks for the next item.
+    controller.dispatch({ type: 'question', on: false })
+    expect(controller.mode()).toBe('question')
+    controller.dispatch({ type: 'next' })
+    expect(controller.mode()).toBe('compact')
+    expect(calls).toEqual(['mode:compact', 'blur'])
+  })
+
+  it('opens the earliest of a permission and a question, then the other one', () => {
+    const { controller } = setup()
+    controller.dispatch({ type: 'claude-first', kind: 'question' })
+    controller.dispatch({ type: 'question', on: true })
+    controller.dispatch({ type: 'claude-first', kind: 'question' })
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'expand' })
+    expect(controller.mode()).toBe('question')
+    controller.dispatch({ type: 'claude-first', kind: 'permission' })
+    controller.dispatch({ type: 'question', on: false })
+    controller.dispatch({ type: 'next' })
+    expect(controller.mode()).toBe('permission')
+    controller.dispatch({ type: 'attention', on: false })
+    expect(controller.mode()).toBe('expanded')
+  })
+
+  it('never shows the new-mail alert while a question waits', () => {
+    const { controller, mailAlerts } = setup()
+    controller.dispatch({ type: 'question', on: true })
+    controller.dispatch({ type: 'mail', on: true })
+    expect(controller.mode()).toBe('alert')
+    expect(mailAlerts).toEqual([])
+  })
+})

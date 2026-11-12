@@ -267,3 +267,21 @@ describe('expanded panel height', () => {
     expect(CAPSULE_SIZES.expanded).toEqual({ width: 440, height: EXPANDED_HEIGHTS.sessions })
   })
 })
+
+describe('question panel geometry', () => {
+  it('is a 520 px wide panel (measured with Playwright) inside the constant window width', () => {
+    expect(CAPSULE_SIZES.question.width).toBe(520)
+    expect(CAPSULE_SIZES.question.height).toBe(504)
+    expect(windowBoundsFor('question', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 504 + SHADOW_MARGIN.bottom })
+  })
+
+  it('is the tallest panel: it grows the window from every other mode and shrinks it back', () => {
+    for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
+      expect(CAPSULE_SIZES.question.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
+    }
+    for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'terminal'] as const) {
+      expect(resizeOrder(from, 'question')).toBe('resize-first')
+      expect(resizeOrder('question', from)).toBe('animate-first')
+    }
+  })
+})
