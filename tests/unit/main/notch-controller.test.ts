@@ -415,3 +415,111 @@ describe('notch controller: new mail', () => {
     expect(calls).toEqual([])
   })
 })
+
+describe('notch controller: alerts over a hidden capsule', () => {
+  const hiddenSetup = (hide: 'user' | 'yield') => {
+    const t = setup()
+    t.controller.dispatch(hide === 'user' ? { type: 'user-visibility', hidden: true } : { type: 'foreground', verdict: 'hidden' })
+    expect(t.controller.mode()).toBe('hidden')
+    t.calls.length = 0
+    return t
+  }
+
+  for (const hide of ['user', 'yield'] as const) {
+    it(`shows the window without focus for a permission and hides it again when answered (${hide})`, () => {
+      const { controller, calls } = hiddenSetup(hide)
+      controller.dispatch({ type: 'attention', on: true })
+      expect(controller.mode()).toBe('alert')
+      expect(calls).toEqual([size('alert'), 'mode:alert', 'show'])
+      calls.length = 0
+      controller.dispatch({ type: 'attention', on: false })
+      expect(controller.mode()).toBe('hidden')
+      expect(calls).toEqual(['mode:hidden', 'hide', 'ignore:true'])
+    })
+  }
+
+  it('shows a due reminder over the hidden capsule and hides again when it is cleared', () => {
+    const { controller, calls } = hiddenSetup('user')
+    controller.dispatch({ type: 'reminders', due: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert', 'show'])
+    expect(calls).not.toContain('focus')
+    calls.length = 0
+    controller.dispatch({ type: 'reminders', due: false })
+    expect(calls).toEqual(['mode:hidden', 'hide', 'ignore:true'])
+  })
+
+  it('shows the mail alert over the hidden capsule for 6 s, then hides the window again', () => {
+    const { controller, calls, mailAlerts } = hiddenSetup('yield')
+    controller.dispatch({ type: 'mail', on: true })
+    expect(mailAlerts).toEqual([true])
+    expect(calls).toEqual([size('alert'), 'mode:alert', 'show'])
+    calls.length = 0
+    vi.advanceTimersByTime(5999)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(1)
+    expect(controller.mode()).toBe('hidden')
+    expect(calls).toEqual(['mode:hidden', 'hide', 'ignore:true'])
+    expect(mailAlerts).toEqual([true, false])
+  })
+
+  it('a repeated yield verdict while the alert shows does not hide it', () => {
+    const { controller, calls } = hiddenSetup('yield')
+    controller.dispatch({ type: 'attention', on: true })
+    calls.length = 0
+    controller.dispatch({ type: 'foreground', verdict: 'hidden' })
+    controller.dispatch({ type: 'foreground', verdict: 'none' })
+    controller.dispatch({ type: 'foreground', verdict: 'hidden' })
+    expect(controller.mode()).toBe('alert')
+    expect(calls).not.toContain('hide')
+  })
+
+  it('opens the panel from the alert and goes back to hidden when it closes', () => {
+    const { controller, calls } = hiddenSetup('user')
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'expand' })
+    expect(controller.mode()).toBe('permission')
+    expect(calls).toContain('focus')
+    controller.dispatch({ type: 'attention', on: false })
+    calls.length = 0
+    controller.dispatch({ type: 'dismiss' })
+    expect(controller.mode()).toBe('hidden')
+    expect(calls).toEqual(['mode:hidden', 'hide', 'ignore:true', 'blur'])
+  })
+
+  it('show (tray icon or "Mostrar") from the alert un-hides: closing the panel leaves the capsule on screen', () => {
+    const { controller } = hiddenSetup('user')
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'show' })
+    expect(controller.mode()).toBe('permission')
+    expect(controller.hidden()).toBe(false)
+    controller.dispatch({ type: 'attention', on: false })
+    controller.dispatch({ type: 'dismiss' })
+    expect(controller.mode()).toBe('compact')
+  })
+
+  it('reports whether the capsule is hidden apart from alerts, and when that changes', () => {
+    const onHiddenChange = vi.fn()
+    const surface: NotchSurface = {
+      setBounds: () => {},
+      show: () => {},
+      hide: () => {},
+      focus: () => {},
+      blur: () => {},
+      setIgnoreMouse: () => {},
+      sendMode: () => {},
+      sendMailAlert: () => {},
+    }
+    const controller = createNotchController({ surface, workArea, logger: createMemoryLogger(), onHiddenChange })
+    controller.start()
+    expect(controller.hidden()).toBe(false)
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'user-visibility', hidden: true })
+    // Still showing the alert, yet hidden as far as the tray is concerned.
+    expect(controller.mode()).toBe('alert')
+    expect(controller.hidden()).toBe(true)
+    expect(onHiddenChange).toHaveBeenLastCalledWith(true)
+    controller.dispatch({ type: 'user-visibility', hidden: false })
+    expect(controller.hidden()).toBe(false)
+    expect(onHiddenChange).toHaveBeenCalledTimes(2)
+  })
+})

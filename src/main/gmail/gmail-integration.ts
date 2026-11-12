@@ -8,7 +8,6 @@ import {
   type GmailState,
   type GmailStatus,
 } from '../../shared/gmail/schema'
-import type { NotchMode } from '../../shared/notch/state'
 import type { GmailSettings } from '../../shared/settings/schema'
 import { ExposedIpcError } from '../ipc/errors'
 import type { Logger } from '../services/logger'
@@ -18,7 +17,7 @@ import { GmailApiError, type GmailClient } from './gmail-client'
 import { createNewMailDetector } from './new-mail'
 import type { TokenStore } from './token-store'
 
-/** Unread count rhythm while the capsule is visible. */
+/** Unread count rhythm, in every notch mode (new-mail alerts show over mini and hidden too). */
 export const GMAIL_TICK_MS = 60_000
 /** Waits after consecutive network / 5xx / 429 failures: 1 → 2 → 4 → 5 min (max). */
 export const GMAIL_BACKOFF_MS = [60_000, 120_000, 240_000, 300_000] as const
@@ -27,14 +26,6 @@ export const GMAIL_MANUAL_REFRESH_MIN_MS = 5_000
 /** An access token this close to expiry is refreshed before use. */
 const ACCESS_TOKEN_MARGIN_MS = 60_000
 export const GMAIL_INBOX_URL = 'https://mail.google.com/mail/u/0/#inbox'
-/** A pause (mini / hidden / alert) at least this long makes the next query a new-mail baseline again. */
-export const GMAIL_RESUME_RESET_MS = 60_000
-
-/** Like the system monitor: nothing in mini, hidden or alert (the capsule is a pill, off screen or busy). */
-const PAUSED_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['mini', 'hidden', 'alert'])
-
-/** The capsule shows compact, peek or a panel: Gmail polls. */
-export const isGmailVisibleMode = (mode: NotchMode): boolean => !PAUSED_MODES.has(mode)
 
 /**
  * Dev/E2E switch `NOTCH_GMAIL_BASE_URL`: accepted only as an exact `http://127.0.0.1:<port>`
@@ -93,7 +84,11 @@ export interface GmailIntegration {
   state(): GmailState
   /** The last recent list (empty without a session); remembered as the list `open` accepts. */
   recent(): Promise<GmailMessage[]>
-  setVisible(visible: boolean): void
+  /**
+   * Starts the rhythm (main calls it once the IPC targets exist). It then runs whenever there is a
+   * session, in every notch mode: the capsule's mode never pauses it nor resets the new-mail baseline.
+   */
+  start(): void
   setViewOpen(open: boolean): void
   refresh(): void
   open(id?: string): void
@@ -133,8 +128,8 @@ const isSessionDead = (error: unknown): boolean =>
 type GmailAction = 'message' | 'mark-read' | 'delete'
 
 /**
- * Gmail state machine for main: loads the stored token, polls the unread count every 60 s while
- * the capsule is visible (plus the recent list while the view is open), backs off on network
+ * Gmail state machine for main: loads the stored token, polls the unread count every 60 s whatever
+ * the notch shows (plus the recent list while the view is open), backs off on network
  * trouble and drives sign-in / sign-out. Logs only states and error codes.
  */
 export function createGmailIntegration(options: GmailIntegrationOptions): GmailIntegration {
@@ -160,9 +155,8 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   let alertId: string | null = null
   /** Why the session is expired (`scope`: the token lacks the full mail permission). */
   let reason: GmailState['reason'] = null
+  /** Reset only with the session (sign-in, sign-out, client change); never by the notch mode. */
   const detector = createNewMailDetector()
-  /** When the capsule stopped polling (mini / hidden / alert), to reset the detector after long pauses. */
-  let hiddenAt: number | null = null
 
   let refreshToken: string | null = null
   let access: { token: string; expiresAt: number } | null = null
@@ -172,7 +166,7 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   let generation = 0
   let session: { auth: GmailAuth; client: GmailClient | null; clientGeneration: number } | null = null
 
-  let visible = false
+  let started = false
   let viewOpen = false
   let timer: unknown = null
   let failures = 0
@@ -306,14 +300,14 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   }
   const schedule = (ms: number) => {
     clearTimer()
-    if (!visible || disposed) return
+    if (!started || disposed) return
     timer = timers.setTimeout(() => {
       timer = null
       void poll()
     }, ms)
   }
 
-  const canPoll = () => !disposed && visible && refreshToken !== null && (status === 'ok' || status === 'offline')
+  const canPoll = () => !disposed && started && refreshToken !== null && (status === 'ok' || status === 'offline')
 
   /** A result that arrives after the session changed, or while signing in, is dropped. */
   const isStale = (startedIn: number) => startedIn !== generation || disposed || status === 'signing-in'
@@ -521,18 +515,10 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
       return [...sent]
     },
 
-    setVisible(next) {
-      if (next === visible) return
-      visible = next
-      if (!next) {
-        hiddenAt = now()
-        clearTimer()
-        return
-      }
-      // After a long pause the unread ids that piled up are not "new": the next query is a baseline.
-      if (hiddenAt !== null && now() - hiddenAt >= GMAIL_RESUME_RESET_MS) detector.reset()
-      hiddenAt = null
-      void poll() // resuming after mini / hidden asks at once
+    start() {
+      if (started) return
+      started = true
+      void poll()
     },
 
     setViewOpen(open) {

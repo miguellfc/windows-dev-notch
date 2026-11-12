@@ -9,7 +9,7 @@ import { createClaudeIntegration } from './claude/claude-integration'
 import { claudeChannelGuards } from './claude/claude-ipc'
 import { createGmailAuth, GOOGLE_OAUTH_BASE } from './gmail/gmail-auth'
 import { createGmailClient, GMAIL_API_BASE } from './gmail/gmail-client'
-import { createGmailIntegration, isGmailVisibleMode, parseGmailBaseOverride, type GmailIntegration } from './gmail/gmail-integration'
+import { createGmailIntegration, parseGmailBaseOverride, type GmailIntegration } from './gmail/gmail-integration'
 import { createClientFilePicker } from './gmail/client-file'
 import { createGmailIpcHandlers, gmailChannelGuards } from './gmail/gmail-ipc'
 import { createTokenStore } from './gmail/token-store'
@@ -148,7 +148,7 @@ function start(): void {
         notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
       })
       notchWindow.webContents.on('did-finish-load', () => system.resync())
-      // Gmail polls only while the capsule is on screen; created further down, after the IPC targets.
+      // Gmail polls in every notch mode (its alerts show over mini and hidden); created further down.
       let gmail: GmailIntegration | null = null
       const notch = createNotchController({
         surface,
@@ -156,9 +156,11 @@ function start(): void {
         logger,
         onModeChange: (mode) => {
           tray?.refresh()
+          // Metrics still pause in mini, hidden and alert (an alert over a hidden capsule included).
           system.setMode(mode)
-          gmail?.setVisible(isGmailVisibleMode(mode))
         },
+        // An alert over a hidden capsule keeps the mode `alert`: the tray's Show/Hide follows this instead.
+        onHiddenChange: () => tray?.refresh(),
       })
       notchWindow.once('ready-to-show', () => notch.start())
       notchWindow.on('blur', () => notch.dispatch({ type: 'dismiss' }))
@@ -233,13 +235,14 @@ function start(): void {
       tray = createAppTray(
         () => ({
           language: settings.get().language,
-          notchVisible: notch.mode() !== 'hidden',
+          notchVisible: !notch.hidden(),
           launchAtLogin: settings.get().launchAtLogin,
           launchAtLoginAvailable: app.isPackaged,
           actions: {
-            // "Show" must always show, even while a fullscreen app made the capsule yield.
+            // "Show" must always show, even while a fullscreen app made the capsule yield (or an alert
+            // shows over the hidden capsule).
             toggleVisibility: () =>
-              notch.dispatch(notch.mode() === 'hidden' ? { type: 'expand' } : { type: 'user-visibility', hidden: true }),
+              notch.dispatch(notch.hidden() ? { type: 'show' } : { type: 'user-visibility', hidden: true }),
             openControlCenter: () => showControlCenter(),
             setLaunchAtLogin: (enabled) => {
               updateSettings({ launchAtLogin: enabled }).catch((error: unknown) =>
@@ -249,7 +252,8 @@ function start(): void {
             quit: () => app.quit(),
           },
         }),
-        () => notch.dispatch({ type: 'expand' }),
+        // The tray icon shows the notch like its "Show" item (un-hides even from an alert).
+        () => notch.dispatch({ type: 'show' }),
       )
 
       settings.onChange((next: Settings) => {
@@ -383,7 +387,7 @@ function start(): void {
         },
         logger,
       })
-      gmail.setVisible(isGmailVisibleMode(notch.mode()))
+      gmail.start()
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,

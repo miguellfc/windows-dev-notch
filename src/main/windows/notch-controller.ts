@@ -1,5 +1,15 @@
 import { resizeOrder, windowBoundsFor, type Rect, type VisibleMode } from '../../shared/notch/geometry'
-import { initialNotchState, MAIL_ALERT_MS, mailAlertShown, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchMode } from '../../shared/notch/state'
+import {
+  initialNotchState,
+  isCapsuleHidden,
+  MAIL_ALERT_MS,
+  mailAlertShown,
+  notchMode,
+  PANEL_MODES,
+  reduceNotch,
+  type NotchEvent,
+  type NotchMode,
+} from '../../shared/notch/state'
 
 export { MAIL_ALERT_MS }
 import type { Logger } from '../services/logger'
@@ -25,6 +35,8 @@ export interface NotchControllerOptions {
   /** Fallback if the renderer never reports the end of a shrinking animation. */
   settleTimeoutMs?: number
   onModeChange?: (mode: NotchMode) => void
+  /** The capsule became hidden or shown again (by the user or yielding); alerts over it do not count. */
+  onHiddenChange?: (hidden: boolean) => void
 }
 
 export interface NotchController {
@@ -35,6 +47,11 @@ export interface NotchController {
   settled(): void
   setWorkArea(workArea: Rect): void
   mode(): NotchMode
+  /**
+   * Whether the capsule is hidden (by the user or yielding) with no panel open. An alert shows the
+   * window over it while the capsule stays hidden: the tray offers "Show", not "Hide".
+   */
+  hidden(): boolean
   /** Stops pending work; the controller ignores everything afterwards. */
   dispose(): void
 }
@@ -45,12 +62,14 @@ export interface NotchController {
  * size the window actually has, so a shrink still in progress is never cut short.
  */
 export function createNotchController(options: NotchControllerOptions): NotchController {
-  const { surface, settleTimeoutMs = 500, onModeChange } = options
+  const { surface, settleTimeoutMs = 500, onModeChange, onHiddenChange } = options
   const log = options.logger.child('notch')
   let state = initialNotchState
   let mode: NotchMode = notchMode(state)
   /** Last value of {@link mailAlertShown}, sent to the renderer whenever it changes. */
   let mailShown = false
+  /** Last value of {@link isCapsuleHidden}, reported through `onHiddenChange`. */
+  let hidden = isCapsuleHidden(state)
   let workArea = options.workArea
   /** Mode the window is currently sized for (may be larger than `mode` while shrinking). */
   let windowMode: VisibleMode = 'compact'
@@ -146,6 +165,11 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
         if (started) transition(from, nextMode)
         onModeChange?.(nextMode)
       }
+      const nextHidden = isCapsuleHidden(state)
+      if (nextHidden !== hidden) {
+        hidden = nextHidden
+        onHiddenChange?.(hidden)
+      }
       if (started && event.type === 'pointer' && mode !== 'hidden') surface.setIgnoreMouse(!event.inside)
     },
     settled: finishShrink,
@@ -156,6 +180,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       resizeTo(mode)
     },
     mode: () => mode,
+    hidden: () => hidden,
     dispose() {
       disposed = true
       cancelPendingShrink()
