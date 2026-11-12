@@ -98,6 +98,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
 | Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos por umbral hechos en `feat/system-alerts`; batería Bluetooth pendiente |
 | Could (hecho tras el MVP) | Notas rápidas en el notch (lista con buscar, copiar, editar, fijar y borrar con Deshacer) | Integración viva más tras el cambio de dirección; hecha en `feat/notes` (ver "Notas rápidas — hecho tras el MVP") |
+| Could (hito 1 hecho tras el MVP) | Gmail en el notch: sin leer de Principal en la cápsula y los 5 más recientes | Hito 1 (base, solo lectura) hecho en `feat/gmail` (ver "Gmail — hito 1 hecho tras el MVP"); hitos 2 (leer y actuar) y 3 (avisos) pendientes |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -386,3 +387,24 @@ Nueva integración viva del notch, solo en el notch (sin página en Control Cent
 
 **Pendiente**
 - Comprobaciones manuales: copiar y pegar en otra app real, y el uso diario durante la validación.
+
+## Gmail — hito 1 hecho tras el MVP (rama `feat/gmail`)
+
+Nueva integración viva del notch, con página propia en Control Center. Diseño: `docs/superpowers/specs/2026-11-11-gmail-design.md`; plan: `docs/superpowers/plans/2026-11-11-gmail.md`; guía de configuración para el usuario: `docs/gmail-setup.md`.
+
+**Qué hace**
+- Inicio de sesión con Google (OAuth 2.0 para apps de escritorio, PKCE S256 y `state`, en el navegador predeterminado con retorno a `http://127.0.0.1:<puerto>/callback`) con un cliente "Aplicación de escritorio" del propio usuario; permiso `gmail.readonly`. Sin SDK: `fetch` desde main y respuestas validadas con zod.
+- La cápsula compacta muestra un bloque `Mail` + cifra ("3", "99+") con los sin leer de **Principal**, con el latch de 3 lecturas de la cápsula; con 0 o sin sesión no ocupa sitio.
+- Panel "Gmail" (420×382): los 5 correos más recientes de Principal (remitente, hace cuánto, asunto y extracto; no leídos en negrita con punto azul hielo), Actualizar y abrir un correo o la bandeja en el navegador (main construye la URL a partir del id).
+- Control Center → Gmail: ID y secreto del cliente (o cargar el JSON de Google), Iniciar / Cancelar / Cerrar sesión, cuenta conectada y avisos (caducada, sin conexión, sesión no recordada).
+- Ritmo: contador cada 60 s con la cápsula visible (nada en `mini`, `hidden` ni alerta); con la vista abierta también la lista. Red caída, 5xx, 429, 403 o una petición OAuth de más de 30 s → "sin conexión" con los últimos datos y espera creciente (1 → 2 → 4 → 5 min). 401 → un refresco y, si falla, "Vuelve a iniciar sesión".
+- Con 5 casillas en la fila de integraciones, las sesiones de Claude del panel expandido pasan a su propia línea bajo la fila (alto 236 / 284 / 308 px según las sesiones).
+
+**Privacidad:** el token de refresco solo vive en main y en disco cifrado con `safeStorage` (DPAPI); si no se puede cifrar, la sesión no se guarda y Control Center lo indica. Tokens, secreto, remitentes, asuntos y extractos nunca se escriben en el log (solo estados, recuentos y códigos de error); los canales de lectura solo aceptan el notch y los de sesión solo el Control Center.
+
+**Pruebas:** unitarias de OAuth, cliente, integración, IPC y renderer; E2E con un servidor falso de Gmail y OAuth que inicia sesión siempre por el flujo completo (nunca con un token sembrado).
+
+**Pendiente**
+- Hito 2: leer y actuar (leer un correo dentro del notch y acciones rápidas; pide `gmail.modify`). Spec propio.
+- Hito 3: avisos de correo nuevo en la cápsula. Spec propio.
+- Comprobación manual del usuario: el inicio de sesión real con su cuenta siguiendo `docs/gmail-setup.md` (los tests solo usan el servidor falso). Con la pantalla de consentimiento en modo Testing, Google caduca la sesión a los 7 días.
