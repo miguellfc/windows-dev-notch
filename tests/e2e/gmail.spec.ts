@@ -1,7 +1,7 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { _electron as electron, expect, test, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
 import {
   FAKE_ACCOUNT,
@@ -610,6 +610,53 @@ test('new mail: a capsule alert with sender and subject for ~6 s, "Correo nuevo"
   expectCleanLogs(server)
 })
 
+/** Whether main has the notch window on screen (not just its renderer state). */
+const notchWindowVisible = (app: ElectronApplication): Promise<boolean> =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && !w.webContents.getURL().includes('control-center') && w.isVisible()),
+  )
+
+test('new mail alerts over a capsule hidden by the user ("Ocultar"), even after a long hidden stretch, then hides again', async () => {
+  const server = fake!
+  const { app, notch, cc } = await signedIn(server)
+  await cc.close()
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+
+  // The notch's own "Ocultar" (the user-hide path): the window leaves the screen.
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
+  await notch.getByRole('button', { name: 'Ocultar', exact: true }).click()
+  await expect(capsule(notch)).toHaveCount(0)
+  await expect.poll(() => notchWindowVisible(app)).toBe(false)
+
+  // Gmail keeps polling while hidden: a long hidden stretch is no new baseline (the reported bug).
+  const pollsBefore = server.hits['GET messages'] ?? 0
+  await advance(app, 10 * 60_000)
+  await expect.poll(() => server.hits['GET messages'] ?? 0).toBeGreaterThan(pollsBefore)
+  await expect(capsule(notch)).toHaveCount(0)
+  server.addMail(NEW_MAILS.rosa)
+  await advance(app, 60_000)
+
+  // The alert shows over the hidden capsule: the window comes back (without focus) for ~6 s.
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'alert')
+  await expect(notch.getByTestId('mail-alert')).toHaveText(`${NEW_MAILS.rosa.sender} · ${NEW_MAILS.rosa.subject}`)
+  expect(await notchWindowVisible(app)).toBe(true)
+  await settle(notch)
+  await notch.screenshot({ path: 'test-results/gmail-alert-over-hidden-es.png' })
+  await expect(capsule(notch)).toHaveCount(0, { timeout: 12_000 })
+  await expect.poll(() => notchWindowVisible(app)).toBe(false)
+
+  // Shown again by the user: the count includes the new mail.
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
+  await notch.mouse.move(1, 1)
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '4 correos sin leer')
+
+  expect(server.violations).toEqual([])
+  expectCleanLogs(server)
+})
+
 test('a session without the full mail permission asks to sign in again for it', async () => {
   const server = fake!
   writeSettings({ clientId: FAKE_CLIENT_ID, clientSecret: FAKE_CLIENT_SECRET })
@@ -653,4 +700,57 @@ test('a session without the full mail permission asks to sign in again for it', 
 
   expect(server.violations).toEqual([])
   expectCleanLogs(server)
+})
+
+/** The row's actions overlay: the buttons' grandparent (buttons > fill > overlay carrying the opacity). */
+const actionsOverlay = (row: Locator) => row.getByTestId('gmail-row-delete').locator('xpath=../..')
+
+test('row actions show on hover or keyboard focus only: a mouse click or programmatic focus never pins them', async () => {
+  const server = fake!
+  const { notch } = await signedIn(server)
+  await openGmailView(notch)
+  await expect(notch.getByTestId('gmail-message')).toHaveCount(5)
+  const [ana, builds] = FAKE_MESSAGES
+  const first = rowOf(notch, ana!.id)
+  const second = rowOf(notch, builds!.id)
+  const hidden = (row: Locator) => expect(actionsOverlay(row)).toHaveCSS('opacity', '0')
+  const shown = (row: Locator) => expect(actionsOverlay(row)).toHaveCSS('opacity', '1')
+
+  // Plain hover: shown while hovering, hidden after.
+  await first.hover()
+  await shown(first)
+  await notch.mouse.move(1, 1)
+  await hidden(first)
+
+  // Click opens the reader; the mouse-driven Back focuses the row programmatically. Moving over another
+  // row then away must leave the first row's actions hidden (the pointer never made focus visible).
+  await first.getByTestId('gmail-message').click()
+  await expect(notch.getByTestId('gmail-reader')).toHaveAttribute('data-state', 'ready')
+  await notch.getByTestId('gmail-reader-back').click()
+  await expect(notch.getByTestId('gmail-reader')).toHaveCount(0)
+  await expect(first.getByTestId('gmail-message')).toBeFocused()
+  await second.hover()
+  await shown(second)
+  await notch.mouse.move(1, 1)
+  await hidden(first)
+  await hidden(second)
+
+  // A row left holding focus after a mouse click on its Mark as read / Delete stays hidden off-hover.
+  await first.hover()
+  await first.getByTestId('gmail-row-mark-read').click()
+  await expect(first.getByTestId('gmail-row-mark-read')).toHaveCount(0)
+  await notch.mouse.move(1, 1)
+  await hidden(first)
+
+  // Keyboard: arrow/Tab focus reveals the actions with no hover.
+  await notch.getByTestId('gmail-message').first().focus()
+  await notch.keyboard.press('Tab')
+  await notch.keyboard.press('Tab')
+  const active = notch.locator(':focus')
+  const row = active.locator('xpath=ancestor-or-self::li[@data-message-id]')
+  await expect(row).toHaveCount(1)
+  await shown(row)
+  await notch.keyboard.press('Tab')
+  await notch.keyboard.press('Tab')
+  await shown(notch.locator(':focus').locator('xpath=ancestor-or-self::li[@data-message-id]'))
 })

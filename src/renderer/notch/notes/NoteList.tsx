@@ -42,7 +42,7 @@ function NoteRow({ note, now, run, busy, copied, onCopied, onEdit, onDeleted }: 
       data-testid="note-item"
       data-note-id={note.id}
       data-pinned={note.pinned}
-      className="group flex shrink-0 flex-col gap-0.5 rounded-tile px-2.5 pb-1 pt-1.5 transition-colors duration-150 hover:bg-veil focus-within:bg-veil"
+      className="group flex shrink-0 flex-col gap-0.5 rounded-tile px-2.5 pb-1 pt-1.5 transition-colors duration-150 hover:bg-veil has-[:focus-visible]:bg-veil"
     >
       <p className="line-clamp-2 whitespace-pre-wrap break-words text-body text-chalk">{note.text}</p>
       <div className="flex h-6 items-center gap-1.5">
@@ -65,7 +65,7 @@ function NoteRow({ note, now, run, busy, copied, onCopied, onEdit, onDeleted }: 
             </time>
           )}
         </span>
-        <span className="ml-auto flex shrink-0 gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
+        <span className="ml-auto flex shrink-0 gap-0.5 opacity-0 transition-opacity duration-150 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             data-testid="note-copy"

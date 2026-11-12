@@ -21,7 +21,7 @@ const RESULT_MESSAGES: Readonly<Record<Exclude<KillResult, 'killed'>, MessageKey
 // Busy buttons use aria-disabled, not disabled: a disabled button drops focus to <body>, where Esc
 // would dismiss the notch. The in-flight guard already makes a second click a no-op.
 const closeButton =
-  'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite opacity-0 transition-[color,background-color,opacity] duration-150 hover:bg-veil-tile hover:text-chalk group-hover:opacity-100 group-focus-within:opacity-100 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
+  'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite opacity-0 transition-[color,background-color,opacity] duration-150 hover:bg-veil-tile hover:text-chalk group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
 const confirmButton =
   'h-6 shrink-0 cursor-pointer rounded-control-sm px-2.5 text-label font-medium transition-colors duration-150 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
 

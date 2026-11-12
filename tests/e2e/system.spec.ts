@@ -207,3 +207,28 @@ test('idle cost in compact stays under 0.5 % CPU', async () => {
   console.log(`idle CPU (compact, ${SAMPLES} samples, first discarded): mean ${mean.toFixed(3)} %, samples ${totals.map((v) => v.toFixed(2)).join(' ')}`)
   expect(mean).toBeLessThan(0.5)
 })
+
+test('a process row shows its Close button on hover or keyboard focus only', async () => {
+  const { notch } = await launch()
+  await openSystem(notch)
+  const rows = notch.getByTestId('process-row').filter({ has: notch.getByTestId('process-close') })
+  await expect(async () => {
+    await expect(rows.first()).toBeVisible({ timeout: 1500 })
+  }).toPass({ timeout: 10_000 })
+  const row = rows.first()
+  const close = row.getByTestId('process-close')
+
+  await row.hover()
+  await expect(close).toHaveCSS('opacity', '1')
+  // Script focus after pointer use is not keyboard focus: it must not pin the button.
+  await close.evaluate((button) => (button as unknown as { focus: () => void }).focus())
+  await notch.mouse.move(1, 1)
+  await expect(close).toHaveCSS('opacity', '0')
+
+  // Keyboard focus reveals it with no hover.
+  await close.focus()
+  await notch.keyboard.press('Shift+Tab')
+  await notch.keyboard.press('Tab')
+  await expect(close).toBeFocused()
+  await expect(close).toHaveCSS('opacity', '1')
+})

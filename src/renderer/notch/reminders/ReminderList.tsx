@@ -74,7 +74,7 @@ function UpcomingRow({ reminder, now, run, busy }: { reminder: Reminder; now: Da
       </span>
       <span className="min-w-0 truncate text-body text-chalk">{reminder.text}</span>
       <RepeatMark repeat={reminder.repeat} />
-      <span className="ml-auto flex shrink-0 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
+      <span className="ml-auto flex shrink-0 opacity-0 transition-opacity duration-150 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100">
         <button
           type="button"
           aria-label={t('reminders.action.completeItem', { text: reminder.text })}
