@@ -3,6 +3,8 @@
 **Fecha:** 2026-11-12 · **Rama:** `feat/gmail-actions` (desde `dev`)
 **Fuentes:** `docs/superpowers/specs/2026-11-11-gmail-design.md` (hito 1, base), PRD (sección Gmail), `DESIGN.md`.
 
+> **Cambio (2026-11-12, tras la implementación):** `unreadIds` sustituye a `unreadCount`; nuevo canal `gmail:close-message`; en modo `gmail` la ventana se dimensiona para la lectura (520×440) y la lista es una cápsula de 420×382 dentro; el sonido suena aunque el aviso se descarte por un panel abierto; el aviso sin datos dice "Correo nuevo"; reglas de `scope` precisadas; marcar como leído mantiene el id mostrado; el reloj de pruebas (solo desarrollo) mueve los temporizadores de Gmail en E2E; main indica al notch si la alerta pendiente es la de correo (`notch:mail-alert`); remitente, dirección y asunto se recortan a 1000 caracteres y las URL de más de 2048 se descartan; la lectura se cierra si la sesión deja de estar activa.
+
 ## Objetivo
 
 Leer un correo de Principal sin salir del notch, marcarlo como leído o borrarlo, y enterarse de un correo nuevo con un aviso breve en la cápsula.
@@ -32,6 +34,9 @@ Este documento une los hitos 2 y 3 del plan de Gmail:
 
 - `GMAIL_SCOPE = 'https://mail.google.com/'`.
 - main compara el `scope` que devuelve Google al refrescar o iniciar sesión con el requerido. Si falta (una sesión del hito 1 con `gmail.readonly`), el estado pasa a **`expired`** con `reason: 'scope'`, y el notch y Control Center muestran "Vuelve a iniciar sesión para conceder el nuevo permiso".
+  - **Inicio de sesión con un permiso más estrecho**: el token **no se guarda** (se descarta), la sesión queda `expired` con `reason: 'scope'` y el inicio de sesión responde `error`; Control Center explica que no se concedió el permiso completo.
+  - **Refresco con un permiso más estrecho**: `expired` con `reason: 'scope'`, conservando el token hasta que el usuario vuelva a iniciar sesión.
+  - **Respuesta sin `scope`**: se acepta (Google puede omitirlo; el riesgo es aceptar un token antiguo solo en ese caso).
 - La guía `docs/gmail-setup.md` se actualiza: añadir `https://mail.google.com/` en "Acceso a datos" de Google Cloud y volver a iniciar sesión. Explica que el permiso completo permite leer, enviar y borrar, y que el notch solo usa leer, marcar como leído y borrar.
 
 ## Ajustes
@@ -72,26 +77,28 @@ Control Center → Gmail gana una sección **Avisos** con tres `Switch`; se guar
   - Después devuelve los ids presentes ahora y ausentes en la observación anterior, en el orden de la lista (más reciente primero).
   - `reset()` se llama al iniciar o cerrar sesión, al cambiar de cliente y al reanudar tras una pausa (`mini`/`hidden`/`alert` de otro tipo durante ≥ 60 s).
 - **`gmail-integration.ts`**:
-  - `unreadCount()` pasa a devolver también los ids (ya los obtiene) para el detector.
+  - `unreadIds()` **sustituye** a `unreadCount()`: devuelve los ids no leídos de Principal (como mucho `maxResults = 100`); el contador es `ids.length` y la misma consulta alimenta el detector.
   - Con ids nuevos y `alerts.enabled`: pide los metadatos del más reciente (como `recent()`), y emite **`gmail:new-mail`** `{ count, id, from?, subject? }` (sin `from`/`subject` si `hideContent`).
   - Tras `markRead` o `remove` correctos, consulta al momento (contador y lista).
-  - Lleva un registro en memoria de los ids **mostrados** al notch (última lista + correo abierto + el del último aviso); `message`, `mark-read`, `delete` y `open-link` solo aceptan esos ids.
+  - Lleva un registro en memoria de los ids **mostrados** al notch (última lista + correo abierto + el del último aviso); `message`, `mark-read`, `delete` y `open-link` solo aceptan esos ids. **Marcar como leído mantiene el id mostrado** (se puede marcar y luego borrar desde la lectura); solo borrar lo quita.
+  - "Abrir en Gmail" desde la lectura funciona para el correo abierto o el del aviso aunque no esté en la última lista (main guarda su `threadId`).
   - Guarda en memoria los enlaces del último correo abierto para `open-link`.
-- **Sonido**: el mismo mecanismo que los recordatorios, si `alerts.sound`.
+- **Sonido**: el mismo mecanismo que los recordatorios, si `alerts.sound`. Suena **aunque el aviso se descarte** porque hay un panel abierto (igual que los recordatorios) y no suena con la cápsula oculta.
+- **Pruebas E2E**: el reloj de pruebas (solo en desarrollo, misma puerta que el existente, nunca empaquetado) también mueve los temporizadores de Gmail (`createTestClockTimers`), para disparar consultas y avisos sin esperar 60 s.
 
 ### Modelo
 
 ```ts
 GmailMessageDetail = {
   id: string; threadId: string
-  from: string            // nombre visible
-  fromAddress: string     // dirección
-  subject: string
+  from: string            // nombre visible, ≤ 1000 (main recorta)
+  fromAddress: string     // dirección, ≤ 1000 (main recorta)
+  subject: string         // ≤ 1000 (main recorta)
   date: string            // ISO
   unread: boolean
   body: string            // texto plano, ≤ 50 000 caracteres
   truncated: boolean
-  links: { text: string; url: string }[]   // http/https, ≤ 50
+  links: { text: string; url: string }[]   // http/https, ≤ 50; texto ≤ 200, URL ≤ 2048 (las más largas se descartan)
   attachments: number
 }
 GmailNewMail = { count: number; id: string; from?: string; subject?: string }
@@ -109,14 +116,17 @@ Nuevos canales (todos con `registerIpc`, comprobación de sender y zod de entrad
 | `gmail:mark-read` | `{ id }` | `null` | **solo notch**; id mostrado |
 | `gmail:delete` | `{ id }` | `null` | **solo notch**; id mostrado |
 | `gmail:open-link` | `{ id, index }` | `null` | **solo notch**; main abre `links[index]` del correo abierto con `shell.openExternal` |
+| `gmail:close-message` | — | `null` | **solo notch**; la lectura se cerró: main olvida el correo abierto (cuerpo y enlaces); los ids de la lista siguen mostrados |
 | evento `gmail:new-mail` | — | `GmailNewMail` | main → notch |
+| evento `notch:mail-alert` | — | `boolean` | main → notch; si la cápsula `alert` muestra el aviso de correo (no un permiso ni un recordatorio). Se envía antes del modo |
 
 `gmail:open { id? }` se mantiene ("Abrir en Gmail"). El renderer nunca envía una URL ni texto de correo a main.
 
 ### Notch
 
 - **Modo y aviso**: el aviso de correo es un nuevo tipo de **`alert`** con la **prioridad más baja** (un permiso de Claude o un recordatorio se muestran antes y lo sustituyen). Dura **6 s** y se cierra solo; no se muestra si el panel está abierto (`expanded` o cualquier panel), y no hay consultas en `mini`/`hidden`. No roba el foco.
-  - Contenido: icono `Mail` + "**Ana García** · Presupuesto del proyecto…" (recortado a una línea); con `hideContent` o sin datos, "**Correo nuevo**"; con `count > 1`, "**3 correos nuevos**".
+  - Contenido: icono `Mail` + "**Ana García** · Presupuesto del proyecto…" (recortado a una línea); con `hideContent` o sin datos, "**Correo nuevo**"; con `count > 1`, "**3 correos nuevos**". Si el payload ya se gastó mientras la cápsula sigue en `alert`, también "**Correo nuevo**" (la cápsula nunca queda vacía).
+  - El notch solo pinta el aviso de correo cuando main lo dice (`notch:mail-alert`); si no, la cápsula de alerta es la de permiso o recordatorio, aunque sus stores aún no se hayan actualizado.
   - Clic: abre la vista Gmail; si `count === 1`, directamente la lectura de ese correo.
   - Etiqueta accesible equivalente y `aria-live="polite"`.
 - **Lista (vista "Gmail")**:
@@ -124,7 +134,8 @@ Nuevos canales (todos con `registerIpc`, comprobación de sender y zod de entrad
   - Acciones por fila, visibles con hover o foco (≥ 24 px): **Marcar como leído** (solo no leídos) y **Borrar**.
   - **Confirmación de borrar** en línea sustituyendo la fila: "¿Borrar para siempre? `Cancelar` `Borrar`", foco en Cancelar; Esc cancela.
   - Errores en línea en la fila ("No se pudo borrar · Reintentar").
-- **Vista de lectura** (dentro del modo `gmail`; el panel cambia a su tamaño propio, ~**520×440**, fijado con capturas):
+- **Tamaños**: en modo `gmail` la ventana se dimensiona para la lectura (**520×440**); la lista es una cápsula de **420×382** dentro de esa ventana y la cápsula crece a 520×440 al abrir un correo.
+- **Vista de lectura** (dentro del modo `gmail`, 520×440):
   - Cabecera: `←` (vuelve a la lista con el foco en la misma fila), remitente (nombre y dirección), asunto ("(sin asunto)"), fecha completa.
   - Cuerpo con desplazamiento, `white-space: pre-wrap`, Geist; si `truncated`, aviso "Correo recortado · Abrir en Gmail".
   - Enlaces: lista "Enlaces" bajo el cuerpo con el texto y la URL visible; clic → `gmail:open-link`.
@@ -132,6 +143,8 @@ Nuevos canales (todos con `registerIpc`, comprobación de sender y zod de entrad
   - Pie: **Marcar como leído** (si no leído), **Borrar** (misma confirmación), **Abrir en Gmail**. Tras borrar, vuelve a la lista.
   - Estados: cargando, "Este correo ya no existe" (→ lista), error ("No se pudo cargar · Reintentar / Abrir en Gmail").
   - Teclado: Esc vuelve a la lista; otro Esc a la fila de integraciones.
+  - Si la sesión deja de estar activa (no `ok` ni `offline`) con un correo abierto, la lectura se cierra y el cuerpo sale del renderer.
+- **Estados sin lista**: además de los del hito 1, `expired` con `reason: 'scope'` muestra "Vuelve a iniciar sesión" + "Vuelve a iniciar sesión para conceder el nuevo permiso." y el botón a la página Gmail de Control Center.
 - i18n ES/EN; tokens de `DESIGN.md`; el texto del correo siempre como texto.
 
 ### Control Center

@@ -98,7 +98,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Could | Indexado del Menú Inicio y detección automática de repos | Comodidad; no esencial con favoritos |
 | Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos por umbral hechos en `feat/system-alerts`; batería Bluetooth pendiente |
 | Could (hecho tras el MVP) | Notas rápidas en el notch (lista con buscar, copiar, editar, fijar y borrar con Deshacer) | Integración viva más tras el cambio de dirección; hecha en `feat/notes` (ver "Notas rápidas — hecho tras el MVP") |
-| Could (hito 1 hecho tras el MVP) | Gmail en el notch: sin leer de Principal en la cápsula y los 5 más recientes | Hito 1 (base, solo lectura) hecho en `feat/gmail` (ver "Gmail — hito 1 hecho tras el MVP"); hitos 2 (leer y actuar) y 3 (avisos) pendientes |
+| Could (hito 1 hecho tras el MVP) | Gmail en el notch: sin leer de Principal en la cápsula y los 5 más recientes | Hito 1 (base, solo lectura) hecho en `feat/gmail`; hitos 2 (leer y actuar) y 3 (avisos) hechos en `feat/gmail-actions` (ver "Gmail — hitos 2 y 3"); falta la comprobación manual del usuario |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -405,6 +405,20 @@ Nueva integración viva del notch, con página propia en Control Center. Diseño
 **Pruebas:** unitarias de OAuth, cliente, integración, IPC y renderer; E2E con un servidor falso de Gmail y OAuth que inicia sesión siempre por el flujo completo (nunca con un token sembrado).
 
 **Pendiente**
-- Hito 2: leer y actuar (leer un correo dentro del notch y acciones rápidas; pide `gmail.modify`). Spec propio.
-- Hito 3: avisos de correo nuevo en la cápsula. Spec propio.
+- ~~Hito 2~~ y ~~hito 3~~: hechos en `feat/gmail-actions` (ver la sección siguiente).
 - Comprobación manual del usuario: el inicio de sesión real con su cuenta siguiendo `docs/gmail-setup.md` (los tests solo usan el servidor falso). Con la pantalla de consentimiento en modo Testing, Google caduca la sesión a los 7 días.
+
+## Gmail — hitos 2 y 3 hechos (rama `feat/gmail-actions`)
+
+Diseño: `docs/superpowers/specs/2026-11-12-gmail-actions-design.md` (con la nota "Cambio" de lo decidido durante la implementación); plan: `docs/superpowers/plans/2026-11-12-gmail-actions.md`.
+
+**Qué hace**
+- **Leer** un correo de Principal dentro del notch, como texto plano (la parte `text/plain` o el HTML convertido en main con `html-to-text`; nunca se pinta HTML): remitente, asunto, fecha, cuerpo (≤ 50 000 caracteres), enlaces `http`/`https` abribles en el navegador (≤ 50, por índice) y número de adjuntos. La lectura ocupa 520×440.
+- **Marcar como leído** y **borrar para siempre** (`messages.delete`, sin papelera) desde la fila o la lectura, con confirmación en línea obligatoria; main solo actúa sobre ids que mostró al notch.
+- **Avisos de correo nuevo** en la cápsula (alerta de prioridad más baja, 6 s, sin robar el foco), comparando los ids no leídos entre consultas; ajustes en Control Center → Gmail → Avisos (activar, ocultar remitente y asunto, sonido). `settings.json` v5.
+- **Permiso completo** `https://mail.google.com/` (necesario para el borrado definitivo): una sesión con un permiso menor queda caducada y el notch y Control Center piden volver a iniciar sesión para concederlo.
+
+**Pruebas:** unitarias (extracción de texto, detector, cliente, integración, IPC, ajustes, renderer) y E2E con el servidor falso ampliado (leer, enlaces, marcar, borrar, avisos, permiso insuficiente), con capturas ES/EN.
+
+**Pendiente**
+- Comprobación manual del usuario: volver a iniciar sesión con el permiso nuevo (añadir `https://mail.google.com/` en "Acceso a datos" según `docs/gmail-setup.md`) y borrar de verdad un correo de prueba.
