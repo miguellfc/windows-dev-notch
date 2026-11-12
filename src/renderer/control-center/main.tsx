@@ -3,6 +3,7 @@ import '@fontsource-variable/geist-mono'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'
+import { bindGmail } from '../shared/gmail-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
 import '../styles/global.css'
@@ -14,6 +15,7 @@ if (!root) throw new Error('Missing #root element')
 bindSettings()
 bindClaude()
 bindReminders()
+bindGmail()
 
 createRoot(root).render(
   <StrictMode>

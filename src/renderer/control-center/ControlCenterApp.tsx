@@ -1,4 +1,4 @@
-import { Activity, AlarmClock, Bot, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, Bot, Info, Keyboard, Mail, Settings2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import { useSettings } from '../shared/settings-store'
@@ -6,11 +6,12 @@ import { useT } from '../shared/use-t'
 import { AboutPage } from './AboutPage'
 import { ClaudePage } from './ClaudePage'
 import { GeneralPage } from './GeneralPage'
+import { GmailPage } from './GmailPage'
 import { RemindersPage } from './RemindersPage'
 import { ShortcutPage } from './ShortcutPage'
 import { SystemPage } from './SystemPage'
 
-type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'about'
+type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmail' | 'about'
 
 const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'general', label: 'cc.nav.general', icon: Settings2 },
@@ -18,6 +19,7 @@ const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'claude', label: 'cc.nav.claude', icon: Bot },
   { id: 'reminders', label: 'cc.nav.reminders', icon: AlarmClock },
   { id: 'system', label: 'cc.nav.system', icon: Activity },
+  { id: 'gmail', label: 'cc.nav.gmail', icon: Mail },
   { id: 'about', label: 'cc.nav.about', icon: Info },
 ]
 
@@ -26,10 +28,25 @@ export interface Runtime {
   shortcutRegistered: boolean
 }
 
+/** The page the notch asked for, carried in the URL hash (`#gmail`), if this list has it. */
+const requestedPage = (): PageId | null => PAGES.find((p) => p.id === window.location.hash.slice(1))?.id ?? null
+
 export function ControlCenterApp() {
   const t = useT()
   const settings = useSettings((state) => state.settings)
-  const [page, setPage] = useState<PageId>('general')
+  const [page, setPage] = useState<PageId>(() => requestedPage() ?? 'general')
+  useEffect(() => {
+    // Main navigates an open window to the hash (a same-document change once loaded). Clearing it
+    // once read lets the next request for the same page change it again and fire `hashchange`.
+    const take = () => {
+      const requested = requestedPage()
+      if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search)
+      if (requested) setPage(requested)
+    }
+    take()
+    window.addEventListener('hashchange', take)
+    return () => window.removeEventListener('hashchange', take)
+  }, [])
   const [runtime, setRuntime] = useState<Runtime | null>(null)
 
   const refreshRuntime = () => {
@@ -48,6 +65,7 @@ export function ControlCenterApp() {
     else if (page === 'claude') content = <ClaudePage />
     else if (page === 'reminders') content = <RemindersPage settings={settings} />
     else if (page === 'system') content = <SystemPage settings={settings} />
+    else if (page === 'gmail') content = <GmailPage settings={settings} />
     else content = <AboutPage />
   }
 

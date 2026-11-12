@@ -1,9 +1,11 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react'
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
-import { CAPSULE_SIZES, compactWidthFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
+import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
 import { PANEL_MODES, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
+import { useClaude } from '../shared/claude-store'
+import { useGmail } from '../shared/gmail-store'
 import { useSettings } from '../shared/settings-store'
 import { useSystem } from '../shared/system-store'
 import { useClock } from '../shared/use-clock'
@@ -13,6 +15,7 @@ import { AlertCapsule } from './claude/AlertCapsule'
 import { PermissionCard } from './claude/PermissionCard'
 import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots } from './claude/StatusDots'
+import { GmailView } from './gmail/GmailView'
 import { IntegrationRow } from './IntegrationRow'
 import {
   capsuleRadius,
@@ -30,7 +33,7 @@ import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
 import type { CapsuleView } from './system/capsule-latch'
-import { CapsuleMetrics } from './system/CapsuleMetrics'
+import { CapsuleMail, CapsuleMetrics } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
 import { TerminalBoundary } from './TerminalBoundary'
 import { LazyTerminalView } from './terminal-loader'
@@ -84,7 +87,9 @@ function useReminderChime(mode: NotchMode): void {
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
-  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view))
+  const hasMail = useGmail((state) => state.mail.unread !== null)
+  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail))
+  const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime(mode)
 
@@ -109,7 +114,13 @@ export function NotchApp() {
 
   // The compact capsule is only as wide as what it shows: it grows (one capsule morph) when the
   // first sample arrives and narrows back to time and date if the monitor stays unavailable.
-  const size = mode === 'compact' ? { ...CAPSULE_SIZES.compact, width: compactWidth } : CAPSULE_SIZES[mode]
+  // The home panel is only as tall as what it lists: Claude sessions add their own line.
+  const size =
+    mode === 'compact'
+      ? { ...CAPSULE_SIZES.compact, width: compactWidth }
+      : mode === 'expanded'
+        ? { ...CAPSULE_SIZES.expanded, height: expandedHeightFor(sessionCount) }
+        : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
 
@@ -143,7 +154,7 @@ export function NotchApp() {
               <motion.div
                 // A compact width change (first sample, battery, monitor lost) cross-fades its content
                 // like a mode change; re-laid-out in place, the time would slide while the edge moves.
-                key={mode === 'compact' ? `compact-${size.width}` : mode}
+                key={mode === 'compact' ? `compact-${size.width}` : mode === 'expanded' ? `expanded-${size.height}` : mode}
                 layout="position"
                 // Project the content from the capsule's top-centre (its anchor at the screen edge), not its
                 // top-left: during the morph it is clipped evenly on both sides, so the reveal reads as one
@@ -164,17 +175,24 @@ export function NotchApp() {
   )
 }
 
+/** What the compact capsule shows besides time and date: the system metrics and the unread-mail count. */
+interface CompactContent {
+  view: CapsuleView | null
+  unread: number | null
+}
+
 /**
- * The capsule view this copy of the content was keyed for. A width change cross-fades two copies;
- * the outgoing one keeps the `compactWidth` it was rendered with (AnimatePresence freezes its
- * props), so it holds the last view of that width instead of re-rendering with the new sample.
+ * The capsule content this copy was keyed for. A width change cross-fades two copies; the outgoing
+ * one keeps the `compactWidth` it was rendered with (AnimatePresence freezes its props), so it
+ * holds the last content of that width instead of re-rendering with the new sample.
  */
-function useCompactView(compactWidth: number): CapsuleView | null {
-  const live = useSystem((state) => state.capsule.view)
-  const matches = compactWidthFor(live) === compactWidth
-  const [kept, setKept] = useState(live)
-  if (matches && kept !== live) setKept(live)
-  return matches ? live : kept
+function useCompactContent(compactWidth: number): CompactContent {
+  const view = useSystem((state) => state.capsule.view)
+  const unread = useGmail((state) => state.mail.unread)
+  const matches = compactWidthFor(view, unread !== null) === compactWidth
+  const [kept, setKept] = useState<CompactContent>({ view, unread })
+  if (matches && (kept.view !== view || kept.unread !== unread)) setKept({ view, unread })
+  return matches ? { view, unread } : kept
 }
 
 function CapsuleContent({
@@ -190,7 +208,7 @@ function CapsuleContent({
   const language = useLanguage()
   const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
-  const view = useCompactView(compactWidth)
+  const { view, unread } = useCompactContent(compactWidth)
 
   if (mode === 'mini') return null
   if (mode === 'terminal')
@@ -208,19 +226,24 @@ function CapsuleContent({
   if (mode === 'reminders') return <RemindersView />
   if (mode === 'system') return <SystemView />
   if (mode === 'notes') return <NotesView />
+  if (mode === 'gmail') return <GmailView />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
   const dateOrDots = <StatusDots fallback={<span className="truncate text-small text-graphite-glass">{date}</span>} />
 
-  if (mode === 'compact' && view)
+  if (mode === 'compact' && (view || unread !== null))
     return (
       <div className="flex h-full items-center justify-between gap-3 px-3.5">
         <span className="flex min-w-0 items-center gap-2.5">
           {timeText}
           {dateOrDots}
         </span>
-        <CapsuleMetrics view={view} />
+        {/* Metrics, then the unread-mail block last; each slot exists only while its latch holds it. */}
+        <span className="flex shrink-0 items-center gap-2.5">
+          {view && <CapsuleMetrics view={view} />}
+          {unread !== null && <CapsuleMail unread={unread} />}
+        </span>
       </div>
     )
 
@@ -238,8 +261,14 @@ function CapsuleContent({
   )
 }
 
+/** How many Claude sessions the home panel lists (its height follows). */
+function useSessionCount(): number {
+  return useClaude((store) => store.state?.sessions.length ?? 0)
+}
+
 function Panel({ time, date, shortcut }: { time: string; date: string; shortcut: string }) {
   const t = useT()
+  const hasSessions = useSessionCount() > 0
   const action =
     'flex h-9 w-full cursor-pointer items-center gap-3 rounded-tile px-3 text-left text-body text-chalk transition-colors duration-150 hover:bg-veil-tile'
   return (
@@ -248,10 +277,14 @@ function Panel({ time, date, shortcut }: { time: string; date: string; shortcut:
         <span className="tabular font-mono text-title font-medium">{time}</span>
         <span className="text-small text-graphite">{date}</span>
       </motion.header>
-      <motion.div variants={PANEL_ITEM} className="mt-3 flex items-start gap-2">
+      <motion.div variants={PANEL_ITEM} className="mt-3 flex">
         <IntegrationRow />
-        <SessionsSection />
       </motion.div>
+      {hasSessions && (
+        <motion.div variants={PANEL_ITEM} className="mt-3 flex">
+          <SessionsSection />
+        </motion.div>
+      )}
       <motion.nav variants={PANEL_ITEM} className="mt-3 flex flex-col gap-1" aria-label="Developer Notch">
         <button type="button" className={action} onClick={() => void window.notch.app.openControlCenter()}>
           <SlidersHorizontal size={16} strokeWidth={1.8} className="text-graphite" aria-hidden="true" />

@@ -1,9 +1,11 @@
 import { z } from 'zod'
 import { isSafeAccelerator } from './accelerator'
 
-export const SETTINGS_VERSION = 3
+export const SETTINGS_VERSION = 4
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
+
+export const DEFAULT_GMAIL_SETTINGS = { clientId: '', clientSecret: '' } as const
 
 export const DEFAULT_SYSTEM_ALERTS = {
   cpu: { enabled: true, percent: 90, sustainSeconds: 30 },
@@ -45,6 +47,13 @@ export const systemAlertSettingsSchema = z.strictObject({
 })
 export type SystemAlertSettings = z.infer<typeof systemAlertSettingsSchema>
 
+/** OAuth desktop client the user created in Google Cloud; empty means Gmail is not configured. */
+export const gmailSettingsSchema = z.strictObject({
+  clientId: z.string().max(256),
+  clientSecret: z.string().max(256),
+})
+export type GmailSettings = z.infer<typeof gmailSettingsSchema>
+
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
   language: languageSchema,
@@ -52,6 +61,7 @@ export const settingsSchema = z.strictObject({
   launchAtLogin: z.boolean(),
   reminders: remindersSettingsSchema,
   systemAlerts: systemAlertSettingsSchema,
+  gmail: gmailSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -84,5 +94,6 @@ export function createDefaultSettings(locale: string): Settings {
     launchAtLogin: false,
     reminders: { ...DEFAULT_REMINDERS_SETTINGS },
     systemAlerts: cloneDefaultSystemAlerts(),
+    gmail: { ...DEFAULT_GMAIL_SETTINGS },
   }
 }

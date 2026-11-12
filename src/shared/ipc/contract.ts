@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
 import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
+import { GMAIL_RECENT_LIMIT, gmailClientFileSchema, gmailMessageSchema, gmailOpenInputSchema, gmailStateSchema } from '../gmail/schema'
 import { integrationIds } from '../integrations/registry'
 import { createNoteInputSchema, noteIdInputSchema, noteSchema, pinNoteInputSchema, updateNoteInputSchema } from '../notes/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
@@ -14,7 +15,14 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'gmail', 'mini', 'hidden'])
+
+/**
+ * Control Center pages the notch may open directly (default page when omitted). A page id added
+ * here must also exist in the Control Center's own page list.
+ */
+export const controlCenterPageSchema = z.enum(['gmail'])
+export type ControlCenterPage = z.infer<typeof controlCenterPageSchema>
 
 export const runtimeSchema = z.strictObject({
   isPackaged: z.boolean(),
@@ -97,7 +105,7 @@ const ack = z.null()
 export const contract = {
   'app:get-info': { input: none, output: appInfoSchema },
   'app:get-runtime': { input: none, output: runtimeSchema },
-  'app:open-control-center': { input: none, output: ack },
+  'app:open-control-center': { input: z.strictObject({ page: controlCenterPageSchema }).optional(), output: ack },
   'app:hide-notch': { input: none, output: ack },
   'settings:get': { input: none, output: settingsSchema },
   'settings:update': { input: settingsPatchSchema, output: settingsSchema },
@@ -142,6 +150,17 @@ export const contract = {
   'usage:summary': { input: usageSummaryInputSchema, output: usageSummarySchema },
   'system:view': { input: viewInputSchema, output: ack },
   'system:kill-process': { input: killInputSchema, output: killResultSchema },
+  'gmail:get-state': { input: none, output: gmailStateSchema },
+  'gmail:recent': { input: none, output: z.array(gmailMessageSchema).max(GMAIL_RECENT_LIMIT) },
+  'gmail:view': { input: z.strictObject({ open: z.boolean() }), output: ack },
+  'gmail:refresh': { input: none, output: ack },
+  /** Main builds the URL from an id of the last list; the renderer never sends one. */
+  'gmail:open': { input: gmailOpenInputSchema, output: ack },
+  'gmail:sign-in': { input: none, output: z.enum(['ok', 'cancelled', 'error']) },
+  'gmail:cancel-sign-in': { input: none, output: ack },
+  'gmail:sign-out': { input: none, output: ack },
+  /** Main shows the native file dialog and parses Google's client JSON; the secret never touches the log. */
+  'gmail:pick-client-file': { input: none, output: gmailClientFileSchema.nullable() },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -158,6 +177,8 @@ export const eventContract = {
   'system:metrics': systemMetricsSchema,
   /** Top processes of the System view (at most PROCESS_LIMIT). */
   'system:processes': z.array(processRowSchema).max(PROCESS_LIMIT),
+  /** Gmail session and unread count, to the notch and the Control Center (never tokens or mail). */
+  'gmail:state': gmailStateSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

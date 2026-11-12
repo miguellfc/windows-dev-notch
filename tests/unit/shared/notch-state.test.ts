@@ -256,6 +256,15 @@ describe('reminderDue (a reminder is due)', () => {
     expect(notchMode(run({ type: 'open-integration', id: 'notes' }, { type: 'dismiss' }))).toBe('compact')
   })
 
+  it('opens the gmail integration, goes back to the integrations row, and dismisses to compact', () => {
+    const open = run({ type: 'open-integration', id: 'gmail' })
+    expect(open).toMatchObject({ expanded: true, view: 'gmail' })
+    expect(notchMode(open)).toBe('gmail')
+    expect(PANEL_MODES.has('gmail')).toBe(true)
+    expect(notchMode(run({ type: 'open-integration', id: 'gmail' }, { type: 'back' }))).toBe('expanded')
+    expect(notchMode(run({ type: 'open-integration', id: 'gmail' }, { type: 'dismiss' }))).toBe('compact')
+  })
+
   it('ignores repeated reminders events', () => {
     const state = run(due(true))
     expect(reduceNotch(state, due(true))).toBe(state)

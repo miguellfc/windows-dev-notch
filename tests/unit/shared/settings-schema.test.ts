@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_GMAIL_SETTINGS,
   DEFAULT_SYSTEM_ALERTS,
   SETTINGS_VERSION,
   createDefaultSettings,
@@ -145,5 +146,21 @@ describe('settingsPatchSchema', () => {
   it('rejects non-object input', () => {
     expect(settingsPatchSchema.safeParse('en').success).toBe(false)
     expect(settingsPatchSchema.safeParse(undefined).success).toBe(false)
+  })
+})
+
+describe('gmail settings', () => {
+  it('is at version 4 with empty credentials by default', () => {
+    expect(SETTINGS_VERSION).toBe(4)
+    expect(createDefaultSettings('en-US').gmail).toEqual({ clientId: '', clientSecret: '' })
+    expect(DEFAULT_GMAIL_SETTINGS).toEqual({ clientId: '', clientSecret: '' })
+  })
+
+  it('accepts a gmail patch and rejects extra keys or non-strings', () => {
+    const patch = { gmail: { clientId: 'id', clientSecret: 'sec' } }
+    expect(settingsPatchSchema.parse(patch)).toEqual(patch)
+    expect(settingsPatchSchema.safeParse({ gmail: { clientId: 'id' } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { clientId: 1, clientSecret: '' } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { clientId: '', clientSecret: '', x: 1 } }).success).toBe(false)
   })
 })

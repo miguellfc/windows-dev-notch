@@ -1,4 +1,9 @@
-import { DEFAULT_REMINDERS_SETTINGS, SETTINGS_VERSION, cloneDefaultSystemAlerts } from '../../shared/settings/schema'
+import {
+  DEFAULT_GMAIL_SETTINGS,
+  DEFAULT_REMINDERS_SETTINGS,
+  SETTINGS_VERSION,
+  cloneDefaultSystemAlerts,
+} from '../../shared/settings/schema'
 
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>
 
@@ -8,6 +13,8 @@ export const settingsMigrations: Readonly<Record<number, Migration>> = {
   1: (raw) => ({ ...raw, version: 2, reminders: { ...DEFAULT_REMINDERS_SETTINGS } }),
   // v3 adds the system alert thresholds (CPU, RAM, battery, disk).
   2: (raw) => ({ ...raw, version: 3, systemAlerts: cloneDefaultSystemAlerts() }),
+  // v4 adds the Gmail OAuth client credentials (empty until the user configures them).
+  3: (raw) => ({ ...raw, version: 4, gmail: { ...DEFAULT_GMAIL_SETTINGS } }),
 }
 
 export type MigrationResult =

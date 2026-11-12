@@ -312,3 +312,81 @@ describe('result helpers', () => {
     expect(err('FORBIDDEN', 'nope')).toEqual({ ok: false, error: { code: 'FORBIDDEN', message: 'nope' } })
   })
 })
+
+describe('gmail contract', () => {
+  const state = { status: 'ok', account: 'me@x.com', unread: 100, updatedAt: '2026-11-11T10:00:00.000Z', persistent: true }
+  const message = { id: 'm1', threadId: 't1', from: 'Ana', subject: '', snippet: '', date: '2026-11-11T09:00:00.000Z', unread: true }
+
+  it('exposes the gmail channels and state event', () => {
+    expect(channels.gmail).toEqual({
+      getState: 'gmail:get-state',
+      recent: 'gmail:recent',
+      view: 'gmail:view',
+      refresh: 'gmail:refresh',
+      open: 'gmail:open',
+      signIn: 'gmail:sign-in',
+      cancelSignIn: 'gmail:cancel-sign-in',
+      signOut: 'gmail:sign-out',
+      pickClientFile: 'gmail:pick-client-file',
+    })
+    expect(eventChannels.gmailState).toBe('gmail:state')
+  })
+
+  it('keeps the state strict (no token can ride along) on the channel and the event', () => {
+    for (const schema of [contract['gmail:get-state'].output, eventContract['gmail:state']]) {
+      expect(schema.safeParse(state).success).toBe(true)
+      expect(schema.safeParse({ ...state, refreshToken: 'x' }).success).toBe(false)
+      expect(schema.safeParse({ ...state, status: 'connected' }).success).toBe(false)
+      expect(schema.safeParse({ ...state, unread: 101 }).success).toBe(false)
+    }
+  })
+
+  it('returns at most 5 strict messages', () => {
+    const recent = contract['gmail:recent'].output
+    expect(recent.safeParse(Array.from({ length: 5 }, () => message)).success).toBe(true)
+    expect(recent.safeParse(Array.from({ length: 6 }, () => message)).success).toBe(false)
+    expect(recent.safeParse([{ ...message, html: '<b>' }]).success).toBe(false)
+  })
+
+  it('picks a client file: no input (no path from the renderer), credentials or null out', () => {
+    const pick = contract['gmail:pick-client-file']
+    expect(pick.input.safeParse(undefined).success).toBe(true)
+    expect(pick.input.safeParse({ path: '/x.json' }).success).toBe(false)
+    expect(pick.output.safeParse(null).success).toBe(true)
+    expect(pick.output.safeParse({ clientId: 'a', clientSecret: 'b' }).success).toBe(true)
+    expect(pick.output.safeParse({ clientId: 'a', clientSecret: 'b', extra: 1 }).success).toBe(false)
+    expect(pick.output.safeParse({ clientId: '', clientSecret: 'b' }).success).toBe(false)
+  })
+
+  it('validates view, open and sign-in', () => {
+    expect(contract['gmail:view'].input.safeParse({ open: true }).success).toBe(true)
+    expect(contract['gmail:view'].input.safeParse({}).success).toBe(false)
+    expect(contract['gmail:open'].input.safeParse({ id: 'm1' }).success).toBe(true)
+    expect(contract['gmail:open'].input.safeParse({}).success).toBe(true)
+    expect(contract['gmail:open'].input.safeParse({ url: 'https://mail.google.com' }).success).toBe(false)
+    for (const result of ['ok', 'cancelled', 'error']) expect(contract['gmail:sign-in'].output.safeParse(result).success).toBe(true)
+    expect(contract['gmail:sign-in'].output.safeParse('timeout').success).toBe(false)
+    for (const channel of ['gmail:refresh', 'gmail:cancel-sign-in', 'gmail:sign-out', 'gmail:get-state', 'gmail:recent'] as const) {
+      expect(contract[channel].input.safeParse(undefined).success).toBe(true)
+      expect(contract[channel].input.safeParse({}).success).toBe(false)
+    }
+  })
+})
+describe('opening the Control Center on a page', () => {
+  it('opens on the default page without input, or on a known page', () => {
+    const input = contract['app:open-control-center'].input
+    expect(input.safeParse(undefined).success).toBe(true)
+    expect(input.safeParse({ page: 'gmail' }).success).toBe(true)
+    expect(input.safeParse({ page: 'nowhere' }).success).toBe(false)
+    expect(input.safeParse({ page: 'gmail', url: 'https://x' }).success).toBe(false)
+  })
+
+  it('has no page event: the page travels in the Control Center URL hash', () => {
+    expect(Object.values(eventChannels)).not.toContain('control-center:page')
+  })
+
+  it('lists gmail as a notch mode', () => {
+    expect(contract['notch:get-mode'].output.safeParse('gmail').success).toBe(true)
+    expect(contract['notch:open-integration'].input.safeParse({ id: 'gmail' }).success).toBe(true)
+  })
+})

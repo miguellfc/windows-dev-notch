@@ -8,7 +8,7 @@ import {
 
 describe('migrateSettings', () => {
   it('returns current-version data unchanged', () => {
-    const raw = { version: 3, language: 'es' }
+    const raw = { version: 4, language: 'es' }
     expect(migrateSettings(raw)).toEqual({ kind: 'ok', value: raw, migrated: false })
   })
 
@@ -19,16 +19,25 @@ describe('migrateSettings', () => {
 
   it('migrates v2 settings to v3 adding the system alert defaults', () => {
     const raw = { version: 2, language: 'es', reminders: { snoozeMinutes: 10, sound: true } }
+    expect(settingsMigrations[2]!(raw)).toEqual({ ...raw, version: 3, systemAlerts: DEFAULT_SYSTEM_ALERTS })
+  })
+
+  it('migrates v3 settings to v4 adding empty gmail credentials', () => {
+    const raw = { version: 3, language: 'es' }
     expect(migrateSettings(raw)).toEqual({
       kind: 'ok',
-      value: { ...raw, version: 3, systemAlerts: DEFAULT_SYSTEM_ALERTS },
+      value: { ...raw, version: 4, gmail: { clientId: '', clientSecret: '' } },
       migrated: true,
     })
   })
 
-  it('chains v1 through v3', () => {
+  it('chains v1 through v4', () => {
     const result = migrateSettings({ version: 1, language: 'en' })
-    expect(result).toMatchObject({ kind: 'ok', migrated: true, value: { version: 3, systemAlerts: DEFAULT_SYSTEM_ALERTS } })
+    expect(result).toMatchObject({
+      kind: 'ok',
+      migrated: true,
+      value: { version: 4, systemAlerts: DEFAULT_SYSTEM_ALERTS, gmail: { clientId: '', clientSecret: '' } },
+    })
   })
 
   it('gives each migrated file its own copy of the defaults', () => {
