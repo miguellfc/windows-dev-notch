@@ -1,6 +1,6 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react'
-import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, useEffect, useState, type ReactNode } from 'react'
 import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
@@ -72,39 +72,36 @@ function useNotchMode(): ModeState {
   return state
 }
 
-/** Plays the chime for each new batch of due reminders, if sound is on and the capsule is shown. */
-function useReminderChime(mode: NotchMode): void {
-  const current = useRef(mode)
-  useEffect(() => {
-    current.current = mode
-  }, [mode])
+/**
+ * Plays the chime for each new batch of due reminders if sound is on, whatever the capsule shows:
+ * the alert shows over mini and hidden too.
+ */
+function useReminderChime(): void {
   useEffect(
     () =>
       window.notch.events.on('reminders:fired', () => {
         const sound = useSettings.getState().settings?.reminders.sound ?? false
-        if (sound && current.current !== 'hidden') playChime()
+        if (sound) playChime()
       }),
     [],
   )
 }
 
 /**
- * Keeps the new-mail alert's payload for the alert capsule and plays the chime (sound on, capsule
- * shown). The payload is always kept (main alone decides whether the alert shows); it is spent once
- * the capsule leaves the alert, and after the alert's 6 s in any case. Also forgets the reader's
- * message once the mode leaves the Gmail view (or the alert whose click opens it).
+ * Keeps the new-mail alert's payload for the alert capsule and plays the chime (sound on; also with
+ * the capsule hidden, as the alert shows over it). The payload is always kept (main alone decides
+ * whether the alert shows); it is spent once the capsule leaves the alert, and after the alert's 6 s
+ * in any case. Also forgets the reader's message once the mode leaves the Gmail view (or the alert
+ * whose click opens it).
  */
 function useMailAlert(mode: NotchMode): void {
-  const current = useRef(mode)
   useEffect(() => {
-    current.current = mode
     if (mode !== 'alert' && mode !== 'hidden') setNewMail(null)
     if (!keepsReader(mode) && useGmail.getState().reading !== null) setReading(null)
   }, [mode])
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsubscribe = window.notch.events.on('gmail:new-mail', (mail) => {
-      const shown = current.current
       setNewMail(mail)
       if (timer !== null) clearTimeout(timer)
       timer = setTimeout(() => {
@@ -112,7 +109,7 @@ function useMailAlert(mode: NotchMode): void {
         if (useGmail.getState().newMail === mail) setNewMail(null)
       }, MAIL_ALERT_MS)
       const sound = useSettings.getState().settings?.gmail.alerts.sound ?? false
-      if (sound && shown !== 'hidden') playChime()
+      if (sound) playChime()
     })
     return () => {
       unsubscribe()
@@ -128,7 +125,7 @@ export function NotchApp() {
   const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail))
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
-  useReminderChime(mode)
+  useReminderChime()
   useMailAlert(mode)
   const gmailReading = useGmail((state) => state.reading !== null)
 

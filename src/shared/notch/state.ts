@@ -32,6 +32,8 @@ export interface NotchState {
 export type NotchEvent =
   | { readonly type: 'pointer'; readonly inside: boolean }
   | { readonly type: 'expand' }
+  /** The user asks to see the notch (tray icon, tray "Show"): un-hides and opens the panel. */
+  | { readonly type: 'show' }
   | { readonly type: 'toggle' }
   | { readonly type: 'dismiss' }
   | { readonly type: 'foreground'; readonly verdict: Yielding }
@@ -53,16 +55,33 @@ export const initialNotchState: NotchState = Object.freeze({
   view: 'home',
 })
 
-/** Explicit user intent (expand) beats yielding; yielding beats hover. */
+/**
+ * Explicit user intent (expand) beats alerts; a pending alert shows even over a hidden capsule
+ * (hidden by the user or yielding to a fullscreen window); hiding beats yielding to mini and hover.
+ * The alert never touches the hiding flags: when it ends the capsule goes back to what it was.
+ */
 export function notchMode(state: NotchState): NotchMode {
   if (state.expanded) {
     return state.view === 'home' ? 'expanded' : state.view
   }
-  if (state.userHidden || state.yielding === 'hidden') return 'hidden'
   if (state.attention || state.reminderDue || state.mailAlert) return 'alert'
+  if (isCapsuleHidden(state)) return 'hidden'
   if (state.pointerInside) return 'peek'
   return state.yielding === 'mini' ? 'mini' : 'compact'
 }
+
+/** The capsule is off screen apart from alerts: hidden by the user or yielding, with no panel open. */
+export function isCapsuleHidden(state: NotchState): boolean {
+  return !state.expanded && (state.userHidden || state.yielding === 'hidden')
+}
+
+/**
+ * Opening a panel shows the capsule again (clears the user's "hide"), except when it opens from an
+ * alert over a hidden capsule: closing that panel goes back to hidden. Moving between views of an
+ * open panel keeps the flag as it is.
+ */
+const userHiddenOnOpen = (state: NotchState): boolean =>
+  state.userHidden && (state.expanded || notchMode(state) === 'alert')
 
 /**
  * Whether the alert capsule shows the new-mail alert: the capsule is in `alert` and neither a
@@ -103,11 +122,14 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
       return next(state, { pointerInside: event.inside })
     // Opening the panel spends the mail alert: it is never shown with a panel open.
     case 'expand':
+      return next(state, { expanded: true, userHidden: userHiddenOnOpen(state), mailAlert: false, view: openingView(state) })
+    // Like expand, but it always clears the user's "hide", even from an alert over the hidden capsule.
+    case 'show':
       return next(state, { expanded: true, userHidden: false, mailAlert: false, view: openingView(state) })
     case 'toggle':
       return state.expanded
         ? next(state, { expanded: false, view: 'home' })
-        : next(state, { expanded: true, userHidden: false, mailAlert: false, view: openingView(state) })
+        : next(state, { expanded: true, userHidden: userHiddenOnOpen(state), mailAlert: false, view: openingView(state) })
     case 'dismiss':
       // Closing always forgets the view: the panel reopens on the integrations row.
       return next(state, { expanded: false, view: 'home' })
@@ -118,7 +140,7 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
         ? next(state, { userHidden: true, expanded: false, view: 'home' })
         : next(state, { userHidden: false })
     case 'open-integration':
-      return next(state, { expanded: true, userHidden: false, mailAlert: false, view: event.id })
+      return next(state, { expanded: true, userHidden: userHiddenOnOpen(state), mailAlert: false, view: event.id })
     case 'attention':
       // Attention never opens or closes the panel; only an open permission card has nothing left to show.
       return next(state, { attention: event.on, ...(!event.on && state.view === 'permission' ? { view: 'home' as const } : {}) })

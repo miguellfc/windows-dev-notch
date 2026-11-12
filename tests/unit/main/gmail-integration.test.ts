@@ -5,12 +5,13 @@ import { GmailApiError, type GmailClient } from '../../../src/main/gmail/gmail-c
 import { ExposedIpcError } from '../../../src/main/ipc/errors'
 import {
   createGmailIntegration,
-  isGmailVisibleMode,
   parseGmailBaseOverride,
   type GmailClientAccess,
 } from '../../../src/main/gmail/gmail-integration'
 import type { GmailMessage, GmailMessageDetail, GmailNewMail, GmailState } from '../../../src/shared/gmail/schema'
 import { DEFAULT_GMAIL_ALERTS, type GmailSettings } from '../../../src/shared/settings/schema'
+import { createNotchController, type NotchSurface } from '../../../src/main/windows/notch-controller'
+import type { NotchEvent } from '../../../src/shared/notch/state'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
 const MIN = 60_000
@@ -52,7 +53,10 @@ interface SetupOptions {
   clientId?: string
   token?: string | null
   persistent?: boolean
-  visible?: boolean
+  /** Calls `start()` (default true), as main does once the IPC targets exist. */
+  started?: boolean
+  /** Also called for each new-mail alert (main dispatches it to the notch). */
+  onNewMail?: (mail: GmailNewMail) => void
   /** Adjusts each fake auth as it is created (e.g. a failing refresh). */
   prepareAuth?: (auth: FakeAuth) => void
 }
@@ -169,10 +173,13 @@ function setup(options: SetupOptions = {}) {
     now: () => Date.now(),
     emit: (state) => states.push(state),
     openExternal,
-    onNewMail: (mail) => newMail.push(mail),
+    onNewMail: (mail) => {
+      newMail.push(mail)
+      options.onNewMail?.(mail)
+    },
     logger,
   })
-  if (options.visible ?? true) gmail.setVisible(true)
+  if (options.started ?? true) gmail.start()
 
   const requests = () => Object.values(api).reduce((sum, fn) => sum + fn.mock.calls.length, 0)
   return {
@@ -253,8 +260,8 @@ describe('gmail integration: startup', () => {
     expect(t.gmail.state()).toMatchObject({ status: 'ok', unread: 3 })
   })
 
-  it('does not query while not visible', async () => {
-    const t = setup({ visible: false })
+  it('does not query before it is started', async () => {
+    const t = setup({ started: false })
     await t.gmail.ready
     await vi.advanceTimersByTimeAsync(10 * MIN)
     expect(t.requests()).toBe(0)
@@ -263,7 +270,7 @@ describe('gmail integration: startup', () => {
 })
 
 describe('gmail integration: rhythm', () => {
-  it('ticks every 60 s only while visible and queries at once on return', async () => {
+  it('ticks every 60 s for as long as it runs (whatever the capsule shows), asking the account once', async () => {
     const t = setup()
     await t.gmail.ready
     await flush()
@@ -273,13 +280,14 @@ describe('gmail integration: rhythm', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(t.api.unreadIds).toHaveBeenCalledTimes(2)
 
-    t.gmail.setVisible(false)
     await vi.advanceTimersByTimeAsync(10 * MIN)
-    expect(t.api.unreadIds).toHaveBeenCalledTimes(2)
-
-    t.gmail.setVisible(true)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(12)
+    // A second start changes nothing (no extra query, no second timer).
+    t.gmail.start()
     await flush()
-    expect(t.api.unreadIds).toHaveBeenCalledTimes(3)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(12)
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(13)
     expect(t.api.recent).not.toHaveBeenCalled()
     expect(t.api.profile).toHaveBeenCalledTimes(1) // the account is asked once
   })
@@ -394,8 +402,7 @@ describe('gmail integration: failures', () => {
     const before = t.requests()
     const refreshes = t.auths[0]!.refresh.mock.calls.length
     t.gmail.refresh()
-    t.gmail.setVisible(false)
-    t.gmail.setVisible(true)
+    t.gmail.start()
     await vi.advanceTimersByTimeAsync(30 * MIN)
     expect(t.requests()).toBe(before)
     expect(t.auths[0]!.refresh).toHaveBeenCalledTimes(refreshes)
@@ -687,13 +694,6 @@ describe('gmail integration: privacy and lifecycle', () => {
 })
 
 describe('gmail helpers', () => {
-  it('counts the capsule as visible in compact, peek and the panels; mini, hidden and alert pause', () => {
-    for (const mode of ['compact', 'peek', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'notes'] as const) {
-      expect(isGmailVisibleMode(mode)).toBe(true)
-    }
-    for (const mode of ['mini', 'hidden', 'alert'] as const) expect(isGmailVisibleMode(mode)).toBe(false)
-  })
-
   it('accepts only an http://127.0.0.1:<port> origin as the dev base URL', () => {
     expect(parseGmailBaseOverride('http://127.0.0.1:4567')).toBe('http://127.0.0.1:4567')
     for (const bad of [
@@ -1154,22 +1154,104 @@ describe('gmail integration: new mail', () => {
     expect(t.newMail).toHaveLength(1)
   })
 
-  it('no alert after a pause of 60 s or more; a short pause (the alert itself) keeps the baseline', async () => {
+  it('keeps the baseline over long stretches: mail arriving after an hour still alerts', async () => {
     const t = setup()
     await t.gmail.ready
     await flush()
-    t.gmail.setVisible(false)
+    await vi.advanceTimersByTimeAsync(60 * MIN)
     t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
     await vi.advanceTimersByTimeAsync(MIN)
-    t.gmail.setVisible(true)
+    expect(t.newMail.map((m) => m.id)).toEqual(['n1'])
+  })
+
+  describe('whatever the notch shows (the user-reported bug: mini paused polling and reset the baseline)', () => {
+    /** Main's wiring: a new mail dispatches the alert to the notch; the notch mode never reaches Gmail. */
+    const wired = () => {
+      const surface: NotchSurface = {
+        setBounds: () => {},
+        show: vi.fn(),
+        hide: () => {},
+        focus: () => {},
+        blur: () => {},
+        setIgnoreMouse: () => {},
+        sendMode: () => {},
+        sendMailAlert: () => {},
+      }
+      const notch = createNotchController({ surface, workArea: { x: 0, y: 0, width: 1920, height: 1032 }, logger: createMemoryLogger() })
+      notch.start()
+      const t = setup({ onNewMail: () => notch.dispatch({ type: 'mail', on: true }) })
+      return { t, notch, surface }
+    }
+
+    const notchStates: [string, NotchEvent][] = [
+      ['mini (a window in front)', { type: 'foreground', verdict: 'mini' }],
+      ['hidden (yielding to fullscreen)', { type: 'foreground', verdict: 'hidden' }],
+      ['hidden by the user', { type: 'user-visibility', hidden: true }],
+    ]
+    for (const [label, event] of notchStates) {
+      it(`alerts new mail while the capsule is ${label}`, async () => {
+        const { t, notch } = wired()
+        await t.gmail.ready
+        await flush()
+        notch.dispatch(event)
+        const before = notch.mode()
+        t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+        await vi.advanceTimersByTimeAsync(MIN)
+        expect(t.newMail.map((m) => m.id)).toEqual(['n1'])
+        expect(notch.mode()).toBe('alert')
+        await vi.advanceTimersByTimeAsync(6_000)
+        expect(notch.mode()).toBe(before)
+      })
+    }
+
+    it('alerts mail that arrived during a long hidden stretch (no new baseline)', async () => {
+      const { t, notch } = wired()
+      await t.gmail.ready
+      await flush()
+      notch.dispatch({ type: 'user-visibility', hidden: true })
+      await vi.advanceTimersByTimeAsync(30 * MIN)
+      t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+      await vi.advanceTimersByTimeAsync(MIN)
+      expect(t.newMail.map((m) => m.id)).toEqual(['n1'])
+      // And mail arriving while that alert shows still counts as new afterwards.
+      t.api.unreadIds.mockResolvedValue(['n2', 'n1', ...ids(3)])
+      await vi.advanceTimersByTimeAsync(MIN)
+      expect(t.newMail.map((m) => m.id)).toEqual(['n1', 'n2'])
+    })
+  })
+
+  it('a new client starts a new baseline', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    t.changeSettings({ clientId: 'other', clientSecret: 'x' })
+    await flush()
+    const result = t.gmail.signIn()
+    await flush()
+    t.finishSignIn()
+    await result
     await flush()
     expect(t.newMail).toEqual([])
-
-    t.gmail.setVisible(false)
     t.api.unreadIds.mockResolvedValue(['n2', 'n1', ...ids(3)])
-    await vi.advanceTimersByTimeAsync(6_000)
-    t.gmail.setVisible(true)
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail.map((m) => m.id)).toEqual(['n2'])
+  })
+
+  it('signing out and in again starts a new baseline; then new mail alerts again', async () => {
+    const t = setup()
+    await t.gmail.ready
     await flush()
+    await t.gmail.signOut()
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    const result = t.gmail.signIn()
+    await flush()
+    t.finishSignIn()
+    await result
+    await flush()
+    expect(t.newMail).toEqual([])
+    t.api.unreadIds.mockResolvedValue(['n2', 'n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
     expect(t.newMail.map((m) => m.id)).toEqual(['n2'])
   })
 

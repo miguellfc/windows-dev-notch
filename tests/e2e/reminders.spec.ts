@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { _electron as electron, expect, test, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
 import { settle } from './settle'
 
@@ -253,6 +253,38 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   await app.close()
 })
 
+/** Whether main has the notch window on screen (not just its renderer state). */
+const notchWindowVisible = (app: ElectronApplication): Promise<boolean> =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && !w.webContents.getURL().includes('control-center') && w.isVisible()),
+  )
+
+test('a due reminder alerts over a capsule hidden by the user ("Ocultar"); closing its panel hides it again', async () => {
+  writeReminders([{ text: 'regar las plantas', dueAt: new Date(Date.now() + 30 * 60_000) }])
+  const { app, notch } = await launch()
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+
+  await expand(notch)
+  await notch.getByRole('button', { name: 'Ocultar', exact: true }).click()
+  await expect(capsule(notch)).toHaveCount(0)
+  await expect.poll(() => notchWindowVisible(app)).toBe(false)
+
+  await advance(app, 31 * 60_000)
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'alert')
+  await expect(notch.getByTestId('reminder-alert')).toContainText('regar las plantas')
+  expect(await notchWindowVisible(app)).toBe(true)
+
+  // The panel opens from the alert; completing the reminder and closing goes back to hidden.
+  await expand(notch)
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
+  await notch.getByRole('button', { name: 'Completar', exact: true }).click()
+  await expect(notch.getByRole('button', { name: /Posponer/ })).toHaveCount(0)
+  await dismiss(notch)
+  await expect(capsule(notch)).toHaveCount(0)
+  await expect.poll(() => notchWindowVisible(app)).toBe(false)
+  await app.close()
+})
+
 test('a reminder that came due while the app was closed raises the missed alert at startup', async () => {
   writeReminders([{ text: 'llamar al banco', dueAt: new Date(Date.now() - DAY_MS) }])
   const { app, notch } = await launch()
@@ -300,4 +332,38 @@ test('Control Center rejects editing a reminder to a past date and keeps it unch
   expect(saved.reminders[0]!.dueAt).toBe(stored.dueAt)
   expect(saved.reminders[0]!.text).toBe(stored.text)
   await app.close()
+})
+
+test('row actions show on hover or keyboard focus only; a mouse-era programmatic focus never pins them', async () => {
+  writeReminders([
+    { text: 'primera cosa', dueAt: new Date(Date.now() + 2 * DAY_MS) },
+    { text: 'segunda cosa', dueAt: new Date(Date.now() + 3 * DAY_MS) },
+  ])
+  const { notch } = await launch()
+  await expand(notch)
+  await notch.getByTestId('integration-reminders').click()
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'reminders')
+  const rows = notch.getByTestId('reminder-item')
+  await expect(rows).toHaveCount(2)
+  const overlay = (row: Locator) => row.getByRole('button').first().locator('xpath=..')
+  const hidden = (row: Locator) => expect(overlay(row)).toHaveCSS('opacity', '0')
+  const shown = (row: Locator) => expect(overlay(row)).toHaveCSS('opacity', '1')
+  const [first, second] = [rows.nth(0), rows.nth(1)]
+
+  await first.hover()
+  await shown(first)
+  // Focus given by script right after the pointer was used is not keyboard focus: no sticky actions.
+  await first.getByText('primera cosa').click()
+  await first.getByRole('button').first().evaluate((button) => (button as unknown as { focus: () => void }).focus())
+  await second.hover()
+  await shown(second)
+  await notch.mouse.move(1, 1)
+  await hidden(first)
+  await hidden(second)
+
+  // Keyboard focus inside a row reveals its actions with no hover.
+  await notch.keyboard.press('Tab')
+  const focused = notch.getByTestId('reminder-item').filter({ has: notch.locator(':focus') })
+  await expect(focused).toHaveCount(1)
+  await shown(focused)
 })

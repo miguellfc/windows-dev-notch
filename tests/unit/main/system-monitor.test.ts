@@ -238,6 +238,19 @@ describe('system monitor rhythms', () => {
     expect(order).toEqual(['reset', 'processes-reset', 'full', 'full'])
   })
 
+  it('an alert over a hidden capsule (hidden → alert → hidden) samples nothing', () => {
+    const { monitor, metrics, processes } = setup()
+    monitor.setMode('hidden')
+    monitor.setMode('alert')
+    vi.advanceTimersByTime(6_000)
+    monitor.setMode('hidden')
+    vi.advanceTimersByTime(LONG_PAUSE_MS)
+    expect(vi.getTimerCount()).toBe(0)
+    expect(metrics.light).not.toHaveBeenCalled()
+    expect(metrics.full).not.toHaveBeenCalled()
+    expect(processes.top).not.toHaveBeenCalled()
+  })
+
   it('a short pause keeps the CPU baseline (no reset) and resumes light at once', () => {
     const { monitor, metrics, processes } = setup()
     monitor.setMode('compact')

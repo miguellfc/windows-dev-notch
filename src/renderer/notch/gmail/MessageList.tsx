@@ -140,7 +140,7 @@ function MessageRow({
           </span>
         </span>
       ) : (
-        <span className={`${overlay} opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100`}>
+        <span className={`${overlay} opacity-0 transition-opacity duration-150 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100`}>
           <span className={`${overlayFill} gap-0.5 pl-2 pr-1.5`}>
             {message.unread && (
               <button

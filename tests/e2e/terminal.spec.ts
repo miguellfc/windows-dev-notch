@@ -113,6 +113,8 @@ test('keeps the session and its history when the panel closes', async () => {
   await waitForPrompt(notch)
   await run(notch, "$m = 'notch-' + 7; $m", /notch-7/)
 
+  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in peek.
+  await notch.mouse.move(1, 1)
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
   await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
 

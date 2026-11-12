@@ -94,7 +94,7 @@ Las dos opciones son válidas: **la decisión es tuya**.
 - El token de sesión se guarda cifrado con el cifrado de Windows (DPAPI) en la carpeta de datos del notch y nunca sale de este equipo salvo hacia Google. Si Windows no puede cifrarlo, no se guarda y la sesión dura hasta cerrar el notch (Control Center lo avisa).
 - Remitentes, asuntos, extractos, el texto de los correos y sus enlaces solo viven en memoria (el texto de un correo, mientras lo lees): no se escriben en disco ni en el log.
 - El correo se muestra siempre como texto: el HTML se convierte en el proceso principal y nunca se pinta, ni se cargan imágenes.
-- El notch consulta Gmail una vez por minuto mientras la cápsula está visible, y nada cuando está minimizada u oculta.
+- El notch consulta Gmail una vez por minuto mientras haya sesión, en cualquier modo (también con la cápsula minimizada u oculta, para que los avisos de correo nuevo lleguen siempre).
 
 ## Problemas frecuentes
 

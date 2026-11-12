@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialNotchState, mailAlertShown, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
+import { initialNotchState, isCapsuleHidden, mailAlertShown, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
 
 const run = (...events: NotchEvent[]): NotchState => events.reduce(reduceNotch, initialNotchState)
 
@@ -155,9 +155,86 @@ describe('attention (pending Claude permission)', () => {
     expect(notchMode(reduceNotch(state, { type: 'expand' }))).toBe('permission')
   })
 
-  it('lets a hidden capsule win over the alert', () => {
-    expect(notchMode(run(attention(true), { type: 'foreground', verdict: 'hidden' }))).toBe('hidden')
-    expect(notchMode(run(attention(true), { type: 'user-visibility', hidden: true }))).toBe('hidden')
+  it('shows the alert over a hidden capsule (yielding or hidden by the user) and hides again when it ends', () => {
+    const yielded = run({ type: 'foreground', verdict: 'hidden' }, attention(true))
+    expect(notchMode(yielded)).toBe('alert')
+    expect(notchMode(run(attention(true), { type: 'foreground', verdict: 'hidden' }))).toBe('alert')
+    expect(notchMode(run(attention(true), { type: 'user-visibility', hidden: true }))).toBe('alert')
+    expect(notchMode(reduceNotch(yielded, attention(false)))).toBe('hidden')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, attention(true), attention(false)))).toBe('hidden')
+    // The alert leaves the hiding flags as they were.
+    expect(yielded).toMatchObject({ yielding: 'hidden', userHidden: false })
+    expect(run({ type: 'user-visibility', hidden: true }, attention(true)).userHidden).toBe(true)
+  })
+
+  it('returns to mini when the alert ends on a mini capsule', () => {
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, attention(true), attention(false)))).toBe('mini')
+  })
+
+  it('opens the panel from an alert over a hidden capsule and goes back to hidden when it closes', () => {
+    const hides: NotchEvent[] = [
+      { type: 'foreground', verdict: 'hidden' },
+      { type: 'user-visibility', hidden: true },
+    ]
+    for (const hide of hides) {
+      const open = run(hide, attention(true), { type: 'expand' })
+      expect(notchMode(open)).toBe('permission')
+      // Still pending: back to the alert; answered: back to hidden.
+      expect(notchMode(reduceNotch(open, { type: 'dismiss' }))).toBe('alert')
+      expect(notchMode(run(hide, attention(true), { type: 'expand' }, attention(false), { type: 'dismiss' }))).toBe('hidden')
+      expect(notchMode(run(hide, attention(true), { type: 'toggle' }, attention(false), { type: 'toggle' }))).toBe('hidden')
+    }
+  })
+
+  it('moving between views of a panel opened from the alert keeps it hidden on close', () => {
+    const state = run(
+      { type: 'user-visibility', hidden: true },
+      attention(true),
+      { type: 'expand' },
+      attention(false),
+      { type: 'open-integration', id: 'reminders' },
+      { type: 'back' },
+      { type: 'open-integration', id: 'notes' },
+      { type: 'dismiss' },
+    )
+    expect(notchMode(state)).toBe('hidden')
+  })
+
+  it('un-hiding first (the tray "Show") keeps the capsule shown after the panel from the alert closes', () => {
+    const state = run(
+      { type: 'user-visibility', hidden: true },
+      attention(true),
+      { type: 'user-visibility', hidden: false },
+      { type: 'expand' },
+      attention(false),
+      { type: 'dismiss' },
+    )
+    expect(notchMode(state)).toBe('compact')
+  })
+
+  it('show (the tray icon and its "Mostrar") opens the panel and un-hides, even from an alert over a hidden capsule', () => {
+    const fromAlert = run({ type: 'user-visibility', hidden: true }, attention(true), { type: 'show' })
+    expect(notchMode(fromAlert)).toBe('permission')
+    expect(fromAlert.userHidden).toBe(false)
+    expect(notchMode(reduceNotch(reduceNotch(fromAlert, attention(false)), { type: 'dismiss' }))).toBe('compact')
+    const fromHidden = run({ type: 'user-visibility', hidden: true }, { type: 'show' })
+    expect(notchMode(fromHidden)).toBe('expanded')
+    expect(notchMode(reduceNotch(fromHidden, { type: 'dismiss' }))).toBe('compact')
+    // Yielding to a fullscreen window is not the user's to undo: it opens, and closes back to hidden.
+    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, { type: 'show' }, { type: 'dismiss' }))).toBe('hidden')
+    // On a visible capsule it is a plain expand; with a panel open it changes nothing.
+    expect(notchMode(run({ type: 'show' }))).toBe('expanded')
+    const open = run({ type: 'open-integration', id: 'notes' })
+    expect(reduceNotch(open, { type: 'show' })).toBe(open)
+  })
+
+  it('forgets the pointer once an alert over a hidden capsule ends', () => {
+    const state = run({ type: 'user-visibility', hidden: true }, attention(true), { type: 'pointer', inside: true })
+    expect(notchMode(state)).toBe('alert')
+    expect(state.pointerInside).toBe(true)
+    const after = reduceNotch(state, attention(false))
+    expect(notchMode(after)).toBe('hidden')
+    expect(after.pointerInside).toBe(false)
   })
 
   it('shows the alert on a mini capsule and over hover', () => {
@@ -189,9 +266,12 @@ describe('reminderDue (a reminder is due)', () => {
     expect(notchMode(run(due(true), { type: 'pointer', inside: true }))).toBe('alert')
   })
 
-  it('lets hidden win over the alert', () => {
-    expect(notchMode(run(due(true), { type: 'foreground', verdict: 'hidden' }))).toBe('hidden')
-    expect(notchMode(run(due(true), { type: 'user-visibility', hidden: true }))).toBe('hidden')
+  it('shows the alert over a hidden capsule and hides again when it is cleared', () => {
+    expect(notchMode(run(due(true), { type: 'foreground', verdict: 'hidden' }))).toBe('alert')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, due(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, due(true), due(false)))).toBe('hidden')
+    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, due(true), due(false)))).toBe('hidden')
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, due(true), due(false)))).toBe('mini')
   })
 
   it('opens on the reminders view when expanding with a due reminder and no attention', () => {
@@ -286,9 +366,30 @@ describe('mailAlert (new mail, the lowest-priority alert)', () => {
     expect(notchMode(run({ type: 'pointer', inside: true }, mail(true)))).toBe('alert')
   })
 
-  it('never shows while the capsule is hidden', () => {
-    expect(notchMode(run({ type: 'user-visibility', hidden: true }, mail(true)))).toBe('hidden')
-    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, mail(true)))).toBe('hidden')
+  it('shows over a hidden capsule too, and hides again when it ends', () => {
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, mail(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, mail(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, mail(true), mail(false)))).toBe('hidden')
+    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, mail(true), mail(false)))).toBe('hidden')
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, mail(true), mail(false)))).toBe('mini')
+  })
+
+  it('keeps the priority over a hidden capsule: permission, then reminder, then mail', () => {
+    const hidden: NotchEvent = { type: 'user-visibility', hidden: true }
+    const attention: NotchEvent = { type: 'attention', on: true }
+    const due: NotchEvent = { type: 'reminders', due: true }
+    expect(mailAlertShown(run(hidden, mail(true)))).toBe(true)
+    expect(mailAlertShown(run(hidden, mail(true), attention))).toBe(false)
+    expect(mailAlertShown(run(hidden, mail(true), due))).toBe(false)
+    expect(run(hidden, mail(true), due, attention, { type: 'expand' }).view).toBe('permission')
+    expect(run(hidden, mail(true), due, { type: 'expand' }).view).toBe('reminders')
+    expect(run(hidden, mail(true), { type: 'expand' }).view).toBe('gmail')
+  })
+
+  it('leaves an expanded panel as it is, hidden or not', () => {
+    const open = run({ type: 'user-visibility', hidden: true }, { type: 'open-integration', id: 'notes' })
+    expect(reduceNotch(open, mail(true))).toBe(open)
+    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, { type: 'expand' }, { type: 'attention', on: true }))).toBe('expanded')
   })
 
   it('is ignored while a panel is open (expanded or any integration)', () => {
@@ -340,8 +441,19 @@ describe('mailAlertShown', () => {
     expect(mailAlertShown(run({ type: 'attention', on: true }))).toBe(false)
   })
 
-  it('is false when the capsule is not showing the alert (hidden or a panel open)', () => {
-    expect(mailAlertShown(run(mail(true), { type: 'foreground', verdict: 'hidden' }))).toBe(false)
+  it('is true over a hidden capsule and false with a panel open', () => {
+    expect(mailAlertShown(run(mail(true), { type: 'foreground', verdict: 'hidden' }))).toBe(true)
     expect(mailAlertShown(run(mail(true), { type: 'expand' }))).toBe(false)
+  })
+})
+
+describe('isCapsuleHidden', () => {
+  it('is true while the capsule is hidden (by the user or yielding), even under an alert, and false with a panel open', () => {
+    expect(isCapsuleHidden(initialNotchState)).toBe(false)
+    expect(isCapsuleHidden(run({ type: 'foreground', verdict: 'mini' }))).toBe(false)
+    expect(isCapsuleHidden(run({ type: 'foreground', verdict: 'hidden' }))).toBe(true)
+    expect(isCapsuleHidden(run({ type: 'user-visibility', hidden: true }))).toBe(true)
+    expect(isCapsuleHidden(run({ type: 'user-visibility', hidden: true }, { type: 'attention', on: true }))).toBe(true)
+    expect(isCapsuleHidden(run({ type: 'foreground', verdict: 'hidden' }, { type: 'toggle' }))).toBe(false)
   })
 })
