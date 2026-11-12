@@ -1,5 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { GmailAuthError, createGmailAuth, createPkce, pkceChallenge, type GmailFetch } from '../../../src/main/gmail/gmail-auth'
+import {
+  GMAIL_SCOPE,
+  GmailAuthError,
+  createGmailAuth,
+  createPkce,
+  hasRequiredScope,
+  pkceChallenge,
+  type GmailFetch,
+} from '../../../src/main/gmail/gmail-auth'
+
+describe('scope', () => {
+  it('asks for full mail access', () => {
+    expect(GMAIL_SCOPE).toBe('https://mail.google.com/')
+  })
+
+  it('requires the exact full-mail token in the granted scope list', () => {
+    expect(hasRequiredScope('https://mail.google.com/')).toBe(true)
+    expect(hasRequiredScope('https://mail.google.com/ openid')).toBe(true)
+    expect(hasRequiredScope('openid\thttps://mail.google.com/\n')).toBe(true)
+    expect(hasRequiredScope('https://www.googleapis.com/auth/gmail.readonly')).toBe(false)
+    expect(hasRequiredScope('https://mail.google.com/x https://mail.google.com')).toBe(false)
+    expect(hasRequiredScope('')).toBe(false)
+    expect(hasRequiredScope(undefined)).toBe(false)
+  })
+})
 
 describe('pkce', () => {
   it('matches the RFC 7636 appendix B vector', () => {
@@ -62,7 +86,7 @@ describe('signIn', () => {
     const q = url.searchParams
     expect(q.get('client_id')).toBe('cid')
     expect(q.get('response_type')).toBe('code')
-    expect(q.get('scope')).toBe('https://www.googleapis.com/auth/gmail.readonly')
+    expect(q.get('scope')).toBe('https://mail.google.com/')
     expect(q.get('code_challenge_method')).toBe('S256')
     expect(q.get('access_type')).toBe('offline')
     expect(q.get('prompt')).toBe('consent')
@@ -222,6 +246,25 @@ describe('refresh and revoke', () => {
       refresh_token: 'RT',
       client_id: 'cid',
       client_secret: 'csecret',
+    })
+  })
+
+  it('signIn passes on the granted scope when Google sends it', async () => {
+    const { auth, urls } = setup(() => json({ ...tokens, scope: 'https://mail.google.com/' }))
+    pending.push(auth)
+    const result = auth.signIn()
+    await until(() => urls.length === 1)
+    const q = new URL(urls[0]!).searchParams
+    await fetch(`${q.get('redirect_uri')!}?code=auth-code&state=${q.get('state')!}`)
+    await expect(result).resolves.toEqual({ refreshToken: 'RT', accessToken: 'AT', expiresAt: 1_000_000 + 3_600_000, scope: 'https://mail.google.com/' })
+  })
+
+  it('refresh passes on the granted scope when Google sends it', async () => {
+    const { auth } = setup(() => json({ access_token: 'AT2', expires_in: 100, token_type: 'Bearer', scope: 'https://www.googleapis.com/auth/gmail.readonly' }))
+    await expect(auth.refresh('RT')).resolves.toEqual({
+      accessToken: 'AT2',
+      expiresAt: 1_000_000 + 100_000,
+      scope: 'https://www.googleapis.com/auth/gmail.readonly',
     })
   })
 

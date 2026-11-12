@@ -1,13 +1,14 @@
 import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { GmailState } from '../../../shared/gmail/schema'
-import { useGmail } from '../../shared/gmail-store'
-import { formatUpdated, gmailBody, unreadText, type GmailRecent } from '../../shared/gmail/format'
+import { setReading, useGmail } from '../../shared/gmail-store'
+import { formatUpdated, gmailBody, returnRowIndex, unreadText, type GmailRecent } from '../../shared/gmail/format'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
 import { GmailSkeleton, GmailStatus } from './GmailStatus'
-import { MessageList, messageRows } from './MessageList'
+import { MessageList, messageRow, messageRows } from './MessageList'
+import { MessageReader } from './MessageReader'
 
 /** Main asks Gmail at most once per 5 s on a manual refresh; the button rests as long. */
 const REFRESH_REST_MS = 5_000
@@ -34,19 +35,36 @@ function onPanelKeyDown(event: KeyboardEvent<HTMLDivElement>, list: HTMLUListEle
   }
 }
 
-/** The Gmail mini tool: the 5 most recent messages in Primary, or why there are none. */
+/** Adds an id to a set kept in state (a new set, so React sees the change). */
+const withId = (set: ReadonlySet<string>, id: string): ReadonlySet<string> => (set.has(id) ? set : new Set([...set, id]))
+
+/**
+ * The Gmail mini tool: the 5 most recent messages in Primary (or why there are none), and the reader
+ * of one of them. The reader's id lives in the store: the panel takes the reader's size, and the
+ * mail alert can open a message directly.
+ */
 export function GmailView() {
   const t = useT()
   const language = useLanguage()
   const now = useClock()
   const state = useGmail((store) => store.state)
+  const reading = useGmail((store) => store.reading)
+  // What this view already did, shown before main's next list arrives: read rows lose their
+  // mark, deleted rows go at once (a deleted id never comes back).
+  const [markedRead, setMarkedRead] = useState<ReadonlySet<string>>(() => new Set())
+  const [deleted, setDeleted] = useState<ReadonlySet<string>>(() => new Set())
+  // The row to focus when the list comes back from the reader: that message and its index then.
+  const returnTo = useRef<{ id: string; index: number } | null>(null)
+  // The rows as last rendered, to know the open message's index.
+  const shownIds = useRef<readonly string[]>([])
   const [recent, setRecent] = useState<GmailRecent | null>(null)
   const [resting, setResting] = useState(false)
   const [openedAt] = useState(() => Date.now())
   const panel = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLUListElement>(null)
 
-  // Main polls the list only while the view is open.
+  // Main polls the list only while the view is open. NotchApp forgets the open message when the
+  // mode leaves the view (not here: StrictMode's mount-cleanup-mount would drop an alert's reader).
   useEffect(() => {
     void window.notch.gmail.view({ open: true })
     return () => void window.notch.gmail.view({ open: false })
@@ -73,8 +91,21 @@ export function GmailView() {
     return () => clearTimeout(timer)
   }, [resting])
 
+  // Back from the reader: focus the row of the message that was open, or the row that took its
+  // place once it was deleted (the last row if it was the last one).
+  useLayoutEffect(() => {
+    const from = returnTo.current
+    if (from === null || reading !== null || !list.current) return
+    returnTo.current = null
+    const rows = messageRows(list.current)
+    const ids = rows.map((row) => row.closest<HTMLElement>('[data-message-id]')?.dataset.messageId ?? '')
+    const index = returnRowIndex(ids, from)
+    ;(messageRow(list.current, from.id) ?? (index === null ? null : rows[index]))?.focus()
+  })
+
   // The tile that opened the view unmounts: keep focus in the panel so Esc goes back to the row.
   useLayoutEffect(() => {
+    if (reading !== null) return
     const active = document.activeElement
     if (active && active !== document.body && active.isConnected) return
     panel.current?.focus()
@@ -86,7 +117,39 @@ export function GmailView() {
     void window.notch.gmail.refresh()
   }
 
-  const body = gmailBody(state, recent, openedAt)
+  const onMarkedRead = useCallback((id: string) => setMarkedRead((set) => withId(set, id)), [])
+  const onDeleted = useCallback((id: string) => {
+    setDeleted((set) => withId(set, id))
+    // Deleted from the reader: back to the list, focus on the row that took its place.
+    if (useGmail.getState().reading === id) {
+      returnTo.current = { id, index: shownIds.current.indexOf(id) }
+      setReading(null)
+    }
+  }, [])
+  const openReader = useCallback((id: string) => setReading(id), [])
+  const closeReader = useCallback(() => {
+    const id = useGmail.getState().reading
+    if (id !== null) returnTo.current = { id, index: shownIds.current.indexOf(id) }
+    setReading(null)
+  }, [])
+
+  const shown = useMemo<GmailRecent | null>(
+    () =>
+      recent && {
+        ...recent,
+        messages: recent.messages.filter((m) => !deleted.has(m.id)).map((m) => (m.unread && markedRead.has(m.id) ? { ...m, unread: false } : m)),
+      },
+    [recent, deleted, markedRead],
+  )
+
+  // Kept from the last list shown (not while reading), when its index is still the row's.
+  useEffect(() => {
+    if (reading === null && shown) shownIds.current = shown.messages.map((m) => m.id)
+  }, [reading, shown])
+
+  if (reading !== null) return <MessageReader key={reading} id={reading} onBack={closeReader} onMarkedRead={onMarkedRead} onDeleted={onDeleted} />
+
+  const body = gmailBody(state, shown, openedAt)
   const live = isLive(state)
   const offline = state?.status === 'offline'
   const updated = offline ? formatUpdated(state.updatedAt, now, language) : ''
@@ -137,8 +200,16 @@ export function GmailView() {
 
       {body === 'loading' ? (
         <GmailSkeleton />
-      ) : body === 'list' && recent ? (
-        <MessageList ref={list} messages={recent.messages} dimmed={offline} />
+      ) : body === 'list' && shown ? (
+        <MessageList
+          ref={list}
+          messages={shown.messages}
+          dimmed={offline}
+          onOpen={openReader}
+          onMarkedRead={onMarkedRead}
+          onDeleted={onDeleted}
+          onFocusLost={() => panel.current?.focus()}
+        />
       ) : (
         <GmailStatus notice={body === 'list' ? 'empty' : body} />
       )}

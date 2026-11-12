@@ -25,6 +25,22 @@ export function expandedHeightFor(sessions: number): number {
   return sessions === 1 ? EXPANDED_HEIGHTS.oneSession : EXPANDED_HEIGHTS.sessions
 }
 
+/**
+ * The Gmail panel: the list (5 rows of 58 px, measured with Playwright: no gap, no scroll) and the
+ * reader of one message (measured with Playwright on long mail: the header and the footer never
+ * clip, the body scrolls). Both are the `gmail` mode; the window is sized for the reader, and the
+ * list is a shorter capsule inside it (like the home panel without sessions).
+ */
+export const GMAIL_SIZES = {
+  list: { width: 420, height: 382 },
+  reader: { width: 520, height: 440 },
+} as const
+
+/** Size of the Gmail panel: the reader while a message is open, else the list. */
+export function gmailSizeFor(reading: boolean): { width: number; height: number } {
+  return reading ? GMAIL_SIZES.reader : GMAIL_SIZES.list
+}
+
 /** Size of the visible capsule per mode, in DIP. */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
   compact: { width: 358, height: 36 },
@@ -36,7 +52,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   reminders: { width: 420, height: 320 },
   system: { width: 520, height: 280 },
   notes: { width: 420, height: 320 },
-  gmail: { width: 420, height: 382 },
+  gmail: GMAIL_SIZES.reader,
   mini: { width: 120, height: 6 },
 }
 

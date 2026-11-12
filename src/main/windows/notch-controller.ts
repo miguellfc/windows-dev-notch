@@ -1,5 +1,7 @@
 import { resizeOrder, windowBoundsFor, type Rect, type VisibleMode } from '../../shared/notch/geometry'
-import { initialNotchState, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchMode } from '../../shared/notch/state'
+import { initialNotchState, MAIL_ALERT_MS, mailAlertShown, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchMode } from '../../shared/notch/state'
+
+export { MAIL_ALERT_MS }
 import type { Logger } from '../services/logger'
 
 /** What the controller needs from the capsule window; the Electron adapter implements it. */
@@ -12,6 +14,8 @@ export interface NotchSurface {
   blur(): void
   setIgnoreMouse(ignore: boolean): void
   sendMode(mode: NotchMode): void
+  /** Whether the alert capsule shows the new-mail alert; sent before the mode that shows it. */
+  sendMailAlert(on: boolean): void
 }
 
 export interface NotchControllerOptions {
@@ -45,14 +49,22 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   const log = options.logger.child('notch')
   let state = initialNotchState
   let mode: NotchMode = notchMode(state)
+  /** Last value of {@link mailAlertShown}, sent to the renderer whenever it changes. */
+  let mailShown = false
   let workArea = options.workArea
   /** Mode the window is currently sized for (may be larger than `mode` while shrinking). */
   let windowMode: VisibleMode = 'compact'
   let pendingShrink: { target: VisibleMode; timer: ReturnType<typeof setTimeout> } | null = null
+  let mailTimer: ReturnType<typeof setTimeout> | null = null
   let started = false
   let disposed = false
 
   const bounds = (m: VisibleMode) => windowBoundsFor(m, workArea)
+
+  const clearMailTimer = () => {
+    if (mailTimer !== null) clearTimeout(mailTimer)
+    mailTimer = null
+  }
 
   const cancelPendingShrink = () => {
     if (pendingShrink) clearTimeout(pendingShrink.timer)
@@ -93,21 +105,38 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
     else if (PANEL_MODES.has(from) && !PANEL_MODES.has(to)) surface.blur()
   }
 
-  return {
+  const controller: NotchController = {
     start() {
       if (started || disposed) return
       started = true
       if (mode !== 'hidden') resizeTo(mode)
       surface.setIgnoreMouse(true)
+      if (mailShown) surface.sendMailAlert(true)
       surface.sendMode(mode)
       if (mode === 'hidden') surface.hide()
       else surface.show()
     },
     dispatch(event) {
       if (disposed) return
+      if (event.type === 'mail' && event.on) {
+        // Never shown with a panel open (the state drops it too); each new mail restarts the 6 s.
+        if (PANEL_MODES.has(mode)) return
+        clearMailTimer()
+        mailTimer = setTimeout(() => {
+          mailTimer = null
+          controller.dispatch({ type: 'mail', on: false })
+        }, MAIL_ALERT_MS)
+      }
       const nextState = reduceNotch(state, event)
       if (nextState === state) return
       state = nextState
+      // The alert's kind can change while the mode stays `alert` (a permission over a mail alert),
+      // and it reaches the renderer before a mode change that shows it.
+      const nextMailShown = mailAlertShown(state)
+      if (nextMailShown !== mailShown) {
+        mailShown = nextMailShown
+        if (started) surface.sendMailAlert(mailShown)
+      }
       const nextMode = notchMode(state)
       if (nextMode !== mode) {
         const from = mode
@@ -130,6 +159,8 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
     dispose() {
       disposed = true
       cancelPendingShrink()
+      clearMailTimer()
     },
   }
+  return controller
 }

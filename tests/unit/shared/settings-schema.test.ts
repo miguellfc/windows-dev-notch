@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_GMAIL_ALERTS,
   DEFAULT_GMAIL_SETTINGS,
   DEFAULT_SYSTEM_ALERTS,
   SETTINGS_VERSION,
@@ -150,17 +151,39 @@ describe('settingsPatchSchema', () => {
 })
 
 describe('gmail settings', () => {
-  it('is at version 4 with empty credentials by default', () => {
-    expect(SETTINGS_VERSION).toBe(4)
-    expect(createDefaultSettings('en-US').gmail).toEqual({ clientId: '', clientSecret: '' })
+  it('is at version 5 with empty credentials and the alert defaults', () => {
+    expect(SETTINGS_VERSION).toBe(5)
     expect(DEFAULT_GMAIL_SETTINGS).toEqual({ clientId: '', clientSecret: '' })
+    expect(DEFAULT_GMAIL_ALERTS).toEqual({ enabled: true, hideContent: false, sound: true })
+    expect(createDefaultSettings('en-US').gmail).toEqual({
+      clientId: '',
+      clientSecret: '',
+      alerts: { enabled: true, hideContent: false, sound: true },
+    })
+  })
+
+  it('gives each default settings object its own alerts copy', () => {
+    const a = createDefaultSettings('en-US')
+    expect(a.gmail.alerts).not.toBe(createDefaultSettings('en-US').gmail.alerts)
+    expect(a.gmail.alerts).not.toBe(DEFAULT_GMAIL_ALERTS)
   })
 
   it('accepts a gmail patch and rejects extra keys or non-strings', () => {
-    const patch = { gmail: { clientId: 'id', clientSecret: 'sec' } }
+    const alerts = { enabled: true, hideContent: false, sound: true }
+    const patch = { gmail: { clientId: 'id', clientSecret: 'sec', alerts } }
     expect(settingsPatchSchema.parse(patch)).toEqual(patch)
-    expect(settingsPatchSchema.safeParse({ gmail: { clientId: 'id' } }).success).toBe(false)
-    expect(settingsPatchSchema.safeParse({ gmail: { clientId: 1, clientSecret: '' } }).success).toBe(false)
-    expect(settingsPatchSchema.safeParse({ gmail: { clientId: '', clientSecret: '', x: 1 } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { clientId: 'id', alerts } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { clientId: 1, clientSecret: '', alerts } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { clientId: '', clientSecret: '', alerts, x: 1 } }).success).toBe(false)
+  })
+
+  it('requires strict boolean alert settings', () => {
+    const base = { clientId: '', clientSecret: '' }
+    expect(settingsPatchSchema.safeParse({ gmail: base }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { ...base, alerts: { enabled: true, hideContent: false } } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ gmail: { ...base, alerts: { enabled: 'yes', hideContent: false, sound: true } } }).success).toBe(false)
+    expect(
+      settingsPatchSchema.safeParse({ gmail: { ...base, alerts: { enabled: true, hideContent: false, sound: true, x: 1 } } }).success,
+    ).toBe(false)
   })
 })

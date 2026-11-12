@@ -27,6 +27,7 @@ import { SettingsStore } from './services/settings-store'
 import { createSettingsUpdater } from './services/settings-update'
 import { createUsageIpcHandlers, usageChannelGuards } from './services/usage-ipc'
 import { createQuitFlush } from './services/quit-flush'
+import { createTestClockTimers } from './services/test-clock-timers'
 import { createUsageLog } from './services/usage-log'
 import { createNotesIntegration } from './notes/notes-integration'
 import { notesChannelGuards } from './notes/notes-ipc'
@@ -329,10 +330,14 @@ function start(): void {
         eventTargets: notchAndControlCenter,
         recordUsage: (event) => usage.record(event),
       })
+      const testNow = () => Date.now() + clockOffsetMs
+      // Gmail's 60 s poll follows the same test clock (its timers also fire in real time).
+      const gmailTestTimers = testClockEnabled ? createTestClockTimers(testNow) : null
       if (testClockEnabled) {
         globalThis.__notchTestClock = {
           advance: (ms) => {
             clockOffsetMs += ms
+            gmailTestTimers?.fireDue()
             return reminders.check()
           },
         }
@@ -364,10 +369,18 @@ function start(): void {
             ...(gmailBaseOverride === undefined ? {} : { authUrl: `${gmailBaseOverride}/o/oauth2/v2/auth` }),
           }),
         clientFactory: (access) => createGmailClient({ fetch: gmailFetch, apiBase: gmailBaseOverride ?? GMAIL_API_BASE, ...access }),
-        timers: { setTimeout, clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) },
-        now: () => Date.now(),
+        timers: gmailTestTimers ?? { setTimeout, clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) },
+        now: gmailTestTimers ? testNow : () => Date.now(),
         emit: (state) => emitEvent(notchAndControlCenter(), 'gmail:state', state, logger),
         openExternal: (url) => shell.openExternal(url),
+        // New mail goes to the notch only (the alert lives there; the Control Center has no use for it).
+        // The payload goes first, so the capsule already knows what to show when the mode turns to alert;
+        // the controller drops the alert with a panel open and ends it after 6 s.
+        onNewMail: (mail) => {
+          if (notchWindow.isDestroyed()) return
+          emitEvent([notchWindow.webContents], 'gmail:new-mail', mail, logger)
+          notch.dispatch({ type: 'mail', on: true })
+        },
         logger,
       })
       gmail.setVisible(isGmailVisibleMode(notch.mode()))

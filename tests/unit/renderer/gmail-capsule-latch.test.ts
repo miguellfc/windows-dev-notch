@@ -8,6 +8,7 @@ const reading = (status: GmailStatus, unread: number | null): GmailState => ({
   unread,
   updatedAt: '2026-11-11T12:00:00.000Z',
   persistent: true,
+  reason: null,
 })
 const feed = (states: GmailState[], from: MailLatch = EMPTY_MAIL): MailLatch => states.reduce(nextMail, from)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -228,15 +228,29 @@ describe('compact capsule width with the unread-mail block', () => {
 })
 
 describe('gmail panel geometry', () => {
-  it('is 420×382 (5 rows of 58 px, measured with Playwright: no gap, no scroll) and keeps the window width', () => {
-    expect(CAPSULE_SIZES.gmail).toEqual({ width: 420, height: 382 })
-    expect(windowBoundsFor('gmail', workArea).height).toBe(SHADOW_MARGIN.top + 382 + SHADOW_MARGIN.bottom)
+  it('lists in 420×382 (5 rows of 58 px, measured with Playwright: no gap, no scroll)', () => {
+    expect(GMAIL_SIZES.list).toEqual({ width: 420, height: 382 })
+    expect(gmailSizeFor(false)).toEqual(GMAIL_SIZES.list)
+  })
+
+  it('reads in 520×440 (measured with Playwright: header and footer never clip, the body scrolls)', () => {
+    expect(GMAIL_SIZES.reader).toEqual({ width: 520, height: 440 })
+    expect(gmailSizeFor(true)).toEqual(GMAIL_SIZES.reader)
+  })
+
+  it('sizes the window for the reader, so opening a message never outgrows it, and keeps the window width', () => {
+    expect(CAPSULE_SIZES.gmail).toEqual(GMAIL_SIZES.reader)
+    expect(GMAIL_SIZES.reader.height).toBeGreaterThanOrEqual(GMAIL_SIZES.list.height)
+    expect(windowBoundsFor('gmail', workArea).height).toBe(SHADOW_MARGIN.top + GMAIL_SIZES.reader.height + SHADOW_MARGIN.bottom)
     expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
   })
 
-  it('grows the window from the integrations row and shrinks back to it', () => {
+  it('grows the window from the integrations row and the alert, and shrinks back to them', () => {
     expect(resizeOrder('expanded', 'gmail')).toBe('resize-first')
+    expect(resizeOrder('alert', 'gmail')).toBe('resize-first')
     expect(resizeOrder('gmail', 'expanded')).toBe('animate-first')
+    expect(resizeOrder('gmail', 'compact')).toBe('animate-first')
+    expect(growsWindow('terminal', 'gmail')).toBe(true)
   })
 })
 

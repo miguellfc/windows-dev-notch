@@ -1,10 +1,21 @@
-import type { GmailMessage, GmailState, GmailStatus } from '../../shared/gmail/schema'
+import {
+  GMAIL_UNREAD_CAP,
+  isWebUrl,
+  type GmailLink,
+  type GmailMessage,
+  type GmailMessageDetail,
+  type GmailNewMail,
+  type GmailState,
+  type GmailStatus,
+} from '../../shared/gmail/schema'
 import type { NotchMode } from '../../shared/notch/state'
 import type { GmailSettings } from '../../shared/settings/schema'
+import { ExposedIpcError } from '../ipc/errors'
 import type { Logger } from '../services/logger'
 import { GmailAuthError } from './auth-error'
-import type { GmailAuth } from './gmail-auth'
+import { hasRequiredScope, type GmailAuth } from './gmail-auth'
 import { GmailApiError, type GmailClient } from './gmail-client'
+import { createNewMailDetector } from './new-mail'
 import type { TokenStore } from './token-store'
 
 /** Unread count rhythm while the capsule is visible. */
@@ -16,6 +27,8 @@ export const GMAIL_MANUAL_REFRESH_MIN_MS = 5_000
 /** An access token this close to expiry is refreshed before use. */
 const ACCESS_TOKEN_MARGIN_MS = 60_000
 export const GMAIL_INBOX_URL = 'https://mail.google.com/mail/u/0/#inbox'
+/** A pause (mini / hidden / alert) at least this long makes the next query a new-mail baseline again. */
+export const GMAIL_RESUME_RESET_MS = 60_000
 
 /** Like the system monitor: nothing in mini, hidden or alert (the capsule is a pill, off screen or busy). */
 const PAUSED_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['mini', 'hidden', 'alert'])
@@ -67,6 +80,8 @@ export interface GmailIntegrationOptions {
   /** Pushes `gmail:state` to the notch and the Control Center. */
   emit: (state: GmailState) => void
   openExternal: (url: string) => Promise<void> | void
+  /** New unread mail while alerts are on; pushed to the notch as `gmail:new-mail`. */
+  onNewMail?: (mail: GmailNewMail) => void
   logger: Logger
 }
 
@@ -82,6 +97,19 @@ export interface GmailIntegration {
   setViewOpen(open: boolean): void
   refresh(): void
   open(id?: string): void
+  /**
+   * Reads a message shown in the notch (last list, the open message or the last alert) as plain
+   * text and remembers it as the open message. Refusals and failures are ExposedIpcError.
+   */
+  message(id: string): Promise<GmailMessageDetail>
+  /** Marks a shown message as read, then queries at once. */
+  markRead(id: string): Promise<void>
+  /** Deletes a shown message permanently, forgets it, then queries at once. */
+  remove(id: string): Promise<void>
+  /** Opens link `index` of the open message in the browser; anything else is refused. */
+  openLink(id: string, index: number): void
+  /** The reader closed: forgets the open message's body and links (list ids stay shown). */
+  closeMessage(): void
   signIn(): Promise<GmailSignInResult>
   cancelSignIn(): void
   signOut(): Promise<void>
@@ -102,6 +130,8 @@ const errorCode = (error: unknown): string => {
 const isSessionDead = (error: unknown): boolean =>
   (error instanceof GmailApiError && error.code === 'unauthorized') || (error instanceof GmailAuthError && error.code === 'denied')
 
+type GmailAction = 'message' | 'mark-read' | 'delete'
+
 /**
  * Gmail state machine for main: loads the stored token, polls the unread count every 60 s while
  * the capsule is visible (plus the recent list while the view is open), backs off on network
@@ -121,6 +151,18 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   let messages: GmailMessage[] = []
   /** The last list handed to the notch: `open` only accepts its ids. */
   let sent: GmailMessage[] = []
+  /** The message being read in the notch (its links only live while it is open). */
+  /** The message being read: its thread (null until the read finishes) and its links. */
+  let opened: { id: string; threadId: string | null; links: GmailLink[] } | null = null
+  /** Bumped whenever the open message is forgotten: a read that finishes later is not remembered. */
+  let openSeq = 0
+  /** Id of the last new-mail alert: the notch may open it. */
+  let alertId: string | null = null
+  /** Why the session is expired (`scope`: the token lacks the full mail permission). */
+  let reason: GmailState['reason'] = null
+  const detector = createNewMailDetector()
+  /** When the capsule stopped polling (mini / hidden / alert), to reset the detector after long pauses. */
+  let hiddenAt: number | null = null
 
   let refreshToken: string | null = null
   let access: { token: string; expiresAt: number } | null = null
@@ -146,7 +188,14 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   let disposed = false
   let loggedStatus: GmailStatus | null = null
 
-  const state = (): GmailState => ({ status, account, unread, updatedAt, persistent: tokenStore.persistent })
+  const state = (): GmailState => ({
+    status,
+    account,
+    unread,
+    updatedAt,
+    persistent: tokenStore.persistent,
+    reason: status === 'expired' ? reason : null,
+  })
 
   const publish = () => {
     if (disposed) return
@@ -162,6 +211,12 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
     timer = null
   }
 
+  /** Forgets the message being read: its body and links are gone from main. */
+  const forgetOpen = () => {
+    openSeq++
+    opened = null
+  }
+
   /** Forgets everything tied to the current session (not the stored token). */
   const resetSession = () => {
     generation++
@@ -174,6 +229,10 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
     updatedAt = null
     messages = []
     sent = []
+    forgetOpen()
+    alertId = null
+    reason = null
+    detector.reset()
     failures = 0
   }
 
@@ -195,6 +254,11 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
       .auth.refresh(token)
       .then((next) => {
         if (startedIn !== generation) throw stale()
+        if (next.scope !== undefined && !hasRequiredScope(next.scope)) {
+          // A milestone-1 session (gmail.readonly): nothing more is asked until the user signs in again.
+          reason = 'scope'
+          throw new GmailAuthError('denied')
+        }
         access = { token: next.accessToken, expiresAt: next.expiresAt }
         return next.accessToken
       })
@@ -254,11 +318,49 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   /** A result that arrives after the session changed, or while signing in, is dropped. */
   const isStale = (startedIn: number) => startedIn !== generation || disposed || status === 'signing-in'
 
+  /** The session is dead (revoked, or without the needed permission): stop asking until a new sign-in. */
+  const expire = (error: unknown) => {
+    log.warn('Gmail session expired', { code: errorCode(error), ...(reason === null ? {} : { reason }) })
+    // Keep the refresh token out of use: nothing is asked until the user signs in again.
+    clearTimer()
+    access = null
+    messages = []
+    sent = []
+    forgetOpen()
+    alertId = null
+    status = 'expired'
+    publish()
+  }
+
+  /** Alerts the notch about new unread mail (the newest one), unless alerts are off. */
+  const announce = async (startedIn: number, fresh: readonly string[]): Promise<void> => {
+    const alerts = options.settings.get().gmail.alerts
+    const id = fresh[0]
+    if (!alerts.enabled || !options.onNewMail || id === undefined) return
+    let mail: GmailNewMail = { count: fresh.length, id }
+    if (!alerts.hideContent) {
+      try {
+        const summary = await getClient().summary(id)
+        if (isStale(startedIn)) return
+        if (summary === null) return // gone before it could be shown
+        mail = { ...mail, from: summary.from, subject: summary.subject }
+      } catch (error) {
+        if (isStale(startedIn)) return
+        // The alert still goes out, without sender or subject.
+        log.warn('Gmail new-mail details failed', { code: errorCode(error) })
+      }
+    }
+    if (isStale(startedIn)) return
+    alertId = id
+    log.info('Gmail new mail', { count: mail.count })
+    options.onNewMail(mail)
+  }
+
   const runPoll = async (startedIn: number, withRecent: boolean): Promise<void> => {
     try {
       const client = getClient()
       const nextAccount = account ?? (await client.profile())
-      const count = await client.unreadCount()
+      const ids = await client.unreadIds()
       let list: GmailMessage[] | null = null
       if (withRecent) {
         try {
@@ -271,24 +373,19 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
       }
       if (isStale(startedIn)) return
       account = nextAccount
-      unread = count
+      unread = Math.min(ids.length, GMAIL_UNREAD_CAP)
       updatedAt = new Date(now()).toISOString()
       if (list) messages = list
       failures = 0
       status = 'ok'
       publish()
       schedule(GMAIL_TICK_MS)
+      const fresh = detector.observe(ids)
+      if (fresh.length > 0) void announce(startedIn, fresh)
     } catch (error) {
       if (isStale(startedIn)) return
       if (isSessionDead(error)) {
-        log.warn('Gmail session expired', { code: errorCode(error) })
-        // Keep the refresh token out of use: nothing is asked until the user signs in again.
-        clearTimer()
-        access = null
-        messages = []
-        sent = []
-        status = 'expired'
-        publish()
+        expire(error)
         return
       }
       const wait = GMAIL_BACKOFF_MS[Math.min(failures, GMAIL_BACKOFF_MS.length - 1)] ?? GMAIL_TICK_MS
@@ -312,6 +409,63 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
   }
 
   const afterInFlight = (): Promise<void> => inFlight?.run ?? Promise.resolve()
+
+  /** After an action: a fresh count and list now, past the manual-refresh floor. */
+  const pollNow = () => {
+    void afterInFlight().then(() => poll())
+  }
+
+  const isShown = (id: string) => sent.some((m) => m.id === id) || opened?.id === id || alertId === id
+
+  /** main trusts no id from the renderer: only messages it showed to the notch. */
+  const requireShown = (action: GmailAction | 'open-link', id: string) => {
+    if (isShown(id)) return
+    log.warn('Refused a Gmail action on a message not shown in the notch', { action })
+    throw new ExposedIpcError('INVALID_INPUT', 'Unknown message')
+  }
+
+  /** Generation of a usable session, or UNAVAILABLE. */
+  const activeSession = (): number => {
+    if (disposed || refreshToken === null || (status !== 'ok' && status !== 'offline')) {
+      throw new ExposedIpcError('UNAVAILABLE', 'Gmail is not connected')
+    }
+    return generation
+  }
+
+  /** Turns a failed action into a code the notch can show; never the message data. */
+  const actionFailed = (action: GmailAction, startedIn: number, error: unknown): never => {
+    if (isStale(startedIn)) throw new ExposedIpcError('UNAVAILABLE', 'Gmail session changed')
+    if (error instanceof GmailApiError && error.code === 'not-found') throw new ExposedIpcError('NOT_FOUND', 'The message no longer exists')
+    if (isSessionDead(error)) {
+      expire(error)
+      throw new ExposedIpcError('UNAVAILABLE', 'Gmail session expired')
+    }
+    const code = errorCode(error)
+    log.warn('Gmail action failed', { action, code })
+    throw new ExposedIpcError('UNAVAILABLE', `Gmail request failed: ${code}`)
+  }
+
+  const act = async (action: 'mark-read' | 'delete', id: string): Promise<void> => {
+    await ready
+    requireShown(action, id)
+    const startedIn = activeSession()
+    try {
+      const client = getClient()
+      await (action === 'delete' ? client.remove(id) : client.markRead(id))
+    } catch (error) {
+      actionFailed(action, startedIn, error)
+    }
+    if (isStale(startedIn)) throw new ExposedIpcError('UNAVAILABLE', 'Gmail session changed')
+    if (action === 'delete') {
+      // Gone for good: no later call may name it.
+      sent = sent.filter((m) => m.id !== id)
+      messages = messages.filter((m) => m.id !== id)
+      if (opened?.id === id) forgetOpen()
+      if (alertId === id) alertId = null
+    }
+    log.info('Gmail action done', { action })
+    pollNow()
+  }
 
   const ready = (async () => {
     const startedIn = generation
@@ -371,15 +525,20 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
       if (next === visible) return
       visible = next
       if (!next) {
+        hiddenAt = now()
         clearTimer()
         return
       }
+      // After a long pause the unread ids that piled up are not "new": the next query is a baseline.
+      if (hiddenAt !== null && now() - hiddenAt >= GMAIL_RESUME_RESET_MS) detector.reset()
+      hiddenAt = null
       void poll() // resuming after mini / hidden asks at once
     },
 
     setViewOpen(open) {
       const opening = open && !viewOpen
       viewOpen = open
+      if (!open) forgetOpen()
       if (opening && status === 'ok') void afterInFlight().then(() => poll())
     },
 
@@ -393,16 +552,56 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
     open(id) {
       let url = GMAIL_INBOX_URL
       if (id !== undefined) {
-        const target = sent.find((m) => m.id === id)
-        if (!target) {
-          log.warn('Refused to open a message outside the last list')
+        // The last list, then the open message (an alert can open one that is not listed); a shown id
+        // whose thread is unknown opens the inbox. Anything else was never shown: refused.
+        const threadId = sent.find((m) => m.id === id)?.threadId ?? (opened?.id === id ? opened.threadId : null)
+        if (threadId === null && !isShown(id)) {
+          log.warn('Refused to open a message not shown in the notch')
           return
         }
-        url = `${GMAIL_INBOX_URL}/${encodeURIComponent(target.threadId)}`
+        if (threadId !== null) url = `${GMAIL_INBOX_URL}/${encodeURIComponent(threadId)}`
       }
       Promise.resolve()
         .then(() => options.openExternal(url))
         .catch((error: unknown) => log.warn('Could not open Gmail in the browser', { error: errorCode(error) }))
+    },
+
+    async message(id) {
+      await ready
+      requireShown('message', id)
+      const startedIn = activeSession()
+      // A new read replaces the open message; the id stays shown while it loads (and for a retry).
+      forgetOpen()
+      const seq = openSeq
+      opened = { id, threadId: null, links: [] }
+      let detail: GmailMessageDetail
+      try {
+        detail = await getClient().message(id)
+      } catch (error) {
+        return actionFailed('message', startedIn, error)
+      }
+      if (isStale(startedIn)) throw new ExposedIpcError('UNAVAILABLE', 'Gmail session changed')
+      if (seq === openSeq) opened = { id, threadId: detail.threadId, links: detail.links }
+      return detail
+    },
+
+    markRead: (id) => act('mark-read', id),
+
+    remove: (id) => act('delete', id),
+
+    openLink(id, index) {
+      const link = opened?.id === id ? opened.links[index] : undefined
+      if (!link || !isWebUrl(link.url)) {
+        log.warn('Refused to open a link outside the open message')
+        throw new ExposedIpcError('INVALID_INPUT', 'Unknown link')
+      }
+      Promise.resolve()
+        .then(() => options.openExternal(link.url))
+        .catch((error: unknown) => log.warn('Could not open a mail link in the browser', { error: errorCode(error) }))
+    },
+
+    closeMessage() {
+      forgetOpen()
     },
 
     async signIn() {
@@ -420,6 +619,16 @@ export function createGmailIntegration(options: GmailIntegrationOptions): GmailI
         if (seq !== signInSeq || startedIn !== generation || disposed) return 'cancelled'
         statusBeforeSignIn = null
         pendingSignIn = null
+        if (result.scope !== undefined && !hasRequiredScope(result.scope)) {
+          // The user did not grant full mail access: this token is of no use, and neither is the old one.
+          log.warn('Gmail sign-in lacks the full mail permission')
+          resetSession()
+          reason = 'scope'
+          status = 'expired'
+          publish()
+          await clearStoredToken()
+          return 'error'
+        }
         const saving = tokenStore.save(result.refreshToken)
         pendingSave = saving.catch(() => undefined)
         resetSession()

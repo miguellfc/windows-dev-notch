@@ -72,12 +72,18 @@ export const channels = {
     cancelSignIn: 'gmail:cancel-sign-in',
     signOut: 'gmail:sign-out',
     pickClientFile: 'gmail:pick-client-file',
+    message: 'gmail:message',
+    markRead: 'gmail:mark-read',
+    delete: 'gmail:delete',
+    openLink: 'gmail:open-link',
+    closeMessage: 'gmail:close-message',
   },
 } as const
 
 /** Events the main process pushes to renderers. */
 export const eventChannels = {
   notchModeChanged: 'notch:mode-changed',
+  notchMailAlert: 'notch:mail-alert',
   settingsChanged: 'settings:changed',
   terminalData: 'terminal:data',
   terminalExit: 'terminal:exit',
@@ -88,6 +94,7 @@ export const eventChannels = {
   systemMetrics: 'system:metrics',
   systemProcesses: 'system:processes',
   gmailState: 'gmail:state',
+  gmailNewMail: 'gmail:new-mail',
 } as const
 
 type ChannelGroups = typeof channels

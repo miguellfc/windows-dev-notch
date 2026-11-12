@@ -102,7 +102,7 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     }),
     'system:view': () => null,
     'system:kill-process': () => 'gone',
-    'gmail:get-state': () => ({ status: 'signed-out', account: null, unread: null, updatedAt: null, persistent: true }),
+    'gmail:get-state': () => ({ status: 'signed-out', account: null, unread: null, updatedAt: null, persistent: true, reason: null }),
     'gmail:recent': () => [],
     'gmail:view': () => null,
     'gmail:refresh': () => null,
@@ -111,6 +111,23 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'gmail:cancel-sign-in': () => null,
     'gmail:sign-out': () => null,
     'gmail:pick-client-file': () => null,
+    'gmail:message': () => ({
+      id: 'm1',
+      threadId: 't1',
+      from: 'Ana',
+      fromAddress: 'ana@example.com',
+      subject: '',
+      date: '2026-11-11T09:00:00.000Z',
+      unread: true,
+      body: '',
+      truncated: false,
+      links: [],
+      attachments: 0,
+    }),
+    'gmail:mark-read': () => null,
+    'gmail:delete': () => null,
+    'gmail:open-link': () => null,
+    'gmail:close-message': () => null,
     ...overrides,
   }
 }
@@ -295,6 +312,11 @@ describe('terminal write isolation', () => {
     'gmail:cancel-sign-in': undefined,
     'gmail:sign-out': undefined,
     'gmail:pick-client-file': undefined,
+    'gmail:message': { id: 'm1' },
+    'gmail:mark-read': { id: 'm1' },
+    'gmail:delete': { id: 'm1' },
+    'gmail:open-link': { id: 'm1', index: 0 },
+    'gmail:close-message': undefined,
   }
 
   it('has a sample input for every channel', () => {

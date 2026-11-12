@@ -2,13 +2,14 @@ import { Inbox, LogIn, Mail, MailWarning, type LucideIcon } from 'lucide-react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import { useT } from '../../shared/use-t'
 
-export type GmailNotice = 'unconfigured' | 'signed-out' | 'signing-in' | 'expired' | 'empty'
+export type GmailNotice = 'unconfigured' | 'signed-out' | 'signing-in' | 'expired' | 'scope' | 'empty'
 
 const NOTICES: Readonly<Record<GmailNotice, { icon: LucideIcon; title: MessageKey; hint?: MessageKey; action: boolean }>> = {
   unconfigured: { icon: Mail, title: 'gmail.state.unconfigured', action: true },
   'signed-out': { icon: LogIn, title: 'gmail.state.signedOut', action: true },
   'signing-in': { icon: LogIn, title: 'gmail.state.signingIn', action: false },
   expired: { icon: MailWarning, title: 'gmail.state.expired', hint: 'gmail.state.expiredHint', action: true },
+  scope: { icon: MailWarning, title: 'gmail.state.expired', hint: 'gmail.state.scopeHint', action: true },
   empty: { icon: Inbox, title: 'gmail.state.empty', action: false },
 }
 
@@ -17,7 +18,8 @@ const button =
 
 /**
  * Everything the view shows instead of the list: no client, no session, waiting for the browser,
- * an expired session (with a way to the Control Center's Gmail page), or an empty Primary tab.
+ * an expired session or one without the full-mail permission (with a way to the Control Center's
+ * Gmail page), or an empty Primary tab.
  */
 export function GmailStatus({ notice }: { notice: GmailNotice }) {
   const t = useT()

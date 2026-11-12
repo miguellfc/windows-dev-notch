@@ -9,6 +9,9 @@ export type NotchView = 'home' | 'permission' | IntegrationId
 /** Modes that show the panel and therefore own the keyboard focus. */
 export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'gmail'])
 
+/** How long the new-mail alert stays in the capsule before it goes away on its own (main owns the timer). */
+export const MAIL_ALERT_MS = 6_000
+
 /** How the capsule yields to the window in front: nothing, shrink to a pill, or disappear. */
 export type Yielding = 'none' | 'mini' | 'hidden'
 
@@ -21,6 +24,8 @@ export interface NotchState {
   readonly attention: boolean
   /** At least one reminder is due and not yet dismissed. */
   readonly reminderDue: boolean
+  /** New mail arrived: the lowest-priority alert; main turns it off after 6 s. */
+  readonly mailAlert: boolean
   readonly view: NotchView
 }
 
@@ -35,6 +40,7 @@ export type NotchEvent =
   | { readonly type: 'back' }
   | { readonly type: 'attention'; readonly on: boolean }
   | { readonly type: 'reminders'; readonly due: boolean }
+  | { readonly type: 'mail'; readonly on: boolean }
 
 export const initialNotchState: NotchState = Object.freeze({
   expanded: false,
@@ -43,6 +49,7 @@ export const initialNotchState: NotchState = Object.freeze({
   pointerInside: false,
   attention: false,
   reminderDue: false,
+  mailAlert: false,
   view: 'home',
 })
 
@@ -52,16 +59,26 @@ export function notchMode(state: NotchState): NotchMode {
     return state.view === 'home' ? 'expanded' : state.view
   }
   if (state.userHidden || state.yielding === 'hidden') return 'hidden'
-  if (state.attention || state.reminderDue) return 'alert'
+  if (state.attention || state.reminderDue || state.mailAlert) return 'alert'
   if (state.pointerInside) return 'peek'
   return state.yielding === 'mini' ? 'mini' : 'compact'
 }
 
-/** A panel opened while something is pending lands on it: a permission first, then a due reminder. */
+/**
+ * Whether the alert capsule shows the new-mail alert: the capsule is in `alert` and neither a
+ * permission nor a due reminder (both outrank mail) owns it. Main sends this to the notch so the
+ * renderer never guesses the alert's kind from its own, possibly late, stores.
+ */
+export function mailAlertShown(state: NotchState): boolean {
+  return notchMode(state) === 'alert' && !state.attention && !state.reminderDue
+}
+
+/** A panel opened while something is pending lands on it: a permission, a due reminder, then new mail. */
 function openingView(state: NotchState): NotchView {
   if (state.expanded) return state.view
   if (state.attention) return 'permission'
-  return state.reminderDue ? 'reminders' : 'home'
+  if (state.reminderDue) return 'reminders'
+  return state.mailAlert ? 'gmail' : 'home'
 }
 
 function next(state: NotchState, changes: Partial<NotchState>): NotchState {
@@ -84,12 +101,13 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
   switch (event.type) {
     case 'pointer':
       return next(state, { pointerInside: event.inside })
+    // Opening the panel spends the mail alert: it is never shown with a panel open.
     case 'expand':
-      return next(state, { expanded: true, userHidden: false, view: openingView(state) })
+      return next(state, { expanded: true, userHidden: false, mailAlert: false, view: openingView(state) })
     case 'toggle':
       return state.expanded
         ? next(state, { expanded: false, view: 'home' })
-        : next(state, { expanded: true, userHidden: false, view: openingView(state) })
+        : next(state, { expanded: true, userHidden: false, mailAlert: false, view: openingView(state) })
     case 'dismiss':
       // Closing always forgets the view: the panel reopens on the integrations row.
       return next(state, { expanded: false, view: 'home' })
@@ -100,13 +118,16 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
         ? next(state, { userHidden: true, expanded: false, view: 'home' })
         : next(state, { userHidden: false })
     case 'open-integration':
-      return next(state, { expanded: true, userHidden: false, view: event.id })
+      return next(state, { expanded: true, userHidden: false, mailAlert: false, view: event.id })
     case 'attention':
       // Attention never opens or closes the panel; only an open permission card has nothing left to show.
       return next(state, { attention: event.on, ...(!event.on && state.view === 'permission' ? { view: 'home' as const } : {}) })
     case 'reminders':
       // Like attention, a due reminder never opens or closes the panel; an open reminders view stays as it is.
       return next(state, { reminderDue: event.due })
+    case 'mail':
+      // The lowest-priority alert: with a panel open it is dropped, not queued.
+      return event.on && state.expanded ? state : next(state, { mailAlert: event.on })
     case 'back':
       return state.expanded ? next(state, { view: 'home' }) : state
   }

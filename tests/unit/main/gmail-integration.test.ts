@@ -2,13 +2,15 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { GmailAuthError } from '../../../src/main/gmail/auth-error'
 import { createGmailAuth, type GmailAuth, type GmailFetch, type SignInResult } from '../../../src/main/gmail/gmail-auth'
 import { GmailApiError, type GmailClient } from '../../../src/main/gmail/gmail-client'
+import { ExposedIpcError } from '../../../src/main/ipc/errors'
 import {
   createGmailIntegration,
   isGmailVisibleMode,
   parseGmailBaseOverride,
   type GmailClientAccess,
 } from '../../../src/main/gmail/gmail-integration'
-import type { GmailMessage, GmailState } from '../../../src/shared/gmail/schema'
+import type { GmailMessage, GmailMessageDetail, GmailNewMail, GmailState } from '../../../src/shared/gmail/schema'
+import { DEFAULT_GMAIL_ALERTS, type GmailSettings } from '../../../src/shared/settings/schema'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
 const MIN = 60_000
@@ -25,6 +27,27 @@ const message = (id: string, extra: Partial<GmailMessage> = {}): GmailMessage =>
   ...extra,
 })
 
+/** Unread ids as the client returns them: `count` ids, newest first. */
+const ids = (count: number, prefix = 'u'): string[] => Array.from({ length: count }, (_, i) => `${prefix}${i + 1}`)
+
+const detail = (id: string, extra: Partial<GmailMessageDetail> = {}): GmailMessageDetail => ({
+  id,
+  threadId: `thread-${id}`,
+  from: `Sender ${id}`,
+  fromAddress: `${id}@example.com`,
+  subject: `Subject ${id}`,
+  date: '2026-11-11T09:00:00.000Z',
+  unread: true,
+  body: `Body ${id}`,
+  truncated: false,
+  links: [
+    { text: 'First', url: `https://example.com/${id}/1` },
+    { text: 'Second', url: `https://example.com/${id}/2` },
+  ],
+  attachments: 0,
+  ...extra,
+})
+
 interface SetupOptions {
   clientId?: string
   token?: string | null
@@ -38,7 +61,7 @@ function setup(options: SetupOptions = {}) {
   vi.useFakeTimers({ now: new Date('2026-11-11T10:00:00.000Z') })
   const logger = createMemoryLogger()
 
-  let current = { gmail: { clientId: options.clientId ?? 'cid', clientSecret: 'csecret' } }
+  let current: { gmail: GmailSettings } = { gmail: { clientId: options.clientId ?? 'cid', clientSecret: 'csecret', alerts: { ...DEFAULT_GMAIL_ALERTS } } }
   const listeners = new Set<(s: typeof current) => void>()
   const settings = {
     get: () => current,
@@ -49,8 +72,12 @@ function setup(options: SetupOptions = {}) {
       }
     },
   }
-  const changeSettings = (gmail: { clientId: string; clientSecret: string }) => {
-    current = { gmail }
+  const changeSettings = (credentials: { clientId: string; clientSecret: string }) => {
+    current = { gmail: { ...credentials, alerts: { ...current.gmail.alerts } } }
+    for (const listener of listeners) listener(current)
+  }
+  const setAlerts = (alerts: Partial<GmailSettings['alerts']>) => {
+    current = { gmail: { ...current.gmail, alerts: { ...current.gmail.alerts, ...alerts } } }
     for (const listener of listeners) listener(current)
   }
 
@@ -102,24 +129,37 @@ function setup(options: SetupOptions = {}) {
   let list = [message('m1'), message('m2')]
   const api = {
     profile: vi.fn(async () => 'me@example.com'),
-    unreadCount: vi.fn(async () => 3),
+    unreadIds: vi.fn(async () => ids(3)),
     recent: vi.fn(async () => list),
+    summary: vi.fn(async (id: string): Promise<GmailMessage | null> => message(id)),
+    message: vi.fn(async (id: string) => detail(id)),
+    markRead: vi.fn<(id: string) => Promise<void>>(async () => undefined),
+    remove: vi.fn<(id: string) => Promise<void>>(async () => undefined),
   }
   const tokensUsed: string[] = []
   let access: GmailClientAccess | null = null
   const clientFactory = vi.fn((deps: GmailClientAccess): GmailClient => {
     access = deps
     const call =
-      <T>(fn: () => Promise<T>) =>
-      async () => {
+      <A extends unknown[], T>(fn: (...args: A) => Promise<T>) =>
+      async (...args: A) => {
         tokensUsed.push(await deps.getAccessToken())
-        return fn()
+        return fn(...args)
       }
-    return { profile: call(() => api.profile()), unreadCount: call(() => api.unreadCount()), recent: call(() => api.recent()) }
+    return {
+      profile: call(() => api.profile()),
+      unreadIds: call(() => api.unreadIds()),
+      recent: call(() => api.recent()),
+      summary: call((id: string) => api.summary(id)),
+      message: call((id: string) => api.message(id)),
+      markRead: call((id: string) => api.markRead(id)),
+      remove: call((id: string) => api.remove(id)),
+    }
   })
 
   const states: GmailState[] = []
   const openExternal = vi.fn()
+  const newMail: GmailNewMail[] = []
   const gmail = createGmailIntegration({
     settings,
     tokenStore,
@@ -129,11 +169,12 @@ function setup(options: SetupOptions = {}) {
     now: () => Date.now(),
     emit: (state) => states.push(state),
     openExternal,
+    onNewMail: (mail) => newMail.push(mail),
     logger,
   })
   if (options.visible ?? true) gmail.setVisible(true)
 
-  const requests = () => api.profile.mock.calls.length + api.unreadCount.mock.calls.length + api.recent.mock.calls.length
+  const requests = () => Object.values(api).reduce((sum, fn) => sum + fn.mock.calls.length, 0)
   return {
     gmail,
     api,
@@ -145,6 +186,8 @@ function setup(options: SetupOptions = {}) {
     openExternal,
     logger,
     changeSettings,
+    setAlerts,
+    newMail,
     finishSignIn,
     failSignIn,
     requests,
@@ -168,7 +211,7 @@ describe('gmail integration: startup', () => {
     const t = setup({ clientId: '' })
     await t.gmail.ready
     await flush()
-    expect(t.gmail.state()).toEqual({ status: 'unconfigured', account: null, unread: null, updatedAt: null, persistent: true })
+    expect(t.gmail.state()).toEqual({ status: 'unconfigured', account: null, unread: null, updatedAt: null, persistent: true, reason: null })
     expect(t.requests()).toBe(0)
     expect(t.authFactory).not.toHaveBeenCalled()
   })
@@ -191,6 +234,7 @@ describe('gmail integration: startup', () => {
       unread: 3,
       updatedAt: '2026-11-11T10:00:00.000Z',
       persistent: false,
+      reason: null,
     })
     expect(t.auths[0]!.refresh).toHaveBeenCalledWith('RT-stored')
     expect(t.states.at(-1)).toEqual(t.gmail.state())
@@ -223,19 +267,19 @@ describe('gmail integration: rhythm', () => {
     const t = setup()
     await t.gmail.ready
     await flush()
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(1)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(MIN - 1)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(1)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(1)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(2)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(2)
 
     t.gmail.setVisible(false)
     await vi.advanceTimersByTimeAsync(10 * MIN)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(2)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(2)
 
     t.gmail.setVisible(true)
     await flush()
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(3)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(3)
     expect(t.api.recent).not.toHaveBeenCalled()
     expect(t.api.profile).toHaveBeenCalledTimes(1) // the account is asked once
   })
@@ -254,7 +298,7 @@ describe('gmail integration: rhythm', () => {
     t.gmail.setViewOpen(false)
     await vi.advanceTimersByTimeAsync(MIN)
     expect(t.api.recent).toHaveBeenCalledTimes(2)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(4)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(4)
   })
 
   it('a manual refresh queries at once, at most once per 5 s', async () => {
@@ -262,16 +306,16 @@ describe('gmail integration: rhythm', () => {
     await t.gmail.ready
     await flush()
     await vi.advanceTimersByTimeAsync(10_000)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(1)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(1)
     t.gmail.refresh()
     await flush()
     t.gmail.refresh()
     await flush()
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(2)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(2)
     await vi.advanceTimersByTimeAsync(5_000)
     t.gmail.refresh()
     await flush()
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(3)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(3)
   })
 
   it('refreshes the access token only when missing or within 60 s of expiry; a 401 forces one', async () => {
@@ -309,31 +353,31 @@ describe('gmail integration: failures', () => {
 
     const codes = ['network', 'server', 'rate-limited', 'network', 'server'] as const
     let failure = 0
-    t.api.unreadCount.mockImplementation(async () => {
+    t.api.unreadIds.mockImplementation(async () => {
       throw new GmailApiError(codes[failure++ % codes.length]!)
     })
     await vi.advanceTimersByTimeAsync(MIN) // first failure
     expect(t.gmail.state()).toMatchObject({ status: 'offline', unread: 3, account: 'me@example.com', updatedAt: '2026-11-11T10:00:00.000Z' })
 
     for (const wait of [1, 2, 4, 5]) {
-      const before = t.api.unreadCount.mock.calls.length
+      const before = t.api.unreadIds.mock.calls.length
       await vi.advanceTimersByTimeAsync(wait * MIN - 1)
-      expect(t.api.unreadCount).toHaveBeenCalledTimes(before)
+      expect(t.api.unreadIds).toHaveBeenCalledTimes(before)
       await vi.advanceTimersByTimeAsync(1)
-      expect(t.api.unreadCount).toHaveBeenCalledTimes(before + 1)
+      expect(t.api.unreadIds).toHaveBeenCalledTimes(before + 1)
       expect(t.gmail.state()).toMatchObject({ status: 'offline', unread: 3 })
     }
     // Capped at 5 min.
-    let before = t.api.unreadCount.mock.calls.length
+    let before = t.api.unreadIds.mock.calls.length
     await vi.advanceTimersByTimeAsync(5 * MIN)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(before + 1)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(before + 1)
 
-    t.api.unreadCount.mockResolvedValue(7)
+    t.api.unreadIds.mockResolvedValue(ids(7))
     await vi.advanceTimersByTimeAsync(5 * MIN)
     expect(t.gmail.state()).toMatchObject({ status: 'ok', unread: 7 })
-    before = t.api.unreadCount.mock.calls.length
+    before = t.api.unreadIds.mock.calls.length
     await vi.advanceTimersByTimeAsync(MIN)
-    expect(t.api.unreadCount).toHaveBeenCalledTimes(before + 1)
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(before + 1)
   })
 
   it('unauthorized → expired, and no more requests until signing in again', async () => {
@@ -342,7 +386,7 @@ describe('gmail integration: failures', () => {
     await flush()
     t.gmail.setViewOpen(true)
     await flush()
-    t.api.unreadCount.mockRejectedValue(new GmailApiError('unauthorized'))
+    t.api.unreadIds.mockRejectedValue(new GmailApiError('unauthorized'))
     await vi.advanceTimersByTimeAsync(MIN)
     expect(t.gmail.state().status).toBe('expired')
     await expect(t.gmail.recent()).resolves.toEqual([])
@@ -356,7 +400,7 @@ describe('gmail integration: failures', () => {
     expect(t.requests()).toBe(before)
     expect(t.auths[0]!.refresh).toHaveBeenCalledTimes(refreshes)
 
-    t.api.unreadCount.mockResolvedValue(1)
+    t.api.unreadIds.mockResolvedValue(ids(1))
     const result = t.gmail.signIn()
     await flush()
     t.finishSignIn()
@@ -442,7 +486,7 @@ describe('gmail integration: sign-in and sign-out', () => {
     expect(t.auths[0]!.revoke).toHaveBeenCalledWith('RT-stored')
     expect(t.tokenStore.clear).toHaveBeenCalled()
     expect(t.stored()).toBeNull()
-    expect(t.gmail.state()).toEqual({ status: 'signed-out', account: null, unread: null, updatedAt: null, persistent: true })
+    expect(t.gmail.state()).toEqual({ status: 'signed-out', account: null, unread: null, updatedAt: null, persistent: true, reason: null })
 
     const before = t.requests()
     await vi.advanceTimersByTimeAsync(10 * MIN)
@@ -453,11 +497,11 @@ describe('gmail integration: sign-in and sign-out', () => {
     const t = setup()
     await t.gmail.ready
     await flush()
-    let release: (n: number) => void = () => undefined
-    t.api.unreadCount.mockImplementationOnce(() => new Promise<number>((resolve) => (release = resolve)))
+    let release: (next: string[]) => void = () => undefined
+    t.api.unreadIds.mockImplementationOnce(() => new Promise<string[]>((resolve) => (release = resolve)))
     await vi.advanceTimersByTimeAsync(MIN)
     await t.gmail.signOut()
-    release(9)
+    release(ids(9))
     await flush()
     expect(t.gmail.state()).toMatchObject({ status: 'signed-out', unread: null })
   })
@@ -560,6 +604,49 @@ describe('gmail integration: open', () => {
   })
 })
 
+describe('gmail integration: open from the reader', () => {
+  const alertOnly = async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    // A new mail that is only known from the alert (never in a sent list).
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail.map((m) => m.id)).toEqual(['n1'])
+    return t
+  }
+
+  it('opens the thread of the open message even when it is not in the last list', async () => {
+    const t = await alertOnly()
+    await t.gmail.message('n1')
+    t.gmail.open('n1')
+    await flush()
+    expect(t.openExternal).toHaveBeenLastCalledWith('https://mail.google.com/mail/u/0/#inbox/thread-n1')
+  })
+
+  it('opens the inbox for a shown id whose thread is unknown (alert only, or the read never finished)', async () => {
+    const t = await alertOnly()
+    t.gmail.open('n1')
+    await flush()
+    expect(t.openExternal).toHaveBeenLastCalledWith('https://mail.google.com/mail/u/0/#inbox')
+
+    t.api.message.mockRejectedValueOnce(new GmailApiError('network'))
+    await expect(refusal(t.gmail.message('n1'))).resolves.toBe('UNAVAILABLE')
+    t.gmail.open('n1')
+    await flush()
+    expect(t.openExternal).toHaveBeenLastCalledWith('https://mail.google.com/mail/u/0/#inbox')
+    expect(t.openExternal).toHaveBeenCalledTimes(2)
+  })
+
+  it('still refuses ids never shown to the notch', async () => {
+    const t = await alertOnly()
+    t.gmail.open('m1')
+    t.gmail.open('zzz')
+    await flush()
+    expect(t.openExternal).not.toHaveBeenCalled()
+  })
+})
+
 describe('gmail integration: privacy and lifecycle', () => {
   it('never logs tokens, subjects, senders or snippets', async () => {
     const t = setup()
@@ -569,9 +656,9 @@ describe('gmail integration: privacy and lifecycle', () => {
     await flush()
     await t.gmail.recent()
     t.gmail.open('nope')
-    t.api.unreadCount.mockRejectedValueOnce(new GmailApiError('network'))
+    t.api.unreadIds.mockRejectedValueOnce(new GmailApiError('network'))
     await vi.advanceTimersByTimeAsync(MIN)
-    t.api.unreadCount.mockRejectedValueOnce(new GmailApiError('unauthorized'))
+    t.api.unreadIds.mockRejectedValueOnce(new GmailApiError('unauthorized'))
     await vi.advanceTimersByTimeAsync(MIN)
     const signIn = t.gmail.signIn()
     await flush()
@@ -632,12 +719,12 @@ describe('gmail integration: fix round 1', () => {
     const t = setup()
     await t.gmail.ready
     await flush()
-    let release: (n: number) => void = () => undefined
-    t.api.unreadCount.mockImplementationOnce(() => new Promise<number>((resolve) => (release = resolve)))
+    let release: (next: string[]) => void = () => undefined
+    t.api.unreadIds.mockImplementationOnce(() => new Promise<string[]>((resolve) => (release = resolve)))
     await vi.advanceTimersByTimeAsync(MIN) // poll now in flight
     const result = t.gmail.signIn()
     await flush()
-    release(9)
+    release(ids(9))
     await flush()
     expect(t.gmail.state().status).toBe('signing-in')
     const before = t.requests()
@@ -720,7 +807,7 @@ describe('gmail integration: fix round 1', () => {
     t.gmail.setViewOpen(true)
     await flush()
     await expect(t.gmail.recent()).resolves.toHaveLength(2)
-    t.api.unreadCount.mockResolvedValue(5)
+    t.api.unreadIds.mockResolvedValue(ids(5))
     t.api.recent.mockRejectedValueOnce(new GmailApiError('network'))
     await vi.advanceTimersByTimeAsync(MIN)
     expect(t.gmail.state()).toMatchObject({ status: 'ok', unread: 5 })
@@ -794,5 +881,377 @@ describe('gmail integration: stalled OAuth requests', () => {
     await vi.advanceTimersByTimeAsync(30_000)
     await signingOut
     expect(done).toBe(true)
+  })
+})
+
+/** The list m1, m2 has been sent to the notch. */
+const showList = async (t: ReturnType<typeof setup>) => {
+  await t.gmail.ready
+  await flush()
+  t.gmail.setViewOpen(true)
+  await flush()
+  await t.gmail.recent()
+}
+
+const refusal = async (promise: Promise<unknown>) => {
+  const error = await promise.then(
+    () => null,
+    (e: unknown) => e,
+  )
+  expect(error).toBeInstanceOf(ExposedIpcError)
+  return (error as ExposedIpcError).code
+}
+
+const syncRefusal = (fn: () => void) => {
+  try {
+    fn()
+  } catch (error) {
+    expect(error).toBeInstanceOf(ExposedIpcError)
+    return (error as ExposedIpcError).code
+  }
+  return null
+}
+
+describe('gmail integration: shown ids', () => {
+  it('accepts ids of the last list sent; refuses others without any request', async () => {
+    const t = setup()
+    await showList(t)
+    await expect(t.gmail.message('m1')).resolves.toEqual(detail('m1'))
+    expect(t.api.message).toHaveBeenCalledWith('m1')
+
+    for (const call of [() => t.gmail.message('zzz'), () => t.gmail.markRead('zzz'), () => t.gmail.remove('zzz')]) {
+      await expect(refusal(call())).resolves.toBe('INVALID_INPUT')
+    }
+    expect(t.api.message).toHaveBeenCalledTimes(1)
+    expect(t.api.markRead).not.toHaveBeenCalled()
+    expect(t.api.remove).not.toHaveBeenCalled()
+  })
+
+  it('refuses ids fetched but never sent to the notch', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    t.gmail.setViewOpen(true)
+    await flush()
+    await expect(refusal(t.gmail.remove('m1'))).resolves.toBe('INVALID_INPUT')
+    expect(t.api.remove).not.toHaveBeenCalled()
+  })
+
+  it('the open message and the last alert also count as shown', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    t.setList([message('m3')])
+    await vi.advanceTimersByTimeAsync(MIN)
+    await t.gmail.recent() // the notch now shows only m3
+    await expect(t.gmail.markRead('m1')).resolves.toBeUndefined()
+    expect(t.api.markRead).toHaveBeenCalledWith('m1')
+
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail.map((m) => m.id)).toEqual(['n1'])
+    await expect(t.gmail.message('n1')).resolves.toMatchObject({ id: 'n1' })
+  })
+
+  it('maps failures to clean codes: gone → NOT_FOUND, others → UNAVAILABLE; a dead session expires', async () => {
+    const t = setup()
+    await showList(t)
+    t.api.message.mockRejectedValueOnce(new GmailApiError('not-found'))
+    await expect(refusal(t.gmail.message('m1'))).resolves.toBe('NOT_FOUND')
+    t.api.message.mockRejectedValueOnce(new GmailApiError('invalid-response'))
+    await expect(refusal(t.gmail.message('m1'))).resolves.toBe('UNAVAILABLE')
+    t.api.markRead.mockRejectedValueOnce(new GmailApiError('network'))
+    await expect(refusal(t.gmail.markRead('m1'))).resolves.toBe('UNAVAILABLE')
+    expect(t.gmail.state().status).toBe('ok')
+    t.api.remove.mockRejectedValueOnce(new GmailApiError('unauthorized'))
+    await expect(refusal(t.gmail.remove('m2'))).resolves.toBe('UNAVAILABLE')
+    expect(t.gmail.state().status).toBe('expired')
+  })
+
+  it('without a session every action is refused', async () => {
+    const t = setup({ token: null })
+    await t.gmail.ready
+    await expect(refusal(t.gmail.message('m1'))).resolves.toBe('INVALID_INPUT')
+    expect(t.requests()).toBe(0)
+  })
+})
+
+describe('gmail integration: links', () => {
+  it('opens only a link of the open message, by index', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    t.gmail.openLink('m1', 1)
+    await flush()
+    expect(t.openExternal).toHaveBeenLastCalledWith('https://example.com/m1/2')
+
+    expect(syncRefusal(() => t.gmail.openLink('m1', 2))).toBe('INVALID_INPUT')
+    expect(syncRefusal(() => t.gmail.openLink('m2', 0))).toBe('INVALID_INPUT')
+    expect(t.openExternal).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a link that is not http/https even if it slipped into the message', async () => {
+    const t = setup()
+    await showList(t)
+    t.api.message.mockResolvedValueOnce(detail('m1', { links: [{ text: 'x', url: 'javascript:alert(1)' }] }))
+    await t.gmail.message('m1')
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+    expect(t.openExternal).not.toHaveBeenCalled()
+  })
+
+  it('forgets the open message when the reading closes, another one opens, or on sign-out', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    t.gmail.setViewOpen(false)
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+
+    t.gmail.setViewOpen(true)
+    await t.gmail.message('m1')
+    await t.gmail.message('m2')
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+    t.gmail.openLink('m2', 0)
+    await flush()
+    expect(t.openExternal).toHaveBeenLastCalledWith('https://example.com/m2/1')
+
+    await t.gmail.signOut()
+    expect(syncRefusal(() => t.gmail.openLink('m2', 0))).toBe('INVALID_INPUT')
+  })
+
+  it('a read that finishes after the reading closed is not remembered', async () => {
+    const t = setup()
+    await showList(t)
+    let finish: (d: GmailMessageDetail) => void = () => undefined
+    t.api.message.mockImplementationOnce(() => new Promise<GmailMessageDetail>((resolve) => (finish = resolve)))
+    const reading = t.gmail.message('m1')
+    await flush()
+    t.gmail.setViewOpen(false)
+    finish(detail('m1'))
+    await reading
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+  })
+})
+
+describe('gmail integration: closing the reader', () => {
+  it('forgets the open message and its links, while the list ids stay shown', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    t.gmail.closeMessage()
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+    expect(t.openExternal).not.toHaveBeenCalled()
+    // Still in the last list: the row actions keep working.
+    await t.gmail.markRead('m1')
+    expect(t.api.markRead).toHaveBeenCalledWith('m1')
+  })
+
+  it('a read that finishes after the reader closed is not remembered', async () => {
+    const t = setup()
+    await showList(t)
+    let finish: (d: GmailMessageDetail) => void = () => undefined
+    t.api.message.mockImplementationOnce(() => new Promise<GmailMessageDetail>((resolve) => (finish = resolve)))
+    const reading = t.gmail.message('m1')
+    await flush()
+    t.gmail.closeMessage()
+    finish(detail('m1'))
+    await reading
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+  })
+})
+
+describe('gmail integration: actions', () => {
+  it('markRead and remove query at once, past the 5 s manual floor', async () => {
+    const t = setup()
+    await showList(t)
+    t.gmail.refresh()
+    await flush()
+    const before = t.api.unreadIds.mock.calls.length
+    await t.gmail.markRead('m1')
+    await flush()
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(before + 1)
+    await t.gmail.remove('m2')
+    await flush()
+    expect(t.api.unreadIds).toHaveBeenCalledTimes(before + 2)
+    expect(t.api.recent.mock.calls.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('a deleted message can no longer be named', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    await t.gmail.remove('m1')
+    expect(t.api.remove).toHaveBeenCalledWith('m1')
+    expect(syncRefusal(() => t.gmail.openLink('m1', 0))).toBe('INVALID_INPUT')
+    await expect(refusal(t.gmail.remove('m1'))).resolves.toBe('INVALID_INPUT')
+    expect(t.api.remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('a message marked as read stays shown (the reader can still delete it)', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    await t.gmail.markRead('m1')
+    await expect(t.gmail.remove('m1')).resolves.toBeUndefined()
+  })
+})
+
+describe('gmail integration: new mail', () => {
+  it('the first query only sets the baseline; new ids announce the newest with sender and subject', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    expect(t.newMail).toEqual([])
+
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.api.summary).toHaveBeenCalledWith('n1')
+    expect(t.newMail).toEqual([{ count: 1, id: 'n1', from: 'Sender n1', subject: 'Subject n1' }])
+
+    t.api.unreadIds.mockResolvedValue(['n3', 'n2', 'n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail.at(-1)).toEqual({ count: 2, id: 'n3', from: 'Sender n3', subject: 'Subject n3' })
+
+    // Same ids, or ids that went away: nothing new.
+    t.api.unreadIds.mockResolvedValue(['n3'])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail).toHaveLength(2)
+  })
+
+  it('with hideContent the alert carries no sender or subject and asks no metadata', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    t.setAlerts({ hideContent: true })
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail).toEqual([{ count: 1, id: 'n1' }])
+    expect(t.api.summary).not.toHaveBeenCalled()
+  })
+
+  it('with alerts off nothing is announced', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    t.setAlerts({ enabled: false })
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail).toEqual([])
+    expect(t.api.summary).not.toHaveBeenCalled()
+  })
+
+  it('a failed metadata request still alerts, without content; a message already gone does not', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    t.api.summary.mockRejectedValueOnce(new GmailApiError('network'))
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail).toEqual([{ count: 1, id: 'n1' }])
+
+    t.api.summary.mockResolvedValueOnce(null)
+    t.api.unreadIds.mockResolvedValue(['n2', 'n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail).toHaveLength(1)
+  })
+
+  it('no alert after a pause of 60 s or more; a short pause (the alert itself) keeps the baseline', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    t.gmail.setVisible(false)
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    t.gmail.setVisible(true)
+    await flush()
+    expect(t.newMail).toEqual([])
+
+    t.gmail.setVisible(false)
+    t.api.unreadIds.mockResolvedValue(['n2', 'n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(6_000)
+    t.gmail.setVisible(true)
+    await flush()
+    expect(t.newMail.map((m) => m.id)).toEqual(['n2'])
+  })
+
+  it('a new session starts a new baseline', async () => {
+    const t = setup()
+    await t.gmail.ready
+    await flush()
+    await t.gmail.signOut()
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    const result = t.gmail.signIn()
+    await flush()
+    t.finishSignIn()
+    await result
+    await flush()
+    expect(t.newMail).toEqual([])
+  })
+})
+
+describe('gmail integration: permission (scope)', () => {
+  const READONLY = 'https://www.googleapis.com/auth/gmail.readonly'
+
+  it('a refresh without the full mail scope → expired with reason scope, and no more requests', async () => {
+    const t = setup({ prepareAuth: (a) => a.refresh.mockResolvedValue({ accessToken: 'AT-old', expiresAt: Date.now() + 3_600_000, scope: READONLY }) })
+    await t.gmail.ready
+    await flush()
+    expect(t.gmail.state()).toMatchObject({ status: 'expired', reason: 'scope' })
+    expect(t.states.at(-1)).toMatchObject({ status: 'expired', reason: 'scope' })
+    expect(t.requests()).toBe(0)
+    const refreshes = t.auths[0]!.refresh.mock.calls.length
+    t.gmail.refresh()
+    await vi.advanceTimersByTimeAsync(30 * MIN)
+    expect(t.requests()).toBe(0)
+    expect(t.auths[0]!.refresh).toHaveBeenCalledTimes(refreshes)
+    expect(t.tokenStore.clear).not.toHaveBeenCalled()
+
+    // Signing in again with the full scope clears the reason.
+    const result = t.gmail.signIn()
+    await flush()
+    t.finishSignIn({ scope: 'https://mail.google.com/' })
+    await expect(result).resolves.toBe('ok')
+    await flush()
+    expect(t.gmail.state()).toMatchObject({ status: 'ok', reason: null })
+  })
+
+  it('a refresh with the full scope (among others) is fine', async () => {
+    const t = setup({
+      prepareAuth: (a) => a.refresh.mockResolvedValue({ accessToken: 'AT', expiresAt: Date.now() + 3_600_000, scope: `openid https://mail.google.com/` }),
+    })
+    await t.gmail.ready
+    await flush()
+    expect(t.gmail.state()).toMatchObject({ status: 'ok', reason: null })
+  })
+
+  it('a sign-in that did not grant the full scope is not kept', async () => {
+    const t = setup({ token: null })
+    await t.gmail.ready
+    const result = t.gmail.signIn()
+    await flush()
+    t.finishSignIn({ scope: READONLY })
+    await expect(result).resolves.toBe('error')
+    expect(t.gmail.state()).toMatchObject({ status: 'expired', reason: 'scope' })
+    expect(t.tokenStore.save).not.toHaveBeenCalled()
+    expect(t.requests()).toBe(0)
+  })
+})
+
+describe('gmail integration: privacy of mail data', () => {
+  it('never logs bodies, links, subjects or senders', async () => {
+    const t = setup()
+    await showList(t)
+    await t.gmail.message('m1')
+    t.gmail.openLink('m1', 0)
+    expect(syncRefusal(() => t.gmail.openLink('m1', 9))).toBe('INVALID_INPUT')
+    await t.gmail.markRead('m1')
+    t.api.remove.mockRejectedValueOnce(new GmailApiError('server'))
+    await refusal(t.gmail.remove('m2'))
+    t.api.unreadIds.mockResolvedValue(['n1', ...ids(3)])
+    await vi.advanceTimersByTimeAsync(MIN)
+    expect(t.newMail).toHaveLength(1)
+    const log = JSON.stringify(t.logger.entries)
+    for (const secret of ['Body m1', 'example.com/m1', 'Subject n1', 'Sender n1', 'Subject m1', 'Sender m1', 'm1@example.com']) {
+      expect(log).not.toContain(secret)
+    }
   })
 })

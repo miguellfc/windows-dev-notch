@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SYSTEM_ALERTS } from '../../../src/shared/settings/schema'
+import { DEFAULT_GMAIL_ALERTS, DEFAULT_SYSTEM_ALERTS } from '../../../src/shared/settings/schema'
 import {
   migrateSettings,
   settingsMigrations,
@@ -8,7 +8,7 @@ import {
 
 describe('migrateSettings', () => {
   it('returns current-version data unchanged', () => {
-    const raw = { version: 4, language: 'es' }
+    const raw = { version: 5, language: 'es' }
     expect(migrateSettings(raw)).toEqual({ kind: 'ok', value: raw, migrated: false })
   })
 
@@ -24,19 +24,36 @@ describe('migrateSettings', () => {
 
   it('migrates v3 settings to v4 adding empty gmail credentials', () => {
     const raw = { version: 3, language: 'es' }
-    expect(migrateSettings(raw)).toEqual({
-      kind: 'ok',
-      value: { ...raw, version: 4, gmail: { clientId: '', clientSecret: '' } },
-      migrated: true,
-    })
+    expect(settingsMigrations[3]!(raw)).toEqual({ ...raw, version: 4, gmail: { clientId: '', clientSecret: '' } })
   })
 
-  it('chains v1 through v4', () => {
+  it('migrates v4 settings to v5 adding the gmail alert defaults and keeping the credentials', () => {
+    const raw = { version: 4, language: 'es', gmail: { clientId: 'id.apps', clientSecret: 'sec' } }
+    expect(migrateSettings(raw)).toEqual({
+      kind: 'ok',
+      value: { ...raw, version: 5, gmail: { clientId: 'id.apps', clientSecret: 'sec', alerts: DEFAULT_GMAIL_ALERTS } },
+      migrated: true,
+    })
+    expect(raw.gmail).toEqual({ clientId: 'id.apps', clientSecret: 'sec' })
+  })
+
+  it('gives each v5 migration its own alerts copy', () => {
+    const a = settingsMigrations[4]!({ version: 4, gmail: { clientId: '', clientSecret: '' } })
+    const alerts = (a['gmail'] as Record<string, unknown>)['alerts']
+    expect(alerts).toEqual(DEFAULT_GMAIL_ALERTS)
+    expect(alerts).not.toBe(DEFAULT_GMAIL_ALERTS)
+  })
+
+  it('chains v1 through v5', () => {
     const result = migrateSettings({ version: 1, language: 'en' })
     expect(result).toMatchObject({
       kind: 'ok',
       migrated: true,
-      value: { version: 4, systemAlerts: DEFAULT_SYSTEM_ALERTS, gmail: { clientId: '', clientSecret: '' } },
+      value: {
+        version: 5,
+        systemAlerts: DEFAULT_SYSTEM_ALERTS,
+        gmail: { clientId: '', clientSecret: '', alerts: DEFAULT_GMAIL_ALERTS },
+      },
     })
   })
 
@@ -61,7 +78,7 @@ describe('migrateSettings', () => {
   })
 
   it('reports files from a newer version', () => {
-    expect(migrateSettings({ version: 5 }, 1)).toEqual({ kind: 'too-new', version: 5 })
+    expect(migrateSettings({ version: 6 }, 1)).toEqual({ kind: 'too-new', version: 6 })
   })
 
   it('rejects non-objects, missing versions and missing steps', () => {

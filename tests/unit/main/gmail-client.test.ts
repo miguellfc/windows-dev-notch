@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import type { GmailFetch } from '../../../src/main/gmail/gmail-auth'
 import { createGmailClient, GmailApiError, type GmailApiErrorCode } from '../../../src/main/gmail/gmail-client'
 
+const extractFailure = vi.hoisted(() => ({ on: false }))
+vi.mock('../../../src/main/gmail/message-text', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../src/main/gmail/message-text')>()
+  return {
+    ...real,
+    extractMessage: (payload: Parameters<typeof real.extractMessage>[0]) => {
+      if (extractFailure.on) throw new RangeError('Maximum call stack size exceeded')
+      return real.extractMessage(payload)
+    },
+  }
+})
+
 const API = 'https://gmail.test'
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 
@@ -40,10 +52,10 @@ const expectCode = async (promise: Promise<unknown>, code: GmailApiErrorCode) =>
   expect((error as GmailApiError).code).toBe(code)
 }
 
-describe('gmail client: unreadCount', () => {
+describe('gmail client: unreadIds', () => {
   it('asks for the unread messages of Primary with the exact query and bearer token', async () => {
     const { client, fetchMock } = setup(() => json({ messages: [{ id: 'a', threadId: 'a' }] }))
-    await expect(client.unreadCount()).resolves.toBe(1)
+    await expect(client.unreadIds()).resolves.toEqual(['a'])
     const [url, init] = fetchMock.mock.calls[0]!
     const parsed = new URL(url)
     expect(parsed.origin + parsed.pathname).toBe(`${API}/gmail/v1/users/me/messages`)
@@ -52,10 +64,12 @@ describe('gmail client: unreadCount', () => {
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer AT1')
   })
 
-  it('counts 100 ids as 100 and no messages as 0', async () => {
-    const ids = Array.from({ length: 100 }, (_, i) => ({ id: `m${i}`, threadId: `t${i}` }))
-    await expect(setup(() => json({ messages: ids })).client.unreadCount()).resolves.toBe(100)
-    await expect(setup(() => json({ resultSizeEstimate: 0 })).client.unreadCount()).resolves.toBe(0)
+  it('returns the ids in list order, at most 100, and [] without messages', async () => {
+    const ids = Array.from({ length: 101 }, (_, i) => ({ id: `m${i}`, threadId: `t${i}` }))
+    const result = await setup(() => json({ messages: ids })).client.unreadIds()
+    expect(result).toHaveLength(100)
+    expect(result.slice(0, 2)).toEqual(['m0', 'm1'])
+    await expect(setup(() => json({ resultSizeEstimate: 0 })).client.unreadIds()).resolves.toEqual([])
   })
 })
 
@@ -163,7 +177,7 @@ describe('gmail client: errors', () => {
   it('on 401 refreshes once and repeats with the new token', async () => {
     let calls = 0
     const { client, fetchMock, onUnauthorized } = setup(() => (++calls === 1 ? json({}, 401) : json({ messages: [] })))
-    await expect(client.unreadCount()).resolves.toBe(0)
+    await expect(client.unreadIds()).resolves.toEqual([])
     expect(onUnauthorized).toHaveBeenCalledOnce()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(new Headers(fetchMock.mock.calls[1]![1]?.headers).get('authorization')).toBe('Bearer AT2')
@@ -171,45 +185,187 @@ describe('gmail client: errors', () => {
 
   it('a second 401 is unauthorized, without looping', async () => {
     const { client, fetchMock, onUnauthorized } = setup(() => json({}, 401))
-    await expectCode(client.unreadCount(), 'unauthorized')
+    await expectCode(client.unreadIds(), 'unauthorized')
     expect(onUnauthorized).toHaveBeenCalledOnce()
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('a refused refresh is unauthorized without repeating the request', async () => {
     const { client, fetchMock, onUnauthorized } = setup(() => json({}, 401), { onUnauthorized: async () => false })
-    await expectCode(client.unreadCount(), 'unauthorized')
+    await expectCode(client.unreadIds(), 'unauthorized')
     expect(onUnauthorized).toHaveBeenCalledOnce()
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it('maps 429 and 403 to rate-limited, 5xx to server, other 4xx to invalid-response', async () => {
-    await expectCode(setup(() => json({}, 429)).client.unreadCount(), 'rate-limited')
-    await expectCode(setup(() => json({}, 403)).client.unreadCount(), 'rate-limited')
-    await expectCode(setup(() => json({}, 500)).client.unreadCount(), 'server')
+    await expectCode(setup(() => json({}, 429)).client.unreadIds(), 'rate-limited')
+    await expectCode(setup(() => json({}, 403)).client.unreadIds(), 'rate-limited')
+    await expectCode(setup(() => json({}, 500)).client.unreadIds(), 'server')
     await expectCode(setup(() => json({}, 503)).client.profile(), 'server')
-    await expectCode(setup(() => json({}, 404)).client.unreadCount(), 'invalid-response')
+    await expectCode(setup(() => json({}, 404)).client.unreadIds(), 'invalid-response')
   })
 
   it('maps a thrown fetch to network', async () => {
     await expectCode(
       setup(() => {
         throw new TypeError('fetch failed')
-      }).client.unreadCount(),
+      }).client.unreadIds(),
       'network',
     )
   })
 
   it('maps bodies that are not JSON or do not match the schema to invalid-response', async () => {
-    await expectCode(setup(() => new Response('<html>', { status: 200 })).client.unreadCount(), 'invalid-response')
-    await expectCode(setup(() => json({ messages: [{ id: 1 }] })).client.unreadCount(), 'invalid-response')
+    await expectCode(setup(() => new Response('<html>', { status: 200 })).client.unreadIds(), 'invalid-response')
+    await expectCode(setup(() => json({ messages: [{ id: 1 }] })).client.unreadIds(), 'invalid-response')
     await expectCode(setup(() => json({ email: 'x' })).client.profile(), 'invalid-response')
   })
 
   it('carries only the code in the error message', async () => {
     const { client } = setup(() => json({ error: { message: 'secret subject' } }, 500))
-    const error = (await client.unreadCount().catch((e: unknown) => e)) as Error
+    const error = (await client.unreadIds().catch((e: unknown) => e)) as Error
     expect(error.message).not.toContain('secret')
     expect(error.message).not.toContain('AT1')
+  })
+})
+
+const b64 = (text: string) => Buffer.from(text, 'utf8').toString('base64url')
+
+const full = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  threadId: `t-${id}`,
+  labelIds: ['INBOX', 'UNREAD'],
+  internalDate: '1762851600000',
+  payload: {
+    mimeType: 'multipart/mixed',
+    headers: [
+      { name: 'From', value: 'Ana García <ana@example.com>' },
+      { name: 'Subject', value: 'Presupuesto' },
+      { name: 'Date', value: 'Tue, 11 Nov 2025 10:00:00 +0000' },
+    ],
+    body: { size: 0 },
+    parts: [
+      { mimeType: 'text/plain', headers: [], body: { size: 10, data: b64('Hola, mira https://example.com/a') } },
+      { mimeType: 'application/pdf', filename: 'doc.pdf', headers: [], body: { size: 100 } },
+    ],
+  },
+  ...extra,
+})
+
+describe('gmail client: message', () => {
+  it('asks format=full and builds the detail: sender name and address, subject, date, unread, text, links, attachments', async () => {
+    const { client, fetchMock } = setup(() => json(full('m1')))
+    const detail = await client.message('m1')
+    const url = new URL(fetchMock.mock.calls[0]![0])
+    expect(url.pathname).toBe('/gmail/v1/users/me/messages/m1')
+    expect(url.searchParams.get('format')).toBe('full')
+    expect(detail).toEqual({
+      id: 'm1',
+      threadId: 't-m1',
+      from: 'Ana García',
+      fromAddress: 'ana@example.com',
+      subject: 'Presupuesto',
+      date: '2025-11-11T10:00:00.000Z',
+      unread: true,
+      body: 'Hola, mira https://example.com/a',
+      truncated: false,
+      links: [{ text: 'https://example.com/a', url: 'https://example.com/a' }],
+      attachments: 1,
+    })
+  })
+
+  it('reads a message without labels as read, without subject as empty, the date from internalDate', async () => {
+    const message = full('m2', { labelIds: undefined })
+    message.payload.headers = [{ name: 'From', value: 'solo@example.com' }]
+    const detail = await setup(() => json(message)).client.message('m2')
+    expect(detail).toMatchObject({ from: 'solo@example.com', fromAddress: 'solo@example.com', subject: '', unread: false, date: '2025-11-11T09:00:00.000Z' })
+  })
+
+  it('cuts sender and subject to 1000 characters so a valid mail never fails validation', async () => {
+    const message = full('m3')
+    const name = 'N'.repeat(1500)
+    const address = `${'a'.repeat(1500)}@example.com`
+    message.payload.headers = [
+      { name: 'From', value: `${name} <${address}>` },
+      { name: 'Subject', value: 'S'.repeat(5000) },
+    ]
+    const detail = await setup(() => json(message)).client.message('m3')
+    expect(detail.from).toBe('N'.repeat(1000))
+    expect(detail.fromAddress).toBe('a'.repeat(1000))
+    expect(detail.subject).toBe('S'.repeat(1000))
+  })
+
+  it('encodes the id in the path', async () => {
+    const { client, fetchMock } = setup(() => json(full('a/b')))
+    await client.message('a/b')
+    expect(new URL(fetchMock.mock.calls[0]![0]).pathname).toBe('/gmail/v1/users/me/messages/a%2Fb')
+  })
+
+  it('a 404 is not-found; a bad body is invalid-response', async () => {
+    await expectCode(setup(() => json({}, 404)).client.message('x'), 'not-found')
+    await expectCode(setup(() => json({ id: 'x' })).client.message('x'), 'invalid-response')
+  })
+
+  it('an extraction failure is invalid-response, never a crash', async () => {
+    extractFailure.on = true
+    try {
+      await expectCode(setup(() => json(full('m1'))).client.message('m1'), 'invalid-response')
+    } finally {
+      extractFailure.on = false
+    }
+  })
+
+  it('on 401 refreshes once and repeats', async () => {
+    let calls = 0
+    const { client, onUnauthorized } = setup(() => (++calls === 1 ? json({}, 401) : json(full('m1'))))
+    await expect(client.message('m1')).resolves.toMatchObject({ id: 'm1' })
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+  })
+})
+
+describe('gmail client: markRead and remove', () => {
+  it('markRead posts modify with removeLabelIds UNREAD', async () => {
+    const { client, fetchMock } = setup(() => json({ id: 'm1', labelIds: ['INBOX'] }))
+    await expect(client.markRead('m1')).resolves.toBeUndefined()
+    const [url, init] = fetchMock.mock.calls[0]!
+    expect(new URL(url).pathname).toBe('/gmail/v1/users/me/messages/m1/modify')
+    expect(init?.method).toBe('POST')
+    expect(new Headers(init?.headers).get('content-type')).toBe('application/json')
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer AT1')
+    expect(JSON.parse(String(init?.body))).toEqual({ removeLabelIds: ['UNREAD'] })
+  })
+
+  it('remove sends DELETE on the message (permanent)', async () => {
+    const { client, fetchMock } = setup(() => new Response(null, { status: 204 }))
+    await expect(client.remove('m1')).resolves.toBeUndefined()
+    const [url, init] = fetchMock.mock.calls[0]!
+    expect(new URL(url).pathname).toBe('/gmail/v1/users/me/messages/m1')
+    expect(init?.method).toBe('DELETE')
+  })
+
+  it('a 404 counts as done for both', async () => {
+    await expect(setup(() => json({}, 404)).client.markRead('gone')).resolves.toBeUndefined()
+    await expect(setup(() => json({}, 404)).client.remove('gone')).resolves.toBeUndefined()
+  })
+
+  it('on 401 refreshes once and repeats with the new token', async () => {
+    let calls = 0
+    const { client, fetchMock, onUnauthorized } = setup(() => (++calls === 1 ? json({}, 401) : new Response(null, { status: 204 })))
+    await client.remove('m1')
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1]![1]?.method).toBe('DELETE')
+    expect(new Headers(fetchMock.mock.calls[1]![1]?.headers).get('authorization')).toBe('Bearer AT2')
+    await expectCode(setup(() => json({}, 401)).client.markRead('m1'), 'unauthorized')
+  })
+
+  it('maps other failures like the reads', async () => {
+    await expectCode(setup(() => json({}, 500)).client.remove('m1'), 'server')
+    await expectCode(setup(() => json({}, 429)).client.markRead('m1'), 'rate-limited')
+    await expectCode(
+      setup(() => {
+        throw new TypeError('fetch failed')
+      }).client.remove('m1'),
+      'network',
+    )
   })
 })
