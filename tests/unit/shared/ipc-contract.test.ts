@@ -314,7 +314,7 @@ describe('result helpers', () => {
 })
 
 describe('gmail contract', () => {
-  const state = { status: 'ok', account: 'me@x.com', unread: 100, updatedAt: '2026-11-11T10:00:00.000Z', persistent: true }
+  const state = { status: 'ok', account: 'me@x.com', unread: 100, updatedAt: '2026-11-11T10:00:00.000Z', persistent: true, reason: null }
   const message = { id: 'm1', threadId: 't1', from: 'Ana', subject: '', snippet: '', date: '2026-11-11T09:00:00.000Z', unread: true }
 
   it('exposes the gmail channels and state event', () => {
@@ -328,8 +328,71 @@ describe('gmail contract', () => {
       cancelSignIn: 'gmail:cancel-sign-in',
       signOut: 'gmail:sign-out',
       pickClientFile: 'gmail:pick-client-file',
+      message: 'gmail:message',
+      markRead: 'gmail:mark-read',
+      delete: 'gmail:delete',
+      openLink: 'gmail:open-link',
+      closeMessage: 'gmail:close-message',
     })
     expect(eventChannels.gmailState).toBe('gmail:state')
+    expect(eventChannels.gmailNewMail).toBe('gmail:new-mail')
+  })
+
+  const detail = {
+    id: 'm1',
+    threadId: 't1',
+    from: 'Ana',
+    fromAddress: 'ana@example.com',
+    subject: 'Hola',
+    date: '2026-11-11T09:00:00.000Z',
+    unread: true,
+    body: 'Texto',
+    truncated: false,
+    links: [{ text: 'Web', url: 'https://example.com' }],
+    attachments: 1,
+  }
+
+  it('reads a message by id only, as strict plain text with http/https links', () => {
+    const read = contract['gmail:message']
+    expect(read.input.safeParse({ id: 'm1' }).success).toBe(true)
+    expect(read.input.safeParse({}).success).toBe(false)
+    expect(read.input.safeParse({ id: 'm1', url: 'https://x' }).success).toBe(false)
+    expect(read.output.safeParse(detail).success).toBe(true)
+    expect(read.output.safeParse({ ...detail, html: '<b>' }).success).toBe(false)
+    expect(read.output.safeParse({ ...detail, links: [{ text: 'x', url: 'javascript:alert(1)' }] }).success).toBe(false)
+  })
+
+  it('marks as read and deletes by id, answering null', () => {
+    for (const channel of ['gmail:mark-read', 'gmail:delete'] as const) {
+      expect(contract[channel].input.safeParse({ id: 'm1' }).success).toBe(true)
+      expect(contract[channel].input.safeParse({ id: '' }).success).toBe(false)
+      expect(contract[channel].input.safeParse({ ids: ['m1'] }).success).toBe(false)
+      expect(contract[channel].output.safeParse(null).success).toBe(true)
+    }
+  })
+
+  it('opens a link by index, never by URL', () => {
+    const open = contract['gmail:open-link']
+    expect(open.input.safeParse({ id: 'm1', index: 0 }).success).toBe(true)
+    expect(open.input.safeParse({ id: 'm1', index: 50 }).success).toBe(false)
+    expect(open.input.safeParse({ id: 'm1', index: -1 }).success).toBe(false)
+    expect(open.input.safeParse({ id: 'm1', url: 'https://example.com' }).success).toBe(false)
+    expect(open.output.safeParse(null).success).toBe(true)
+  })
+
+  it('closes the open message with no input', () => {
+    const close = contract['gmail:close-message']
+    expect(close.input.safeParse(undefined).success).toBe(true)
+    expect(close.input.safeParse({ id: 'm1' }).success).toBe(false)
+    expect(close.output.safeParse(null).success).toBe(true)
+  })
+
+  it('announces new mail with or without sender and subject, nothing else', () => {
+    const event = eventContract['gmail:new-mail']
+    expect(event.safeParse({ count: 1, id: 'm1', from: 'Ana', subject: 'Hola' }).success).toBe(true)
+    expect(event.safeParse({ count: 3, id: 'm1' }).success).toBe(true)
+    expect(event.safeParse({ count: 0, id: 'm1' }).success).toBe(false)
+    expect(event.safeParse({ count: 1, id: 'm1', snippet: 'x' }).success).toBe(false)
   })
 
   it('keeps the state strict (no token can ride along) on the channel and the event', () => {

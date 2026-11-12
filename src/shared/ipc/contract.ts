@@ -1,7 +1,17 @@
 import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
 import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
-import { GMAIL_RECENT_LIMIT, gmailClientFileSchema, gmailMessageSchema, gmailOpenInputSchema, gmailStateSchema } from '../gmail/schema'
+import {
+  GMAIL_RECENT_LIMIT,
+  gmailClientFileSchema,
+  gmailIdInputSchema,
+  gmailMessageDetailSchema,
+  gmailMessageSchema,
+  gmailNewMailSchema,
+  gmailOpenInputSchema,
+  gmailOpenLinkInputSchema,
+  gmailStateSchema,
+} from '../gmail/schema'
 import { integrationIds } from '../integrations/registry'
 import { createNoteInputSchema, noteIdInputSchema, noteSchema, pinNoteInputSchema, updateNoteInputSchema } from '../notes/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
@@ -154,18 +164,29 @@ export const contract = {
   'gmail:recent': { input: none, output: z.array(gmailMessageSchema).max(GMAIL_RECENT_LIMIT) },
   'gmail:view': { input: z.strictObject({ open: z.boolean() }), output: ack },
   'gmail:refresh': { input: none, output: ack },
-  /** Main builds the URL from an id of the last list; the renderer never sends one. */
+  /** Main builds the URL from a shown id (last list, open message, last alert); the renderer never sends one. */
   'gmail:open': { input: gmailOpenInputSchema, output: ack },
   'gmail:sign-in': { input: none, output: z.enum(['ok', 'cancelled', 'error']) },
   'gmail:cancel-sign-in': { input: none, output: ack },
   'gmail:sign-out': { input: none, output: ack },
   /** Main shows the native file dialog and parses Google's client JSON; the secret never touches the log. */
   'gmail:pick-client-file': { input: none, output: gmailClientFileSchema.nullable() },
+  /** Plain text of a message main showed to the notch (never HTML). */
+  'gmail:message': { input: gmailIdInputSchema, output: gmailMessageDetailSchema },
+  'gmail:mark-read': { input: gmailIdInputSchema, output: ack },
+  /** Permanent: main only deletes ids it showed; the notch confirms first. */
+  'gmail:delete': { input: gmailIdInputSchema, output: ack },
+  /** Opens link `index` of the open message; the renderer never sends a URL. */
+  'gmail:open-link': { input: gmailOpenLinkInputSchema, output: ack },
+  /** The reader closed: main forgets the open message (body and links); list ids stay shown. */
+  'gmail:close-message': { input: none, output: ack },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
 export const eventContract = {
   'notch:mode-changed': notchModeSchema,
+  /** Whether the alert capsule shows the new-mail alert (not a permission or a reminder); sent before the mode. */
+  'notch:mail-alert': z.boolean(),
   'settings:changed': settingsSchema,
   'terminal:data': z.string(),
   'terminal:exit': z.strictObject({ exitCode: z.int() }),
@@ -179,6 +200,8 @@ export const eventContract = {
   'system:processes': z.array(processRowSchema).max(PROCESS_LIMIT),
   /** Gmail session and unread count, to the notch and the Control Center (never tokens or mail). */
   'gmail:state': gmailStateSchema,
+  /** New unread mail, to the notch only; no sender or subject when the user hides them. */
+  'gmail:new-mail': gmailNewMailSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

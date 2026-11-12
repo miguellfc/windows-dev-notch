@@ -1,11 +1,12 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react'
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
-import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
-import { PANEL_MODES, type NotchMode } from '../../shared/notch/state'
+import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
+import { MAIL_ALERT_MS, PANEL_MODES, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
 import { useClaude } from '../shared/claude-store'
-import { useGmail } from '../shared/gmail-store'
+import { setMailAlert, setNewMail, setReading, useGmail } from '../shared/gmail-store'
+import { keepsReader } from '../shared/gmail/format'
 import { useSettings } from '../shared/settings-store'
 import { useSystem } from '../shared/system-store'
 import { useClock } from '../shared/use-clock'
@@ -16,6 +17,7 @@ import { PermissionCard } from './claude/PermissionCard'
 import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots } from './claude/StatusDots'
 import { GmailView } from './gmail/GmailView'
+import { MailAlert } from './gmail/MailAlert'
 import { IntegrationRow } from './IntegrationRow'
 import {
   capsuleRadius,
@@ -47,6 +49,8 @@ interface ModeState {
 
 function useNotchMode(): ModeState {
   const [state, setState] = useState<ModeState>({ mode: 'compact', growing: true, lastVisible: 'compact' })
+  // Main sends the alert's kind before the mode that shows it; subscribe to it first as well.
+  useEffect(() => window.notch.events.on('notch:mail-alert', setMailAlert), [])
   useEffect(() => {
     const apply = (mode: NotchMode) =>
       setState((previous) =>
@@ -84,6 +88,39 @@ function useReminderChime(mode: NotchMode): void {
   )
 }
 
+/**
+ * Keeps the new-mail alert's payload for the alert capsule and plays the chime (sound on, capsule
+ * shown). The payload is always kept (main alone decides whether the alert shows); it is spent once
+ * the capsule leaves the alert, and after the alert's 6 s in any case. Also forgets the reader's
+ * message once the mode leaves the Gmail view (or the alert whose click opens it).
+ */
+function useMailAlert(mode: NotchMode): void {
+  const current = useRef(mode)
+  useEffect(() => {
+    current.current = mode
+    if (mode !== 'alert' && mode !== 'hidden') setNewMail(null)
+    if (!keepsReader(mode) && useGmail.getState().reading !== null) setReading(null)
+  }, [mode])
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const unsubscribe = window.notch.events.on('gmail:new-mail', (mail) => {
+      const shown = current.current
+      setNewMail(mail)
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        if (useGmail.getState().newMail === mail) setNewMail(null)
+      }, MAIL_ALERT_MS)
+      const sound = useSettings.getState().settings?.gmail.alerts.sound ?? false
+      if (sound && shown !== 'hidden') playChime()
+    })
+    return () => {
+      unsubscribe()
+      if (timer !== null) clearTimeout(timer)
+    }
+  }, [])
+}
+
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
@@ -92,6 +129,8 @@ export function NotchApp() {
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime(mode)
+  useMailAlert(mode)
+  const gmailReading = useGmail((state) => state.reading !== null)
 
   useEffect(() => {
     // Reduced motion snaps the morph, so no layout animation completes: let the window shrink
@@ -120,7 +159,9 @@ export function NotchApp() {
       ? { ...CAPSULE_SIZES.compact, width: compactWidth }
       : mode === 'expanded'
         ? { ...CAPSULE_SIZES.expanded, height: expandedHeightFor(sessionCount) }
-        : CAPSULE_SIZES[mode]
+        : mode === 'gmail'
+          ? gmailSizeFor(gmailReading)
+          : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
 
@@ -221,7 +262,7 @@ function CapsuleContent({
         </Suspense>
       </TerminalBoundary>
     )
-  if (mode === 'alert') return <AlertCapsule />
+  if (mode === 'alert') return <Alert />
   if (mode === 'permission') return <PermissionCard />
   if (mode === 'reminders') return <RemindersView />
   if (mode === 'system') return <SystemView />
@@ -259,6 +300,18 @@ function CapsuleContent({
       )}
     </div>
   )
+}
+
+/**
+ * The alert capsule: the new-mail alert only when main says mail is the pending alert ("Correo
+ * nuevo" when its payload is already spent, so the capsule is never empty); otherwise a Claude
+ * permission or due reminders (AlertCapsule picks between them). Main decides, so a renderer store
+ * that has not caught up yet never shows a mail alert in place of a permission or a reminder.
+ */
+function Alert() {
+  const mailAlert = useGmail((store) => store.mailAlert)
+  const newMail = useGmail((store) => store.newMail)
+  return mailAlert ? <MailAlert mail={newMail} /> : <AlertCapsule />
 }
 
 /** How many Claude sessions the home panel lists (its height follows). */

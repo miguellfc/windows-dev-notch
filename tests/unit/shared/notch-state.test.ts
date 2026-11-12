@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialNotchState, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
+import { initialNotchState, mailAlertShown, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
 
 const run = (...events: NotchEvent[]): NotchState => events.reduce(reduceNotch, initialNotchState)
 
@@ -269,5 +269,79 @@ describe('reminderDue (a reminder is due)', () => {
     const state = run(due(true))
     expect(reduceNotch(state, due(true))).toBe(state)
     expect(reduceNotch(initialNotchState, due(false))).toBe(initialNotchState)
+  })
+})
+
+describe('mailAlert (new mail, the lowest-priority alert)', () => {
+  const mail = (on: boolean): NotchEvent => ({ type: 'mail', on })
+
+  it('starts without a mail alert', () => {
+    expect(initialNotchState.mailAlert).toBe(false)
+  })
+
+  it('shows the alert capsule from compact (and over the mini pill and hover) and returns when it ends', () => {
+    expect(notchMode(run(mail(true)))).toBe('alert')
+    expect(notchMode(run(mail(true), mail(false)))).toBe('compact')
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, mail(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'pointer', inside: true }, mail(true)))).toBe('alert')
+  })
+
+  it('never shows while the capsule is hidden', () => {
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, mail(true)))).toBe('hidden')
+    expect(notchMode(run({ type: 'foreground', verdict: 'hidden' }, mail(true)))).toBe('hidden')
+  })
+
+  it('is ignored while a panel is open (expanded or any integration)', () => {
+    const expanded = run({ type: 'expand' })
+    expect(reduceNotch(expanded, mail(true))).toBe(expanded)
+    const gmail = run({ type: 'open-integration', id: 'gmail' })
+    expect(reduceNotch(gmail, mail(true))).toBe(gmail)
+    expect(notchMode(run({ type: 'open-integration', id: 'notes' }, mail(true), { type: 'dismiss' }))).toBe('compact')
+  })
+
+  it('opens the gmail view when expanding with a mail alert, and is spent by opening the panel', () => {
+    const open = run(mail(true), { type: 'expand' })
+    expect(open).toMatchObject({ view: 'gmail', mailAlert: false })
+    expect(notchMode(open)).toBe('gmail')
+    expect(notchMode(run(mail(true), { type: 'toggle' }))).toBe('gmail')
+    expect(notchMode(run(mail(true), { type: 'expand' }, { type: 'dismiss' }))).toBe('compact')
+    expect(run(mail(true), { type: 'open-integration', id: 'notes' }).mailAlert).toBe(false)
+  })
+
+  it('yields to a Claude permission and a due reminder: their mode and their view (Review Focus 3)', () => {
+    const attention: NotchEvent = { type: 'attention', on: true }
+    const due: NotchEvent = { type: 'reminders', due: true }
+    expect(notchMode(run(mail(true), attention))).toBe('alert')
+    expect(run(mail(true), attention, { type: 'expand' }).view).toBe('permission')
+    expect(run(attention, mail(true), { type: 'expand' }).view).toBe('permission')
+    expect(run(mail(true), due, { type: 'expand' }).view).toBe('reminders')
+    expect(run(due, mail(true), { type: 'expand' }).view).toBe('reminders')
+  })
+
+  it('ignores repeated mail events', () => {
+    const state = run(mail(true))
+    expect(reduceNotch(state, mail(true))).toBe(state)
+    expect(reduceNotch(initialNotchState, mail(false))).toBe(initialNotchState)
+  })
+})
+
+describe('mailAlertShown', () => {
+  const mail = (on: boolean): NotchEvent => ({ type: 'mail', on })
+
+  it('is true only while the alert capsule shows the new-mail alert', () => {
+    expect(mailAlertShown(initialNotchState)).toBe(false)
+    expect(mailAlertShown(run(mail(true)))).toBe(true)
+    expect(mailAlertShown(run(mail(true), mail(false)))).toBe(false)
+  })
+
+  it('is false while a permission or a due reminder owns the alert', () => {
+    expect(mailAlertShown(run(mail(true), { type: 'attention', on: true }))).toBe(false)
+    expect(mailAlertShown(run(mail(true), { type: 'reminders', due: true }))).toBe(false)
+    expect(mailAlertShown(run({ type: 'attention', on: true }))).toBe(false)
+  })
+
+  it('is false when the capsule is not showing the alert (hidden or a panel open)', () => {
+    expect(mailAlertShown(run(mail(true), { type: 'foreground', verdict: 'hidden' }))).toBe(false)
+    expect(mailAlertShown(run(mail(true), { type: 'expand' }))).toBe(false)
   })
 })

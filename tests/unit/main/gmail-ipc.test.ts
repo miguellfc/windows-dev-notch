@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createGmailIpcHandlers, gmailChannelGuards } from '../../../src/main/gmail/gmail-ipc'
 import { registerIpc, type IpcEventLike, type IpcHandlers, type IpcMainLike } from '../../../src/main/ipc/register'
-import type { GmailMessage, GmailState } from '../../../src/shared/gmail/schema'
+import { ExposedIpcError } from '../../../src/main/ipc/errors'
+import type { GmailMessage, GmailMessageDetail, GmailState } from '../../../src/shared/gmail/schema'
 import { contract } from '../../../src/shared/ipc/contract'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -12,10 +13,23 @@ const CONTROL_CENTER = 2
 const OTHER = 3
 const from = (id: number): IpcEventLike => ({ sender: { id }, senderFrame: { url: 'app://trusted', parent: null } })
 
-const okState: GmailState = { status: 'ok', account: 'me@x.com', unread: 3, updatedAt: '2026-11-11T10:00:00.000Z', persistent: true }
+const okState: GmailState = { status: 'ok', account: 'me@x.com', unread: 3, updatedAt: '2026-11-11T10:00:00.000Z', persistent: true, reason: null }
+const detail = (id: string): GmailMessageDetail => ({
+  id,
+  threadId: `t${id}`,
+  from: 'A',
+  fromAddress: 'a@example.com',
+  subject: 'S',
+  date: '2026-11-11T09:00:00.000Z',
+  unread: true,
+  body: 'B',
+  truncated: false,
+  links: [],
+  attachments: 0,
+})
 const msg = (id: string): GmailMessage => ({ id, threadId: `t${id}`, from: 'A', subject: 'S', snippet: '', date: '2026-11-11T09:00:00.000Z', unread: false })
 
-function setup(options: { ready?: Promise<void>; recent?: GmailMessage[]; state?: unknown; picked?: unknown } = {}) {
+function setup(options: { ready?: Promise<void>; recent?: GmailMessage[]; state?: unknown; picked?: unknown; detail?: unknown } = {}) {
   const gmail = {
     ready: options.ready ?? Promise.resolve(),
     state: vi.fn(() => (options.state ?? okState) as GmailState),
@@ -26,6 +40,11 @@ function setup(options: { ready?: Promise<void>; recent?: GmailMessage[]; state?
     signIn: vi.fn(async () => 'ok' as const),
     cancelSignIn: vi.fn(),
     signOut: vi.fn(async () => undefined),
+    message: vi.fn(async (id: string) => (options.detail ?? detail(id)) as GmailMessageDetail),
+    markRead: vi.fn<(id: string) => Promise<void>>(async () => undefined),
+    remove: vi.fn<(id: string) => Promise<void>>(async () => undefined),
+    openLink: vi.fn<(id: string, index: number) => void>(() => undefined),
+    closeMessage: vi.fn(),
   }
   const pickClientFile = vi.fn(async () => (options.picked === undefined ? { clientId: 'id', clientSecret: 'sec' } : options.picked))
   const listeners = new Map<string, Listener>()
@@ -62,8 +81,20 @@ const allowed: Record<Extract<keyof typeof contract, `gmail:${string}`>, 'notch'
   'gmail:cancel-sign-in': 'control-center',
   'gmail:sign-out': 'control-center',
   'gmail:pick-client-file': 'control-center',
+  'gmail:message': 'notch',
+  'gmail:mark-read': 'notch',
+  'gmail:delete': 'notch',
+  'gmail:open-link': 'notch',
+  'gmail:close-message': 'notch',
 }
-const sample: Record<string, unknown> = { 'gmail:view': { open: true }, 'gmail:open': { id: '1' } }
+const sample: Record<string, unknown> = {
+  'gmail:view': { open: true },
+  'gmail:open': { id: '1' },
+  'gmail:message': { id: '1' },
+  'gmail:mark-read': { id: '1' },
+  'gmail:delete': { id: '1' },
+  'gmail:open-link': { id: '1', index: 0 },
+}
 
 describe('gmail IPC guards', () => {
   it('covers every gmail channel', () => {
@@ -123,6 +154,54 @@ describe('gmail IPC handlers', () => {
     await expect(invoke('gmail:refresh', NOTCH, { force: true })).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
     expect(gmail.open).not.toHaveBeenCalled()
     expect(gmail.setViewOpen).not.toHaveBeenCalled()
+  })
+
+  it('close-message makes main forget the open message, taking no input', async () => {
+    const { gmail, invoke } = setup()
+    await expect(invoke('gmail:close-message', NOTCH)).resolves.toEqual({ ok: true, data: null })
+    expect(gmail.closeMessage).toHaveBeenCalledOnce()
+    await expect(invoke('gmail:close-message', NOTCH, { id: 'm1' })).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+    expect(gmail.closeMessage).toHaveBeenCalledOnce()
+  })
+
+  it('passes message, mark-read, delete and open-link through after the token loads', async () => {
+    const { gmail, invoke } = setup()
+    await expect(invoke('gmail:message', NOTCH, { id: 'm1' })).resolves.toEqual({ ok: true, data: detail('m1') })
+    expect(gmail.message).toHaveBeenCalledWith('m1')
+    await expect(invoke('gmail:mark-read', NOTCH, { id: 'm1' })).resolves.toEqual({ ok: true, data: null })
+    expect(gmail.markRead).toHaveBeenCalledWith('m1')
+    await expect(invoke('gmail:delete', NOTCH, { id: 'm1' })).resolves.toEqual({ ok: true, data: null })
+    expect(gmail.remove).toHaveBeenCalledWith('m1')
+    await expect(invoke('gmail:open-link', NOTCH, { id: 'm1', index: 3 })).resolves.toEqual({ ok: true, data: null })
+    expect(gmail.openLink).toHaveBeenCalledWith('m1', 3)
+  })
+
+  it('exposes INVALID_INPUT and NOT_FOUND from the integration', async () => {
+    const { gmail, invoke } = setup()
+    gmail.remove.mockRejectedValueOnce(new ExposedIpcError('INVALID_INPUT', 'Unknown message'))
+    await expect(invoke('gmail:delete', NOTCH, { id: 'x' })).resolves.toEqual({ ok: false, error: { code: 'INVALID_INPUT', message: 'Unknown message' } })
+    gmail.message.mockRejectedValueOnce(new ExposedIpcError('NOT_FOUND', 'The message no longer exists'))
+    await expect(invoke('gmail:message', NOTCH, { id: 'x' })).resolves.toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } })
+    gmail.openLink.mockImplementationOnce(() => {
+      throw new ExposedIpcError('INVALID_INPUT', 'Unknown link')
+    })
+    await expect(invoke('gmail:open-link', NOTCH, { id: 'x', index: 0 })).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+  })
+
+  it('validates action inputs: ids only, link by index', async () => {
+    const { gmail, invoke } = setup()
+    await expect(invoke('gmail:delete', NOTCH, {})).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+    await expect(invoke('gmail:open-link', NOTCH, { id: 'm1', url: 'https://evil.test' })).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+    await expect(invoke('gmail:open-link', NOTCH, { id: 'm1', index: 50 })).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+    expect(gmail.remove).not.toHaveBeenCalled()
+    expect(gmail.openLink).not.toHaveBeenCalled()
+  })
+
+  it('validates the message output: strict, http/https links only', async () => {
+    const extra = setup({ detail: { ...detail('m1'), html: '<b>x</b>' } })
+    await expect(extra.invoke('gmail:message', NOTCH, { id: 'm1' })).resolves.toMatchObject({ ok: false, error: { code: 'INTERNAL' } })
+    const bad = setup({ detail: { ...detail('m1'), links: [{ text: 'x', url: 'file:///c:/x' }] } })
+    await expect(bad.invoke('gmail:message', NOTCH, { id: 'm1' })).resolves.toMatchObject({ ok: false, error: { code: 'INTERNAL' } })
   })
 
   it('validates outputs: no extra state fields and at most 5 messages', async () => {

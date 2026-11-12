@@ -1,9 +1,13 @@
 import {
+  DEFAULT_GMAIL_ALERTS,
   DEFAULT_GMAIL_SETTINGS,
   DEFAULT_REMINDERS_SETTINGS,
   SETTINGS_VERSION,
   cloneDefaultSystemAlerts,
 } from '../../shared/settings/schema'
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>
 
@@ -15,15 +19,18 @@ export const settingsMigrations: Readonly<Record<number, Migration>> = {
   2: (raw) => ({ ...raw, version: 3, systemAlerts: cloneDefaultSystemAlerts() }),
   // v4 adds the Gmail OAuth client credentials (empty until the user configures them).
   3: (raw) => ({ ...raw, version: 4, gmail: { ...DEFAULT_GMAIL_SETTINGS } }),
+  // v5 adds the new-mail alert settings next to the (unchanged) Gmail credentials.
+  4: (raw) => ({
+    ...raw,
+    version: 5,
+    gmail: { ...(isRecord(raw['gmail']) ? raw['gmail'] : DEFAULT_GMAIL_SETTINGS), alerts: { ...DEFAULT_GMAIL_ALERTS } },
+  }),
 }
 
 export type MigrationResult =
   | { kind: 'ok'; value: Record<string, unknown>; migrated: boolean }
   | { kind: 'too-new'; version: number }
   | { kind: 'invalid' }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /** Brings raw settings up to `target`, one step at a time. Never guesses a missing version. */
 export function migrateSettings(

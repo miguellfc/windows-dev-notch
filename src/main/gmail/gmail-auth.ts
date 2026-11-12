@@ -5,11 +5,18 @@ import { startLoopback, type Loopback } from './loopback'
 
 export { GmailAuthError, type GmailAuthErrorCode } from './auth-error'
 
-export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
+/** Full mail access: the only scope that allows permanent deletion (`messages.delete`). */
+export const GMAIL_SCOPE = 'https://mail.google.com/'
 export const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 export const GOOGLE_OAUTH_BASE = 'https://oauth2.googleapis.com'
 /** A token exchange, refresh or revoke that has not answered by then fails as `network`. */
 export const GMAIL_AUTH_TIMEOUT_MS = 30_000
+
+/** True when Google's space-separated `scope` list grants exactly {@link GMAIL_SCOPE}. */
+export function hasRequiredScope(scope: string | undefined): boolean {
+  if (!scope) return false
+  return scope.split(/\s+/).includes(GMAIL_SCOPE)
+}
 
 const base64url = (buffer: Buffer): string => buffer.toString('base64url')
 
@@ -45,12 +52,14 @@ export interface SignInResult {
   refreshToken: string
   accessToken: string
   expiresAt: number
+  /** Space-separated scopes Google granted, when it says (checked with hasRequiredScope). */
+  scope?: string
 }
 
 export interface GmailAuth {
   signIn(): Promise<SignInResult>
   cancel(): void
-  refresh(refreshToken: string): Promise<{ accessToken: string; expiresAt: number }>
+  refresh(refreshToken: string): Promise<{ accessToken: string; expiresAt: number; scope?: string }>
   revoke(token: string): Promise<void>
 }
 
@@ -166,6 +175,7 @@ export function createGmailAuth(options: GmailAuthOptions): GmailAuth {
           refreshToken: tokens.refresh_token,
           accessToken: tokens.access_token,
           expiresAt: now() + tokens.expires_in * 1000,
+          ...(tokens.scope === undefined ? {} : { scope: tokens.scope }),
         }
       } finally {
         session.loopback?.close()
@@ -187,7 +197,11 @@ export function createGmailAuth(options: GmailAuthOptions): GmailAuth {
         }),
         'denied',
       )
-      return { accessToken: tokens.access_token, expiresAt: now() + tokens.expires_in * 1000 }
+      return {
+        accessToken: tokens.access_token,
+        expiresAt: now() + tokens.expires_in * 1000,
+        ...(tokens.scope === undefined ? {} : { scope: tokens.scope }),
+      }
     },
 
     /** Best effort: the session is closed locally even when Google cannot be reached. */

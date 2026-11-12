@@ -4,8 +4,17 @@ import type { Settings } from '../../shared/settings/schema'
 import { useGmail } from '../shared/gmail-store'
 import { useSettings } from '../shared/settings-store'
 import { useT } from '../shared/use-t'
+import { Switch } from '../ui/Switch'
+import { SettingRow } from './ControlCenterApp'
+import { createGmailUpdater } from './gmail-settings-patch'
 
 const GUIDE_PATH = 'docs/gmail-setup.md'
+
+// Every gmail patch goes through one chain so quick changes never build on stale settings.
+const updateGmail = createGmailUpdater(
+  () => useSettings.getState().settings!.gmail,
+  (patch) => useSettings.getState().update(patch),
+)
 
 const input =
   'h-8 w-full min-w-0 rounded-control border border-line bg-veil px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60'
@@ -43,6 +52,7 @@ export function GmailPage({ settings }: { settings: Settings }) {
   const state = useGmail((store) => store.state)
   const idField = useId()
   const secretField = useId()
+  const hideHint = useId()
   const saved = settings.gmail
   const [clientId, setClientId] = useState(saved.clientId)
   const [clientSecret, setClientSecret] = useState(saved.clientSecret)
@@ -61,7 +71,7 @@ export function GmailPage({ settings }: { settings: Settings }) {
   const complete = draft.clientId !== '' && draft.clientSecret !== ''
 
   const save = async (next: { clientId: string; clientSecret: string }) => {
-    const result = await useSettings.getState().update({ gmail: next })
+    const result = await updateGmail((latest) => ({ ...latest, ...next }))
     setNotice(result.ok ? 'saved' : 'saveError')
   }
 
@@ -73,6 +83,10 @@ export function GmailPage({ settings }: { settings: Settings }) {
     setClientId(result.data.clientId)
     setClientSecret(result.data.clientSecret)
     await save(result.data)
+  }
+
+  const patchAlerts = (patch: Partial<Settings['gmail']['alerts']>) => {
+    void updateGmail((latest) => ({ ...latest, alerts: { ...latest.alerts, ...patch } }))
   }
 
   const signIn = async () => {
@@ -153,7 +167,7 @@ export function GmailPage({ settings }: { settings: Settings }) {
             {signedIn ? (
               <span className="block truncate">{state?.account ? t('cc.gmail.connectedAs', { account: state.account }) : t('cc.gmail.connected')}</span>
             ) : (
-              <span className="text-graphite">{status === 'signing-in' ? t('cc.gmail.waiting') : t('cc.gmail.signedOut')}</span>
+              <span className="text-graphite">{status === 'signing-in' ? t('cc.gmail.waiting') : status === 'expired' ? t('cc.gmail.sessionExpired') : t('cc.gmail.signedOut')}</span>
             )}
           </div>
           {status === 'signing-in' ? (
@@ -176,12 +190,22 @@ export function GmailPage({ settings }: { settings: Settings }) {
             {t('cc.gmail.offline')}
           </Notice>
         )}
-        {status === 'expired' && (
+        {status === 'expired' && state?.reason !== 'scope' && (
           <Notice tone="warn" testId="gmail-expired">
             {t('cc.gmail.expired')}
           </Notice>
         )}
-        {signInFailed && status !== 'signing-in' && (
+        {state?.reason === 'scope' && (
+          <Notice tone="warn" testId="gmail-scope">
+            {t('cc.gmail.scopeNeeded')}
+          </Notice>
+        )}
+        {signInFailed && status === 'expired' && state?.reason === 'scope' && (
+          <Notice tone="fail" testId="gmail-scope-denied">
+            {t('cc.gmail.scopeDenied')}
+          </Notice>
+        )}
+        {signInFailed && status !== 'signing-in' && !(status === 'expired' && state?.reason === 'scope') && (
           <Notice tone="fail" testId="gmail-sign-in-failed">
             {t('cc.gmail.signInFailed')}
           </Notice>
@@ -193,12 +217,38 @@ export function GmailPage({ settings }: { settings: Settings }) {
         )}
       </Group>
 
+      <Group title={t('cc.gmail.alertsTitle')}>
+        <div>
+          <SettingRow label={t('cc.gmail.alertsEnabled')}>
+            <Switch label={t('cc.gmail.alertsEnabled')} checked={saved.alerts.enabled} onChange={(enabled) => patchAlerts({ enabled })} />
+          </SettingRow>
+          <SettingRow label={t('cc.gmail.alertsHide')} hint={<span id={hideHint}>{t('cc.gmail.alertsHideHint')}</span>}>
+            <Switch
+              label={t('cc.gmail.alertsHide')}
+              describedBy={hideHint}
+              checked={saved.alerts.hideContent}
+              disabled={!saved.alerts.enabled}
+              onChange={(hideContent) => patchAlerts({ hideContent })}
+            />
+          </SettingRow>
+          <SettingRow label={t('cc.gmail.alertsSound')}>
+            <Switch
+              label={t('cc.gmail.alertsSound')}
+              checked={saved.alerts.sound}
+              disabled={!saved.alerts.enabled}
+              onChange={(sound) => patchAlerts({ sound })}
+            />
+          </SettingRow>
+        </div>
+      </Group>
+
       <Group title={t('cc.gmail.stepsTitle')}>
         <ol className="list-decimal space-y-1.5 pl-5 text-small text-graphite">
           <li>{t('cc.gmail.step1')}</li>
           <li>{t('cc.gmail.step2')}</li>
           <li>{t('cc.gmail.step3')}</li>
           <li>{t('cc.gmail.step4')}</li>
+          <li>{t('cc.gmail.step5')}</li>
         </ol>
         <p className="mt-3 text-small text-graphite">{t('cc.gmail.guide', { path: GUIDE_PATH })}</p>
       </Group>

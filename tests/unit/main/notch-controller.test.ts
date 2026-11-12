@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNotchController, type NotchSurface } from '../../../src/main/windows/notch-controller'
+import { createNotchController, MAIL_ALERT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
 import { windowBoundsFor } from '../../../src/shared/notch/geometry'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -7,6 +7,7 @@ const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
 function setup() {
   const calls: string[] = []
+  const mailAlerts: boolean[] = []
   const surface: NotchSurface = {
     setBounds: (rect) => calls.push(`bounds:${rect.width}x${rect.height}`),
     show: () => calls.push('show'),
@@ -15,12 +16,14 @@ function setup() {
     blur: () => calls.push('blur'),
     setIgnoreMouse: (ignore) => calls.push(`ignore:${ignore}`),
     sendMode: (mode) => calls.push(`mode:${mode}`),
+    sendMailAlert: (on) => mailAlerts.push(on),
   }
   const onModeChange = vi.fn()
   const controller = createNotchController({ surface, workArea, settleTimeoutMs: 400, logger: createMemoryLogger(), onModeChange })
   controller.start()
   calls.length = 0
-  return { controller, calls, onModeChange }
+  mailAlerts.length = 0
+  return { controller, calls, mailAlerts, onModeChange }
 }
 
 const size = (mode: Parameters<typeof windowBoundsFor>[0]) => {
@@ -42,6 +45,7 @@ describe('notch controller', () => {
       blur: () => calls.push('blur'),
       setIgnoreMouse: (i: boolean) => calls.push(`ignore:${i}`),
       sendMode: (m: string) => calls.push(`mode:${m}`),
+      sendMailAlert: () => {},
     }
     createNotchController({ surface, workArea, logger: createMemoryLogger() }).start()
     expect(calls).toEqual([size('compact'), 'ignore:true', 'mode:compact', 'show'])
@@ -57,6 +61,7 @@ describe('notch controller', () => {
       blur: () => calls.push('blur'),
       setIgnoreMouse: (i) => calls.push(`ignore:${i}`),
       sendMode: (m) => calls.push(`mode:${m}`),
+      sendMailAlert: () => {},
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger() })
     controller.dispatch({ type: 'foreground', verdict: 'hidden' })
@@ -296,6 +301,117 @@ describe('notch controller: reminders', () => {
     controller.dispatch({ type: 'expand' })
     calls.length = 0
     controller.dispatch({ type: 'reminders', due: false })
+    expect(calls).toEqual([])
+  })
+})
+
+describe('notch controller: new mail', () => {
+  it('grows into the alert capsule without taking focus and goes back to compact after 6 s', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert'])
+    expect(MAIL_ALERT_MS).toBe(6000)
+    vi.advanceTimersByTime(5999)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(1)
+    expect(controller.mode()).toBe('compact')
+  })
+
+  it('restarts the 6 s when more mail arrives while it shows', () => {
+    const { controller } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    vi.advanceTimersByTime(4000)
+    controller.dispatch({ type: 'mail', on: true })
+    vi.advanceTimersByTime(4000)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(2000)
+    expect(controller.mode()).toBe('compact')
+  })
+
+  it('is ignored while a panel is open, and does not show after it closes', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'open-integration', id: 'notes' })
+    calls.length = 0
+    controller.dispatch({ type: 'mail', on: true })
+    expect(calls).toEqual([])
+    controller.dispatch({ type: 'dismiss' })
+    expect(controller.mode()).toBe('compact')
+  })
+
+  it('never covers a permission or a due reminder; expanding opens their view, not gmail', () => {
+    const { controller } = setup()
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'mail', on: true })
+    controller.dispatch({ type: 'expand' })
+    expect(controller.mode()).toBe('permission')
+
+    const other = setup().controller
+    other.dispatch({ type: 'mail', on: true })
+    other.dispatch({ type: 'reminders', due: true })
+    other.dispatch({ type: 'expand' })
+    expect(other.mode()).toBe('reminders')
+  })
+
+  it('opens the gmail view and takes focus when expanding from the mail alert', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    calls.length = 0
+    controller.dispatch({ type: 'expand' })
+    expect(calls).toEqual([size('gmail'), 'mode:gmail', 'focus'])
+    // The timer ending later changes nothing in the open panel.
+    calls.length = 0
+    vi.advanceTimersByTime(6000)
+    expect(calls).toEqual([])
+  })
+
+  it('tells the renderer whether the alert it shows is the mail alert, before the mode', () => {
+    const { controller, mailAlerts } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    expect(mailAlerts).toEqual([true])
+    // A permission takes the alert capsule over: no longer the mail alert, mode stays `alert`.
+    controller.dispatch({ type: 'attention', on: true })
+    expect(controller.mode()).toBe('alert')
+    expect(mailAlerts).toEqual([true, false])
+    controller.dispatch({ type: 'attention', on: false })
+    expect(mailAlerts).toEqual([true, false, true])
+    vi.advanceTimersByTime(6000)
+    expect(mailAlerts).toEqual([true, false, true, false])
+  })
+
+  it('never calls a reminder or permission alert a mail alert', () => {
+    const { controller, mailAlerts } = setup()
+    controller.dispatch({ type: 'reminders', due: true })
+    controller.dispatch({ type: 'attention', on: true })
+    controller.dispatch({ type: 'mail', on: true })
+    expect(controller.mode()).toBe('alert')
+    expect(mailAlerts).toEqual([])
+  })
+
+  it('sends the mail alert flag ahead of the mode change', () => {
+    const order: string[] = []
+    const surface: NotchSurface = {
+      setBounds: () => {},
+      show: () => {},
+      hide: () => {},
+      focus: () => {},
+      blur: () => {},
+      setIgnoreMouse: () => {},
+      sendMode: (m) => order.push(`mode:${m}`),
+      sendMailAlert: (on) => order.push(`mail:${on}`),
+    }
+    const controller = createNotchController({ surface, workArea, logger: createMemoryLogger() })
+    controller.start()
+    order.length = 0
+    controller.dispatch({ type: 'mail', on: true })
+    expect(order).toEqual(['mail:true', 'mode:alert'])
+  })
+
+  it('stops the timer on dispose', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    controller.dispose()
+    calls.length = 0
+    vi.advanceTimersByTime(6000)
     expect(calls).toEqual([])
   })
 })

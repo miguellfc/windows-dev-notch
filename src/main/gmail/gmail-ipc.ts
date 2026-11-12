@@ -7,7 +7,23 @@ type Guard = (event: IpcEventLike) => boolean
 
 /** Every handler waits for the stored token to load, so the first state is never a guess. */
 export const createGmailIpcHandlers = (
-  gmail: Pick<GmailIntegration, 'ready' | 'state' | 'recent' | 'setViewOpen' | 'refresh' | 'open' | 'signIn' | 'cancelSignIn' | 'signOut'>,
+  gmail: Pick<
+    GmailIntegration,
+    | 'ready'
+    | 'state'
+    | 'recent'
+    | 'setViewOpen'
+    | 'refresh'
+    | 'open'
+    | 'message'
+    | 'markRead'
+    | 'remove'
+    | 'openLink'
+    | 'closeMessage'
+    | 'signIn'
+    | 'cancelSignIn'
+    | 'signOut'
+  >,
   pickClientFile: () => Promise<{ clientId: string; clientSecret: string } | null>,
 ): Pick<IpcHandlers, GmailChannel> => ({
   'gmail:get-state': async () => {
@@ -28,6 +44,30 @@ export const createGmailIpcHandlers = (
   'gmail:open': async ({ id }) => {
     await gmail.ready
     gmail.open(id)
+    return null
+  },
+  'gmail:message': async ({ id }) => {
+    await gmail.ready
+    return gmail.message(id)
+  },
+  'gmail:mark-read': async ({ id }) => {
+    await gmail.ready
+    await gmail.markRead(id)
+    return null
+  },
+  'gmail:delete': async ({ id }) => {
+    await gmail.ready
+    await gmail.remove(id)
+    return null
+  },
+  'gmail:open-link': async ({ id, index }) => {
+    await gmail.ready
+    gmail.openLink(id, index)
+    return null
+  },
+  'gmail:close-message': async () => {
+    await gmail.ready
+    gmail.closeMessage()
     return null
   },
   'gmail:sign-in': () => gmail.signIn(),
@@ -54,6 +94,11 @@ export const gmailChannelGuards = ({ fromNotch, fromControlCenter }: { fromNotch
     'gmail:view': fromNotch,
     'gmail:refresh': fromNotch,
     'gmail:open': fromNotch,
+    'gmail:message': fromNotch,
+    'gmail:mark-read': fromNotch,
+    'gmail:delete': fromNotch,
+    'gmail:open-link': fromNotch,
+    'gmail:close-message': fromNotch,
     'gmail:sign-in': fromControlCenter,
     'gmail:cancel-sign-in': fromControlCenter,
     'gmail:sign-out': fromControlCenter,
