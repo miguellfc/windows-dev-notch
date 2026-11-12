@@ -99,6 +99,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Could (núcleo hecho tras el MVP) | System Monitor (CPU, RAM, batería, disco, red) | Era Fase 4; el núcleo está hecho en `feat/system-monitor` (ver "System Monitor (núcleo)"); avisos por umbral hechos en `feat/system-alerts`; batería Bluetooth pendiente |
 | Could (hecho tras el MVP) | Notas rápidas en el notch (lista con buscar, copiar, editar, fijar y borrar con Deshacer) | Integración viva más tras el cambio de dirección; hecha en `feat/notes` (ver "Notas rápidas — hecho tras el MVP") |
 | Could (hito 1 hecho tras el MVP) | Gmail en el notch: sin leer de Principal en la cápsula y los 5 más recientes | Hito 1 (base, solo lectura) hecho en `feat/gmail`; hitos 2 (leer y actuar) y 3 (avisos) hechos en `feat/gmail-actions` (ver "Gmail — hitos 2 y 3"); falta la comprobación manual del usuario |
+| Could (hecho tras el MVP) | Responder desde el notch las preguntas de Claude Code (`AskUserQuestion`): aviso, tarjeta con opciones y "Otro", teclado | Hecho en `feat/claude-questions` (ver "Preguntas de Claude — hecho"); falta la comprobación manual del usuario |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -422,3 +423,16 @@ Diseño: `docs/superpowers/specs/2026-11-12-gmail-actions-design.md` (con la not
 
 **Pendiente**
 - Comprobación manual del usuario: volver a iniciar sesión con el permiso nuevo (añadir `https://mail.google.com/` en "Acceso a datos" según `docs/gmail-setup.md`) y borrar de verdad un correo de prueba.
+
+## Preguntas de Claude — hecho (rama `feat/claude-questions`)
+
+Diseño: `docs/superpowers/specs/2026-11-12-claude-questions-design.md` (con la nota "Cambio" de lo decidido durante la implementación); plan: `docs/superpowers/plans/2026-11-12-claude-questions.md`; prueba de viabilidad: `docs/spikes/askuserquestion-findings.md`.
+
+**Qué hace**
+- Contestar desde el notch las preguntas de Claude Code (`AskUserQuestion`) con un hook `PreToolUse` HTTP: aviso "Claude te pregunta · proyecto" (misma prioridad que un permiso, también con la cápsula en `mini` u oculta, más toast), tarjeta de 520×504 con opciones (radio o casillas), "Otro…" de texto libre, "Responder en Claude" y "Enviar", todo con teclado (Ctrl+Enter envía; nada se envía sin acción explícita).
+- Main construye las respuestas solo con las preguntas que recibió; los textos nunca se escriben en el log. Si no hay respuesta, la pregunta se suelta y Claude muestra su diálogo.
+
+**Pruebas:** unitarias (esquema, broker, instalador, estado del notch, IPC, renderer) y E2E con el bridge real y un cliente de hook simulado, con capturas ES/EN.
+
+**Pendiente**
+- Comprobación manual del usuario: reinstalar los hooks desde Control Center (los ya instalados salen como "Desactualizados: reinstala") y contestar una pregunta real de Claude desde el notch.

@@ -2,6 +2,18 @@
 
 **Fecha:** 2026-11-12 · **Rama:** `feat/claude-questions` (desde `dev`)
 **Fuentes:** `docs/spikes/askuserquestion-findings.md` (prueba de viabilidad), `docs/superpowers/specs/2026-11-10-m3-claude-status-design.md` (estado y permisos de Claude), documentación de hooks de Claude Code (`https://code.claude.com/docs/en/hooks.md`, secciones PreToolUse y AskUserQuestion), `DESIGN.md`.
+> **Cambio (2026-11-12, tras la implementación y la revisión final):** esto prevalece sobre el texto de abajo.
+> - Panel `QuestionCard` de **520×504** (ventana 582): es el panel más alto; la ventana crece antes de que la tarjeta se anime.
+> - Entrada inválida y toda petición a `/hook` reciben un 200 **vacío** (no `{}`); "Soltar" y "Responder en Claude" envían `{}`.
+> - El evento `claude:questions` lleva `PendingQuestionView` (`id`, `project`, `questions`, `arrivedAt`; sin `sessionId`; textos saneados solo para mostrar). Main construye `answers` con los textos originales y devuelve el `tool_input` ORIGINAL con sus claves desconocidas.
+> - Reloj de llegada compartido (`receivedAt` de permisos y `arrivedAt` de preguntas) y evento `claude-first` del notch: abre primero la más antigua.
+> - Intención `next`: la tarjeta muestra "Respuesta enviada" ~1 s o "Esta pregunta ya no está pendiente" ~1,6 s y pasa a la siguiente pendiente o se cierra.
+> - Enter sobre una opción nunca envía; "Otro" vacío mantiene "Enviar" deshabilitado; en `multiSelect` las etiquetas van en el orden de las opciones.
+> - Accesibilidad: línea `role="status"` siempre montada, `aria-describedby` en "Otro" y `aria-keyshortcuts`.
+> - Una pregunta pendiente pone la sesión en `waiting`.
+> - Solo desarrollo/pruebas: `NOTCH_DISABLE_CLAUDE_FOCUS` (se ignora con la app empaquetada).
+> - Quien ya tenía los hooks instalados debe reinstalarlos una vez desde Control Center (`hookStatus` muestra "Desactualizados: reinstala"); hasta entonces las preguntas caen al diálogo propio de Claude.
+
 
 ## Objetivo
 
@@ -28,7 +40,7 @@ Cuando Claude Code necesita que el usuario elija entre varias opciones (herramie
 
 ### Main (`src/main/claude/`)
 
-- **`hook-events.ts`**: esquema zod de `AskUserQuestion` (`tool_input`): 1–4 preguntas; 2–4 opciones; `question` ≤ 500, `header` ≤ 60, `label` ≤ 120, `description` ≤ 300 caracteres. Una entrada que no cumpla → el bridge responde `{}` al momento (Claude pregunta como siempre).
+- **`hook-events.ts`**: esquema zod de `AskUserQuestion` (`tool_input`): 1–4 preguntas; 2–4 opciones; `question` ≤ 500, `header` ≤ 60, `label` ≤ 120, `description` ≤ 300 caracteres. Una entrada que no cumpla → el bridge responde un 200 vacío al momento (Claude pregunta como siempre).
 - **`question-broker.ts`** (nuevo, según el modelo de `permission-broker.ts`):
   - Guarda las preguntas pendientes por `tool_use_id` con `session_id`, proyecto (como los permisos), `tool_input` validado y el `respond` de la petición HTTP retenida; cola por orden de llegada.
   - `answer(id, selections)` construye `answers` desde las preguntas guardadas y responde `{ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', updatedInput: { questions, answers } } }`.
@@ -48,8 +60,8 @@ Cuando Claude Code necesita que el usuario elija entre varias opciones (herramie
 
 | Canal / evento | Entrada | Salida |
 |---|---|---|
-| evento `claude:questions` | — | `PendingQuestion[] = [{ id, project, questions: [{ question, header, multiSelect, options: [{ label, description }] }] }]` |
-| `claude:get-questions` | — | `PendingQuestion[]` |
+| evento `claude:questions` | — | `PendingQuestionView[] = [{ id, project, arrivedAt, questions: [{ question, header, multiSelect, options: [{ label, description }] }] }]` |
+| `claude:get-questions` | — | `PendingQuestionView[]` |
 | `claude:answer` | `{ id, answers: [{ selected: number[], other?: string }] }` (uno por pregunta, en orden) | `'sent' \| 'gone'` |
 | `claude:release-question` | `{ id }` | `null` (y lleva a la sesión como el botón de permisos) |
 
@@ -58,7 +70,7 @@ Validación en main: `answers.length === questions.length`; en preguntas de opci
 ### Notch (`src/renderer/notch/claude/`)
 
 - **Aviso en la cápsula**: icono de Claude + "**Claude te pregunta** · *proyecto*" (ES) / "**Claude asks** · *project*" (EN), hasta que se conteste o deje de estar pendiente.
-- **Panel `QuestionCard`** (~520×420, medido con capturas):
+- **Panel `QuestionCard`** (520×504, ventana 582, medido con capturas):
   - Cabecera: proyecto y "1 de N" si hay varias pendientes.
   - Por pregunta: `header` como etiqueta, el texto de la pregunta y sus opciones: radio (opción única) o casillas (`multiSelect`), con etiqueta y descripción; siempre **"Otro…"** con campo de texto. Varias preguntas una debajo de otra con desplazamiento (o en pasos si las capturas lo aconsejan).
   - Pie: **"Responder en Claude"** (suelta y lleva a la sesión) y **"Enviar"** (deshabilitado hasta que todas tengan respuesta).
