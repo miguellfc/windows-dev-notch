@@ -36,8 +36,9 @@ Estado en vivo de agentes de IA más acción rápida, en un único punto siempre
 
 - Se usa todo el día junto a un IDE (WebStorm), navegador, terminales, la app de escritorio Claude y videollamadas; a menudo con ventanas maximizadas y en varios monitores con distinto escalado DPI.
 - Interacción teclado primero: un atajo global (por defecto `Ctrl+Alt+Space`, configurable) abre el panel con el buscador enfocado; el click también expande; el hover solo da feedback; Esc o click fuera cierran.
-- La cápsula nunca debe estorbar: se reduce a una píldora mínima sobre ventanas maximizadas y se oculta en apps a pantalla completa y modo presentación; se oculta sin cerrarse y vive en el system tray.
-- Tres superficies: la cápsula (compact / peek / alert / expanded / mini / hidden), el panel expandido y el Control Center (una ventana normal aparte para la configuración).
+- La cápsula nunca debe estorbar: en reposo solo muestra hora y fecha (peek), el usuario puede fijarla como una píldora mínima pegada al borde superior (clic derecho) y se oculta en apps a pantalla completa y modo presentación; se oculta sin cerrarse y vive en el system tray. (Cambio del usuario, 2026-11-13: las ventanas maximizadas ya no la reducen a mini; la mini es solo una elección del usuario y no se recuerda entre reinicios.)
+- Tres superficies: la cápsula (peek en reposo / compact al pasar el puntero / alert / expanded / mini fijada por el usuario / hidden), el panel expandido y el Control Center (una ventana normal aparte para la configuración).
+- Modos de la cápsula (2026-11-13): peek (hora y fecha) → al entrar el puntero, compacta (métricas, correo, revisiones) → al salir, peek. En la compacta, clic izquierdo abre el panel y clic derecho la fija como mini en el borde superior; un clic izquierdo en la mini vuelve a la compacta. Las alertas se siguen mostrando sobre la mini y la cápsula oculta.
 - El estado de Claude Code llega mediante hooks documentados de Claude Code que hacen POST a un bridge en localhost; la app instala esos hooks en `~/.claude/settings.json` solo con confirmación del usuario, mostrando un diff y haciendo backup.
 
 ## Capabilities and Constraints
@@ -76,7 +77,7 @@ Sin decidir: enfocar la sesión exacta de Claude en lugar de la app; detección 
 ## Product Principles
 
 1. **Atención, no información.** Mostrar solo lo que necesita al usuario ahora; un módulo sin nada que decir no ocupa espacio.
-2. **Nunca estorbar.** La cápsula cede ante el trabajo del usuario: pequeña en reposo, mínima sobre ventanas maximizadas, invisible en pantalla completa; los clicks fuera de ella siempre llegan a la app de debajo.
+2. **Nunca estorbar.** La cápsula cede ante el trabajo del usuario: pequeña en reposo (solo hora y fecha), mínima cuando el usuario la fija como mini, invisible en pantalla completa; los clicks fuera de ella siempre llegan a la app de debajo.
 3. **Actuar en dos pulsaciones.** Toda acción frecuente es accesible desde el atajo global sin ratón.
 4. **Seguro por construcción.** La UI solo puede pedir lo que el usuario ya guardó o aprobó; las integraciones externas nunca rompen el resto de la app.
 5. **Estado honesto.** Los estados salen de señales documentadas; cuando algo se infiere o está desconectado, se dice en lugar de adivinar.
