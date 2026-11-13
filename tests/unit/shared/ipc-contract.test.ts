@@ -516,9 +516,58 @@ describe('code review contract', () => {
       open: 'code-review:open',
       setToken: 'code-review:set-token',
       clear: 'code-review:clear',
+      view: 'code-review:view',
+      contributions: 'code-review:contributions',
     })
     expect(eventChannels.codeReviewState).toBe('code-review:state')
     expect(eventChannels.codeReviewAlert).toBe('code-review:alert')
+    expect(eventChannels.codeReviewContributionsChanged).toBe('code-review:contributions-changed')
+  })
+
+  it('opens and closes the view with a strict boolean', () => {
+    const view = contract['code-review:view']
+    expect(view.input.safeParse({ open: true }).success).toBe(true)
+    expect(view.input.safeParse({ open: false }).success).toBe(true)
+    expect(view.input.safeParse({}).success).toBe(false)
+    expect(view.input.safeParse({ open: 'yes' }).success).toBe(false)
+    expect(view.input.safeParse({ open: true, platform: 'github' }).success).toBe(false)
+    expect(view.output.safeParse(null).success).toBe(true)
+  })
+
+  it('returns a strict contribution summary (or null) with the error flag, by platform', () => {
+    const contributions = contract['code-review:contributions']
+    const totals = { commits: 1, opened: 0, merged: 0, reviews: 2 }
+    const day = (date: string) => ({ date, count: 0, level: 0, inMonth: true, future: false })
+    const summary = {
+      month: '2026-11',
+      weeks: Array.from({ length: 5 }, (_, w) => Array.from({ length: 7 }, (__, d) => day(`2026-11-${String(((w * 7 + d) % 28) + 1).padStart(2, '0')}`))),
+      monthTotal: 3,
+      activeDays: 1,
+      today: totals,
+      week: totals,
+      monthTotals: totals,
+      partial: false,
+      restricted: false,
+      updatedAt: '2026-11-13T10:00:00.000Z',
+    }
+    expect(contributions.input.safeParse({ platform: 'gitlab' }).success).toBe(true)
+    expect(contributions.input.safeParse({ platform: 'bitbucket' }).success).toBe(false)
+    expect(contributions.input.safeParse({}).success).toBe(false)
+    expect(contributions.output.safeParse({ summary: null, error: false }).success).toBe(true)
+    expect(contributions.output.safeParse({ summary, error: true }).success).toBe(true)
+    expect(contributions.output.safeParse(null).success).toBe(false)
+    expect(contributions.output.safeParse(summary).success).toBe(false)
+    expect(contributions.output.safeParse({ summary: null }).success).toBe(false)
+    expect(contributions.output.safeParse({ summary: { ...summary, repo: 'acme/secret' }, error: false }).success).toBe(false)
+    expect(contributions.output.safeParse({ summary, error: false, repo: 'acme/secret' }).success).toBe(false)
+  })
+
+  it('announces contribution changes by platform and error flag only', () => {
+    const changed = eventContract['code-review:contributions-changed']
+    expect(changed.safeParse({ platform: 'github', error: false }).success).toBe(true)
+    expect(changed.safeParse({ platform: 'gitlab', error: true }).success).toBe(true)
+    expect(changed.safeParse({ platform: 'github' }).success).toBe(false)
+    expect(changed.safeParse({ platform: 'github', error: false, repo: 'acme/secret' }).success).toBe(false)
   })
 
   it('keeps the state strict (no token can ride along) on the channel and the event', () => {

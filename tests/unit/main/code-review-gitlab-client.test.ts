@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { CodeReviewError, type CodeReviewErrorCode, type CodeReviewFetch } from '../../../src/main/code-review/client-common'
 import { createGitlabClient } from '../../../src/main/code-review/gitlab-client'
+import { contributionSummarySchema } from '../../../src/shared/code-review/schema'
 
 const BASE = 'https://gitlab.x.com/base'
 const TOKEN = 'glpat-test-token'
@@ -428,5 +429,171 @@ describe('gitlab client: per-MR concurrency', () => {
     expect(fetchMock).toHaveBeenCalledTimes(43)
     expect(peak).toBeLessThanOrEqual(6)
     expect(peak).toBeGreaterThan(1)
+  })
+})
+
+describe('gitlab client: contributions', () => {
+  // Friday 13 Nov 2026, 10:30 in Europe/Madrid (tests/unit/setup-tz.ts), CET = UTC+1.
+  const NOW = new Date(2026, 10, 13, 10, 30)
+  const EVENTS = '/base/api/v4/users/42/events'
+
+  const event = (created_at: string, action_name: string, extra: Record<string, unknown> = {}) => ({
+    id: 1,
+    project_id: 10,
+    action_name,
+    target_type: null,
+    target_title: 'Secret title',
+    author: { id: 42, username: 'me' },
+    created_at,
+    ...extra,
+  })
+
+  const month = [
+    event('2026-11-13T23:30:00Z', 'pushed to', { push_data: { commit_count: 9, ref: 'main' } }), // local 14 Nov: future, ignored
+    event('2026-11-12T23:30:00Z', 'pushed to', { push_data: { commit_count: 3, ref: 'main' } }), // local 13 Nov
+    event('2026-11-13T08:00:00Z', 'approved', { target_type: 'MergeRequest' }),
+    event('2026-11-10T09:00:00Z', 'opened', { target_type: 'MergeRequest' }),
+    event('2026-11-05T10:00:00Z', 'joined'),
+    event('2026-11-02T09:00:00Z', 'accepted', { target_type: 'MergeRequest' }),
+    event('2026-11-02T10:00:00Z', 'commented on', { target_type: 'Note', note: { noteable_type: 'Issue', body: 'x' } }),
+    event('2026-10-31T23:30:00Z', 'commented on', { target_type: 'DiffNote', note: { noteable_type: 'MergeRequest' } }), // local 1 Nov 00:30
+    event('2026-10-31T22:30:00Z', 'pushed to', { push_data: { commit_count: 5 } }), // local 31 Oct 23:30: outside
+    event('not a date', 'pushed to', { push_data: { commit_count: 5 } }),
+  ]
+
+  /** GitLab's EventsFinder in a UTC server: created_at > after.end_of_day and < before.beginning_of_day. */
+  const served = (url: URL, events: ReturnType<typeof event>[]) => {
+    const after = Date.parse(`${url.searchParams.get('after')}T23:59:59.999Z`)
+    const before = Date.parse(`${url.searchParams.get('before')}T00:00:00.000Z`)
+    return events.filter((e) => {
+      const t = Date.parse(e.created_at)
+      return Number.isNaN(t) || (t > after && t < before)
+    })
+  }
+
+  const pagedSetup = (pages: (page: number, url: URL) => Response) => {
+    const fetchMock = vi.fn<CodeReviewFetch>(async (raw) => {
+      const url = new URL(raw)
+      if (url.pathname === '/base/api/v4/user') return json({ id: 42, username: 'me' })
+      if (url.pathname === EVENTS) return pages(Number(url.searchParams.get('page')), url)
+      return json({ message: 'not found' }, 404)
+    })
+    return { client: createGitlabClient({ fetch: fetchMock, baseUrl: BASE, token: TOKEN }), fetchMock }
+  }
+  const eventCalls = (fetchMock: ReturnType<typeof pagedSetup>['fetchMock']) =>
+    fetchMock.mock.calls.map(([u]) => new URL(u)).filter((u) => u.pathname === EVENTS)
+  const fill = (n: number) => Array.from({ length: n }, () => event('2026-11-03T10:00:00Z', 'pushed to', { push_data: { commit_count: 1 } }))
+
+  it('asks for the user events of the range (exclusive dates) with the token and no redirects', async () => {
+    const { client, fetchMock } = pagedSetup((_, url) => json(served(url, month)))
+    await client.contributions(NOW)
+    const calls = eventCalls(fetchMock)
+    expect(calls).toHaveLength(1)
+    expect(Object.fromEntries(calls[0]!.searchParams)).toEqual({ after: '2026-10-30', before: '2026-11-15', per_page: '100', page: '1' })
+    for (const [u, init] of fetchMock.mock.calls) {
+      expect(u.startsWith(`${BASE}/api/v4/`)).toBe(true)
+      expect(init?.redirect).toBe('manual')
+      expect((init?.headers as Record<string, string>)['private-token']).toBe(TOKEN)
+    }
+  })
+
+  it('reaches back to Monday when the week starts in the previous month', async () => {
+    const { client, fetchMock } = pagedSetup((_, url) => json(served(url, [event('2026-11-30T10:00:00Z', 'opened', { target_type: 'MergeRequest' })])))
+    const s = await client.contributions(new Date(2026, 11, 2, 9))
+    expect(eventCalls(fetchMock)[0]!.searchParams.get('after')).toBe('2026-11-28')
+    expect(eventCalls(fetchMock)[0]!.searchParams.get('before')).toBe('2026-12-04')
+    expect(s.week.opened).toBe(1)
+    expect(s.monthTotals.opened).toBe(0)
+    expect(s.monthTotal).toBe(0)
+  })
+
+  it('classifies events by local day into the grid and the totals', async () => {
+    const { client } = pagedSetup((_, url) => json(served(url, month)))
+    const s = await client.contributions(NOW)
+    expect(contributionSummarySchema.parse(s)).toEqual(s)
+    const byDate = new Map(s.weeks.flat().map((d) => [d.date, d.count]))
+    expect(byDate.get('2026-11-13')).toBe(2)
+    expect(byDate.get('2026-11-10')).toBe(1)
+    expect(byDate.get('2026-11-05')).toBe(0)
+    expect(byDate.get('2026-11-02')).toBe(2)
+    expect(byDate.get('2026-11-01')).toBe(1)
+    expect(byDate.get('2026-11-14')).toBe(0)
+    expect(byDate.get('2026-10-31')).toBe(0)
+    expect(s.monthTotal).toBe(6)
+    expect(s.activeDays).toBe(4)
+    expect(s.today).toEqual({ commits: 3, opened: 0, merged: 0, reviews: 1 })
+    expect(s.week).toEqual({ commits: 3, opened: 1, merged: 0, reviews: 1 })
+    expect(s.monthTotals).toEqual({ commits: 3, opened: 1, merged: 1, reviews: 2 })
+    expect(s.partial).toBe(false)
+    expect(s.restricted).toBe(false)
+  })
+
+  it('keeps local-edge events GitLab filters by UTC dates: Madrid 00:30 on the 1st', async () => {
+    // 2026-11-01 00:30 local = 2026-10-31T23:30Z: an `after` of the 31st would drop it server-side.
+    const { client } = pagedSetup((_, url) => json(served(url, [event('2026-10-31T23:30:00Z', 'opened', { target_type: 'MergeRequest' })])))
+    const s = await client.contributions(NOW)
+    expect(s.monthTotals.opened).toBe(1)
+    expect(s.weeks.flat().find((d) => d.date === '2026-11-01')?.count).toBe(1)
+  })
+
+  it('keeps local-edge events GitLab filters by UTC dates: a New York evening today', async () => {
+    const tz = process.env.TZ
+    process.env.TZ = 'America/New_York'
+    try {
+      const now = new Date(2026, 10, 13, 20, 0) // 13 Nov 20:00 EST = 14 Nov 01:00Z
+      expect(now.toISOString()).toBe('2026-11-14T01:00:00.000Z')
+      // 13 Nov 19:30 EST = 14 Nov 00:30Z: a `before` of the 14th would drop it server-side.
+      const { client } = pagedSetup((_, url) => json(served(url, [event('2026-11-14T00:30:00Z', 'approved', { target_type: 'MergeRequest' })])))
+      const s = await client.contributions(now)
+      expect(s.today.reviews).toBe(1)
+      expect(s.weeks.flat().find((d) => d.date === '2026-11-13')?.count).toBe(1)
+    } finally {
+      process.env.TZ = tz
+    }
+    expect(new Date(2026, 0, 15).getTimezoneOffset()).toBe(-60)
+  })
+
+  it('pages in series until a page has fewer than 100 events', async () => {
+    const { client, fetchMock } = pagedSetup((page) => json(page < 3 ? fill(100) : fill(5)))
+    const s = await client.contributions(NOW)
+    expect(eventCalls(fetchMock).map((u) => u.searchParams.get('page'))).toEqual(['1', '2', '3'])
+    expect(s.monthTotals.commits).toBe(205)
+    expect(s.partial).toBe(false)
+  })
+
+  it('stops on an empty X-Next-Page even with a full page', async () => {
+    const { client, fetchMock } = pagedSetup((page) => json(fill(100), 200, { 'x-next-page': page === 2 ? '' : String(page + 1) }))
+    const s = await client.contributions(NOW)
+    expect(eventCalls(fetchMock)).toHaveLength(2)
+    expect(s.partial).toBe(false)
+  })
+
+  it('stops after 10 pages and marks the data partial', async () => {
+    const { client, fetchMock } = pagedSetup(() => json(fill(100)))
+    const s = await client.contributions(NOW)
+    expect(eventCalls(fetchMock)).toHaveLength(10)
+    expect(s.partial).toBe(true)
+    expect(s.monthTotals.commits).toBe(1000)
+  })
+
+  it('maps errors of the events request to codes; a redirect is never followed', async () => {
+    const cases: [() => Response, CodeReviewErrorCode][] = [
+      [() => json({}, 401), 'auth'],
+      [() => json({}, 403), 'auth'],
+      [() => json({}, 429), 'rate-limited'],
+      [() => json({}, 503), 'server'],
+      [() => json({ not: 'an array' }), 'invalid-response'],
+      [() => new Response(null, { status: 302, headers: { location: 'https://evil.example/' } }), 'invalid-response'],
+    ]
+    for (const [response, code] of cases) {
+      const { client, fetchMock } = pagedSetup(response)
+      await expectCode(client.contributions(NOW), code)
+      expect(eventCalls(fetchMock)).toHaveLength(1)
+    }
+  })
+
+  it('a failure on a later page fails the whole query', async () => {
+    const { client } = pagedSetup((page) => (page === 1 ? json(fill(100)) : json({}, 500)))
+    await expectCode(client.contributions(NOW), 'server')
   })
 })

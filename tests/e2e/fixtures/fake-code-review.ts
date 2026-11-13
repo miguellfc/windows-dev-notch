@@ -223,6 +223,222 @@ export const gitlabMrUrl = (mr: Pick<FakeMr, 'path' | 'iid'>): string => `${FAKE
 export const githubRef = (pr: Pick<FakePr, 'repo' | 'number'>): string => `${pr.repo}#${pr.number}`
 export const gitlabRef = (mr: Pick<FakeMr, 'path' | 'iid'>): string => `${mr.path}!${mr.iid}`
 
+// --- Contributions ----------------------------------------------------------------------
+// The month is the app's own: GitHub's from the query's `to` (the app's clock, test clock included),
+// GitLab's from `before` (the app asks up to "today + 2 days"). Both run in this machine's time zone,
+// like the app, so local days line up.
+
+const pad2 = (n: number): string => String(n).padStart(2, '0')
+/** `YYYY-MM-DD` of `d` in local time. */
+export const localDay = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+/** `YYYY-MM-DD` as local midnight. */
+export const parseLocalDay = (key: string): Date => {
+  const [y = 1970, m = 1, d = 1] = key.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+const addDays = (d: Date, days: number): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)
+const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const firstOfMonth = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), 1)
+const mondayOf = (d: Date): Date => addDays(startOfDay(d), -((d.getDay() + 6) % 7))
+/** Every local day from `from` to `to`, both included. */
+const daysBetween = (from: Date, to: Date): Date[] => {
+  const days: Date[] = []
+  for (let d = startOfDay(from); d <= to; d = addDays(d, 1)) days.push(d)
+  return days
+}
+
+export interface FakeTotals {
+  commits: number
+  opened: number
+  merged: number
+  reviews: number
+}
+const zeroTotals = (): FakeTotals => ({ commits: 0, opened: 0, merged: 0, reviews: 0 })
+
+/** What the chart and the summary of one platform must show for `now`'s month. */
+export interface ExpectedContributions {
+  /** Contributions per in-month day up to today (`YYYY-MM-DD`). */
+  counts: Map<string, number>
+  monthTotal: number
+  activeDays: number
+  today: FakeTotals
+  week: FakeTotals
+  month: FakeTotals
+}
+
+const summarizeCounts = (counts: Map<string, number>): { monthTotal: number; activeDays: number } => {
+  const values = [...counts.values()]
+  return { monthTotal: values.reduce((a, b) => a + b, 0), activeDays: values.filter((n) => n > 0).length }
+}
+
+/** GitHub: today is always the month's busiest day (12 → level 4); the other days repeat 0, 3, 6, 9, 2 (levels 0, 1, 2, 3, 1). */
+export const GITHUB_TODAY_COUNT = 12
+const GITHUB_PATTERN = [0, 3, 6, 9, 2] as const
+const githubDayCount = (day: Date, today: Date): number =>
+  localDay(day) === localDay(today) ? GITHUB_TODAY_COUNT : GITHUB_PATTERN[day.getDate() % GITHUB_PATTERN.length]!
+/** One day's contributions by kind (opened + reviews + commits = the day's count); merged PRs are a separate search. */
+const githubDayTotals = (count: number): FakeTotals => {
+  const opened = Math.floor(count / 6)
+  const reviews = Math.floor(count / 4)
+  return { commits: count - opened - reviews, opened, reviews, merged: Math.floor(count / 5) }
+}
+const githubPeriod = (from: Date, today: Date): FakeTotals =>
+  daysBetween(from, today).reduce((acc, day) => {
+    const t = githubDayTotals(githubDayCount(day, today))
+    return { commits: acc.commits + t.commits, opened: acc.opened + t.opened, merged: acc.merged + t.merged, reviews: acc.reviews + t.reviews }
+  }, zeroTotals())
+/** GitHub's `restrictedContributionsCount` for the month (private contributions it does not detail). */
+export const GITHUB_RESTRICTED = 2
+
+export function expectedGithubContributions(now: Date): ExpectedContributions {
+  const today = startOfDay(now)
+  const counts = new Map(daysBetween(firstOfMonth(today), today).map((day): [string, number] => [localDay(day), githubDayCount(day, today)]))
+  return {
+    counts,
+    ...summarizeCounts(counts),
+    today: githubPeriod(today, today),
+    week: githubPeriod(mondayOf(today), today),
+    month: githubPeriod(firstOfMonth(today), today),
+  }
+}
+
+/** What one GitLab event adds: a square of the chart (`contribution`) and the summary's counts. */
+interface EventKind {
+  contribution: boolean
+  commits: number
+  opened: boolean
+  merged: boolean
+  review: boolean
+}
+export interface FakeGitlabEvent {
+  event: Record<string, unknown>
+  kind: EventKind
+}
+
+/** Event, branch, commit and project texts: none may reach a log file. */
+export const GITLAB_EVENT_TEXTS = {
+  mrTitle: 'Revisar la cola de trabajos nocturnos',
+  issueTitle: 'El informe semanal sale vacío',
+  branch: 'rama-ejemplo/contribuciones',
+  commitTitle: 'Ajustar el formato de las fechas del informe',
+  noteBody: 'Mejor con un índice en la fecha',
+} as const
+
+/** Today's push with several commits: one square in the chart, five commits in the summary. */
+export const GITLAB_BIG_PUSH_COMMITS = 5
+/** At least this many filler pushes, so the month always needs two pages of 100 events. */
+const GITLAB_FILLER_MIN = 104
+const GITLAB_PATTERN = [0, 2, 4, 1, 3] as const
+
+/**
+ * The user's GitLab events for `now`'s today (newest first): filler pushes (1-3 commits each) on the
+ * days from the earlier of the 1st and Monday up to today; then today's kinds — a 5-commit push, an MR
+ * opened, accepted and approved, a comment on the MR, an issue opened and commented on, and a
+ * "joined" (no contribution). Plus two the client must leave out: one from 40 days ago (the server's
+ * `after` drops it) and one the day before the range (its local date is out of range).
+ */
+export function gitlabEvents(now: Date): FakeGitlabEvent[] {
+  const today = startOfDay(now)
+  const start = new Date(Math.min(firstOfMonth(today).getTime(), mondayOf(today).getTime()))
+  const T = GITLAB_EVENT_TEXTS
+  let id = 900_000
+  const make = (at: Date, action: string, kind: Partial<EventKind>, extra: Record<string, unknown> = {}): FakeGitlabEvent => ({
+    event: {
+      id: id++,
+      project_id: 350,
+      action_name: action,
+      target_id: null,
+      target_iid: null,
+      target_type: null,
+      target_title: null,
+      author_id: FAKE_GITLAB_USER.id,
+      author: { id: FAKE_GITLAB_USER.id, username: FAKE_GITLAB_USER.username, name: FAKE_GITLAB_USER.username },
+      author_username: FAKE_GITLAB_USER.username,
+      created_at: at.toISOString(),
+      ...extra,
+    },
+    kind: { contribution: true, commits: 0, opened: false, merged: false, review: false, ...kind },
+  })
+  const push = (at: Date, commits: number, action = 'pushed to'): FakeGitlabEvent =>
+    make(at, action, { commits }, { push_data: { commit_count: commits, action: 'pushed', ref_type: 'branch', ref: T.branch, commit_title: T.commitTitle } })
+  const atTime = (day: Date, hour: number, minute: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute)
+  const todayAt = (seconds: number) => new Date(today.getTime() + seconds * 1000)
+
+  const events: FakeGitlabEvent[] = []
+  // Past days: the pattern scaled so they hold most of the filler (levels vary across the month).
+  const past = daysBetween(start, addDays(today, -1))
+  const patternOf = (day: Date): number => GITLAB_PATTERN[day.getDate() % GITLAB_PATTERN.length]!
+  const patternSum = past.reduce((sum, day) => sum + patternOf(day), 0)
+  const scale = patternSum === 0 ? 0 : Math.max(1, Math.ceil((GITLAB_FILLER_MIN - 10) / patternSum))
+  let filler = 0
+  let busiest = 0
+  for (const day of past) {
+    const n = patternOf(day) * scale
+    for (let i = 0; i < n; i++) events.push(push(atTime(day, 12, i), 1 + ((day.getDate() + i) % 3)))
+    filler += n
+    busiest = Math.max(busiest, n)
+  }
+  // Today: the rest of the filler (at least 10, and never fewer than the busiest past day: today is
+  // the month's darkest square), in the first minutes of the day.
+  const todayFiller = Math.max(10, busiest, GITLAB_FILLER_MIN - filler)
+  for (let i = 0; i < todayFiller; i++) events.push(push(todayAt(i + 1), 1 + (i % 3)))
+  const onMr = { target_type: 'MergeRequest', target_id: 7700, target_iid: 77, target_title: T.mrTitle }
+  events.push(push(todayAt(150), GITLAB_BIG_PUSH_COMMITS, 'pushed new'))
+  events.push(make(todayAt(160), 'opened', { opened: true }, onMr))
+  events.push(make(todayAt(170), 'approved', { review: true }, onMr))
+  events.push(
+    make(todayAt(180), 'commented on', { review: true }, {
+      target_type: 'DiffNote',
+      target_title: T.mrTitle,
+      note: { id: 1, type: 'DiffNote', body: T.noteBody, noteable_type: 'MergeRequest', noteable_iid: 77 },
+    }),
+  )
+  events.push(make(todayAt(190), 'accepted', { merged: true }, onMr))
+  events.push(make(todayAt(200), 'opened', {}, { target_type: 'Issue', target_id: 5500, target_iid: 5, target_title: T.issueTitle }))
+  events.push(
+    make(todayAt(210), 'commented on', {}, {
+      target_type: 'Note',
+      target_title: T.issueTitle,
+      note: { id: 2, type: null, body: T.noteBody, noteable_type: 'Issue', noteable_iid: 5 },
+    }),
+  )
+  events.push(make(todayAt(220), 'joined', { contribution: false }))
+  events.push(push(atTime(addDays(today, -40), 12, 0), 7))
+  events.push(push(atTime(addDays(start, -1), 12, 0), 7))
+  return events.sort((a, b) => Date.parse(String(b.event['created_at'])) - Date.parse(String(a.event['created_at'])))
+}
+
+/** The chart counts one per event (but "joined"), the summary commits per push; days by local date. */
+export function expectedGitlabContributions(now: Date): ExpectedContributions {
+  const today = startOfDay(now)
+  const todayKey = localDay(today)
+  const monthKey = localDay(firstOfMonth(today))
+  const weekKey = localDay(mondayOf(today))
+  const counts = new Map(daysBetween(firstOfMonth(today), today).map((day): [string, number] => [localDay(day), 0]))
+  const totals = { today: zeroTotals(), week: zeroTotals(), month: zeroTotals() }
+  const add = (t: FakeTotals, k: EventKind) => {
+    t.commits += k.commits
+    if (k.opened) t.opened++
+    if (k.merged) t.merged++
+    if (k.review) t.reviews++
+  }
+  for (const { event, kind } of gitlabEvents(now)) {
+    const day = localDay(new Date(String(event['created_at'])))
+    if (day > todayKey) continue
+    if (day >= monthKey) {
+      add(totals.month, kind)
+      if (kind.contribution) counts.set(day, (counts.get(day) ?? 0) + 1)
+    }
+    if (day >= weekKey) add(totals.week, kind)
+    if (day === todayKey) add(totals.today, kind)
+  }
+  return { counts, ...summarizeCounts(counts), ...totals }
+}
+
+/** The chart's level for `count` when the month's busiest day has `max`: 0 without activity, else the quarter reached (1-4). */
+export const expectedLevel = (count: number, max: number): number =>
+  count <= 0 || max <= 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)))
+
 /** Every title, repository and person in the fake data: none may reach a log file. */
 export const SENSITIVE_DATA: readonly string[] = [
   ...[...GITHUB_TO_REVIEW, ...GITHUB_MINE].flatMap((pr) => [pr.title, pr.repo, pr.author, ...pr.reviews.map((r) => r.author)]),
@@ -231,6 +447,7 @@ export const SENSITIVE_DATA: readonly string[] = [
   FAKE_GITLAB_USER.username,
   FAKE_GITHUB_TOKEN,
   FAKE_GITLAB_TOKEN,
+  ...Object.values(GITLAB_EVENT_TEXTS),
 ]
 
 /** The search strings the notch must send (see github-client.ts). */
@@ -253,6 +470,12 @@ export interface FakeCodeReview {
   readonly hits: Record<string, number>
   /** Requests per platform (any route, 401s included). */
   readonly requests: Record<FakePlatform, number>
+  /**
+   * Per platform, true: only the contributions answer 500 (GitHub's `Contributions` query, GitLab's
+   * user events); the PR/MR lists keep working. Hits: "github contributions" per query, "gitlab
+   * contributions" per query (its first page) and "gitlab events" per page.
+   */
+  readonly contributionsFail: Record<FakePlatform, boolean>
   /** Someone else reviews one of the user's GitHub PRs (by id). */
   reviewPr(id: string, review: FakeReview, by?: string): void
   /** Someone else reviews one of the user's GitLab MRs (by iid). */
@@ -283,6 +506,7 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
   const hits: Record<string, number> = {}
   const requests: Record<FakePlatform, number> = { github: 0, gitlab: 0 }
   const unauthorized: Record<FakePlatform, boolean> = { github: false, gitlab: false }
+  const contributionsFail: Record<FakePlatform, boolean> = { github: false, gitlab: false }
   const githubMine: FakePr[] = GITHUB_MINE.map((pr) => ({ ...pr, reviews: [...pr.reviews] }))
   const gitlabMine: FakeMr[] = GITLAB_MINE.map((mr) => ({ ...mr, approvedBy: [...mr.approvedBy], reviewers: [...mr.reviewers] }))
 
@@ -361,6 +585,66 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
           toReview: { issueCount: GITHUB_TO_REVIEW.length, nodes: GITHUB_TO_REVIEW.map(prNode) },
           mine: { issueCount: githubMine.length, nodes: githubMine.map(prNode) },
           unreviewed: { issueCount: unreviewed },
+        },
+      })
+    }
+    if (/query Contributions\b/.test(query)) {
+      // The "Revisiones" view, while open: the month's calendar and the totals of today, the week and the month.
+      hit('github contributions')
+      const v = body.variables ?? {}
+      const dates = ['monthFrom', 'weekFrom', 'todayFrom', 'to'].map((key) => {
+        const raw = v[key]
+        return new Date(typeof raw === 'string' ? raw : NaN)
+      })
+      if (dates.some((d) => Number.isNaN(d.getTime()))) return refuse(res, 400, 'github: contributions range is not ISO dates')
+      const [monthFrom, weekFrom, todayFrom, to] = dates as [Date, Date, Date, Date]
+      // The app's "now" is `to` (its clock, test clock included); every range starts at a local midnight.
+      const today = startOfDay(to)
+      if (monthFrom.getTime() !== firstOfMonth(today).getTime()) return refuse(res, 400, 'github: month does not start on the 1st at local 00:00')
+      if (weekFrom.getTime() !== mondayOf(today).getTime()) return refuse(res, 400, 'github: week does not start on Monday at local 00:00')
+      if (todayFrom.getTime() !== today.getTime()) return refuse(res, 400, 'github: today does not start at local 00:00')
+      const merged: Date[] = []
+      for (const key of ['mergedMonth', 'mergedWeek', 'mergedToday']) {
+        const m = /^is:pr author:@me is:merged merged:>=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})$/.exec(String(v[key] ?? ''))
+        if (!m) return refuse(res, 400, `github: unexpected ${key} search`)
+        merged.push(new Date(m[1]!))
+      }
+      if (merged.map((d) => d.getTime()).join() !== [monthFrom, weekFrom, today].map((d) => d.getTime()).join()) {
+        return refuse(res, 400, 'github: merged searches do not start where the ranges do')
+      }
+      if (contributionsFail.github) {
+        hit('github contributions 500')
+        return json(res, 500, { message: 'Server Error' })
+      }
+      const collection = (from: Date, restricted = 0) => {
+        const t = githubPeriod(from, today)
+        return {
+          totalCommitContributions: t.commits,
+          totalPullRequestContributions: t.opened,
+          totalPullRequestReviewContributions: t.reviews,
+          restrictedContributionsCount: restricted,
+        }
+      }
+      // The calendar from the 1st to today, in GitHub's Sunday-first weeks.
+      const weeks: { contributionDays: { date: string; contributionCount: number; weekday: number }[] }[] = []
+      for (const day of daysBetween(monthFrom, today)) {
+        if (weeks.length === 0 || day.getDay() === 0) weeks.push({ contributionDays: [] })
+        weeks.at(-1)!.contributionDays.push({ date: localDay(day), contributionCount: githubDayCount(day, today), weekday: day.getDay() })
+      }
+      const mergedSince = (from: Date) => ({ issueCount: githubPeriod(from, today).merged })
+      return json(res, 200, {
+        data: {
+          viewer: {
+            month: {
+              ...collection(monthFrom, GITHUB_RESTRICTED),
+              contributionCalendar: { totalContributions: expectedGithubContributions(today).monthTotal, weeks },
+            },
+            week: collection(weekFrom),
+            today: collection(today),
+          },
+          mergedMonth: mergedSince(monthFrom),
+          mergedWeek: mergedSince(weekFrom),
+          mergedToday: mergedSince(today),
         },
       })
     }
@@ -446,6 +730,40 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
         mr.reviewers.map((r) => ({ user: userRef(r.username), state: r.state, created_at: isoAgo(mr.minutesAgo) })),
       )
     }
+    if (path === `users/${FAKE_GITLAB_USER.id}/events`) {
+      // The contributions of the open "Revisiones" view: the user's events, 100 per page.
+      hit('gitlab events')
+      const after = q.get('after') ?? ''
+      const before = q.get('before') ?? ''
+      const page = Number(q.get('page') ?? '1')
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(after) || !/^\d{4}-\d{2}-\d{2}$/.test(before) || after >= before) {
+        return refuse(res, 400, 'gitlab: events after/before are not an ordered pair of dates')
+      }
+      if (q.get('per_page') !== '100' || !Number.isInteger(page) || page < 1) return refuse(res, 400, 'gitlab: events not per_page=100 with a page')
+      if (page === 1) hit('gitlab contributions')
+      if (contributionsFail.gitlab) {
+        hit('gitlab contributions 500')
+        return json(res, 500, { message: '500 Internal Server Error' })
+      }
+      // The app asks up to "today + 2 days": its today (test clock included) is two days before `before`.
+      const today = addDays(parseLocalDay(before), -2)
+      // GitLab's EventsFinder (UTC server): created_at > after.end_of_day and < before.beginning_of_day.
+      const from = Date.parse(`${after}T23:59:59.999Z`)
+      const until = Date.parse(`${before}T00:00:00.000Z`)
+      const served = gitlabEvents(today)
+        .map((e) => e.event)
+        .filter((e) => {
+          const t = Date.parse(String(e['created_at']))
+          return t > from && t < until
+        })
+      const totalPages = Math.max(1, Math.ceil(served.length / 100))
+      res.setHeader('x-page', String(page))
+      res.setHeader('x-per-page', '100')
+      res.setHeader('x-total', String(served.length))
+      res.setHeader('x-total-pages', String(totalPages))
+      res.setHeader('x-next-page', page < totalPages ? String(page + 1) : '')
+      return json(res, 200, served.slice((page - 1) * 100, page * 100))
+    }
     return refuse(res, 404, `gitlab: unknown path ${path}`)
   }
 
@@ -476,6 +794,7 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
     violations,
     hits,
     requests,
+    contributionsFail,
     reviewPr(id, review, by = 'rosa-ejemplo') {
       const pr = githubMine.find((p) => p.id === id)
       if (!pr) throw new Error(`no own PR ${id}`)

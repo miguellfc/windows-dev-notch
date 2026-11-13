@@ -1,6 +1,6 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
-import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react'
-import { Suspense, useEffect, useState, type ReactNode } from 'react'
+import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
+import { Suspense, useEffect, useState, type ReactNode, type Ref } from 'react'
 import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
@@ -235,7 +235,7 @@ export function NotchApp() {
             }`}
           >
             <AnimatePresence initial={false} mode="popLayout">
-              <motion.div
+              <PresenceLayer
                 // A compact width change (first sample, battery, monitor lost) cross-fades its content
                 // like a mode change; re-laid-out in place, the time would slide while the edge moves.
                 key={mode === 'compact' ? `compact-${size.width}` : mode === 'expanded' ? `expanded-${size.height}` : mode}
@@ -250,13 +250,23 @@ export function NotchApp() {
                 className="absolute inset-0"
               >
                 <CapsuleContent mode={mode} settings={settings} compactWidth={size.width} />
-              </motion.div>
+              </PresenceLayer>
             </AnimatePresence>
           </motion.div>
         </div>
       </div>
     </MotionConfig>
   )
+}
+
+/**
+ * One copy of the capsule content inside `AnimatePresence`. While it exits (popLayout keeps it in the
+ * DOM until its fade ends, longer when the window is throttled) it is hidden from screen readers and
+ * from focus/clicks, so only the present copy is reachable. Visually nothing changes.
+ */
+function PresenceLayer({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<HTMLDivElement> }) {
+  const isPresent = useIsPresent()
+  return <motion.div ref={ref} {...props} aria-hidden={isPresent ? undefined : true} inert={!isPresent} />
 }
 
 /** What the compact capsule shows besides time and date: system metrics, unread mail and code reviews. */

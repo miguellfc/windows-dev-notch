@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { codeReviewChannelGuards, createCodeReviewIpcHandlers } from '../../../src/main/code-review/code-review-ipc'
 import { registerIpc, type IpcEventLike, type IpcHandlers, type IpcMainLike } from '../../../src/main/ipc/register'
 import { ExposedIpcError } from '../../../src/main/ipc/errors'
-import type { CodeReviewList, CodeReviewState, Platform, ReviewItem, SetTokenResult } from '../../../src/shared/code-review/schema'
+import type { CodeReviewList, CodeReviewState, ContributionsResult, Platform, ReviewItem, SetTokenResult } from '../../../src/shared/code-review/schema'
 import { contract } from '../../../src/shared/ipc/contract'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -27,7 +27,7 @@ const item = (id: string): ReviewItem => ({
   conflicts: false,
 })
 
-function setup(options: { ready?: Promise<void>; state?: unknown; list?: unknown; setToken?: unknown } = {}) {
+function setup(options: { ready?: Promise<void>; state?: unknown; list?: unknown; setToken?: unknown; contributions?: unknown } = {}) {
   const codeReview = {
     ready: options.ready ?? Promise.resolve(),
     state: vi.fn(() => (options.state ?? okState) as CodeReviewState),
@@ -38,6 +38,10 @@ function setup(options: { ready?: Promise<void>; state?: unknown; list?: unknown
       async () => (options.setToken ?? { ok: true, account: 'me' }) as SetTokenResult,
     ),
     clear: vi.fn<(platform: Platform) => Promise<void>>(async () => undefined),
+    setViewOpen: vi.fn<(open: boolean) => void>(),
+    contributions: vi.fn<(platform: Platform) => Promise<ContributionsResult>>(
+      async () => (options.contributions ?? { summary: null, error: false }) as ContributionsResult,
+    ),
   }
   const listeners = new Map<string, Listener>()
   const ipcMain: IpcMainLike = {
@@ -70,12 +74,16 @@ const allowed: Record<Extract<keyof typeof contract, `code-review:${string}`>, '
   'code-review:open': 'notch',
   'code-review:set-token': 'control-center',
   'code-review:clear': 'control-center',
+  'code-review:view': 'notch',
+  'code-review:contributions': 'notch',
 }
 const sample: Record<string, unknown> = {
   'code-review:list': { platform: 'github' },
   'code-review:open': { platform: 'github', id: 'a' },
   'code-review:set-token': { platform: 'github', token: 'fake-token' },
   'code-review:clear': { platform: 'gitlab' },
+  'code-review:view': { open: true },
+  'code-review:contributions': { platform: 'github' },
 }
 
 describe('code review IPC guards', () => {
@@ -102,6 +110,10 @@ describe('code review IPC guards', () => {
     expect(codeReview.clear).not.toHaveBeenCalled()
     expect(codeReview.open).not.toHaveBeenCalled()
     expect(codeReview.list).not.toHaveBeenCalled()
+    await invoke('code-review:view', CONTROL_CENTER, { open: true })
+    await invoke('code-review:contributions', CONTROL_CENTER, { platform: 'github' })
+    expect(codeReview.setViewOpen).not.toHaveBeenCalled()
+    expect(codeReview.contributions).not.toHaveBeenCalled()
   })
 })
 
@@ -182,5 +194,30 @@ describe('code review IPC handlers', () => {
     await expect(tooMany.invoke('code-review:list', NOTCH, { platform: 'github' })).resolves.toMatchObject(internal)
     const tokenBack = setup({ setToken: { ok: true, account: 'me', token: 'secret' } })
     await expect(tokenBack.invoke('code-review:set-token', CONTROL_CENTER, { platform: 'github', token: 'fake-token' })).resolves.toMatchObject(internal)
+  })
+
+  it('view waits for the stored tokens, then passes open/close through', async () => {
+    let release: () => void = () => undefined
+    const { codeReview, invoke } = setup({ ready: new Promise<void>((resolve) => (release = resolve)) })
+    const pending = invoke('code-review:view', NOTCH, { open: true })
+    await Promise.resolve()
+    expect(codeReview.setViewOpen).not.toHaveBeenCalled()
+    release()
+    await expect(pending).resolves.toEqual({ ok: true, data: null })
+    expect(codeReview.setViewOpen).toHaveBeenCalledWith(true)
+    await invoke('code-review:view', NOTCH, { open: false })
+    expect(codeReview.setViewOpen).toHaveBeenLastCalledWith(false)
+    await expect(invoke('code-review:view', NOTCH, {})).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+  })
+
+  it('contributions returns the cached summary (or null) and the error flag, validated strictly', async () => {
+    const { codeReview, invoke } = setup()
+    await expect(invoke('code-review:contributions', NOTCH, { platform: 'gitlab' })).resolves.toEqual({ ok: true, data: { summary: null, error: false } })
+    expect(codeReview.contributions).toHaveBeenCalledWith('gitlab')
+    await expect(invoke('code-review:contributions', NOTCH, { platform: 'bitbucket' })).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+    const failed = setup({ contributions: { summary: null, error: true } })
+    await expect(failed.invoke('code-review:contributions', NOTCH, { platform: 'github' })).resolves.toEqual({ ok: true, data: { summary: null, error: true } })
+    const leaky = setup({ contributions: { summary: { month: '2026-11', repo: 'acme/secret' }, error: false } })
+    await expect(leaky.invoke('code-review:contributions', NOTCH, { platform: 'github' })).resolves.toMatchObject({ ok: false, error: { code: 'INTERNAL' } })
   })
 })

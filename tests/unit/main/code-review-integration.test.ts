@@ -2,12 +2,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CodeReviewError, type ClientItem, type CodeReviewClient, type CodeReviewSnapshot } from '../../../src/main/code-review/client-common'
 import {
   CODE_REVIEW_BACKOFF_MS,
+  CODE_REVIEW_CONTRIBUTIONS_TICK_MS,
   CODE_REVIEW_TICK_MS,
   createCodeReviewIntegration,
   parseCodeReviewBaseOverrides,
 } from '../../../src/main/code-review/code-review-integration'
 import { ExposedIpcError } from '../../../src/main/ipc/errors'
-import type { CodeReviewAlert, CodeReviewState, Platform, ReviewState } from '../../../src/shared/code-review/schema'
+import { summarize, ZERO_TOTALS } from '../../../src/shared/code-review/contributions'
+import type {
+  CodeReviewAlert,
+  CodeReviewState,
+  ContributionsChanged,
+  ContributionSummary,
+  Platform,
+  ReviewState,
+} from '../../../src/shared/code-review/schema'
 import type { CodeReviewSettings } from '../../../src/shared/settings/schema'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -42,6 +51,14 @@ const snap = (mine: ClientItem[], toReview: ClientItem[] = [], uncertain: string
 interface FakeClient extends CodeReviewClient {
   viewer: ReturnType<typeof vi.fn<() => Promise<string>>>
   fetch: ReturnType<typeof vi.fn<() => Promise<CodeReviewSnapshot>>>
+  contributions: ReturnType<typeof vi.fn<(now: Date) => Promise<ContributionSummary>>>
+}
+
+/** A summary like the clients build it for `now`'s month (`commits` contributions today). */
+const summaryFor = (now: Date, commits = 1): ContributionSummary => {
+  const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const totals = { ...ZERO_TOTALS, commits }
+  return summarize({ now, counts: new Map([[day, commits]]), today: totals, week: totals, monthTotals: totals, partial: false, restricted: false })
 }
 
 interface SetupOptions {
@@ -103,6 +120,7 @@ function setup(options: SetupOptions = {}) {
   const makeClient = (platform: Platform): FakeClient => ({
     viewer: vi.fn(async () => (platform === 'github' ? 'octo' : 'tanuki')),
     fetch: vi.fn(async () => snap([])),
+    contributions: vi.fn(async (now: Date) => summaryFor(now)),
   })
   /** Every client created, with the token (and URL) it was built for. */
   const clients: { platform: Platform; token: string; baseUrl?: string; client: FakeClient }[] = []
@@ -123,6 +141,7 @@ function setup(options: SetupOptions = {}) {
   }
 
   const emitted: CodeReviewState[] = []
+  const contributionEvents: ContributionsChanged[] = []
   const alerts: CodeReviewAlert[] = []
   const openExternal = vi.fn(async () => undefined)
   const integration = createCodeReviewIntegration({
@@ -132,6 +151,7 @@ function setup(options: SetupOptions = {}) {
     timers: { setTimeout, clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
     now: () => Date.now(),
     emit: (state) => emitted.push(state),
+    emitContributions: (change) => contributionEvents.push(change),
     openExternal,
     onAlert: (alert) => alerts.push(alert),
     logger,
@@ -153,6 +173,7 @@ function setup(options: SetupOptions = {}) {
     clients,
     clientFactories,
     emitted,
+    contributionEvents,
     alerts,
     openExternal,
     last,
@@ -561,6 +582,240 @@ describe('code review integration: privacy', () => {
     const log = JSON.stringify(t.logger.entries)
     expect(t.logger.entries.length).toBeGreaterThan(0)
     expect(log).not.toMatch(/SECRET|gh-token-stored|acme|grp\/proj|someone|octo|tanuki/)
+  })
+})
+
+describe('code review integration: contributions', () => {
+  const both = { tokens: { gitlab: 'gl-token' } }
+
+  it('never queries contributions while the view is closed', async () => {
+    const t = setup(both)
+    await t.integration.ready
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS * 3)
+    t.integration.refresh()
+    await flush()
+    expect(t.last('github').contributions).not.toHaveBeenCalled()
+    expect(t.last('gitlab').contributions).not.toHaveBeenCalled()
+    expect((await t.integration.contributions('github')).summary).toBeNull()
+  })
+
+  it('queries each connected platform on open, then every 15 min while open; stops on close', async () => {
+    const t = setup(both)
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush()
+    const gh = t.last('github')
+    const gl = t.last('gitlab')
+    expect(gh.contributions).toHaveBeenCalledTimes(1)
+    expect(gl.contributions).toHaveBeenCalledTimes(1)
+    expect((await t.integration.contributions('github')).summary?.month).toBe('2026-11')
+    expect(t.contributionEvents).toEqual(expect.arrayContaining([{ platform: 'github', error: false }, { platform: 'gitlab', error: false }]))
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS - 1)
+    expect(gh.contributions).toHaveBeenCalledTimes(1)
+    await flush(1)
+    expect(gh.contributions).toHaveBeenCalledTimes(2)
+    expect(gl.contributions).toHaveBeenCalledTimes(2)
+    t.integration.setViewOpen(false)
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS * 4)
+    expect(gh.contributions).toHaveBeenCalledTimes(2)
+    // The cache outlives the closed view (shown at once on the next open, then refreshed).
+    expect((await t.integration.contributions('github')).summary).not.toBeNull()
+    t.integration.setViewOpen(true)
+    await flush()
+    expect(gh.contributions).toHaveBeenCalledTimes(3)
+  })
+
+  it('opening twice in a row does not start a second timer or query', async () => {
+    const t = setup()
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    t.integration.setViewOpen(true)
+    await flush()
+    expect(t.last('github').contributions).toHaveBeenCalledTimes(1)
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+    expect(t.last('github').contributions).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips unconfigured and auth-error platforms', async () => {
+    const t = setup({ tokens: { github: null, gitlab: 'gl-token' } })
+    t.setPrepare((c) => c.fetch.mockRejectedValue(new CodeReviewError('auth')))
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+    expect(t.last('gitlab').contributions).not.toHaveBeenCalled()
+    expect((await t.integration.contributions('github')).summary).toBeNull()
+    expect((await t.integration.contributions('gitlab')).summary).toBeNull()
+  })
+
+  it('manual refresh also refreshes contributions while open, sharing the 5 s minimum', async () => {
+    const t = setup()
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush()
+    const gh = t.last('github')
+    expect(gh.contributions).toHaveBeenCalledTimes(1)
+    await flush(5_000)
+    t.integration.refresh()
+    await flush()
+    expect(gh.contributions).toHaveBeenCalledTimes(2)
+    expect(gh.fetch).toHaveBeenCalledTimes(2)
+    t.integration.refresh()
+    await flush(4_000)
+    expect(gh.contributions).toHaveBeenCalledTimes(2)
+    // The 15 min rhythm restarts from the manual query.
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS - 4_000 - 1)
+    expect(gh.contributions).toHaveBeenCalledTimes(2)
+    await flush(1)
+    expect(gh.contributions).toHaveBeenCalledTimes(3)
+  })
+
+  it('a failure keeps the cache, flags the error and leaves lists and state alone; success clears the flag', async () => {
+    const t = setup()
+    t.setPrepare((c) => c.fetch.mockResolvedValue(snap([item('github', '1')])))
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush()
+    const gh = t.last('github')
+    const cached = (await t.integration.contributions('github')).summary
+    expect(cached).not.toBeNull()
+    const statesBefore = t.emitted.length
+    gh.contributions.mockRejectedValueOnce(new CodeReviewError('network'))
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+    expect(t.contributionEvents.at(-1)).toEqual({ platform: 'github', error: true })
+    // A view that mounts now (reload, reopen) reads the error without waiting for the next event.
+    expect(await t.integration.contributions('github')).toEqual({ summary: cached, error: true })
+    expect(t.integration.state().github).toMatchObject({ status: 'ok', unreviewed: 1 })
+    expect((await t.integration.list('github')).mine).toHaveLength(1)
+    expect(t.emitted.slice(statesBefore).every((s) => s.github.status === 'ok')).toBe(true)
+    // A failed retry still ends with an event (the view stops its spinner).
+    const events = t.contributionEvents.length
+    gh.contributions.mockRejectedValueOnce(new CodeReviewError('server'))
+    t.integration.refresh()
+    await flush()
+    expect(t.contributionEvents.length).toBe(events + 1)
+    expect(t.contributionEvents.at(-1)).toEqual({ platform: 'github', error: true })
+    await flush(5_000)
+    t.integration.refresh()
+    await flush()
+    expect(t.contributionEvents.at(-1)).toEqual({ platform: 'github', error: false })
+    expect((await t.integration.contributions('github')).error).toBe(false)
+  })
+
+  it('401/403 on contributions goes to auth-error like the lists and stops both', async () => {
+    const t = setup(both)
+    await t.integration.ready
+    await flush()
+    const gh = t.last('github')
+    gh.contributions.mockRejectedValue(new CodeReviewError('auth'))
+    t.integration.setViewOpen(true)
+    await flush()
+    expect(t.integration.state().github).toMatchObject({ status: 'auth-error', unreviewed: null })
+    expect(t.integration.state().gitlab.status).toBe('ok')
+    // The retry ends with an error event; the state's auth-error decides what the view shows.
+    expect(t.contributionEvents.filter((e) => e.platform === 'github').at(-1)).toEqual({ platform: 'github', error: true })
+    expect(await t.integration.contributions('github')).toEqual({ summary: null, error: false })
+    expect(await t.integration.list('github')).toEqual({ toReview: [], mine: [] })
+    const fetches = gh.fetch.mock.calls.length
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS * 2)
+    expect(gh.contributions).toHaveBeenCalledTimes(1)
+    expect(gh.fetch).toHaveBeenCalledTimes(fetches)
+    expect(t.last('gitlab').contributions).toHaveBeenCalledTimes(3)
+  })
+
+  it('a list query that ends after a contributions 401 does not revive the platform', async () => {
+    const t = setup()
+    await t.integration.ready
+    await flush()
+    const gh = t.last('github')
+    let releaseList: (s: CodeReviewSnapshot) => void = () => undefined
+    gh.fetch.mockImplementationOnce(() => new Promise((resolve) => (releaseList = resolve)))
+    gh.contributions.mockRejectedValue(new CodeReviewError('auth'))
+    await flush(CODE_REVIEW_TICK_MS)
+    expect(gh.fetch).toHaveBeenCalledTimes(2)
+    t.integration.setViewOpen(true)
+    await flush()
+    expect(t.integration.state().github.status).toBe('auth-error')
+    releaseList(snap([item('github', '1')]))
+    await flush(CODE_REVIEW_TICK_MS * 2)
+    expect(t.integration.state().github).toMatchObject({ status: 'auth-error', unreviewed: null })
+    expect(gh.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('a new token starts a new generation: empty cache, old results dropped, new query while open', async () => {
+    const t = setup()
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush()
+    const old = t.last('github')
+    expect((await t.integration.contributions('github')).summary).not.toBeNull()
+    let release: (s: ContributionSummary) => void = () => undefined
+    old.contributions.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+    expect(old.contributions).toHaveBeenCalledTimes(2)
+    let releaseNew: (s: ContributionSummary) => void = () => undefined
+    t.setPrepare((c) => c.contributions.mockImplementationOnce(() => new Promise((resolve) => (releaseNew = resolve))))
+    await t.integration.setToken('github', 'gh-new')
+    expect((await t.integration.contributions('github')).summary).toBeNull()
+    expect(t.contributionEvents.at(-1)).toEqual({ platform: 'github', error: false })
+    release(summaryFor(new Date(), 99))
+    await flush()
+    expect((await t.integration.contributions('github')).summary).toBeNull()
+    const fresh = t.last('github')
+    expect(fresh).not.toBe(old)
+    expect(fresh.contributions).toHaveBeenCalledTimes(1)
+    releaseNew(summaryFor(new Date(), 2))
+    await flush()
+    expect((await t.integration.contributions('github')).summary?.monthTotal).toBe(2)
+    await t.integration.clear('github')
+    expect((await t.integration.contributions('github')).summary).toBeNull()
+  })
+
+  it('computes the range from the clock on each query: crossing midnight and the month end', async () => {
+    const t = setup()
+    vi.setSystemTime(new Date(2026, 10, 30, 23, 50))
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush()
+    const gh = t.last('github')
+    expect(gh.contributions.mock.calls[0]?.[0].getTime()).toBe(new Date(2026, 10, 30, 23, 50).getTime())
+    expect((await t.integration.contributions('github')).summary?.month).toBe('2026-11')
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+    const second = gh.contributions.mock.calls[1]?.[0]
+    expect(second?.getMonth()).toBe(11)
+    expect(second?.getDate()).toBe(1)
+    const summary = (await t.integration.contributions('github')).summary
+    expect(summary?.month).toBe('2026-12')
+    expect(summary?.today.commits).toBe(1)
+  })
+
+  it('stops the contributions timer on dispose', async () => {
+    const t = setup()
+    await t.integration.ready
+    await flush()
+    t.integration.setViewOpen(true)
+    await flush()
+    t.integration.dispose()
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS * 2)
+    expect(t.last('github').contributions).toHaveBeenCalledTimes(1)
+  })
+
+  it('logs only platforms and codes', async () => {
+    const t = setup(both)
+    await t.integration.ready
+    await flush()
+    t.last('github').contributions.mockRejectedValueOnce(new CodeReviewError('network'))
+    t.integration.setViewOpen(true)
+    await flush(CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+    const log = JSON.stringify(t.logger.entries)
+    expect(log).toContain('network')
+    expect(log).not.toMatch(/acme|grp\/proj|someone|octo|tanuki|gh-token-stored|gl-token/)
   })
 })
 

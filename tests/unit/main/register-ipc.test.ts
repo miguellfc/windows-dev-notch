@@ -140,6 +140,8 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'code-review:open': () => null,
     'code-review:set-token': () => ({ ok: false, reason: 'auth' }),
     'code-review:clear': () => null,
+    'code-review:view': () => null,
+    'code-review:contributions': () => ({ summary: null, error: false }),
     ...overrides,
   }
 }
@@ -338,6 +340,8 @@ describe('terminal write isolation', () => {
     'code-review:open': { platform: 'github', id: 'n1' },
     'code-review:set-token': { platform: 'gitlab', token: 'fake-token', url: 'https://gitlab.example.test' },
     'code-review:clear': { platform: 'github' },
+    'code-review:view': { open: true },
+    'code-review:contributions': { platform: 'github' },
   }
 
   it('has a sample input for every channel', () => {

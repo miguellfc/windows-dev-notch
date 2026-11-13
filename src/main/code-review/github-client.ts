@@ -4,8 +4,11 @@ import {
   CODE_REVIEW_ID_MAX,
   CODE_REVIEW_LIST_LIMIT,
   type Checks,
+  type ContributionSummary,
+  type ContributionTotals,
   type ReviewState,
 } from '../../shared/code-review/schema'
+import { dayStart, localIsoWithOffset, monthRange, summarize, weekStart } from '../../shared/code-review/contributions'
 import {
   CodeReviewError,
   clip,
@@ -50,6 +53,30 @@ fragment pr on PullRequest {
   author { login }
   reviews(last: ${REVIEWS_READ}, states: ${REVIEW_STATES}) { totalCount nodes { state author { login } } }
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+}`
+
+/**
+ * Own PRs merged on or after a local instant; `since` carries its UTC offset
+ * (`2026-11-13T00:00:00+01:00`) because a bare date is read in UTC. Only `issueCount` is read.
+ */
+export const githubMergedQuery = (since: string): string => `is:pr author:@me is:merged merged:>=${since}`
+
+const CONTRIBUTION_TOTALS = 'totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions restrictedContributionsCount'
+
+/**
+ * Month (with its calendar), week and today in one query. `from`/`to` are DateTimes: the local
+ * midnights as instants. The calendar's dates are GitHub-side dates (the account's GitHub time
+ * zone); they are placed by their `YYYY-MM-DD` string into the local month grid.
+ */
+export const GITHUB_CONTRIBUTIONS_QUERY = `query Contributions($monthFrom: DateTime!, $weekFrom: DateTime!, $todayFrom: DateTime!, $to: DateTime!, $mergedMonth: String!, $mergedWeek: String!, $mergedToday: String!) {
+  viewer {
+    month: contributionsCollection(from: $monthFrom, to: $to) { contributionCalendar { weeks { contributionDays { date contributionCount } } } ${CONTRIBUTION_TOTALS} }
+    week: contributionsCollection(from: $weekFrom, to: $to) { ${CONTRIBUTION_TOTALS} }
+    today: contributionsCollection(from: $todayFrom, to: $to) { ${CONTRIBUTION_TOTALS} }
+  }
+  mergedMonth: search(type: ISSUE, first: 0, query: $mergedMonth) { issueCount }
+  mergedWeek: search(type: ISSUE, first: 0, query: $mergedWeek) { issueCount }
+  mergedToday: search(type: ISSUE, first: 0, query: $mergedToday) { issueCount }
 }`
 
 const VIEWER_QUERY = 'query Viewer { viewer { login } }'
@@ -103,6 +130,47 @@ const fetchResponseSchema = z.object({
     .nullable()
     .optional(),
   errors: graphqlErrorsSchema,
+})
+
+const count = z.int().min(0)
+
+const collectionSchema = z.object({
+  totalCommitContributions: count,
+  totalPullRequestContributions: count,
+  totalPullRequestReviewContributions: count,
+  restrictedContributionsCount: count,
+})
+type GithubCollection = z.infer<typeof collectionSchema>
+
+const calendarSchema = z.object({
+  weeks: z.array(z.object({ contributionDays: z.array(z.object({ date: z.string(), contributionCount: count })) })),
+})
+
+/** A failed merged search (null in a 200 with `errors`) counts 0; the rest of the data is still used. */
+const mergedSchema = z.object({ issueCount: count }).nullable().optional()
+
+const contributionsResponseSchema = z.object({
+  data: z
+    .object({
+      viewer: z.object({
+        month: collectionSchema.extend({ contributionCalendar: calendarSchema }),
+        week: collectionSchema,
+        today: collectionSchema,
+      }),
+      mergedMonth: mergedSchema,
+      mergedWeek: mergedSchema,
+      mergedToday: mergedSchema,
+    })
+    .nullable()
+    .optional(),
+  errors: graphqlErrorsSchema,
+})
+
+const totalsOf = (c: GithubCollection, merged: { issueCount: number } | null | undefined): ContributionTotals => ({
+  commits: c.totalCommitContributions,
+  opened: c.totalPullRequestContributions,
+  merged: merged?.issueCount ?? 0,
+  reviews: c.totalPullRequestReviewContributions,
 })
 
 const viewerResponseSchema = z.object({
@@ -206,6 +274,39 @@ export function createGithubClient({ fetch: doFetch, token, apiBase = GITHUB_API
       if (!listComplete && unreviewed) result.unreviewed = Math.max(result.unreviewed, unreviewed.issueCount)
       result.unreviewed = Math.min(result.unreviewed, CODE_REVIEW_COUNT_CAP)
       return result
+    },
+
+    async contributions(now: Date): Promise<ContributionSummary> {
+      const month = monthRange(now).from
+      const week = weekStart(now)
+      const today = dayStart(now)
+      const response = await post(GITHUB_CONTRIBUTIONS_QUERY, {
+        monthFrom: month.toISOString(),
+        weekFrom: week.toISOString(),
+        todayFrom: today.toISOString(),
+        // Never an empty "today" range (now exactly at local midnight).
+        to: new Date(Math.max(now.getTime(), today.getTime() + 1000)).toISOString(),
+        mergedMonth: githubMergedQuery(localIsoWithOffset(month)),
+        mergedWeek: githubMergedQuery(localIsoWithOffset(week)),
+        mergedToday: githubMergedQuery(localIsoWithOffset(today)),
+      })
+      // As in fetch(): a 200 with `errors` and `data` still uses the data.
+      const body = await readJson(response, contributionsResponseSchema)
+      if (!body.data) throw noDataError(body.errors)
+      const { viewer, mergedMonth, mergedWeek, mergedToday } = body.data
+      const counts = new Map<string, number>()
+      for (const w of viewer.month.contributionCalendar.weeks) {
+        for (const d of w.contributionDays) counts.set(d.date, (counts.get(d.date) ?? 0) + d.contributionCount)
+      }
+      return summarize({
+        now,
+        counts,
+        today: totalsOf(viewer.today, mergedToday),
+        week: totalsOf(viewer.week, mergedWeek),
+        monthTotals: totalsOf(viewer.month, mergedMonth),
+        partial: false,
+        restricted: [viewer.month, viewer.week, viewer.today].some((c) => c.restrictedContributionsCount > 0),
+      })
     },
   }
 }

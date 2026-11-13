@@ -1,5 +1,13 @@
 import { z } from 'zod'
-import { CODE_REVIEW_LIST_LIMIT, normalizeGitlabUrl, type Checks, type ReviewState } from '../../shared/code-review/schema'
+import { classifyGitlabEvent, dayStart, localDate, monthRange, summarize, weekStart, ZERO_TOTALS } from '../../shared/code-review/contributions'
+import {
+  CODE_REVIEW_LIST_LIMIT,
+  normalizeGitlabUrl,
+  type Checks,
+  type ContributionSummary,
+  type ContributionTotals,
+  type ReviewState,
+} from '../../shared/code-review/schema'
 import {
   CodeReviewError,
   clip,
@@ -43,6 +51,20 @@ const approvalsSchema = z.object({ approved_by: z.array(z.object({ user: userRef
 
 /** `GET …/reviewers` (GitLab 15.9+): `[{ user: {...}, state: 'unreviewed' | 'reviewed' | 'requested_changes' | 'approved' | …, created_at }]`. */
 const reviewersSchema = z.array(z.object({ user: userRefSchema, state: z.string().nullable().optional() }).loose())
+
+/** `GET /users/:id/events`: only the fields the classification reads (titles are never read). */
+const eventSchema = z.object({
+  action_name: z.string(),
+  created_at: z.string(),
+  target_type: z.string().nullable().optional(),
+  push_data: z.object({ commit_count: z.int().min(0).nullable().optional() }).loose().nullable().optional(),
+  note: z.object({ noteable_type: z.string().nullable().optional() }).loose().nullable().optional(),
+})
+const eventListSchema = z.array(eventSchema)
+
+/** Events per page and the most pages read per query (beyond it the summary is `partial`). */
+export const GITLAB_EVENTS_PER_PAGE = 100
+export const GITLAB_EVENTS_MAX_PAGES = 10
 
 const RUNNING = new Set(['created', 'waiting_for_resource', 'preparing', 'pending', 'running', 'scheduled', 'waiting_for_callback'])
 
@@ -189,6 +211,62 @@ export function createGitlabClient({ fetch: doFetch, baseUrl, token, allowLoopba
         mine.map((mr) => toItem(mr, reviews.get(mr) ?? NO_REVIEW)),
         uncertain,
       )
+    },
+
+    async contributions(now: Date): Promise<ContributionSummary> {
+      const me = await user()
+      const monthFrom = monthRange(now).from
+      const week = weekStart(now)
+      const today = dayStart(now)
+      // The week may start in the previous month: read from the earlier of both starts.
+      const start = week < monthFrom ? week : monthFrom
+      const monthKey = localDate(monthFrom)
+      const weekKey = localDate(week)
+      const todayKey = localDate(today)
+      // `after`/`before` are exclusive dates applied in the SERVER's time zone (created_at >
+      // after.end_of_day and < before.beginning_of_day; UTC on gitlab.com). Two extra days on each side
+      // cover any local offset; events are then filtered by their local date.
+      const query = {
+        after: localDate(new Date(start.getFullYear(), start.getMonth(), start.getDate() - 2)),
+        before: localDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)),
+        per_page: String(GITLAB_EVENTS_PER_PAGE),
+      }
+
+      const counts = new Map<string, number>()
+      const totals = { today: { ...ZERO_TOTALS }, week: { ...ZERO_TOTALS }, month: { ...ZERO_TOTALS } }
+      let partial = false
+      // Pages in series (newest first), until a short page, an empty X-Next-Page or the page limit.
+      for (let page = 1; ; page++) {
+        const response = await sendOk(doFetch, url(`users/${me.id}/events`, { ...query, page: String(page) }), init)
+        const next = response.headers.get('x-next-page')
+        const events = await readJson(response, eventListSchema)
+        for (const event of events) {
+          const created = new Date(event.created_at)
+          if (Number.isNaN(created.getTime())) continue
+          const day = localDate(created)
+          if (day > todayKey || (day < monthKey && day < weekKey)) continue
+          const kind = classifyGitlabEvent(event)
+          const add = (t: ContributionTotals) => {
+            t.commits += kind.commits
+            if (kind.opened) t.opened++
+            if (kind.merged) t.merged++
+            if (kind.review) t.reviews++
+          }
+          if (day >= monthKey) {
+            add(totals.month)
+            if (kind.contribution) counts.set(day, (counts.get(day) ?? 0) + 1)
+          }
+          if (day >= weekKey) add(totals.week)
+          if (day === todayKey) add(totals.today)
+        }
+        const more = events.length >= GITLAB_EVENTS_PER_PAGE && next !== ''
+        if (!more) break
+        if (page === GITLAB_EVENTS_MAX_PAGES) {
+          partial = true
+          break
+        }
+      }
+      return summarize({ now, counts, today: totals.today, week: totals.week, monthTotals: totals.month, partial, restricted: false })
     },
   }
 }

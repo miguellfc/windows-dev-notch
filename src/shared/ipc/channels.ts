@@ -88,6 +88,8 @@ export const channels = {
     open: 'code-review:open',
     setToken: 'code-review:set-token',
     clear: 'code-review:clear',
+    view: 'code-review:view',
+    contributions: 'code-review:contributions',
   },
 } as const
 
@@ -110,6 +112,7 @@ export const eventChannels = {
   gmailNewMail: 'gmail:new-mail',
   codeReviewState: 'code-review:state',
   codeReviewAlert: 'code-review:alert',
+  codeReviewContributionsChanged: 'code-review:contributions-changed',
 } as const
 
 type ChannelGroups = typeof channels

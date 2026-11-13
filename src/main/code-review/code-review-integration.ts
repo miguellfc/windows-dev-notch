@@ -4,6 +4,9 @@ import {
   type CodeReviewAlert,
   type CodeReviewList,
   type CodeReviewState,
+  type ContributionsChanged,
+  type ContributionsResult,
+  type ContributionSummary,
   type Platform,
   type PlatformState,
   type PlatformStatus,
@@ -22,6 +25,8 @@ import { createReviewDetector, type ReviewDetector } from './review-detector'
 export const CODE_REVIEW_TICK_MS = 120_000
 /** Waits after consecutive network / 5xx / 429 / invalid-response failures: 1 → 2 → 4 → 5 min (max). */
 export const CODE_REVIEW_BACKOFF_MS = [60_000, 120_000, 240_000, 300_000] as const
+/** Contributions rhythm, only while the "Revisiones" view is open. */
+export const CODE_REVIEW_CONTRIBUTIONS_TICK_MS = 900_000
 /** Minimum time between two manual refreshes. */
 export const CODE_REVIEW_MANUAL_REFRESH_MIN_MS = 5_000
 /** The only origin GitHub items may open in the browser. */
@@ -78,6 +83,8 @@ export interface CodeReviewIntegrationOptions {
   now: () => number
   /** Pushes `code-review:state` to the notch and the Control Center. */
   emit: (state: CodeReviewState) => void
+  /** Pushes `code-review:contributions-changed` to the notch (summary replaced or cleared, or a query ended). */
+  emitContributions?: (change: ContributionsChanged) => void
   openExternal: (url: string) => Promise<void> | void
   /** Own PR/MRs got their first review while that platform's alerts are on. */
   onAlert?: (alert: CodeReviewAlert) => void
@@ -90,8 +97,12 @@ export interface CodeReviewIntegration {
   state(): CodeReviewState
   /** The last lists of a platform (no URLs); remembered as the ids `open` accepts. */
   list(platform: Platform): Promise<CodeReviewList>
-  /** Queries every connected platform now (at most every 5 s). */
+  /** Queries every connected platform now (at most every 5 s); contributions too while the view is open. */
   refresh(): void
+  /** The "Revisiones" view opened or closed: contributions are queried on open and every 15 min while open. */
+  setViewOpen(open: boolean): void
+  /** The cached month summary of a platform (null when not connected or not loaded yet) and the last query's error; never queries. */
+  contributions(platform: Platform): Promise<ContributionsResult>
   /** Opens an item of the last list sent, only on its platform's allowed origin; else ExposedIpcError. */
   open(platform: Platform, id: string): void
   /** Validates the token (and GitLab URL) against the API before saving anything. */
@@ -127,6 +138,12 @@ interface Runtime {
   /** A token save in progress; a clear waits for it so the token never outlives a removal. */
   pendingSave: Promise<void>
   loggedStatus: PlatformStatus | null
+  /** Last contributions summary of this generation (memory only). */
+  contributions: ContributionSummary | null
+  /** The last contributions query failed (the cached summary is kept). */
+  contributionsError: boolean
+  contributionsTimer: unknown
+  contributionsInFlight: { generation: number; run: Promise<void> } | null
 }
 
 /** Only a code or an error name: messages could quote tokens or titles. */
@@ -156,6 +173,7 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
   let started = false
   let disposed = false
   let lastManualRefresh = Number.NEGATIVE_INFINITY
+  let viewOpen = false
 
   const makeRuntime = (platform: Platform): Runtime => ({
     platform,
@@ -177,6 +195,10 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
     inFlight: null,
     pendingSave: Promise.resolve(),
     loggedStatus: null,
+    contributions: null,
+    contributionsError: false,
+    contributionsTimer: null,
+    contributionsInFlight: null,
   })
   const runtimes: Record<Platform, Runtime> = { github: makeRuntime('github'), gitlab: makeRuntime('gitlab') }
 
@@ -206,6 +228,16 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
     rt.timer = null
   }
 
+  const clearContributionsTimer = (rt: Runtime) => {
+    if (rt.contributionsTimer !== null) timers.clearTimeout(rt.contributionsTimer)
+    rt.contributionsTimer = null
+  }
+
+  const emitContributions = (rt: Runtime) => {
+    if (disposed) return
+    options.emitContributions?.({ platform: rt.platform, error: rt.contributionsError })
+  }
+
   /** Forgets everything tied to the current token (not the stored token itself). */
   const resetSession = (rt: Runtime) => {
     rt.generation++
@@ -222,6 +254,11 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
     rt.detector.reset()
     rt.failures = 0
     rt.status = 'unconfigured'
+    clearContributionsTimer(rt)
+    const hadContributions = rt.contributions !== null || rt.contributionsError
+    rt.contributions = null
+    rt.contributionsError = false
+    if (hadContributions) emitContributions(rt)
   }
 
   const clearStoredToken = (rt: Runtime): Promise<void> =>
@@ -251,12 +288,14 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
 
   const canPoll = (rt: Runtime) => !disposed && started && rt.client !== null && (rt.status === 'ok' || rt.status === 'offline')
 
-  const isStale = (rt: Runtime, startedIn: number) => startedIn !== rt.generation || disposed
+  /** Another generation, disposed, or the token was rejected meanwhile (only a new token revives it). */
+  const isStale = (rt: Runtime, startedIn: number) => startedIn !== rt.generation || disposed || rt.status === 'auth-error'
 
   /** The token no longer works: stop asking until a new one is saved. */
   const authFailed = (rt: Runtime) => {
     log.warn('Code review token rejected', { platform: rt.platform })
     clearTimer(rt)
+    clearContributionsTimer(rt)
     rt.unreviewed = null
     rt.toReview = []
     rt.mine = []
@@ -344,6 +383,52 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
     return entry.run
   }
 
+  const scheduleContributions = (rt: Runtime) => {
+    clearContributionsTimer(rt)
+    if (!viewOpen || !started || disposed) return
+    rt.contributionsTimer = timers.setTimeout(() => {
+      rt.contributionsTimer = null
+      void pollContributions(rt)
+    }, CODE_REVIEW_CONTRIBUTIONS_TICK_MS)
+  }
+
+  const runContributions = async (rt: Runtime, startedIn: number, client: CodeReviewClient): Promise<void> => {
+    try {
+      // The range comes from the clock on every query: a new day or month takes effect at once.
+      const summary = await client.contributions(new Date(now()))
+      if (isStale(rt, startedIn)) return
+      rt.contributions = summary
+      rt.contributionsError = false
+    } catch (error) {
+      if (isStale(rt, startedIn)) return
+      if (error instanceof CodeReviewError && error.code === 'auth') {
+        authFailed(rt)
+        // The state's auth-error decides what the view shows; the flag only ends a pending retry.
+        rt.contributionsError = true
+        emitContributions(rt)
+        return
+      }
+      // Lists, status and the rest of the state stay as they are: only the view's chart shows the error.
+      log.warn('Code review contributions query failed', { platform: rt.platform, code: errorCode(error) })
+      rt.contributionsError = true
+    }
+    emitContributions(rt)
+    scheduleContributions(rt)
+  }
+
+  /** Never with the view closed; one query per platform and generation at a time. */
+  const pollContributions = (rt: Runtime): Promise<void> => {
+    if (!viewOpen || !canPoll(rt) || rt.client === null) return Promise.resolve()
+    if (rt.contributionsInFlight && rt.contributionsInFlight.generation === rt.generation) return rt.contributionsInFlight.run
+    clearContributionsTimer(rt)
+    const entry = { generation: rt.generation, run: Promise.resolve() }
+    entry.run = runContributions(rt, rt.generation, rt.client).finally(() => {
+      if (rt.contributionsInFlight === entry) rt.contributionsInFlight = null
+    })
+    rt.contributionsInFlight = entry
+    return entry.run
+  }
+
   const ready = (async () => {
     await Promise.all(
       PLATFORMS.map(async (platform) => {
@@ -415,7 +500,27 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
       const at = now()
       if (at - lastManualRefresh < CODE_REVIEW_MANUAL_REFRESH_MIN_MS) return
       lastManualRefresh = at
-      for (const platform of PLATFORMS) void poll(runtimes[platform])
+      for (const platform of PLATFORMS) {
+        void poll(runtimes[platform])
+        void pollContributions(runtimes[platform])
+      }
+    },
+
+    setViewOpen(open) {
+      if (open === viewOpen) return
+      viewOpen = open
+      for (const platform of PLATFORMS) {
+        const rt = runtimes[platform]
+        if (open) void pollContributions(rt)
+        else clearContributionsTimer(rt)
+      }
+    },
+
+    async contributions(platform) {
+      await ready
+      const rt = runtimes[platform]
+      const usable = rt.status === 'ok' || rt.status === 'offline'
+      return { summary: usable ? rt.contributions : null, error: usable && rt.contributionsError }
     },
 
     open(platform, id) {
@@ -485,6 +590,7 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
       const saving = tokenStores[platform].save(token)
       rt.pendingSave = saving.catch(() => undefined)
       void poll(rt)
+      void pollContributions(rt)
       await saving.catch((error: unknown) => log.warn('Could not save the code review token', { platform, error: errorCode(error) }))
       return { ok: true, account }
     },
@@ -501,12 +607,18 @@ export function createCodeReviewIntegration(options: CodeReviewIntegrationOption
     start() {
       if (started) return
       started = true
-      for (const platform of PLATFORMS) void poll(runtimes[platform])
+      for (const platform of PLATFORMS) {
+        void poll(runtimes[platform])
+        void pollContributions(runtimes[platform])
+      }
     },
 
     dispose() {
       disposed = true
-      for (const platform of PLATFORMS) clearTimer(runtimes[platform])
+      for (const platform of PLATFORMS) {
+        clearTimer(runtimes[platform])
+        clearContributionsTimer(runtimes[platform])
+      }
       unsubscribe()
     },
   }

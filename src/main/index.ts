@@ -436,6 +436,11 @@ function start(): void {
         timers: codeReviewTestTimers ?? { setTimeout, clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) },
         now: codeReviewTestTimers ? testNow : () => Date.now(),
         emit: (state) => emitEvent(notchAndControlCenter(), 'code-review:state', state, logger),
+        // Contributions are shown only in the notch's "Revisiones" view.
+        emitContributions: (change) => {
+          if (notchWindow.isDestroyed()) return
+          emitEvent([notchWindow.webContents], 'code-review:contributions-changed', change, logger)
+        },
         openExternal: (url) => shell.openExternal(url),
         // First reviews go to the notch only, payload first (like new mail): the capsule already knows
         // what to show when the mode turns to alert; the controller drops it with a panel open and
@@ -446,6 +451,12 @@ function start(): void {
           notch.dispatch({ type: 'review', on: true })
         },
         logger,
+      })
+      // A (re)loaded notch starts with every view closed: no contributions polling and no open Gmail
+      // message are left behind for a view that no longer exists.
+      notchWindow.webContents.on('did-finish-load', () => {
+        codeReview.setViewOpen(false)
+        gmail?.setViewOpen(false)
       })
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
