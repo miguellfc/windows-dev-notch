@@ -1,17 +1,18 @@
-import { Activity, AlarmClock, Bot, Info, Keyboard, Mail, Settings2, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, Bot, GitPullRequest, Info, Keyboard, Mail, Settings2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import { useSettings } from '../shared/settings-store'
 import { useT } from '../shared/use-t'
 import { AboutPage } from './AboutPage'
 import { ClaudePage } from './ClaudePage'
+import { CodeReviewPage } from './CodeReviewPage'
 import { GeneralPage } from './GeneralPage'
 import { GmailPage } from './GmailPage'
 import { RemindersPage } from './RemindersPage'
 import { ShortcutPage } from './ShortcutPage'
 import { SystemPage } from './SystemPage'
 
-type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmail' | 'about'
+type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmail' | 'code-review' | 'about'
 
 const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'general', label: 'cc.nav.general', icon: Settings2 },
@@ -20,6 +21,7 @@ const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'reminders', label: 'cc.nav.reminders', icon: AlarmClock },
   { id: 'system', label: 'cc.nav.system', icon: Activity },
   { id: 'gmail', label: 'cc.nav.gmail', icon: Mail },
+  { id: 'code-review', label: 'cc.nav.codeReview', icon: GitPullRequest },
   { id: 'about', label: 'cc.nav.about', icon: Info },
 ]
 
@@ -66,6 +68,7 @@ export function ControlCenterApp() {
     else if (page === 'reminders') content = <RemindersPage settings={settings} />
     else if (page === 'system') content = <SystemPage settings={settings} />
     else if (page === 'gmail') content = <GmailPage settings={settings} />
+    else if (page === 'code-review') content = <CodeReviewPage settings={settings} />
     else content = <AboutPage />
   }
 

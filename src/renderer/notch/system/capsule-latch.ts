@@ -1,3 +1,4 @@
+import type { CodeReviewState, Platform, PlatformState } from '../../../shared/code-review/schema'
 import type { GmailState } from '../../../shared/gmail/schema'
 import type { SystemMetrics } from '../../../shared/system/schema'
 
@@ -100,4 +101,46 @@ export function nextMail(previous: MailLatch, state: GmailState): MailLatch {
   if (previous.unread === null) return EMPTY_MAIL
   const missRun = previous.missRun + 1
   return missRun >= CAPSULE_MISSES ? EMPTY_MAIL : { unread: previous.unread, missRun }
+}
+
+/** One code-review block of the compact capsule (a platform's own unreviewed PR/MRs). */
+export interface ReviewLatch {
+  /** 1–100 (100 shows as "99+"); null while there is no block. */
+  count: number | null
+  /** Consecutive readings without unreviewed PR/MRs while the block is shown. */
+  missRun: number
+}
+
+export type ReviewBlocks = Readonly<Record<Platform, ReviewLatch>>
+
+const EMPTY_REVIEW: ReviewLatch = { count: null, missRun: 0 }
+export const EMPTY_REVIEW_BLOCKS: ReviewBlocks = { github: EMPTY_REVIEW, gitlab: EMPTY_REVIEW }
+
+/** The mail block's rule for one platform, except that a live 0 hides at once: live is `ok` or `offline` (which keeps the last data). */
+function nextReview(previous: ReviewLatch, state: PlatformState): ReviewLatch {
+  const live = state.status === 'ok' || state.status === 'offline'
+  if (!live) return EMPTY_REVIEW
+  if (state.unreviewed !== null && state.unreviewed > 0) {
+    return previous.count === state.unreviewed && previous.missRun === 0 ? previous : { count: state.unreviewed, missRun: 0 }
+  }
+  // A live reading of 0 hides the block at once (it matches the "Aprobado" alert); only "no data" is latched.
+  if (state.unreviewed === 0 || previous.count === null) return EMPTY_REVIEW
+  const missRun = previous.missRun + 1
+  return missRun >= CAPSULE_MISSES ? EMPTY_REVIEW : { count: previous.count, missRun }
+}
+
+/**
+ * Folds one `code-review:state` reading into the per-platform blocks (pure): each platform is
+ * latched like the mail block for "no data" readings only; a live 0 hides the block immediately.
+ * Returns the same object when nothing changed.
+ */
+export function nextReviewBlocks(previous: ReviewBlocks, state: CodeReviewState): ReviewBlocks {
+  const github = nextReview(previous.github, state.github)
+  const gitlab = nextReview(previous.gitlab, state.gitlab)
+  return github === previous.github && gitlab === previous.gitlab ? previous : { github, gitlab }
+}
+
+/** How many code-review blocks the capsule shows (each adds its measured width). */
+export function reviewBlockCount(blocks: ReviewBlocks): number {
+  return (blocks.github.count === null ? 0 : 1) + (blocks.gitlab.count === null ? 0 : 1)
 }

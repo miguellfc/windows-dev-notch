@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { GITLAB_URL_MAX, isStoredGitlabUrl } from '../code-review/schema'
 import { isSafeAccelerator } from './accelerator'
 
-export const SETTINGS_VERSION = 5
+export const SETTINGS_VERSION = 6
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
@@ -9,6 +10,12 @@ export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as 
 export const DEFAULT_GMAIL_SETTINGS = { clientId: '', clientSecret: '' } as const
 
 export const DEFAULT_GMAIL_ALERTS = { enabled: true, hideContent: false, sound: true } as const
+
+/** v6: no GitLab server yet, first-review alerts with sound on for both platforms. */
+export const DEFAULT_CODE_REVIEW_SETTINGS = {
+  gitlabUrl: '',
+  alerts: { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } },
+} as const
 
 export const DEFAULT_SYSTEM_ALERTS = {
   cpu: { enabled: true, percent: 90, sustainSeconds: 30 },
@@ -66,6 +73,17 @@ export const gmailSettingsSchema = z.strictObject({
 })
 export type GmailSettings = z.infer<typeof gmailSettingsSchema>
 
+/** First-review alert of one platform: on/off and chime. */
+export const codeReviewAlertSettingsSchema = z.strictObject({ enabled: z.boolean(), sound: z.boolean() })
+export type CodeReviewAlertSettings = z.infer<typeof codeReviewAlertSettingsSchema>
+
+/** GitHub/GitLab: the GitLab server (`''` = not configured; stored normalized, https only) and the alerts. */
+export const codeReviewSettingsSchema = z.strictObject({
+  gitlabUrl: z.string().max(GITLAB_URL_MAX).refine(isStoredGitlabUrl, 'GitLab URL must be empty or a normalized https URL'),
+  alerts: z.strictObject({ github: codeReviewAlertSettingsSchema, gitlab: codeReviewAlertSettingsSchema }),
+})
+export type CodeReviewSettings = z.infer<typeof codeReviewSettingsSchema>
+
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
   language: languageSchema,
@@ -74,12 +92,15 @@ export const settingsSchema = z.strictObject({
   reminders: remindersSettingsSchema,
   systemAlerts: systemAlertSettingsSchema,
   gmail: gmailSettingsSchema,
+  codeReview: codeReviewSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
 /** What the renderer may change: any subset of user fields, never the version. */
 export const settingsPatchSchema = settingsSchema
   .omit({ version: true })
+  // The store merges codeReview one level deep: a patch of its alerts never restores a stale gitlabUrl.
+  .extend({ codeReview: codeReviewSettingsSchema.partial() })
   .partial()
   .refine((patch) => Object.values(patch).some((value) => value !== undefined), 'Empty settings patch')
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
@@ -91,6 +112,17 @@ export function cloneDefaultSystemAlerts(): SystemAlertSettings {
     ram: { ...DEFAULT_SYSTEM_ALERTS.ram },
     battery: { ...DEFAULT_SYSTEM_ALERTS.battery },
     disk: { ...DEFAULT_SYSTEM_ALERTS.disk },
+  }
+}
+
+/** A fresh, mutable copy of the code review defaults. */
+export function cloneDefaultCodeReviewSettings(): CodeReviewSettings {
+  return {
+    gitlabUrl: DEFAULT_CODE_REVIEW_SETTINGS.gitlabUrl,
+    alerts: {
+      github: { ...DEFAULT_CODE_REVIEW_SETTINGS.alerts.github },
+      gitlab: { ...DEFAULT_CODE_REVIEW_SETTINGS.alerts.gitlab },
+    },
   }
 }
 
@@ -107,5 +139,6 @@ export function createDefaultSettings(locale: string): Settings {
     reminders: { ...DEFAULT_REMINDERS_SETTINGS },
     systemAlerts: cloneDefaultSystemAlerts(),
     gmail: { ...DEFAULT_GMAIL_SETTINGS, alerts: { ...DEFAULT_GMAIL_ALERTS } },
+    codeReview: cloneDefaultCodeReviewSettings(),
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_GMAIL_ALERTS, DEFAULT_SYSTEM_ALERTS } from '../../../src/shared/settings/schema'
+import { DEFAULT_CODE_REVIEW_SETTINGS, DEFAULT_GMAIL_ALERTS, DEFAULT_SYSTEM_ALERTS } from '../../../src/shared/settings/schema'
 import {
   migrateSettings,
   settingsMigrations,
@@ -8,7 +8,7 @@ import {
 
 describe('migrateSettings', () => {
   it('returns current-version data unchanged', () => {
-    const raw = { version: 5, language: 'es' }
+    const raw = { version: 6, language: 'es' }
     expect(migrateSettings(raw)).toEqual({ kind: 'ok', value: raw, migrated: false })
   })
 
@@ -29,7 +29,7 @@ describe('migrateSettings', () => {
 
   it('migrates v4 settings to v5 adding the gmail alert defaults and keeping the credentials', () => {
     const raw = { version: 4, language: 'es', gmail: { clientId: 'id.apps', clientSecret: 'sec' } }
-    expect(migrateSettings(raw)).toEqual({
+    expect(migrateSettings(raw, 5)).toEqual({
       kind: 'ok',
       value: { ...raw, version: 5, gmail: { clientId: 'id.apps', clientSecret: 'sec', alerts: DEFAULT_GMAIL_ALERTS } },
       migrated: true,
@@ -44,15 +44,45 @@ describe('migrateSettings', () => {
     expect(alerts).not.toBe(DEFAULT_GMAIL_ALERTS)
   })
 
-  it('chains v1 through v5', () => {
+  it('migrates v5 settings to v6 adding the code review defaults and keeping everything else', () => {
+    const raw = {
+      version: 5,
+      language: 'es',
+      shortcut: 'Alt+N',
+      launchAtLogin: true,
+      reminders: { snoozeMinutes: 15, sound: false },
+      systemAlerts: { ...DEFAULT_SYSTEM_ALERTS, ram: { enabled: false, percent: 80 } },
+      gmail: { clientId: 'id.apps', clientSecret: 'sec', alerts: { enabled: false, hideContent: true, sound: false } },
+    }
+    const before = structuredClone(raw)
+    expect(migrateSettings(raw)).toEqual({
+      kind: 'ok',
+      value: { ...before, version: 6, codeReview: DEFAULT_CODE_REVIEW_SETTINGS },
+      migrated: true,
+    })
+    expect(raw).toEqual(before)
+  })
+
+  it('gives each v6 migration its own code review copy', () => {
+    const a = settingsMigrations[5]!({ version: 5 })
+    const b = settingsMigrations[5]!({ version: 5 })
+    const alertsA = (a['codeReview'] as { alerts: { github: unknown } }).alerts
+    const alertsB = (b['codeReview'] as { alerts: { github: unknown } }).alerts
+    expect(alertsA).toEqual(DEFAULT_CODE_REVIEW_SETTINGS.alerts)
+    expect(alertsA).not.toBe(DEFAULT_CODE_REVIEW_SETTINGS.alerts)
+    expect(alertsA.github).not.toBe(alertsB.github)
+  })
+
+  it('chains v1 through v6', () => {
     const result = migrateSettings({ version: 1, language: 'en' })
     expect(result).toMatchObject({
       kind: 'ok',
       migrated: true,
       value: {
-        version: 5,
+        version: 6,
         systemAlerts: DEFAULT_SYSTEM_ALERTS,
         gmail: { clientId: '', clientSecret: '', alerts: DEFAULT_GMAIL_ALERTS },
+        codeReview: DEFAULT_CODE_REVIEW_SETTINGS,
       },
     })
   })
@@ -78,7 +108,7 @@ describe('migrateSettings', () => {
   })
 
   it('reports files from a newer version', () => {
-    expect(migrateSettings({ version: 6 }, 1)).toEqual({ kind: 'too-new', version: 6 })
+    expect(migrateSettings({ version: 7 }, 1)).toEqual({ kind: 'too-new', version: 7 })
   })
 
   it('rejects non-objects, missing versions and missing steps', () => {

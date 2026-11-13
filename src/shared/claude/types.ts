@@ -40,3 +40,31 @@ export type ClaudeState = {
   sessions: ClaudeSession[]
   pending: PendingPermission[]
 }
+
+/** One option of a Claude `AskUserQuestion` question. */
+export type QuestionOption = { label: string; description: string }
+
+/** One question of a Claude `AskUserQuestion` call, as Claude sent it (validated, never rewritten). */
+export type ClaudeQuestion = {
+  question: string
+  header: string
+  multiSelect: boolean
+  options: QuestionOption[]
+}
+
+/** An `AskUserQuestion` call held until the user answers it in the notch (or it is released). */
+export type PendingQuestion = {
+  id: string
+  sessionId: string
+  /** Display name of the session's project (same source as the permissions' `sessionName`). */
+  project: string
+  questions: ClaudeQuestion[]
+  /** When the hook request arrived (ms); orders questions against permissions. */
+  arrivedAt: number
+}
+
+/**
+ * What the notch receives of a pending question: no session id, and texts made display-safe
+ * (`displayQuestions`). Answers still go back to Claude built from the original texts in main.
+ */
+export type PendingQuestionView = Omit<PendingQuestion, 'sessionId'>

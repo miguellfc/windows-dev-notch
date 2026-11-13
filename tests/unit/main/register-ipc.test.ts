@@ -68,6 +68,9 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'claude:decide': () => null,
     'claude:focus-app': () => null,
     'claude:dismiss-session': () => null,
+    'claude:get-questions': () => [],
+    'claude:answer': () => 'sent',
+    'claude:release-question': () => null,
     'claude:hooks-preview': () => ({ ok: true, diff: [] }),
     'claude:hooks-install': () => ({ ok: true, changed: false, diff: [] }),
     'claude:hooks-uninstall': () => ({ ok: true, changed: false, diff: [] }),
@@ -128,6 +131,15 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'gmail:delete': () => null,
     'gmail:open-link': () => null,
     'gmail:close-message': () => null,
+    'code-review:get-state': () => ({
+      github: { status: 'unconfigured', account: null, unreviewed: null, updatedAt: null, persistent: true },
+      gitlab: { status: 'unconfigured', account: null, unreviewed: null, updatedAt: null, persistent: true },
+    }),
+    'code-review:list': () => ({ toReview: [], mine: [] }),
+    'code-review:refresh': () => null,
+    'code-review:open': () => null,
+    'code-review:set-token': () => ({ ok: false, reason: 'auth' }),
+    'code-review:clear': () => null,
     ...overrides,
   }
 }
@@ -281,6 +293,9 @@ describe('terminal write isolation', () => {
     'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
     'claude:focus-app': undefined,
     'claude:dismiss-session': { sessionId: 'session-1' },
+    'claude:get-questions': undefined,
+    'claude:answer': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', answers: [{ selected: [0] }] },
+    'claude:release-question': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f' },
     'claude:hooks-preview': undefined,
     'claude:hooks-install': undefined,
     'claude:hooks-uninstall': undefined,
@@ -317,6 +332,12 @@ describe('terminal write isolation', () => {
     'gmail:delete': { id: 'm1' },
     'gmail:open-link': { id: 'm1', index: 0 },
     'gmail:close-message': undefined,
+    'code-review:get-state': undefined,
+    'code-review:list': { platform: 'github' },
+    'code-review:refresh': undefined,
+    'code-review:open': { platform: 'github', id: 'n1' },
+    'code-review:set-token': { platform: 'gitlab', token: 'fake-token', url: 'https://gitlab.example.test' },
+    'code-review:clear': { platform: 'github' },
   }
 
   it('has a sample input for every channel', () => {
@@ -353,6 +374,9 @@ describe('claude channel guards', () => {
     'claude:decide': 'notch',
     'claude:focus-app': 'notch',
     'claude:dismiss-session': 'notch',
+    'claude:get-questions': 'notch',
+    'claude:answer': 'notch',
+    'claude:release-question': 'notch',
     'claude:hooks-preview': 'control-center',
     'claude:hooks-install': 'control-center',
     'claude:hooks-uninstall': 'control-center',
@@ -363,6 +387,8 @@ describe('claude channel guards', () => {
   const sample: Record<string, unknown> = {
     'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
     'claude:dismiss-session': { sessionId: 'session-1' },
+    'claude:answer': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', answers: [{ selected: [0] }] },
+    'claude:release-question': { id: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f' },
   }
 
   it('covers every claude channel', () => {

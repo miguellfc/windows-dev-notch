@@ -1,6 +1,17 @@
 import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
-import type { ClaudeRotateOutcome, ClaudeState } from '../claude/types'
+import {
+  clearInputSchema,
+  codeReviewAlertSchema,
+  codeReviewListSchema,
+  codeReviewStateSchema,
+  listInputSchema,
+  openInputSchema,
+  setTokenInputSchema,
+  setTokenResultSchema,
+} from '../code-review/schema'
+import { QUESTION_LIMITS, questionAnswerInputSchema } from '../claude/questions'
+import type { ClaudeRotateOutcome, ClaudeState, PendingQuestionView } from '../claude/types'
 import {
   GMAIL_RECENT_LIMIT,
   gmailClientFileSchema,
@@ -25,13 +36,13 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'reminders', 'system', 'notes', 'gmail', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
  * here must also exist in the Control Center's own page list.
  */
-export const controlCenterPageSchema = z.enum(['gmail'])
+export const controlCenterPageSchema = z.enum(['gmail', 'code-review'])
 export type ControlCenterPage = z.infer<typeof controlCenterPageSchema>
 
 export const runtimeSchema = z.strictObject({
@@ -74,6 +85,34 @@ export const claudeStateSchema = z.strictObject({
     }),
   ),
 }) satisfies z.ZodType<ClaudeState>
+
+/** Pending AskUserQuestion calls as the notch sees them: no session id, display-safe texts. */
+export const pendingQuestionsSchema = z.array(
+  z.strictObject({
+    id: z.string(),
+    project: z.string(),
+    questions: z
+      .array(
+        z.strictObject({
+          question: z.string().max(QUESTION_LIMITS.question),
+          header: z.string().max(QUESTION_LIMITS.header),
+          multiSelect: z.boolean(),
+          options: z
+            .array(
+              z.strictObject({
+                label: z.string().max(QUESTION_LIMITS.label),
+                description: z.string().max(QUESTION_LIMITS.description),
+              }),
+            )
+            .min(QUESTION_LIMITS.minOptions)
+            .max(QUESTION_LIMITS.maxOptions),
+        }),
+      )
+      .min(QUESTION_LIMITS.minQuestions)
+      .max(QUESTION_LIMITS.maxQuestions),
+    arrivedAt: z.number(),
+  }),
+) satisfies z.ZodType<PendingQuestionView[]>
 
 /** What a token or port rotation did to installed hooks (a failed reinstall is not a success). */
 export const claudeRotateSchema = z.strictObject({
@@ -120,7 +159,7 @@ export const contract = {
   'settings:get': { input: none, output: settingsSchema },
   'settings:update': { input: settingsPatchSchema, output: settingsSchema },
   'notch:get-mode': { input: none, output: notchModeSchema },
-  'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle']) }), output: ack },
+  'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle', 'next']) }), output: ack },
   'notch:pointer': { input: z.strictObject({ inside: z.boolean() }), output: ack },
   'notch:settled': { input: none, output: ack },
   'notch:open-integration': { input: z.strictObject({ id: z.enum(integrationIds) }), output: ack },
@@ -144,6 +183,11 @@ export const contract = {
   'claude:test-connection': { input: none, output: z.strictObject({ ok: z.boolean() }) },
   'claude:rotate-token': { input: none, output: claudeRotateSchema },
   'claude:rotate-port': { input: none, output: claudeRotateSchema },
+  'claude:get-questions': { input: none, output: pendingQuestionsSchema },
+  /** Positions and free text only: main builds Claude's `answers` from the questions it received. */
+  'claude:answer': { input: questionAnswerInputSchema, output: z.enum(['sent', 'gone']) },
+  /** Gives the question back to Claude's own dialog and brings Claude forward. */
+  'claude:release-question': { input: z.strictObject({ id: z.string().min(1).max(256) }), output: ack },
   'reminders:list': { input: none, output: remindersSnapshotSchema },
   'reminders:create': { input: createReminderInputSchema, output: reminderSchema },
   'reminders:update': { input: updateReminderInputSchema, output: reminderSchema },
@@ -180,6 +224,15 @@ export const contract = {
   'gmail:open-link': { input: gmailOpenLinkInputSchema, output: ack },
   /** The reader closed: main forgets the open message (body and links); list ids stay shown. */
   'gmail:close-message': { input: none, output: ack },
+  'code-review:get-state': { input: none, output: codeReviewStateSchema },
+  /** Lists of one platform without URLs (main keeps them); remembered as the ids `open` accepts. */
+  'code-review:list': { input: listInputSchema, output: codeReviewListSchema },
+  'code-review:refresh': { input: none, output: ack },
+  /** Main opens the URL of an id from the last list, on github.com or the configured GitLab origin only. */
+  'code-review:open': { input: openInputSchema, output: ack },
+  /** Validates the token against the API before saving; the token never comes back. */
+  'code-review:set-token': { input: setTokenInputSchema, output: setTokenResultSchema },
+  'code-review:clear': { input: clearInputSchema, output: ack },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -187,10 +240,14 @@ export const eventContract = {
   'notch:mode-changed': notchModeSchema,
   /** Whether the alert capsule shows the new-mail alert (not a permission or a reminder); sent before the mode. */
   'notch:mail-alert': z.boolean(),
+  /** Whether the alert capsule shows the first-review alert; sent before the mode, like `notch:mail-alert`. */
+  'notch:review-alert': z.boolean(),
   'settings:changed': settingsSchema,
   'terminal:data': z.string(),
   'terminal:exit': z.strictObject({ exitCode: z.int() }),
   'claude:state-changed': claudeStateSchema,
+  /** Pending questions, to the notch only (the Control Center never gets Claude's question texts). */
+  'claude:questions': pendingQuestionsSchema,
   'reminders:changed': remindersSnapshotSchema,
   /** A new batch is due (or reminders were missed at startup): the notch plays the chime. */
   'reminders:fired': z.strictObject({ count: z.int().positive() }),
@@ -202,6 +259,10 @@ export const eventContract = {
   'gmail:state': gmailStateSchema,
   /** New unread mail, to the notch only; no sender or subject when the user hides them. */
   'gmail:new-mail': gmailNewMailSchema,
+  /** GitHub/GitLab status, account and unreviewed counts, to the notch and the Control Center (never tokens). */
+  'code-review:state': codeReviewStateSchema,
+  /** Own PR/MRs got their first review, to the notch only; `kind`/`ref`/`title` for a single one. */
+  'code-review:alert': codeReviewAlertSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

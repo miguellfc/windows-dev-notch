@@ -1,6 +1,6 @@
 import { request } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createClaudeBridge, type ClaudeBridge } from '../../../src/main/claude/claude-bridge'
+import { createClaudeBridge, type ClaudeBridge, type HookRoute } from '../../../src/main/claude/claude-bridge'
 import type { PendingReply } from '../../../src/main/claude/permission-broker'
 import type { HookEvent } from '../../../src/shared/claude/hook-events'
 import { createMemoryLogger } from '../helpers/memory-logger'
@@ -32,14 +32,14 @@ const hook = (name: string, extra: Record<string, unknown> = {}) =>
 
 describe('createClaudeBridge', () => {
   let bridge: ClaudeBridge | undefined
-  const events: { e: HookEvent; reply: PendingReply | null }[] = []
+  const events: { e: HookEvent; reply: PendingReply | null; route: HookRoute }[] = []
   const logger = createMemoryLogger()
 
   const boot = async () => {
     bridge = createClaudeBridge({
       port: 0,
       token: TOKEN,
-      onEvent: (e, reply) => events.push({ e, reply }),
+      onEvent: (e, reply, route) => events.push({ e, reply, route }),
       logger,
     })
     await bridge.start()
@@ -232,6 +232,112 @@ describe('createClaudeBridge', () => {
     expect(Date.now() - started).toBeLessThan(2_000)
     socket.destroy()
     bridge = undefined
+  })
+
+  describe('AskUserQuestion', () => {
+    const askInput = {
+      questions: [
+        {
+          question: 'SECRET-QUESTION-TEXT?',
+          header: 'Pick',
+          multiSelect: false,
+          options: [
+            { label: 'SECRET-OPTION-A', description: 'a' },
+            { label: 'B', description: 'b' },
+          ],
+        },
+      ],
+    }
+    const ask = (extra: Record<string, unknown> = {}) =>
+      hook('PreToolUse', { tool_name: 'AskUserQuestion', tool_use_id: 'tu-1', tool_input: askInput, ...extra })
+
+    it('answers AskUserQuestion on /hook at once with an empty 200 and delivers it unheld on the hook route', async () => {
+      const port = await boot()
+      expect(await send(port, { body: ask() })).toEqual({ status: 200, body: '' })
+      expect(events).toHaveLength(1)
+      expect(events[0]?.reply).toBeNull()
+      expect(events[0]?.route).toBe('hook')
+      expect(events[0]?.e.askUserQuestion?.questions).toHaveLength(1)
+    })
+
+    it('holds AskUserQuestion on /hook/question until reply.send, delivered on the question route', async () => {
+      const port = await boot()
+      let settled = false
+      const pending = send(port, { path: '/hook/question', body: ask() }).then((r) => {
+        settled = true
+        return r
+      })
+      await new Promise((r) => setTimeout(r, 100))
+      expect(settled).toBe(false)
+      expect(events).toHaveLength(1)
+      expect(events[0]?.route).toBe('question')
+      const reply = events[0]?.reply
+      expect(reply).not.toBeNull()
+      expect(reply?.arrivedAt).toBeTypeOf('number')
+      reply?.send('{"answered":true}')
+      expect(await pending).toEqual({ status: 200, body: '{"answered":true}' })
+    })
+
+    it('stamps held permissions and questions in one strictly increasing order', async () => {
+      const port = await boot()
+      const sends = [
+        send(port, { body: hook('PermissionRequest') }),
+        send(port, { path: '/hook/question', body: ask() }),
+        send(port, { body: hook('PermissionRequest') }),
+        send(port, { path: '/hook/question', body: ask() }),
+      ]
+      await new Promise((r) => setTimeout(r, 100))
+      const stamps = events.map((x) => x.reply!.arrivedAt!)
+      expect(stamps).toHaveLength(4)
+      for (let i = 1; i < stamps.length; i += 1) expect(stamps[i]!).toBeGreaterThan(stamps[i - 1]!)
+      for (const x of events) x.reply?.send(null)
+      await Promise.all(sends)
+    })
+
+    it('answers any other event on /hook/question at once (route question, no reply)', async () => {
+      const port = await boot()
+      expect(await send(port, { path: '/hook/question', body: hook('PreToolUse', { tool_name: 'Bash' }) })).toEqual({
+        status: 200,
+        body: '',
+      })
+      expect(await send(port, { path: '/hook/question', body: hook('Stop') })).toEqual({ status: 200, body: '' })
+      expect(await send(port, { path: '/hook/question', body: hook('PermissionRequest') })).toEqual({ status: 200, body: '' })
+      expect(events.map((x) => [x.e.name, x.route, x.reply])).toEqual([
+        ['PreToolUse', 'question', null],
+        ['Stop', 'question', null],
+        ['PermissionRequest', 'question', null],
+      ])
+    })
+
+    it('answers an AskUserQuestion that does not fit the schema at once on /hook/question', async () => {
+      const port = await boot()
+      const res = await send(port, { path: '/hook/question', body: ask({ tool_input: { questions: [] } }) })
+      expect(res).toEqual({ status: 200, body: '' })
+      expect(events[0]?.reply).toBeNull()
+      expect(events[0]?.e.askUserQuestion).toBeNull()
+    })
+
+    it('/hook/question checks the token, method and content type like /hook', async () => {
+      const port = await boot()
+      expect((await send(port, { path: '/hook/question', token: null, body: ask() })).status).toBe(403)
+      expect((await send(port, { path: '/hook/question', token: 'nope', body: ask() })).status).toBe(403)
+      expect((await send(port, { path: '/hook/question', method: 'GET' })).status).toBe(405)
+      expect((await send(port, { path: '/hook/question', contentType: 'text/plain', body: ask() })).status).toBe(415)
+      expect((await send(port, { path: '/hook/question/x', body: ask() })).status).toBe(404)
+      expect(events).toHaveLength(0)
+    })
+
+    it('never logs question or option texts', async () => {
+      const port = await boot()
+      await send(port, { body: ask() })
+      const pending = send(port, { path: '/hook/question', body: ask() })
+      await new Promise((r) => setTimeout(r, 50))
+      events.at(-1)?.reply?.send(null)
+      await pending
+      const logged = JSON.stringify(logger.entries)
+      expect(logged).not.toContain('SECRET-QUESTION-TEXT')
+      expect(logged).not.toContain('SECRET-OPTION-A')
+    })
   })
 
   it('start() rejects when the port is already in use', async () => {

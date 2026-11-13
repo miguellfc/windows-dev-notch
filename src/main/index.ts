@@ -7,6 +7,10 @@ import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { createClaudeIntegration } from './claude/claude-integration'
 import { claudeChannelGuards } from './claude/claude-ipc'
+import { createCodeReviewIntegration, parseCodeReviewBaseOverrides } from './code-review/code-review-integration'
+import { codeReviewChannelGuards, createCodeReviewIpcHandlers } from './code-review/code-review-ipc'
+import { createGithubClient } from './code-review/github-client'
+import { createGitlabClient } from './code-review/gitlab-client'
 import { createGmailAuth, GOOGLE_OAUTH_BASE } from './gmail/gmail-auth'
 import { createGmailClient, GMAIL_API_BASE } from './gmail/gmail-client'
 import { createGmailIntegration, parseGmailBaseOverride, type GmailIntegration } from './gmail/gmail-integration'
@@ -23,6 +27,7 @@ import { createShortcutService } from './platform/shortcut'
 import { createAppTray, type AppTray } from './platform/tray'
 import { createWin32ForegroundProbe } from './platform/win32'
 import { createFileLogger } from './services/logger'
+import { createSecureTokenStore } from './services/secure-token-store'
 import { SettingsStore } from './services/settings-store'
 import { createSettingsUpdater } from './services/settings-update'
 import { createUsageIpcHandlers, usageChannelGuards } from './services/usage-ipc'
@@ -52,6 +57,8 @@ const USAGE_QUIT_FLUSH_MS = 2_000
 const devServerUrl = app.isPackaged ? undefined : process.env['ELECTRON_RENDERER_URL']
 const isolatedUserData = app.isPackaged ? undefined : process.env['NOTCH_USER_DATA_DIR']
 const foregroundWatchDisabled = !app.isPackaged && process.env['NOTCH_DISABLE_FOREGROUND_WATCH'] === '1'
+// E2E: "Answer in Claude" / "Go to session" must not bring the real Claude window forward.
+const claudeFocusDisabled = !app.isPackaged && process.env['NOTCH_DISABLE_CLAUDE_FOCUS'] === '1'
 const claudeSettingsOverride = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_SETTINGS']
 const claudePortRaw = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_PORT']
 const claudePortOverride =
@@ -60,6 +67,9 @@ const testClockEnabled = !app.isPackaged && process.env['NOTCH_TEST_CLOCK'] === 
 // One fake server for E2E: replaces the Gmail API and the OAuth token/revoke/consent origins.
 // Only an exact http://127.0.0.1:<port> origin is accepted.
 const gmailBaseOverride = parseGmailBaseOverride(app.isPackaged ? undefined : process.env['NOTCH_GMAIL_BASE_URL'])
+// Fake GitHub/GitLab servers for E2E (`github=http://127.0.0.1:<port>,gitlab=http://127.0.0.1:<port>`).
+// Only exact loopback http origins with a port; anything malformed turns the whole switch off.
+const codeReviewBaseOverrides = parseCodeReviewBaseOverrides(app.isPackaged ? undefined : process.env['NOTCH_CODE_REVIEW_BASE_URLS'])
 if (isolatedUserData) app.setPath('userData', isolatedUserData)
 
 if (!app.requestSingleInstanceLock()) {
@@ -312,10 +322,12 @@ function start(): void {
         userDataDir: app.getPath('userData'),
         claudeSettingsFile: claudeSettingsOverride ?? join(homedir(), '.claude', 'settings.json'),
         ...(claudePortOverride === undefined ? {} : { claudePort: claudePortOverride }),
+        ...(claudeFocusDisabled ? { focusDisabled: true } : {}),
         logger,
         notch,
         language: () => settings.get().language,
         eventTargets: notchAndControlCenter,
+        notchTarget: () => (notchWindow.isDestroyed() ? null : notchWindow.webContents),
         onAlert: (latencyMs) => usage.record({ type: 'claude-alert', latencyMs }),
       })
       claude.start().catch((error: unknown) => logger.error('Claude integration failed to start', { error }))
@@ -337,11 +349,14 @@ function start(): void {
       const testNow = () => Date.now() + clockOffsetMs
       // Gmail's 60 s poll follows the same test clock (its timers also fire in real time).
       const gmailTestTimers = testClockEnabled ? createTestClockTimers(testNow) : null
+      // So does the 120 s GitHub/GitLab rhythm (and its backoff).
+      const codeReviewTestTimers = testClockEnabled ? createTestClockTimers(testNow) : null
       if (testClockEnabled) {
         globalThis.__notchTestClock = {
           advance: (ms) => {
             clockOffsetMs += ms
             gmailTestTimers?.fireDue()
+            codeReviewTestTimers?.fireDue()
             return reminders.check()
           },
         }
@@ -388,6 +403,50 @@ function start(): void {
         logger,
       })
       gmail.start()
+      // --- GitHub & GitLab ---------------------------------------------------------------
+      // Read-only PR/MR status with personal tokens kept in main, encrypted with safeStorage (one file
+      // per platform). Loading them is async and never blocks registerIpc; code-review:* calls wait.
+      const codeReviewFetch = (url: string, init?: RequestInit) => net.fetch(url, init)
+      const codeReviewTokenStore = (file: string) =>
+        createSecureTokenStore({ file: join(app.getPath('userData'), file), safeStorage, logger, logScope: 'code-review-token' })
+      const githubApiOverride = codeReviewBaseOverrides.github
+      const gitlabApiOverride = codeReviewBaseOverrides.gitlab
+      const codeReview = createCodeReviewIntegration({
+        settings: {
+          get: () => settings.get(),
+          onChange: (listener) => settings.onChange(listener),
+          // Through the updater, like every other settings change (validation, settings:changed).
+          update: (patch) => updateSettings(patch),
+        },
+        tokenStores: {
+          github: codeReviewTokenStore('code-review-github.bin'),
+          gitlab: codeReviewTokenStore('code-review-gitlab.bin'),
+        },
+        clientFactories: {
+          github: (token) =>
+            createGithubClient({ fetch: codeReviewFetch, token, ...(githubApiOverride === undefined ? {} : { apiBase: githubApiOverride }) }),
+          // Settings only ever hold an https server; in dev/E2E the fake on 127.0.0.1 stands in for it.
+          gitlab: (baseUrl, token) =>
+            createGitlabClient({
+              fetch: codeReviewFetch,
+              token,
+              ...(gitlabApiOverride === undefined ? { baseUrl } : { baseUrl: gitlabApiOverride, allowLoopbackHttp: true }),
+            }),
+        },
+        timers: codeReviewTestTimers ?? { setTimeout, clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) },
+        now: codeReviewTestTimers ? testNow : () => Date.now(),
+        emit: (state) => emitEvent(notchAndControlCenter(), 'code-review:state', state, logger),
+        openExternal: (url) => shell.openExternal(url),
+        // First reviews go to the notch only, payload first (like new mail): the capsule already knows
+        // what to show when the mode turns to alert; the controller drops it with a panel open and
+        // ends it after 6 s.
+        onAlert: (alert) => {
+          if (notchWindow.isDestroyed()) return
+          emitEvent([notchWindow.webContents], 'code-review:alert', alert, logger)
+          notch.dispatch({ type: 'review', on: true })
+        },
+        logger,
+      })
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,
@@ -403,6 +462,7 @@ function start(): void {
           ...systemChannelGuards({ fromNotch: fromNotchWindow }),
           ...notesChannelGuards({ fromNotch: fromNotchWindow }),
           ...gmailChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
+          ...codeReviewChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -463,8 +523,11 @@ function start(): void {
               readFile: (path) => readFile(path, 'utf8'),
             }),
           ),
+          ...createCodeReviewIpcHandlers(codeReview),
         },
       })
+      // Non-blocking: the rhythm starts now; the first queries run once the stored tokens are read.
+      codeReview.start()
 
       // Started after registerIpc so the renderers never miss a handler; reminders:* calls wait
       // for this to finish, so the first list already reflects the file.
@@ -489,6 +552,7 @@ function start(): void {
             reminders.dispose()
             system.dispose()
             gmail?.dispose()
+            codeReview.dispose()
             shortcut.dispose()
             tray?.destroy()
             screen.off('display-added', onDisplaysChanged)

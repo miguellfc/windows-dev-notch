@@ -1176,6 +1176,7 @@ describe('gmail integration: new mail', () => {
         setIgnoreMouse: () => {},
         sendMode: () => {},
         sendMailAlert: () => {},
+        sendReviewAlert: () => {},
       }
       const notch = createNotchController({ surface, workArea: { x: 0, y: 0, width: 1920, height: 1032 }, logger: createMemoryLogger() })
       notch.start()

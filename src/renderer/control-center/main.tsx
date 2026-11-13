@@ -3,6 +3,7 @@ import '@fontsource-variable/geist-mono'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'
+import { bindCodeReview } from '../shared/code-review-store'
 import { bindGmail } from '../shared/gmail-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
@@ -16,6 +17,7 @@ bindSettings()
 bindClaude()
 bindReminders()
 bindGmail()
+bindCodeReview()
 
 createRoot(root).render(
   <StrictMode>

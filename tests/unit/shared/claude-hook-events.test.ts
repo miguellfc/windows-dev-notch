@@ -164,11 +164,62 @@ describe('parseHookEvent', () => {
       expect(parseHookEvent({ session_id: 's1', hook_event_name: 'PreToolUse', agent_id: 7 })?.agentId).toBeUndefined()
     })
 
+    it('keeps no askUserQuestion on PreToolUse of other tools or on other events', () => {
+      const toolInput = { questions: [{ question: 'a', header: 'h', multiSelect: false, options: [{ label: 'x', description: '' }, { label: 'y', description: '' }] }] }
+      expect('askUserQuestion' in (parseHookEvent({ session_id: 's1', hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: toolInput }) ?? {})).toBe(false)
+      expect('askUserQuestionRaw' in (parseHookEvent({ session_id: 's1', hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: toolInput }) ?? {})).toBe(false)
+      expect('askUserQuestion' in (parseHookEvent({ session_id: 's1', hook_event_name: 'PermissionRequest', tool_name: 'AskUserQuestion', tool_input: toolInput }) ?? {})).toBe(false)
+      expect('askUserQuestion' in (parseHookEvent({ session_id: 's1', hook_event_name: 'PostToolUse', tool_name: 'AskUserQuestion', tool_input: toolInput }) ?? {})).toBe(false)
+    })
+
     it('parses PostToolUseFailure', () => {
       expect(parseHookEvent({ session_id: 's1', hook_event_name: 'PostToolUseFailure', tool_name: 'Bash' })).toMatchObject({
         name: 'PostToolUseFailure',
         toolName: 'Bash',
       })
+    })
+  })
+
+  describe('AskUserQuestion', () => {
+    const question = { question: 'Fruit?', header: 'Pick', multiSelect: false, options: [{ label: 'Apple', description: 'red' }, { label: 'Pear', description: 'green' }] }
+    const ask = (toolInput: unknown): Record<string, unknown> => ({
+      session_id: 's1',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'AskUserQuestion',
+      tool_use_id: 'tu1',
+      tool_input: toolInput,
+    })
+
+    it('keeps the validated questions and the tool_use_id', () => {
+      expect(parseHookEvent(ask({ questions: [question] }))).toEqual({
+        name: 'PreToolUse',
+        sessionId: 's1',
+        toolName: 'AskUserQuestion',
+        toolUseId: 'tu1',
+        askUserQuestion: { questions: [question] },
+        askUserQuestionRaw: { questions: [question] },
+      })
+    })
+
+    it('carries the raw tool_input (unknown keys included) next to the validated view', () => {
+      const raw = { meta: 1, questions: [{ ...question, extra: true, options: [{ ...question.options[0], icon: 'x' }, question.options[1]] }] }
+      const event = parseHookEvent(ask(raw))
+      expect(event?.askUserQuestionRaw).toEqual(raw)
+      expect(event?.askUserQuestion).toEqual({ questions: [question] })
+    })
+
+    it('keeps the raw question texts unchanged (answers are keyed by them)', () => {
+      const raw = { ...question, question: 'Line one\n\n\n\nLine two?' }
+      expect(parseHookEvent(ask({ questions: [raw] }))?.askUserQuestion).toEqual({ questions: [raw] })
+    })
+
+    it('is null when tool_input does not fit the schema', () => {
+      expect(parseHookEvent(ask({ questions: [] }))?.askUserQuestion).toBeNull()
+      expect(parseHookEvent(ask({ questions: [{ ...question, options: [question.options[0]] }] }))?.askUserQuestion).toBeNull()
+      expect(parseHookEvent(ask(undefined))?.askUserQuestion).toBeNull()
+      expect(parseHookEvent(ask('nope'))?.askUserQuestion).toBeNull()
+      expect('askUserQuestionRaw' in (parseHookEvent(ask({ questions: [] })) ?? {})).toBe(false)
+      expect(parseHookEvent(ask({ questions: [question] }))?.preview).toBeUndefined()
     })
   })
 })

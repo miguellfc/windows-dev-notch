@@ -12,6 +12,16 @@ export const createClaudeIpcHandlers = (service: ClaudeService): Pick<IpcHandler
     if (!service.decide(requestId, decision)) throw new ExposedIpcError('NOT_FOUND', 'No pending request with that id')
     return null
   },
+  'claude:get-questions': () => service.questions(),
+  'claude:answer': ({ id, answers }) => {
+    const result = service.answer(id, answers)
+    if (result === 'invalid') throw new ExposedIpcError('INVALID_INPUT', 'The answers do not fit the question')
+    return result
+  },
+  'claude:release-question': ({ id }) => {
+    service.releaseQuestion(id)
+    return null
+  },
   'claude:focus-app': () => {
     service.focusApp()
     return null
@@ -28,7 +38,7 @@ export const createClaudeIpcHandlers = (service: ClaudeService): Pick<IpcHandler
   'claude:rotate-port': () => service.rotatePort(),
 })
 
-/** Decisions and session actions belong to the notch; hooks, token and port to the Control Center. */
+/** Decisions, questions and session actions belong to the notch; hooks, token and port to the Control Center. */
 export const claudeChannelGuards = ({
   fromNotch,
   fromControlCenter,
@@ -39,6 +49,9 @@ export const claudeChannelGuards = ({
   'claude:get-state': (event) => fromNotch(event) || fromControlCenter(event),
   'claude:decide': fromNotch,
   'claude:focus-app': fromNotch,
+  'claude:get-questions': fromNotch,
+  'claude:answer': fromNotch,
+  'claude:release-question': fromNotch,
   'claude:dismiss-session': fromNotch,
   'claude:hooks-preview': fromControlCenter,
   'claude:hooks-install': fromControlCenter,

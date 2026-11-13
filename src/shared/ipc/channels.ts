@@ -37,6 +37,9 @@ export const channels = {
     testConnection: 'claude:test-connection',
     rotateToken: 'claude:rotate-token',
     rotatePort: 'claude:rotate-port',
+    getQuestions: 'claude:get-questions',
+    answer: 'claude:answer',
+    releaseQuestion: 'claude:release-question',
   },
   reminders: {
     list: 'reminders:list',
@@ -78,16 +81,26 @@ export const channels = {
     openLink: 'gmail:open-link',
     closeMessage: 'gmail:close-message',
   },
+  codeReview: {
+    getState: 'code-review:get-state',
+    list: 'code-review:list',
+    refresh: 'code-review:refresh',
+    open: 'code-review:open',
+    setToken: 'code-review:set-token',
+    clear: 'code-review:clear',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
 export const eventChannels = {
   notchModeChanged: 'notch:mode-changed',
   notchMailAlert: 'notch:mail-alert',
+  notchReviewAlert: 'notch:review-alert',
   settingsChanged: 'settings:changed',
   terminalData: 'terminal:data',
   terminalExit: 'terminal:exit',
   claudeStateChanged: 'claude:state-changed',
+  claudeQuestions: 'claude:questions',
   remindersChanged: 'reminders:changed',
   remindersFired: 'reminders:fired',
   notesChanged: 'notes:changed',
@@ -95,6 +108,8 @@ export const eventChannels = {
   systemProcesses: 'system:processes',
   gmailState: 'gmail:state',
   gmailNewMail: 'gmail:new-mail',
+  codeReviewState: 'code-review:state',
+  codeReviewAlert: 'code-review:alert',
 } as const
 
 type ChannelGroups = typeof channels

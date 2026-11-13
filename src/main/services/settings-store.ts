@@ -102,6 +102,8 @@ export class SettingsStore {
     const run = this.#queue.then(async () => {
       if (this.#readOnly) throw new SettingsReadOnlyError()
       const changes = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined))
+      // codeReview is merged one level deep: main writes gitlabUrl itself, so a patch of the alerts must not undo it.
+      if (patch.codeReview !== undefined) changes['codeReview'] = { ...this.#current.codeReview, ...patch.codeReview }
       const next = settingsSchema.parse({ ...this.#current, ...changes })
       await this.#write(next)
       this.#use(next)

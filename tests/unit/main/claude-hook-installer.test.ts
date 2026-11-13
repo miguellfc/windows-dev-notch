@@ -69,11 +69,46 @@ describe('planInstall', () => {
     }
     for (const event of HOOK_EVENT_NAMES) {
       const ours = result.hooks[event]?.filter(isOurs) ?? []
-      expect(ours).toHaveLength(1)
+      // PreToolUse also gets the AskUserQuestion group.
+      expect(ours).toHaveLength(event === 'PreToolUse' ? 2 : 1)
     }
-    // The original groups keep their position; ours is appended.
-    expect(result.hooks.PreToolUse).toHaveLength(2)
+    // The original groups keep their position; ours are appended.
+    expect(result.hooks.PreToolUse).toHaveLength(3)
+    expect(result.hooks.PreToolUse![0]).toEqual(coucouGroup('PreToolUse'))
     expect(isOurs(result.hooks.PreToolUse![1]!)).toBe(true)
+    expect(isOurs(result.hooks.PreToolUse![2]!)).toBe(true)
+  })
+
+  it('adds the AskUserQuestion group to PreToolUse, held on /hook/question for up to an hour', () => {
+    const { next } = ok(planInstall(fixtureText(), OPTS))
+    const result = parse(next)
+    expect(result.hooks.PreToolUse![2]).toEqual({
+      matcher: 'AskUserQuestion',
+      hooks: [
+        {
+          type: 'http',
+          url: 'http://127.0.0.1:47600/hook/question',
+          headers: { 'x-notch-token': 'tok-1', 'x-notch-hook': '1' },
+          timeout: 3600,
+        },
+      ],
+    })
+    for (const event of HOOK_EVENT_NAMES.filter((e) => e !== 'PreToolUse')) {
+      expect(JSON.stringify(result.hooks[event])).not.toContain('/hook/question')
+    }
+  })
+
+  it('the diff preview shows the AskUserQuestion group being added to an older install', () => {
+    const older = parse(ok(planInstall(fixtureText(), OPTS)).next)
+    older.hooks.PreToolUse = older.hooks.PreToolUse!.filter((g) => !('matcher' in g && g.matcher === 'AskUserQuestion'))
+    const olderText = `${JSON.stringify(older, null, 2)}\n`
+    expect(hookStatus(olderText, OPTS)).toBe('outdated')
+    const { next, diff } = ok(planInstall(olderText, OPTS))
+    const added = diff.filter((l) => l.kind === 'add').map((l) => l.text)
+    expect(added.some((t) => t.includes('"matcher": "AskUserQuestion"'))).toBe(true)
+    expect(added.some((t) => t.includes('/hook/question'))).toBe(true)
+    expect(diff.some((l) => l.kind === 'remove')).toBe(false)
+    expect(hookStatus(next, OPTS)).toBe('installed')
   })
 
   it('writes the exact group shape, with a long timeout only for PermissionRequest', () => {
@@ -111,10 +146,12 @@ describe('planInstall', () => {
     const result = parse(next)
     for (const event of HOOK_EVENT_NAMES) {
       const ours = result.hooks[event]!.filter(isOurs)
-      expect(ours).toHaveLength(1)
-      expect(JSON.stringify(ours[0])).toContain('tok-2')
-      expect(JSON.stringify(ours[0])).toContain('127.0.0.1:47601')
-      expect(JSON.stringify(ours[0])).not.toContain('tok-1')
+      expect(ours).toHaveLength(event === 'PreToolUse' ? 2 : 1)
+      for (const group of ours) {
+        expect(JSON.stringify(group)).toContain('tok-2')
+        expect(JSON.stringify(group)).toContain('127.0.0.1:47601')
+        expect(JSON.stringify(group)).not.toContain('tok-1')
+      }
     }
     for (const event of FOREIGN_EVENTS) expect(result.hooks[event]![0]).toEqual(coucouGroup(event))
   })
@@ -246,6 +283,39 @@ describe('hookStatus', () => {
     const badTimeout = structuredClone(installed)
     badTimeout.hooks.PermissionRequest!.find(isOurs)!.hooks[0]!.timeout = 2
     expect(hookStatus(JSON.stringify(badTimeout), OPTS)).toBe('outdated')
+  })
+
+  it('is outdated when the AskUserQuestion group is missing, changed or duplicated', () => {
+    const installed = parse(ok(planInstall(fixtureText(), OPTS)).next)
+    const isQuestion = (g: object) => 'matcher' in g && g.matcher === 'AskUserQuestion'
+
+    const without = structuredClone(installed)
+    without.hooks.PreToolUse = without.hooks.PreToolUse!.filter((g) => !isQuestion(g))
+    expect(hookStatus(JSON.stringify(without), OPTS)).toBe('outdated')
+
+    const shortTimeout = structuredClone(installed)
+    shortTimeout.hooks.PreToolUse!.find(isQuestion)!.hooks[0]!.timeout = 2
+    expect(hookStatus(JSON.stringify(shortTimeout), OPTS)).toBe('outdated')
+
+    const wrongUrl = structuredClone(installed)
+    wrongUrl.hooks.PreToolUse!.find(isQuestion)!.hooks[0]!.url = 'http://127.0.0.1:47600/hook'
+    expect(hookStatus(JSON.stringify(wrongUrl), OPTS)).toBe('outdated')
+
+    const twice = structuredClone(installed)
+    twice.hooks.PreToolUse!.push(structuredClone(twice.hooks.PreToolUse!.find(isQuestion)!))
+    expect(hookStatus(JSON.stringify(twice), OPTS)).toBe('outdated')
+  })
+
+  it('a foreign AskUserQuestion group does not count as ours and is kept on install and uninstall', () => {
+    const foreign = { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command: 'other-app ask' }] }
+    const settings = fixtureObject()
+    settings.hooks.PreToolUse = [...settings.hooks.PreToolUse!, foreign as never]
+    const text = `${JSON.stringify(settings, null, 2)}\n`
+    const installed = ok(planInstall(text, OPTS)).next
+    expect(hookStatus(installed, OPTS)).toBe('installed')
+    expect(parse(installed).hooks.PreToolUse!.slice(0, 2)).toEqual([coucouGroup('PreToolUse'), foreign])
+    const removed = parse(ok(planUninstall(installed)).next)
+    expect(removed.hooks.PreToolUse).toEqual([coucouGroup('PreToolUse'), foreign])
   })
 })
 

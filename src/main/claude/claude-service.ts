@@ -1,17 +1,20 @@
 import type { HookEvent } from '../../shared/claude/hook-events'
+import { displayQuestions, type QuestionAnswer } from '../../shared/claude/questions'
 import type {
   ClaudeConnectionErrorReason,
   ClaudeHooksStatus,
   ClaudeRotateOutcome,
   ClaudeState,
   PendingPermission,
+  PendingQuestionView,
 } from '../../shared/claude/types'
 import { ExposedIpcError } from '../ipc/errors'
 import type { Logger } from '../services/logger'
 import type { BridgeConfig } from './bridge-config'
-import type { ClaudeBridge, ClaudeBridgeOptions } from './claude-bridge'
+import type { ClaudeBridge, ClaudeBridgeOptions, HookRoute } from './claude-bridge'
 import type { DiffLine, HookInstaller, InvalidJson } from './hook-installer'
 import { createPermissionBroker, type PendingReply } from './permission-broker'
+import { createQuestionBroker, type AnswerResult } from './question-broker'
 import { createSessionRegistry } from './session-registry'
 
 /** Session id used by "test connection"; its events never become a session. */
@@ -41,6 +44,10 @@ export type ClaudeServiceDeps = {
   onState: (state: ClaudeState) => void
   /** Called once per permission request when it starts waiting. */
   onNewPending: (permission: PendingPermission) => void
+  /** Called whenever the pending questions change (display-safe views, never the session id). */
+  onQuestions: (questions: PendingQuestionView[]) => void
+  /** Called once per question when it starts waiting, after `onQuestions` listed it. */
+  onNewQuestion: (question: PendingQuestionView) => void
   /** Dev/test only: listen here instead of the stored port (0 = ephemeral); hooks are written with the real one. */
   portOverride?: number
   fetch?: typeof fetch
@@ -58,6 +65,12 @@ export type ClaudeService = {
   tick(): Promise<void>
   state(): ClaudeState
   decide(id: string, decision: 'allow' | 'deny'): boolean
+  /** Pending AskUserQuestion calls, oldest first, as the notch may see them. */
+  questions(): PendingQuestionView[]
+  /** Answers a question from option positions and free text; main builds the texts sent to Claude. */
+  answer(id: string, answers: readonly QuestionAnswer[]): AnswerResult
+  /** Gives the question back to Claude's own dialog (if still pending) and brings Claude forward. */
+  releaseQuestion(id: string): void
   dismissSession(id: string): boolean
   focusApp(): void
   previewHooks(): Promise<HooksPreview>
@@ -108,43 +121,104 @@ export const createClaudeService = (deps: ClaudeServiceDeps): ClaudeService => {
     }
   }
 
-  /** A session whose last pending request went away leaves `waiting`. */
-  const syncWaiting = (): void => {
-    const now = new Set(broker.pending().map((p) => p.sessionId))
+  /**
+   * A session with a held permission or question is `waiting` (even after a later event of it, such as
+   * the /hook copy of a held AskUserQuestion, said `working`); one whose last held request went away
+   * leaves `waiting`. `first` names a session first seen through the request being held.
+   */
+  const syncWaiting = (first?: { sessionId: string; cwd?: string | undefined }): void => {
+    const now = heldSessions()
     for (const id of pendingSessions) if (!now.has(id)) registry.resolveWaiting(id)
+    for (const id of now) registry.markWaiting(id, first?.sessionId === id ? first.cwd : undefined)
     pendingSessions = now
+  }
+
+  /** Outside a hook event, a broker change is synced and published at once; onEvent does it at its end. */
+  const brokerChanged = (): void => {
+    if (inEvent) return
+    syncWaiting()
+    publish()
+    publishQuestions()
   }
 
   const broker = createPermissionBroker({
     newId: deps.newId,
     now: deps.now,
     sessionName: (id) => registry.nameOf(id),
+    onChange: brokerChanged,
+  })
+
+  /** The question list changed since it was last sent. */
+  let questionsDirty = false
+  const announcedQuestions = new Set<string>()
+
+  const questionViews = (): PendingQuestionView[] =>
+    questionBroker.pending().map(({ id, project, questions, arrivedAt }) => ({
+      id,
+      project,
+      questions: displayQuestions(questions),
+      arrivedAt,
+    }))
+
+  const publishQuestions = (): void => {
+    if (!questionsDirty) return
+    questionsDirty = false
+    const current = questionViews()
+    const ids = new Set(current.map((q) => q.id))
+    for (const id of announcedQuestions) if (!ids.has(id)) announcedQuestions.delete(id)
+    deps.onQuestions(current)
+    for (const question of current) {
+      if (announcedQuestions.has(question.id)) continue
+      announcedQuestions.add(question.id)
+      deps.onNewQuestion(question)
+    }
+  }
+
+  const questionBroker = createQuestionBroker({
+    newId: deps.newId,
+    now: deps.now,
+    sessionName: (id, cwd) => registry.nameOf(id, cwd),
     onChange: () => {
-      syncWaiting()
-      if (!inEvent) publish()
+      questionsDirty = true
+      brokerChanged()
     },
   })
 
+  /** Sessions with something held for the user: they never go idle meanwhile. */
+  const heldSessions = (): Set<string> =>
+    new Set([...broker.pending().map((p) => p.sessionId), ...questionBroker.pending().map((q) => q.sessionId)])
+
   let testProbeSeen = false
 
-  const onEvent = (e: HookEvent, reply: PendingReply | null): void => {
+  const onEvent = (e: HookEvent, reply: PendingReply | null, route: HookRoute = 'hook'): void => {
     if (e.sessionId === CONNECTION_TEST_SESSION_ID) {
       testProbeSeen = true
       reply?.send(null)
       return
     }
+    // The question route only matters for the AskUserQuestion call it holds: Claude sends the same call
+    // to /hook too, where it is observed like every other event (so nothing is counted twice).
+    if (route === 'question' && reply === null) return
     inEvent = true
     try {
       eventSeen = true
-      registry.apply(e)
-      const held = e.name === 'PermissionRequest' && reply !== null
-      // observe first: nothing that arrived before this request may release it.
-      if (!held) broker.observe(e)
-      else broker.hold(e, reply)
+      if (route === 'question') {
+        if (reply !== null) questionBroker.hold(e, reply)
+      } else {
+        registry.apply(e)
+        questionBroker.observe(e)
+        const held = e.name === 'PermissionRequest' && reply !== null
+        // observe first: nothing that arrived before this request may release it.
+        if (!held) broker.observe(e)
+        else broker.hold(e, reply)
+      }
+      // After the brokers: a Stop that released the session's requests leaves it `done`, not waiting.
+      syncWaiting({ sessionId: e.sessionId, cwd: e.cwd })
     } finally {
       inEvent = false
     }
     publish()
+    publishQuestions()
   }
 
   const refreshHooks = async (): Promise<boolean> => {
@@ -178,6 +252,7 @@ export const createClaudeService = (deps: ClaudeServiceDeps): ClaudeService => {
 
   const stopBridge = async (): Promise<void> => {
     broker.releaseAll()
+    questionBroker.releaseAll()
     const current = bridge
     bridge = null
     bridgeRunning = false
@@ -247,7 +322,7 @@ export const createClaudeService = (deps: ClaudeServiceDeps): ClaudeService => {
     stop: () => stopBridge(),
 
     tick: async () => {
-      const idleChanged = registry.tick(new Set(broker.pending().map((p) => p.sessionId)))
+      const idleChanged = registry.tick(heldSessions())
       const hooksChanged = await refreshHooks()
       if (idleChanged || hooksChanged) publish()
     },
@@ -255,6 +330,21 @@ export const createClaudeService = (deps: ClaudeServiceDeps): ClaudeService => {
     state,
 
     decide: (id, decision) => broker.decide(id, decision),
+
+    questions: questionViews,
+
+    answer: (id, answers) => {
+      const result = questionBroker.answer(id, answers)
+      // Ids and results only: question, option and answer texts never reach the log.
+      log.info('Claude question answered', { id, result, count: answers.length })
+      return result
+    },
+
+    releaseQuestion: (id) => {
+      const released = questionBroker.release(id)
+      log.info('Claude question handed back to Claude', { id, released })
+      deps.focusClaude()
+    },
 
     dismissSession: (id) => {
       const removed = registry.dismiss(id)

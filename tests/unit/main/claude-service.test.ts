@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createClaudeBridge, type ClaudeBridge } from '../../../src/main/claude/claude-bridge'
+import { createClaudeBridge, type ClaudeBridge, type HookRoute } from '../../../src/main/claude/claude-bridge'
 import { createClaudeIpcHandlers } from '../../../src/main/claude/claude-ipc'
 import {
   CONNECTION_TEST_SESSION_ID,
@@ -11,7 +11,7 @@ import type { HookInstaller, HookStatus } from '../../../src/main/claude/hook-in
 import type { PendingReply } from '../../../src/main/claude/permission-broker'
 import { registerIpc, type IpcEventLike, type IpcMainLike } from '../../../src/main/ipc/register'
 import type { HookEvent, HookEventName } from '../../../src/shared/claude/hook-events'
-import type { ClaudeState, PendingPermission } from '../../../src/shared/claude/types'
+import type { ClaudeState, PendingPermission, PendingQuestionView } from '../../../src/shared/claude/types'
 import { contract } from '../../../src/shared/ipc/contract'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -22,7 +22,7 @@ const ALLOW = '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decis
 type FakeBridge = ClaudeBridge & {
   options: Parameters<ClaudeBridgeFactory>[0]
   stopped: boolean
-  emit: (e: HookEvent, reply?: PendingReply | null) => void
+  emit: (e: HookEvent, reply?: PendingReply | null, route?: HookRoute) => void
 }
 
 const fakeReply = () => {
@@ -66,6 +66,8 @@ const setup = (overrides: Partial<ClaudeServiceDeps> & { hooks?: HookStatus } = 
   const bridges: FakeBridge[] = []
   const states: ClaudeState[] = []
   const newPending: PendingPermission[] = []
+  const questionLists: PendingQuestionView[][] = []
+  const newQuestions: PendingQuestionView[] = []
   const installer = fakeInstaller(overrides.hooks ?? 'installed')
   let token = TOKEN
   const deps: ClaudeServiceDeps = {
@@ -88,7 +90,7 @@ const setup = (overrides: Partial<ClaudeServiceDeps> & { hooks?: HookStatus } = 
           bridge.stopped = true
         }),
         port: () => options.port,
-        emit: (e, reply = null) => options.onEvent(e, reply),
+        emit: (e, reply = null, route = 'hook') => options.onEvent(e, reply, route),
       }
       bridges.push(bridge)
       return bridge
@@ -97,6 +99,8 @@ const setup = (overrides: Partial<ClaudeServiceDeps> & { hooks?: HookStatus } = 
     focusClaude: vi.fn(),
     onState: (s) => states.push(s),
     onNewPending: (p) => newPending.push(p),
+    onQuestions: (q) => questionLists.push(q),
+    onNewQuestion: (q) => newQuestions.push(q),
     ...overrides,
   }
   const service = createClaudeService(deps)
@@ -111,6 +115,8 @@ const setup = (overrides: Partial<ClaudeServiceDeps> & { hooks?: HookStatus } = 
     bridge,
     states,
     newPending,
+    questionLists,
+    newQuestions,
     installer,
     send,
     status,
@@ -280,6 +286,259 @@ describe('ClaudeService permissions', () => {
     expect(r.sent).toEqual([null])
     expect(status()).toBe('working')
     expect(bridge().stopped).toBe(true)
+  })
+})
+
+const SECRET_QUESTION = 'SECRET-QUESTION-TEXT?'
+const SECRET_OPTION = 'SECRET-OPTION-A'
+const SECRET_OTHER = 'SECRET-FREE-TEXT'
+
+const askEvent = (extra: Partial<HookEvent> = {}): Partial<HookEvent> => {
+  const questions = [
+    {
+      question: SECRET_QUESTION,
+      header: 'Pick\u202e',
+      multiSelect: false,
+      options: [
+        { label: SECRET_OPTION, description: 'first' },
+        { label: 'B', description: 'second' },
+      ],
+    },
+  ]
+  return {
+    toolName: 'AskUserQuestion',
+    toolUseId: 'tu-ask',
+    askUserQuestion: { questions },
+    askUserQuestionRaw: { questions, extraKey: 1 },
+    ...extra,
+  }
+}
+
+describe('ClaudeService questions', () => {
+  const ask = (s: ReturnType<typeof setup>, reply: PendingReply | null, sessionId = 'session-1', route: HookRoute = 'question') =>
+    s.bridge().emit({ name: 'PreToolUse', sessionId, cwd: 'C:\\work\\my-project', ...askEvent() }, reply, route)
+
+  it('holds an AskUserQuestion from the question route, announces it once, and answers it', async () => {
+    const s = setup()
+    await s.service.start()
+    s.send('UserPromptSubmit')
+    const r = fakeReply()
+    ask(s, { ...r.reply, arrivedAt: 1_000_123 })
+
+    const [view] = s.service.questions()
+    expect(view).toEqual({
+      id: expect.any(String),
+      project: 'my-project',
+      arrivedAt: 1_000_123,
+      questions: [
+        {
+          question: SECRET_QUESTION,
+          // Display-only sanitising: the bidi override is gone from what the notch sees.
+          header: 'Pick',
+          multiSelect: false,
+          options: [
+            { label: SECRET_OPTION, description: 'first' },
+            { label: 'B', description: 'second' },
+          ],
+        },
+      ],
+    })
+    expect(view).not.toHaveProperty('sessionId')
+    expect(s.newQuestions).toEqual([view])
+    expect(s.questionLists.at(-1)).toEqual([view])
+
+    expect(s.service.answer(view!.id, [{ selected: [0] }])).toBe('sent')
+    const body = JSON.parse(r.sent[0] as string) as { hookSpecificOutput: { updatedInput: Record<string, unknown> } }
+    // Answers go back keyed by the original texts, with Claude's tool_input echoed untouched.
+    expect(body.hookSpecificOutput.updatedInput).toMatchObject({ extraKey: 1, answers: { [SECRET_QUESTION]: SECRET_OPTION } })
+    expect(s.service.questions()).toEqual([])
+    expect(s.questionLists.at(-1)).toEqual([])
+    expect(s.service.answer(view!.id, [{ selected: [0] }])).toBe('gone')
+    expect(s.newQuestions).toHaveLength(1)
+  })
+
+  it('reports invalid answers without settling the question', async () => {
+    const s = setup()
+    await s.service.start()
+    const r = fakeReply()
+    ask(s, r.reply)
+    const id = s.service.questions()[0]!.id
+    expect(s.service.answer(id, [{ selected: [0, 1] }])).toBe('invalid')
+    expect(s.service.answer(id, [{ selected: [5] }])).toBe('invalid')
+    expect(r.sent).toEqual([])
+    expect(s.service.questions()).toHaveLength(1)
+  })
+
+  it('observes AskUserQuestion only from /hook and holds it only from /hook/question (no double counting)', async () => {
+    const s = setup()
+    await s.service.start()
+    const r = fakeReply()
+    // Claude sends the same call to both of our PreToolUse groups.
+    ask(s, null, 'session-1', 'hook')
+    ask(s, r.reply, 'session-1', 'question')
+    expect(s.service.questions()).toHaveLength(1)
+    expect(s.service.state().pending).toEqual([])
+    expect(s.service.state().sessions).toHaveLength(1)
+    // Anything else on the question route is ignored: it is not a session event nor a release.
+    const before = s.service.state()
+    s.bridge().emit({ name: 'Stop', sessionId: 'session-1' }, null, 'question')
+    s.bridge().emit({ name: 'UserPromptSubmit', sessionId: 'other' }, null, 'question')
+    expect(s.service.questions()).toHaveLength(1)
+    expect(s.service.state()).toEqual(before)
+    expect(r.sent).toEqual([])
+  })
+
+  it('every /hook event is observed: the Stop of the session releases the question', async () => {
+    const s = setup()
+    await s.service.start()
+    const r = fakeReply()
+    ask(s, r.reply)
+    s.send('Stop', {}, 'other-session')
+    expect(r.sent).toEqual([])
+    s.send('Stop')
+    expect(r.sent).toEqual(['{}'])
+    expect(s.service.questions()).toEqual([])
+    expect(s.questionLists.at(-1)).toEqual([])
+  })
+
+  it('the PostToolUse of the AskUserQuestion call releases it', async () => {
+    const s = setup()
+    await s.service.start()
+    const r = fakeReply()
+    ask(s, r.reply)
+    s.send('PostToolUse', { toolName: 'AskUserQuestion', toolUseId: 'tu-ask' })
+    expect(r.sent).toEqual(['{}'])
+  })
+
+  it('releaseQuestion gives the question back to Claude and brings Claude forward', async () => {
+    const s = setup()
+    await s.service.start()
+    const r = fakeReply()
+    ask(s, r.reply)
+    s.service.releaseQuestion(s.service.questions()[0]!.id)
+    expect(r.sent).toEqual(['{}'])
+    expect(s.deps.focusClaude).toHaveBeenCalledOnce()
+    // An id that is no longer pending still brings Claude forward (that is what the user asked for).
+    s.service.releaseQuestion('gone-id')
+    expect(s.deps.focusClaude).toHaveBeenCalledTimes(2)
+  })
+
+  it('stop releases held questions along with the permissions', async () => {
+    const s = setup()
+    await s.service.start()
+    const q = fakeReply()
+    const p = fakeReply()
+    ask(s, q.reply)
+    s.send('PermissionRequest', { toolName: 'Bash' }, 'session-1', p.reply)
+    await s.service.stop()
+    expect(q.sent).toEqual(['{}'])
+    expect(p.sent).toEqual([null])
+  })
+
+  it('a session with a held question does not go idle', async () => {
+    const s = setup()
+    await s.service.start()
+    s.send('UserPromptSubmit', {}, 'asking')
+    s.send('UserPromptSubmit', {}, 'quiet')
+    ask(s, fakeReply().reply, 'asking')
+    s.advance(31 * 60_000)
+    await s.service.tick()
+    expect(s.status('quiet')).toBe('idle')
+    expect(s.status('asking')).not.toBe('idle')
+  })
+
+  describe('session status while a question waits', () => {
+    it('holding makes the session waiting (published), and the /hook copy of the call keeps it waiting', async () => {
+      const s = setup()
+      await s.service.start()
+      s.send('UserPromptSubmit')
+      ask(s, fakeReply().reply)
+      expect(s.status()).toBe('waiting')
+      expect(s.states.at(-1)!.sessions[0]!.status).toBe('waiting')
+      // Claude's copy of the same PreToolUse on /hook may arrive after the held one.
+      ask(s, null, 'session-1', 'hook')
+      expect(s.status()).toBe('waiting')
+      expect(s.states.at(-1)!.sessions[0]!.status).toBe('waiting')
+    })
+
+    it('answering or releasing goes back to working (published)', async () => {
+      const s = setup()
+      await s.service.start()
+      s.send('UserPromptSubmit')
+      ask(s, fakeReply().reply)
+      s.service.answer(s.service.questions()[0]!.id, [{ selected: [1] }])
+      expect(s.status()).toBe('working')
+      expect(s.states.at(-1)!.sessions[0]!.status).toBe('working')
+      ask(s, fakeReply().reply)
+      expect(s.status()).toBe('waiting')
+      s.service.releaseQuestion(s.service.questions()[0]!.id)
+      expect(s.status()).toBe('working')
+      expect(s.states.at(-1)!.sessions[0]!.status).toBe('working')
+    })
+
+    it('Stop of the session releases the question and ends done', async () => {
+      const s = setup()
+      await s.service.start()
+      s.send('UserPromptSubmit')
+      ask(s, fakeReply().reply)
+      s.send('Stop')
+      expect(s.status()).toBe('done')
+      expect(s.states.at(-1)!.sessions[0]!.status).toBe('done')
+    })
+
+    it('with a permission and a question in the same session, resolving one keeps it waiting', async () => {
+      const s = setup()
+      await s.service.start()
+      s.send('UserPromptSubmit')
+      ask(s, fakeReply().reply)
+      s.send('PermissionRequest', { toolName: 'Bash' }, 'session-1', fakeReply().reply)
+      s.service.decide(s.service.state().pending[0]!.id, 'allow')
+      expect(s.status()).toBe('waiting')
+      s.service.answer(s.service.questions()[0]!.id, [{ selected: [0] }])
+      expect(s.status()).toBe('working')
+
+      ask(s, fakeReply().reply)
+      s.send('PermissionRequest', { toolName: 'Bash' }, 'session-1', fakeReply().reply)
+      s.service.answer(s.service.questions()[0]!.id, [{ selected: [0] }])
+      expect(s.status()).toBe('waiting')
+      s.service.decide(s.service.state().pending[0]!.id, 'deny')
+      expect(s.status()).toBe('working')
+    })
+
+    it('a session first seen on the question route is named from its cwd and listed as waiting', async () => {
+      const s = setup()
+      await s.service.start()
+      s.bridge().emit(
+        { name: 'PreToolUse', sessionId: 'brand-new-session', ...askEvent(), cwd: 'C:\\work\\fresh-project' },
+        fakeReply().reply,
+        'question',
+      )
+      expect(s.service.questions()[0]!.project).toBe('fresh-project')
+      expect(s.service.state().sessions).toMatchObject([{ id: 'brand-new-session', name: 'fresh-project', status: 'waiting' }])
+    })
+  })
+
+  it('a malformed AskUserQuestion on the question route is answered at once and never pending', async () => {
+    const s = setup()
+    await s.service.start()
+    const r = fakeReply()
+    s.bridge().emit({ name: 'PreToolUse', sessionId: 'session-1', toolName: 'AskUserQuestion', askUserQuestion: null }, r.reply, 'question')
+    expect(r.sent).toEqual(['{}'])
+    expect(s.newQuestions).toEqual([])
+  })
+
+  it('never logs question, option or answer texts', async () => {
+    const s = setup()
+    await s.service.start()
+    ask(s, fakeReply().reply)
+    const id = s.service.questions()[0]!.id
+    s.service.answer(id, [{ selected: [], other: SECRET_OTHER }])
+    ask(s, fakeReply().reply)
+    s.service.releaseQuestion(s.service.questions()[0]!.id)
+    const logged = JSON.stringify((s.deps.logger as ReturnType<typeof createMemoryLogger>).entries)
+    expect(logged).not.toContain(SECRET_QUESTION)
+    expect(logged).not.toContain(SECRET_OPTION)
+    expect(logged).not.toContain(SECRET_OTHER)
   })
 })
 
@@ -550,6 +809,37 @@ describe('Claude IPC handlers', () => {
     const invoke = register(service)
     await expect(invoke('claude:focus-app')).resolves.toEqual({ ok: true, data: null })
     expect(deps.focusClaude).toHaveBeenCalledOnce()
+  })
+
+  it('claude:get-questions, claude:answer and claude:release-question', async () => {
+    const s = setup()
+    await s.service.start()
+    const first = fakeReply()
+    const second = fakeReply()
+    s.bridge().emit({ name: 'PreToolUse', sessionId: 'session-1', ...askEvent() }, first.reply, 'question')
+    s.bridge().emit({ name: 'PreToolUse', sessionId: 'session-2', ...askEvent({ toolUseId: 'tu-2' }) }, second.reply, 'question')
+    const invoke = register(s.service)
+
+    const listed = (await invoke('claude:get-questions')) as { ok: true; data: PendingQuestionView[] }
+    expect(listed.ok).toBe(true)
+    expect(listed.data).toHaveLength(2)
+    const [a, b] = listed.data
+
+    await expect(invoke('claude:answer', { id: a!.id, answers: [{ selected: [0, 1] }] })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_INPUT' },
+    })
+    await expect(invoke('claude:answer', { id: a!.id, answers: [{ selected: [], label: 'x' }] })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_INPUT' },
+    })
+    await expect(invoke('claude:answer', { id: a!.id, answers: [{ selected: [1] }] })).resolves.toEqual({ ok: true, data: 'sent' })
+    await expect(invoke('claude:answer', { id: a!.id, answers: [{ selected: [1] }] })).resolves.toEqual({ ok: true, data: 'gone' })
+    expect(first.sent).toHaveLength(1)
+
+    await expect(invoke('claude:release-question', { id: b!.id })).resolves.toEqual({ ok: true, data: null })
+    expect(second.sent).toEqual(['{}'])
+    expect(s.deps.focusClaude).toHaveBeenCalledOnce()
   })
 
   it('no claude:* response carries the token', async () => {

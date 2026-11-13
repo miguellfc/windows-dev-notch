@@ -72,6 +72,7 @@ export function createNotchWindow(options: NotchWindowOptions): { window: Browse
       emitEvent([window.webContents], 'notch:mode-changed', mode, options.logger),
     ),
     sendMailAlert: live((on: boolean) => emitEvent([window.webContents], 'notch:mail-alert', on, options.logger)),
+    sendReviewAlert: live((on: boolean) => emitEvent([window.webContents], 'notch:review-alert', on, options.logger)),
   }
 
   return { window, surface }

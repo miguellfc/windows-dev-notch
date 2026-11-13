@@ -84,6 +84,63 @@ describe('IPC contract', () => {
     }
   })
 
+  describe('Claude questions', () => {
+    const id = '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f'
+    const question = {
+      question: '¿Cuál?',
+      header: 'Elige',
+      multiSelect: false,
+      options: [
+        { label: 'A', description: 'a' },
+        { label: 'B', description: '' },
+      ],
+    }
+    const view = { id, project: 'my-project', questions: [question], arrivedAt: 1 }
+
+    it('exposes the question channels and event', () => {
+      expect(channels.claude).toMatchObject({
+        getQuestions: 'claude:get-questions',
+        answer: 'claude:answer',
+        releaseQuestion: 'claude:release-question',
+      })
+      expect(eventChannels.claudeQuestions).toBe('claude:questions')
+    })
+
+    it('pending questions are strict and never carry the session id', () => {
+      for (const schema of [eventContract['claude:questions'], contract['claude:get-questions'].output]) {
+        expect(schema.safeParse([view]).success).toBe(true)
+        expect(schema.safeParse([]).success).toBe(true)
+        expect(schema.safeParse([{ ...view, sessionId: 's' }]).success).toBe(false)
+        expect(schema.safeParse([{ ...view, questions: [{ ...question, extra: 1 }] }]).success).toBe(false)
+        expect(schema.safeParse([{ ...view, questions: [] }]).success).toBe(false)
+        expect(schema.safeParse([{ ...view, questions: [{ ...question, options: [question.options[0]] }] }]).success).toBe(false)
+      }
+      expect(contract['claude:get-questions'].input.safeParse(undefined).success).toBe(true)
+    })
+
+    it('answers carry only positions and free text, and return sent or gone', () => {
+      const answer = contract['claude:answer']
+      expect(answer.input.safeParse({ id, answers: [{ selected: [0] }] }).success).toBe(true)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [], other: 'Otra cosa' }] }).success).toBe(true)
+      expect(answer.input.safeParse({ id, answers: [] }).success).toBe(false)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [-1] }] }).success).toBe(false)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [0], label: 'A' }] }).success).toBe(false)
+      expect(answer.input.safeParse({ id, answers: [{ selected: [0] }], questions: [] }).success).toBe(false)
+      expect(answer.input.safeParse({ id: '', answers: [{ selected: [0] }] }).success).toBe(false)
+      expect(answer.output.safeParse('sent').success).toBe(true)
+      expect(answer.output.safeParse('gone').success).toBe(true)
+      expect(answer.output.safeParse('invalid').success).toBe(false)
+    })
+
+    it('releases a question by id only', () => {
+      const release = contract['claude:release-question']
+      expect(release.input.safeParse({ id }).success).toBe(true)
+      expect(release.input.safeParse({ id: '' }).success).toBe(false)
+      expect(release.input.safeParse({ id, answers: [] }).success).toBe(false)
+      expect(release.output.safeParse(null).success).toBe(true)
+    })
+  })
+
   it('bounds the session id to dismiss', () => {
     const dismiss = contract['claude:dismiss-session'].input
     expect(dismiss.safeParse({ sessionId: 'abc' }).success).toBe(true)
@@ -183,7 +240,8 @@ describe('IPC contract', () => {
   it('uses unique, namespaced channel names', () => {
     expect(new Set(channelNames).size).toBe(channelNames.length)
     for (const name of channelNames) {
-      expect(name).toMatch(/^[a-z]+:[a-z-]+$/)
+      // Namespaces may be hyphenated (`code-review:`), never start or end with a hyphen.
+      expect(name).toMatch(/^[a-z]+(-[a-z]+)*:[a-z-]+$/)
     }
   })
 })
@@ -435,6 +493,90 @@ describe('gmail contract', () => {
     }
   })
 })
+describe('code review contract', () => {
+  const platform = { status: 'ok', account: 'me', unreviewed: 3, updatedAt: '2026-11-13T10:00:00.000Z', persistent: true }
+  const state = { github: platform, gitlab: { ...platform, status: 'unconfigured', account: null, unreviewed: null, updatedAt: null } }
+  const item = {
+    id: 'n1',
+    ref: 'o/r#1',
+    title: 'T',
+    author: 'a',
+    updatedAt: '2026-11-13T09:00:00.000Z',
+    draft: false,
+    review: 'none',
+    checks: null,
+    conflicts: false,
+  }
+
+  it('exposes the code-review channels and events', () => {
+    expect(channels.codeReview).toEqual({
+      getState: 'code-review:get-state',
+      list: 'code-review:list',
+      refresh: 'code-review:refresh',
+      open: 'code-review:open',
+      setToken: 'code-review:set-token',
+      clear: 'code-review:clear',
+    })
+    expect(eventChannels.codeReviewState).toBe('code-review:state')
+    expect(eventChannels.codeReviewAlert).toBe('code-review:alert')
+  })
+
+  it('keeps the state strict (no token can ride along) on the channel and the event', () => {
+    for (const schema of [contract['code-review:get-state'].output, eventContract['code-review:state']]) {
+      expect(schema.safeParse(state).success).toBe(true)
+      expect(schema.safeParse({ ...state, github: { ...platform, token: 'x' } }).success).toBe(false)
+      expect(schema.safeParse({ ...state, github: { ...platform, unreviewed: 101 } }).success).toBe(false)
+      expect(schema.safeParse({ ...state, github: { ...platform, status: 'connected' } }).success).toBe(false)
+    }
+  })
+
+  it('lists at most 20 strict items per list, without URLs', () => {
+    const list = contract['code-review:list']
+    expect(list.input.safeParse({ platform: 'gitlab' }).success).toBe(true)
+    expect(list.input.safeParse({ platform: 'bitbucket' }).success).toBe(false)
+    expect(list.output.safeParse({ toReview: Array.from({ length: 20 }, () => item), mine: [] }).success).toBe(true)
+    expect(list.output.safeParse({ toReview: Array.from({ length: 21 }, () => item), mine: [] }).success).toBe(false)
+    expect(list.output.safeParse({ toReview: [{ ...item, url: 'https://github.com/o/r/pull/1' }], mine: [] }).success).toBe(false)
+  })
+
+  it('opens by platform and id, never by URL', () => {
+    const open = contract['code-review:open']
+    expect(open.input.safeParse({ platform: 'github', id: 'n1' }).success).toBe(true)
+    expect(open.input.safeParse({ platform: 'github', id: '' }).success).toBe(false)
+    expect(open.input.safeParse({ platform: 'github', id: 'n1', url: 'https://github.com' }).success).toBe(false)
+    expect(open.output.safeParse(null).success).toBe(true)
+  })
+
+  it('takes a bounded token and never returns it', () => {
+    const set = contract['code-review:set-token']
+    expect(set.input.safeParse({ platform: 'github', token: 't' }).success).toBe(true)
+    expect(set.input.safeParse({ platform: 'gitlab', token: 't', url: 'https://gitlab.example.test' }).success).toBe(true)
+    expect(set.input.safeParse({ platform: 'github', token: '' }).success).toBe(false)
+    expect(set.input.safeParse({ platform: 'github', token: 'x'.repeat(256) }).success).toBe(false)
+    expect(set.output.safeParse({ ok: true, account: 'me' }).success).toBe(true)
+    expect(set.output.safeParse({ ok: false, reason: 'url' }).success).toBe(true)
+    expect(set.output.safeParse({ ok: false, reason: 'timeout' }).success).toBe(false)
+    expect(set.output.safeParse({ ok: true, account: 'me', token: 't' }).success).toBe(false)
+  })
+
+  it('clears and refreshes with strict inputs', () => {
+    expect(contract['code-review:clear'].input.safeParse({ platform: 'github' }).success).toBe(true)
+    expect(contract['code-review:clear'].input.safeParse({}).success).toBe(false)
+    for (const channel of ['code-review:refresh', 'code-review:get-state'] as const) {
+      expect(contract[channel].input.safeParse(undefined).success).toBe(true)
+      expect(contract[channel].input.safeParse({}).success).toBe(false)
+    }
+  })
+
+  it('announces first reviews with a count, and kind/ref/title only optionally', () => {
+    const alert = eventContract['code-review:alert']
+    expect(alert.safeParse({ platform: 'github', count: 1, kind: 'approved', ref: 'o/r#1', title: 'T' }).success).toBe(true)
+    expect(alert.safeParse({ platform: 'gitlab', count: 3 }).success).toBe(true)
+    expect(alert.safeParse({ platform: 'gitlab', count: 0 }).success).toBe(false)
+    expect(alert.safeParse({ platform: 'github', count: 1, url: 'https://github.com' }).success).toBe(false)
+  })
+})
+
 describe('opening the Control Center on a page', () => {
   it('opens on the default page without input, or on a known page', () => {
     const input = contract['app:open-control-center'].input
@@ -451,5 +593,22 @@ describe('opening the Control Center on a page', () => {
   it('lists gmail as a notch mode', () => {
     expect(contract['notch:get-mode'].output.safeParse('gmail').success).toBe(true)
     expect(contract['notch:open-integration'].input.safeParse({ id: 'gmail' }).success).toBe(true)
+  })
+})
+
+describe('code review in the notch contract', () => {
+  it('lists reviews as a notch mode and an integration', () => {
+    expect(contract['notch:get-mode'].output.safeParse('reviews').success).toBe(true)
+    expect(contract['notch:open-integration'].input.safeParse({ id: 'reviews' }).success).toBe(true)
+  })
+
+  it('tells the notch whether the alert is the first-review alert, as a boolean', () => {
+    expect(eventChannels.notchReviewAlert).toBe('notch:review-alert')
+    expect(eventContract['notch:review-alert'].safeParse(true).success).toBe(true)
+    expect(eventContract['notch:review-alert'].safeParse('github').success).toBe(false)
+  })
+
+  it('lets the notch open the code-review page of the Control Center', () => {
+    expect(contract['app:open-control-center'].input.safeParse({ page: 'code-review' }).success).toBe(true)
   })
 })

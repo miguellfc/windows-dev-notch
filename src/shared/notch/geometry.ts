@@ -12,10 +12,10 @@ export type VisibleMode = Exclude<NotchMode, 'hidden'>
 /**
  * Heights of the home panel (integrations row), measured with Playwright: Claude sessions get
  * their own line under the tiles (12 px gap, 12 px heading and one 24 px row per session, two
- * visible, the rest scroll). The window is always sized for the tallest (`CAPSULE_SIZES.expanded`);
- * with fewer sessions the capsule is shorter inside it, like the compact capsule is narrower than
- * the window, and the transparent strip below lets clicks through (the window ignores the mouse
- * outside the capsule).
+ * visible, the rest scroll). The window height follows the mode (the question
+ * card, 520×504 in a 582 px window, is the tallest panel); with fewer sessions the capsule is
+ * shorter inside its window, like the compact capsule is narrower than the window, and the
+ * transparent strip below lets clicks through (the window ignores the mouse outside the capsule).
  */
 export const EXPANDED_HEIGHTS = { plain: 236, oneSession: 284, sessions: 308 } as const
 
@@ -41,6 +41,24 @@ export function gmailSizeFor(reading: boolean): { width: number; height: number 
   return reading ? GMAIL_SIZES.reader : GMAIL_SIZES.list
 }
 
+/**
+ * The Claude question card (`QuestionCard`), measured with Playwright on the built app: 137 px of
+ * header and footer around the questions' own scroll. One question with 4 options whose
+ * descriptions take two lines, one picked and "Other…" open with its field, needs 367 px of body,
+ * so it shows whole (ES and EN alike); 4 questions scroll inside the body and the header and the
+ * footer never clip. The tallest panel: the window grows for it (resize first, then animate).
+ */
+export const QUESTION_SIZE = { width: 520, height: 504 } as const
+
+/**
+ * The "Revisiones" panel, measured with Playwright in ES and EN with 20 + 20 items: a fixed 32 px
+ * header (back, title, GitHub | GitLab, refresh) over one 382 px scroll holding both sections
+ * (28 px heading, 50 px rows: title and time on the first line; ref, author and labels on the second), so
+ * seven rows and a heading show at once and the rest scroll; the header never moves. As tall as the
+ * Gmail reader, shorter than the question card: the window order is unchanged.
+ */
+export const REVIEWS_SIZE = { width: 480, height: 440 } as const
+
 /** Size of the visible capsule per mode, in DIP. */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
   compact: { width: 358, height: 36 },
@@ -49,10 +67,12 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   expanded: { width: 440, height: EXPANDED_HEIGHTS.sessions },
   terminal: { width: 640, height: 360 },
   permission: { width: 480, height: 300 },
+  question: QUESTION_SIZE,
   reminders: { width: 420, height: 320 },
   system: { width: 520, height: 280 },
   notes: { width: 420, height: 320 },
   gmail: GMAIL_SIZES.reader,
+  reviews: REVIEWS_SIZE,
   mini: { width: 120, height: 6 },
 }
 
@@ -82,11 +102,28 @@ export const COMPACT_WIDTHS = {
 } as const
 
 /**
- * Width of the compact capsule for what it shows: null is time and date only; `mail` adds the
- * unread-mail block. Alerts only change colours, never the width; the low-disk block is the one
- * alert that adds a slot.
+ * One code-review block (`Github`/`Gitlab` mark + "99+", the same metric as the mail block: 38.3 px)
+ * and the 10 px gap before it, measured with Playwright in ES and EN: each platform with unreviewed
+ * PR/MRs adds it after the other slots (worst case, both blocks after CPU, RAM, battery, disk and
+ * mail "99+": 581 px, time and date still whole). With only time and date before it, it takes that layout's wider
+ * gaps (+4 px), like the mail block (`plainMail`).
  */
-export function compactWidthFor(content: { battery: object | null; disk: object | null } | null, mail = false): number {
+export const REVIEW_BLOCK_WIDTH = 48.3
+const FIRST_BLOCK_EXTRA = 4
+
+/**
+ * Width of the compact capsule for what it shows: null is time and date only; `mail` adds the
+ * unread-mail block and `reviews` one code-review block per platform. Alerts only change colours,
+ * never the width; the low-disk block is the one alert that adds a slot.
+ */
+export function compactWidthFor(content: { battery: object | null; disk: object | null } | null, mail = false, reviews = 0): number {
+  const base = baseCompactWidth(content, mail)
+  if (reviews <= 0) return base
+  const extra = !content && !mail ? FIRST_BLOCK_EXTRA : 0
+  return Math.ceil(base + extra + reviews * REVIEW_BLOCK_WIDTH)
+}
+
+function baseCompactWidth(content: { battery: object | null; disk: object | null } | null, mail: boolean): number {
   if (!content) return mail ? COMPACT_WIDTHS.plainMail : COMPACT_WIDTHS.plain
   if (content.disk) {
     if (content.battery) return mail ? COMPACT_WIDTHS.metricsBatteryDiskMail : COMPACT_WIDTHS.metricsBatteryDisk
