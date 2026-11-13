@@ -54,6 +54,21 @@ Los tokens detallados existen en beta desde GitLab 18.10 y son estables desde la
 
 En la misma página puedes activar o quitar los **avisos** y su **sonido** por plataforma.
 
+## Contribuciones
+
+Arriba de la vista "Revisiones", cada pestaña muestra tus contribuciones en esa plataforma (con el mismo token, sin permisos nuevos):
+
+- **Gráfico del mes en curso**: un cuadrado por día, de lunes a domingo; cuanto más claro, más actividad ese día respecto al día más activo del mes. Hoy va marcado y los días que aún no han llegado salen solo con el borde. Pasa el ratón o recorre los días con el teclado (Tab entra en hoy, flechas para moverte) y verás la fecha y cuántas contribuciones tuvo.
+- **Resumen**: **Hoy · Semana** (de lunes a domingo) **· Mes**, con commits, PR/MR abiertos, PR/MR fusionados y revisiones, y el total de contribuciones del gráfico.
+
+Se consulta al abrir la vista y cada 15 minutos mientras sigue abierta (o con **Actualizar**); con la vista cerrada no se pide nada. Si falla, verás **"No se pudieron cargar las contribuciones · Reintentar"** y las listas de PR/MR siguen funcionando.
+
+Ten en cuenta:
+
+- **GitHub** solo cuenta las contribuciones privadas de los repositorios que el token puede ver: con un **token detallado**, solo los repositorios que elegiste. Si GitHub tiene contribuciones privadas que no detalla, la vista lo indica con "Incluye contribuciones privadas que no se detallan".
+- **GitLab**, como su propio calendario, cuenta en el gráfico **una contribución por evento**: un push cuenta 1 aunque lleve varios commits (y también cuentan issues y comentarios). El resumen, en cambio, cuenta los **commits** de cada push, así que los commits del resumen pueden superar las contribuciones del gráfico.
+- Si GitLab devuelve **más de 1000 eventos** en el periodo consultado (el mes, la semana en curso y un pequeño margen), el notch lee solo los 1000 más recientes y lo indica como **datos parciales**.
+
 ## Caducidad y "Revisa el token"
 
 Los tokens caducan cuando tú decidiste al crearlos (o cuando los revocas). Si GitHub o GitLab dejan de aceptarlo, el notch lo dice como **"Revisa el token"** en la vista y en Control Center, y **deja de consultar** esa plataforma hasta que guardes uno nuevo. Crea otro token con los mismos permisos y vuelve a pulsar **Comprobar y guardar**.

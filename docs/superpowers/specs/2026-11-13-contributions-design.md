@@ -3,6 +3,8 @@
 **Fecha:** 2026-11-13 · **Rama:** `feat/contributions` (desde `dev`)
 **Fuentes:** `docs/superpowers/specs/2026-11-13-code-review-design.md` (hito 1: conexión, tokens, vista "Revisiones"), `DESIGN.md`.
 
+> **Cambio (2026-11-13, revisión final):** corregido en el sitio para reflejar lo implementado: rejilla de 4–6 columnas; rango de eventos de GitLab (`after` = min(día 1, lunes) − 2 días, `before` = hoy + 2 días, filtrado por fecha local); PR fusionados de GitHub con ISO local y desfase; rango de "hoy" nunca vacío; gráfico de GitLab con lista de acciones permitidas (como su calendario); línea del total "N contribuciones en el gráfico de <mes>" con la nota de GitLab; nivel 0 al 14 %; IPC (`code-review:view {open}`, `code-review:contributions` → `{summary, error}`, evento `code-review:contributions-changed {platform, error}`; la vista se cierra al recargar el renderer); panel de 520×560, el más alto (ventana de 638 px).
+
 ## Objetivo
 
 Ver de un vistazo cuánto has contribuido este mes en cada plataforma, como en el perfil de GitLab: un gráfico de actividad del mes en curso y un resumen de hoy, la semana y el mes.
@@ -20,19 +22,19 @@ Ver de un vistazo cuánto has contribuido este mes en cada plataforma, como en e
 
 ### GitHub (GraphQL, mismo token y cliente del hito 1)
 
-- `viewer { contributionsCollection(from: <día 1 del mes 00:00 local, en ISO>, to: <ahora>) { contributionCalendar { weeks { contributionDays { date contributionCount } } } totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions restrictedContributionsCount } }` para el mes; el mismo bloque con `from` = lunes de la semana y = hoy 00:00 (alias distintos) para semana y hoy.
-- **PR fusionados**: `search(type: ISSUE, query: "is:pr author:@me is:merged merged:>=<fecha>", first: 0) { issueCount }` con alias para hoy, semana y mes (fecha `YYYY-MM-DD` local).
+- `viewer { contributionsCollection(from: <día 1 del mes 00:00 local, en ISO>, to: <ahora>) { contributionCalendar { weeks { contributionDays { date contributionCount } } } totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions restrictedContributionsCount } }` para el mes; el mismo bloque con `from` = lunes de la semana y = hoy 00:00 (alias distintos) para semana y hoy. `to` = ahora, pero nunca igual a `from`: el rango de "hoy" nunca queda vacío (a las 00:00 exactas, `to` = hoy 00:00 + 1 s).
+- **PR fusionados**: `search(type: ISSUE, query: "is:pr author:@me is:merged merged:>=<inicio>", first: 0) { issueCount }` con alias para hoy, semana y mes; `<inicio>` es la hora local de inicio del rango en ISO 8601 con su desfase (p. ej. `2026-11-13T00:00:00+01:00`), no una fecha sola, que GitHub interpretaría en UTC.
 - Las contribuciones en repositorios a los que el token no llega no cuentan (con un token *fine-grained*, solo los repositorios elegidos). Si `restrictedContributionsCount > 0`, la vista lo indica en una línea ("Incluye contribuciones privadas que no se detallan").
 
 ### GitLab (REST v4, mismo token y cliente del hito 1)
 
-- `GET /api/v4/users/:id/events?after=<día anterior al 1 del mes, YYYY-MM-DD>&before=<mañana, YYYY-MM-DD>&per_page=100&page=N` (paginado hasta agotar, máximo **10 páginas**; si se alcanza el máximo, se indica "datos parciales").
+- `GET /api/v4/users/:id/events?after=<min(día 1 del mes, lunes de la semana) − 2 días, YYYY-MM-DD>&before=<hoy + 2 días, YYYY-MM-DD>&per_page=100&page=N` (paginado hasta agotar, máximo **10 páginas**; si se alcanza el máximo, se indica "datos parciales"). `after`/`before` son exclusivos y GitLab los aplica en la zona horaria del **servidor** (UTC en gitlab.com): los dos días de margen a cada lado cubren cualquier desfase, y luego cada evento se filtra por la **fecha local** de su `created_at` (mes, semana y hoy).
 - Clasificación por evento (fecha local de `created_at`):
   - **Commits**: `action_name` `pushed to` / `pushed new` → `push_data.commit_count`.
   - **MR abiertos**: `action_name: opened` y `target_type: MergeRequest`.
   - **MR fusionados**: `action_name: accepted` (o `merged`) y `target_type: MergeRequest`.
   - **Revisiones**: `action_name: approved` con `target_type: MergeRequest`, y `commented on` con `note.noteable_type: MergeRequest` (o `target_type: DiffNote`/`Note` sobre un MR).
-  - **Gráfico**: como el calendario de GitLab, **un evento = una contribución** (un push cuenta 1 aunque lleve varios commits; también cuentan issues y comentarios). El **resumen**, en cambio, usa los recuentos por tipo de arriba (commits = suma de `commit_count`).
+  - **Gráfico**: como el calendario de GitLab, **un evento = una contribución** (un push cuenta 1 aunque lleve varios commits), con una **lista de acciones permitidas**: `pushed to`/`pushed new`, `commented on`, y `created`/`opened`, `closed`, `merged`/`accepted`, `approved` sobre `MergeRequest`, `Issue` o `WorkItem`. Todo lo demás (ediciones de wiki, proyecto creado, hito cerrado, `joined`/`left`/`expired`, `deleted`…) no es contribución. El **resumen**, en cambio, usa los recuentos por tipo de arriba (commits = suma de `commit_count`), sin cambios.
 
 ### Fechas
 
@@ -57,7 +59,7 @@ ContributionDay = { date: string /* YYYY-MM-DD */; count: number; level: 0 | 1 |
 ContributionTotals = { commits: number; opened: number; merged: number; reviews: number }
 ContributionSummary = {
   month: string                 // YYYY-MM
-  weeks: ContributionDay[][]    // 5–6 columnas × 7 filas (lunes→domingo)
+  weeks: ContributionDay[][]    // 4–6 columnas × 7 filas (lunes→domingo)
   monthTotal: number            // contribuciones del mes (suma del gráfico)
   activeDays: number
   today: ContributionTotals; week: ContributionTotals; monthTotals: ContributionTotals
@@ -67,16 +69,16 @@ ContributionSummary = {
 }
 ```
 
-- **IPC** (solo notch, zod de entrada y salida): `code-review:contributions { platform }` → `ContributionSummary | null` (null si la plataforma no está configurada o sin datos todavía); evento existente `code-review:state` sin cambios; `code-review:view` (o el aviso de abrir/cerrar que ya exista) activa y para el temporizador de 15 min.
+- **IPC** (solo notch, zod de entrada y salida): `code-review:contributions { platform }` → `{ summary: ContributionSummary | null, error: boolean }` (`summary` null si la plataforma no está configurada o sin datos todavía; `error` si la última consulta falló, conservando el último resumen bueno); `code-review:view { open: boolean }` avisa al abrir y cerrar la vista y activa o para el temporizador de 15 min; evento main → notch `code-review:contributions-changed { platform, error }` cuando cambian las contribuciones de una plataforma (el notch vuelve a leerlas con `code-review:contributions`); evento `code-review:state` sin cambios. Si el renderer del notch se recarga, la vista cuenta como cerrada (se para el temporizador).
 
 ## Vista "Revisiones"
 
 - Debajo de la cabecera y las pestañas:
-  - **Gráfico**: 7 filas (lun→dom) × columnas por semana; cuadrados de ~14 px con 3 px de separación; nivel 0 = Grafito al 8 %, niveles 1–4 en tonos de azul hielo; días fuera del mes ocultos; días futuros sin relleno; hoy con borde. Hover/foco: "12 nov · 7 contribuciones". Etiquetas de los días (L, X, V) a la izquierda y del mes arriba.
-  - **Resumen**: tabla compacta con columnas **Hoy · Semana · Mes** y filas **Commits · PR abiertos · PR fusionados · Revisiones** (en GitLab "MR"), cifras tabulares; "—" sin dato. Debajo: "84 contribuciones en noviembre" y "Actualizado hace 3 min"; las líneas de "datos parciales"/"privadas" cuando aplique.
+  - **Gráfico**: 7 filas (lun→dom) × 4–6 columnas (una por semana); cuadrados de ~14 px con 3 px de separación; nivel 0 = Grafito al 14 % (subido del 8 % en la revisión: se confundía con el borde de los días futuros), niveles 1–4 en tonos de azul hielo; días fuera del mes ocultos; días futuros sin relleno; hoy con borde. Hover/foco: "12 nov · 7 contribuciones". Etiquetas de los siete días (L M X J V S D) a la izquierda y del mes arriba.
+  - **Resumen**: tabla compacta con columnas **Hoy · Semana · Mes** y filas **Commits · PR abiertos · PR fusionados · Revisiones** (en GitLab "MR"), cifras tabulares; "—" sin dato. Debajo: "84 contribuciones en el gráfico de noviembre" (en GitLab, con la nota "En el gráfico un push cuenta 1; el resumen cuenta commits") y "Actualizado hace 3 min"; las líneas de "datos parciales"/"privadas" cuando aplique.
   - Gráfico y resumen lado a lado si caben; si no, el resumen debajo (decidido con capturas).
 - **Debajo**: "Por revisar" y "Míos" como en el hito 1, con su propio desplazamiento.
-- **Tamaño**: el panel crece (orientativo ~520×560) y se mide con capturas; si pasa a ser el más alto, la ventana crece antes de abrirlo (como la tarjeta de preguntas).
+- **Tamaño**: el panel mide **520×560**, medido con capturas; es el **más alto** (ventana de 638 px): la ventana crece antes de abrirlo y se encoge al cerrarlo (como la tarjeta de preguntas).
 - **Estados**: cargando (rejilla en gris, sin animación con `prefers-reduced-motion`), error con Reintentar, sin configurar / revisa el token (como el hito 1).
 - **Accesibilidad**: el gráfico es una tabla (`role="grid"` o `<table>`) con cabeceras de día y semana; cada celda con su etiqueta; un resumen textual para lectores de pantalla ("Noviembre: 84 contribuciones en 15 días activos"). Teclado: Tab entra al gráfico, flechas entre días, Tab sale hacia las listas.
 - i18n ES/EN (nombres de días y meses con `Intl`); tokens de `DESIGN.md`.
