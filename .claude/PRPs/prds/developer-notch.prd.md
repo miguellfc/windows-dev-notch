@@ -100,6 +100,7 @@ Cuando trabajo en varios proyectos con varias sesiones de Claude a la vez, quier
 | Could (hecho tras el MVP) | Notas rápidas en el notch (lista con buscar, copiar, editar, fijar y borrar con Deshacer) | Integración viva más tras el cambio de dirección; hecha en `feat/notes` (ver "Notas rápidas — hecho tras el MVP") |
 | Could (hito 1 hecho tras el MVP) | Gmail en el notch: sin leer de Principal en la cápsula y los 5 más recientes | Hito 1 (base, solo lectura) hecho en `feat/gmail`; hitos 2 (leer y actuar) y 3 (avisos) hechos en `feat/gmail-actions` (ver "Gmail — hitos 2 y 3"); falta la comprobación manual del usuario |
 | Could (hecho tras el MVP) | Responder desde el notch las preguntas de Claude Code (`AskUserQuestion`): aviso, tarjeta con opciones y "Otro", teclado | Hecho en `feat/claude-questions` (ver "Preguntas de Claude — hecho"); falta la comprobación manual del usuario |
+| Could (hito 1 hecho) | GitHub y GitLab en el notch: PR/MR tuyos sin revisar en la cápsula, aviso de primera revisión y vista "Revisiones" | Hito 1 hecho en `feat/code-review` (ver "GitHub y GitLab — hito 1 hecho"); falta la comprobación manual con tokens reales; hito 2 (contribuciones) pendiente |
 | Could | Otros proveedores de agentes (Codex, Gemini CLI…) | La arquitectura `AgentProvider` lo permite |
 | Won't | Multiplataforma, launcher universal, chat embebido, sync en la nube | Ver "What We're NOT Building" |
 
@@ -436,3 +437,20 @@ Diseño: `docs/superpowers/specs/2026-11-12-claude-questions-design.md` (con la 
 
 **Pendiente**
 - Comprobación manual del usuario: reinstalar los hooks desde Control Center (los ya instalados salen como "Desactualizados: reinstala") y contestar una pregunta real de Claude desde el notch.
+
+## GitHub y GitLab — hito 1 hecho (rama `feat/code-review`)
+
+Diseño: `docs/superpowers/specs/2026-11-13-code-review-design.md` (con la nota "Cambio" de lo decidido durante la implementación); guía de configuración para el usuario: `docs/code-review-setup.md`.
+
+**Qué hace**
+- Conexión de github.com y de un GitLab propio (URL `https`) con tokens personales de solo lectura, cifrados con `safeStorage` y nunca enviados al renderer ni al log; sin OAuth. Control Center → "GitHub y GitLab" (token, URL, Comprobar y guardar, Quitar, avisos y sonido).
+- Cápsula compacta: un bloque por plataforma (icono Github/Gitlab + número, "99+" a partir de 100) con los PR/MR propios, abiertos, no borrador y sin revisar; desaparece al momento cuando el recuento llega a 0.
+- Aviso (misma prioridad que el correo, 6 s, también con la cápsula en `mini` u oculta, con `chime`) cuando alguien revisa por primera vez un PR/MR propio: Aprobado, Cambios pedidos o Revisado; clic abre "Míos".
+- Panel "Revisiones" (480×440): pestañas GitHub | GitLab, secciones "Por revisar" y "Míos", filas con estado, checks y conflictos; abre en el navegador solo URLs de la última lista.
+- Consulta cada 120 s en cualquier modo, con espera creciente; 401 → "Revisa el token". `settings.json` v6.
+
+**Pruebas:** unitarias (clientes, detector, integración, IPC, migración, latch y anchos) y E2E con servidores falsos de GitHub GraphQL y GitLab REST, con capturas ES/EN.
+
+**Pendiente**
+- Comprobación manual del usuario con tokens reales siguiendo `docs/code-review-setup.md`.
+- Hito 2: contribuciones (gráfico del mes y resumen de hoy, semana y mes), con spec propio.

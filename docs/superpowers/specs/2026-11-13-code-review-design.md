@@ -3,6 +3,8 @@
 **Fecha:** 2026-11-13 · **Rama:** `feat/code-review`
 **Fuentes:** PRD ("integraciones vivas"), `DESIGN.md`, patrón de Gmail (token cifrado, cliente REST con zod, integración con ritmo y espera creciente, avisos en la cápsula).
 
+> **Cambio (2026-11-13, tras la implementación):** el spec se ajustó al código final. GitHub: `reviews(last:20, states…)` filtradas por autor y una tercera búsqueda `review:none` (`issueCount`) para los recuentos por encima de 20; las autorrevisiones y autoaprobaciones no cuentan en ninguna plataforma; GitLab consulta `/approvals` y `/reviewers` por MR (máx. 6 en vuelo; 401 falla, 403/404 = sin datos, un error transitorio conserva el último estado); un revisor de GitLab en `approved` cuenta como aprobado; el detector recibe `{ id, review }`; las filas son de 2 líneas; un 403 con cabeceras de límite de tasa es "limitado"; el aviso comparte prioridad con el correo (el más nuevo sustituye al anterior); el panel mide 480×440; el bloque de la cápsula desaparece al momento cuando el recuento llega a 0; ajustes v6 con fusión parcial de `codeReview`; interruptor de desarrollo `NOTCH_CODE_REVIEW_BASE_URLS`; cambiar la URL de GitLab fuera de `setToken` cierra la sesión y borra el token.
+
 ## Objetivo
 
 Ver de un vistazo cuántos PR (GitHub) y MR (GitLab) tuyos siguen sin revisar, enterarte cuando alguien revisa uno, y tener a mano los que esperan tu revisión y los tuyos abiertos.
@@ -25,32 +27,32 @@ Ver de un vistazo cuántos PR (GitHub) y MR (GitLab) tuyos siguen sin revisar, e
 ## Definiciones
 
 - **Sin revisar** (contador): PR/MR **tuyo, abierto, no borrador** y sin ninguna revisión.
-  - GitHub: ninguna revisión enviada (`reviews.totalCount === 0`: ni aprobación, ni cambios pedidos, ni comentario de revisión).
-  - GitLab: sin aprobaciones (`approved_by` vacío) y sin revisores con estado `reviewed`/`requested_changes` (cuando el servidor expone el estado de los revisores; si no, solo aprobaciones).
+  - GitHub: ninguna revisión de otra persona (ni aprobación, ni cambios pedidos, ni comentario de revisión). Las autorrevisiones y autoaprobaciones no cuentan. El contador sale de la búsqueda `review:none` (`issueCount`), así que sigue siendo correcto con más de 20 PR.
+  - GitLab: sin aprobaciones de otra persona (`approved_by`, sin contar al propio autor) y sin revisores con estado `approved`/`reviewed`/`requested_changes` (cuando el servidor expone el estado de los revisores; si no, solo aprobaciones). Un revisor en `approved` cuenta como aprobado.
 - **Primera revisión** (aviso): un PR/MR tuyo que estaba "sin revisar" en la consulta anterior y ya no lo está (y sigue abierto). El aviso dice el tipo: **Aprobado**, **Cambios pedidos** o **Revisado**.
 
 ## Configuración por el usuario
 
 Guía `docs/code-review-setup.md`:
 
-- **GitHub**: token *fine-grained* de solo lectura (Settings → Developer settings) con lectura de "Pull requests", "Metadata" y "Commit statuses"/"Checks". Advertencias: solo ve los repositorios elegidos al crearlo; en organizaciones puede necesitar aprobación de un administrador; alternativa: token *clásico* con permiso `repo` (ve todo, pero también permite escribir).
+- **GitHub**: token *fine-grained* de solo lectura (Settings → Developer settings) con lectura de "Pull requests", "Metadata" y "Commit statuses" (los tokens detallados no tienen permiso *Checks*; si los checks no aparecen, el token clásico). Advertencias: solo ve los repositorios elegidos al crearlo; en organizaciones puede necesitar aprobación de un administrador; alternativa: token *clásico* con permiso `repo` (ve todo, pero también permite escribir).
 - **GitLab**: URL del servidor y token personal con permiso `read_api` (Preferences → Access tokens).
-- Los tokens caducan cuando el usuario decide; el notch muestra "Revisa el token" al recibir 401/403.
+- Los tokens caducan cuando el usuario decide; el notch muestra "Revisa el token" al recibir 401 (en GitHub también un 403 sin cabeceras de límite de tasa). Un 403 con cabeceras de límite de tasa es "limitado": se espera y se reintenta, no es un error de token.
 
 ## Arquitectura
 
 ### Main (`src/main/code-review/`)
 
-- **`github-client.ts`**: `POST https://api.github.com/graphql` con `Authorization: Bearer <token>`. Una consulta con dos búsquedas (`is:open is:pr review-requested:@me archived:false` y `is:open is:pr author:@me archived:false`, hasta 20 cada una) y `viewer { login }`. Por PR: id, número, título, repo (`owner/name`), URL, autor, `isDraft`, `updatedAt`, `reviewDecision`, `reviews(first:1){ totalCount }` y el último review (estado), `mergeable`, estado de checks (`commits(last:1){ nodes { commit { statusCheckRollup { state } } } }`). Respuesta validada con zod.
-- **`gitlab-client.ts`**: `GET <url>/api/v4/user` (cuenta e id), `GET <url>/api/v4/merge_requests?state=opened&reviewer_id=<id>&scope=all&per_page=20` y `…?state=opened&scope=created_by_me&per_page=20`; por cada MR propio, `GET …/projects/:id/merge_requests/:iid/approvals`. Cabecera `PRIVATE-TOKEN`. Datos por MR: id, iid, título, `references.full`, `web_url`, autor, `draft`, `updated_at`, `has_conflicts`, `detailed_merge_status`, estado de la pipeline si viene (`head_pipeline.status`), aprobaciones. Validado con zod.
-- **`review-detector.ts`** (puro): `observe(own: { id, reviewed: ReviewKind | null }[]) → { id, kind }[]` con los que pasan de sin revisar a revisados; la primera observación tras `reset()` solo guarda la referencia. `ReviewKind = 'approved' | 'changes' | 'commented'`.
-- **`code-review-integration.ts`**: por plataforma: estado `unconfigured | ok | offline | auth-error`, cuenta, contador, listas, `updatedAt`. Consulta cada **120 s** en cualquier modo de la cápsula (para que el aviso funcione siempre), al momento al abrir la vista o con Actualizar (mínimo 5 s), y espera creciente ante fallos (1 → 2 → 4 → 5 min). 401/403 → `auth-error` y deja de consultar esa plataforma hasta que se guarde otro token. El detector se reinicia al cambiar el token o la URL.
+- **`github-client.ts`**: `POST https://api.github.com/graphql` con `Authorization: Bearer <token>`. Una consulta con tres búsquedas (`is:open is:pr review-requested:@me archived:false`, `is:open is:pr author:@me archived:false`, hasta 20 cada una, y una tercera `is:open is:pr author:@me draft:false review:none archived:false` de la que solo se lee `issueCount`, para los recuentos por encima de 20) y `viewer { login }`. Por PR: id, número, título, repo (`owner/name`), URL, autor, `isDraft`, `updatedAt`, `reviewDecision`, `reviews(last:20, states: [APPROVED, CHANGES_REQUESTED, COMMENTED])` filtradas por autor (se descartan las propias) para el estado de la última, `mergeable`, estado de checks (`commits(last:1){ nodes { commit { statusCheckRollup { state } } } }`). Respuesta validada con zod.
+- **`gitlab-client.ts`**: `GET <url>/api/v4/user` (cuenta e id), `GET <url>/api/v4/merge_requests?state=opened&reviewer_id=<id>&scope=all&per_page=20` y `…?state=opened&scope=created_by_me&per_page=20`; por cada MR propio no borrador, `GET …/projects/:id/merge_requests/:iid/approvals` y `…/reviewers` (estado de cada revisor), con un máximo de 6 llamadas en vuelo. 401 hace fallar la consulta (`auth-error`); 403/404 = sin datos de ese MR; un error transitorio (red, 429, 5xx) conserva el último estado conocido de ese MR. Cabecera `PRIVATE-TOKEN`. Datos por MR: id, iid, título, `references.full`, `web_url`, autor, `draft`, `updated_at`, `has_conflicts`, `detailed_merge_status`, estado de la pipeline si viene (`head_pipeline.status`), aprobaciones. Validado con zod.
+- **`review-detector.ts`** (puro): `observe(own: { id, review: ReviewKind | null }[]) → { id, kind }[]` con los que pasan de sin revisar a revisados; la primera observación tras `reset()` solo guarda la referencia. `ReviewKind = 'approved' | 'changes' | 'commented'`. El detector no avisa de autorrevisiones (ya excluidas por los clientes).
+- **`code-review-integration.ts`**: por plataforma: estado `unconfigured | ok | offline | auth-error`, cuenta, contador, listas, `updatedAt`. Consulta cada **120 s** en cualquier modo de la cápsula (para que el aviso funcione siempre), al momento al abrir la vista o con Actualizar (mínimo 5 s), y espera creciente ante fallos (1 → 2 → 4 → 5 min). 401 (y 403 sin límite de tasa) → `auth-error` y deja de consultar esa plataforma hasta que se guarde otro token. El detector se reinicia al cambiar el token o la URL. Si la URL de GitLab cambia fuera de `setToken` (p. ej. un ajuste editado), la sesión termina y se borra el token. Desarrollo: la variable `NOTCH_CODE_REVIEW_BASE_URLS` (ignorada en la app empaquetada) redirige las bases de las APIs a un servidor local para las pruebas e2e.
 - **Tokens**: `userData/code-review-github.bin` y `code-review-gitlab.bin`, cifrados con `safeStorage` (como `token-store.ts` de Gmail); sin cifrado disponible solo viven en memoria. Nunca llegan al renderer ni al log.
 - **Abrir en el navegador**: main abre con `shell.openExternal` solo URLs de la última lista enviada y cuyo origen sea `https://github.com` o el origen configurado de GitLab.
 
 ### Ajustes
 
-`settings.json` pasa a la **versión 6** (migración 5 → 6):
+`settings.json` pasa a la **versión 6** (migración 5 → 6; un `codeReview` parcial se fusiona con los valores por defecto):
 
 ```ts
 codeReview: {
@@ -75,15 +77,15 @@ codeReview: {
 | `code-review:clear` | `{ platform }` | `null` | solo Control Center |
 | evento `code-review:alert` | — | `{ platform, count, kind?, ref?, title? }` | main → notch |
 
-`Item = { id, ref /* owner/repo#123 o group/project!45 */, title, author, updatedAt, draft, review: 'none' | 'approved' | 'changes' | 'commented', checks: 'pass' | 'fail' | 'running' | null, conflicts: boolean }`. Todo con `registerIpc`, guards y zod de entrada y salida.
+`Item = { id, ref /* owner/repo#123 o group/project!45 */, title, author, updatedAt, draft, review: 'none' | 'approved' | 'changes' | 'commented', checks: 'pass' | 'fail' | 'running' | null, conflicts: boolean }`. El detector recibe solo `{ id, review }` de los PR/MR propios. Todo con `registerIpc`, guards y zod de entrada y salida.
 
 ### Notch
 
-- **Cápsula**: después del correo, un bloque por plataforma configurada con contador > 0: icono (Lucide `Github` / `Gitlab`) + número (`99+` a partir de 100), Grafito Cristal, tabular, con el latch de la cápsula. Etiqueta accesible: "2 PR tuyos sin revisar en GitHub" / "2 MR tuyos sin revisar en GitLab". Anchos añadidos a `COMPACT_WIDTHS`, medidos en ES/EN con el peor caso (dos bloques `99+` con correo, disco y batería).
-- **Aviso** (`alert`, misma prioridad que el correo — la más baja —, 6 s, también en `mini`/`hidden`, sin robar el foco): icono de la plataforma + "**Aprobado** · *repo*#123 · título" (o **Cambios pedidos** / **Revisado**); varios a la vez: "**2 PR revisados** · GitHub" / "**2 MR revisados** · GitLab". Sonido con el `chime` si está activado. Clic → vista en esa plataforma, sección "Míos".
-- **Vista "Revisiones"** (casilla nueva en la fila de integraciones, icono `GitPullRequest`; la fila pasa a 6 casillas y se mide que quepa):
+- **Cápsula**: después del correo, un bloque por plataforma configurada con contador > 0: icono (Lucide `Github` / `Gitlab`) + número (`99+` a partir de 100), Grafito Cristal, tabular, con el latch de la cápsula, salvo que una lectura en vivo con 0 hace desaparecer el bloque al momento (solo "sin datos" se engancha, como en el correo). Etiqueta accesible: "2 PR tuyos sin revisar en GitHub" / "2 MR tuyos sin revisar en GitLab". Anchos añadidos a `COMPACT_WIDTHS`, medidos en ES/EN con el peor caso (dos bloques `99+` con correo, disco y batería).
+- **Aviso** (`alert`, misma prioridad que el correo — la más baja; entre ambos, el más nuevo sustituye al anterior —, 6 s, también en `mini`/`hidden`, sin robar el foco): icono de la plataforma + "**Aprobado** · *repo*#123 · título" (o **Cambios pedidos** / **Revisado**); varios a la vez: "**2 PR revisados** · GitHub" / "**2 MR revisados** · GitLab". Sonido con el `chime` si está activado. Clic → vista en esa plataforma, sección "Míos".
+- **Vista "Revisiones"** (480×440; casilla nueva en la fila de integraciones, icono `GitPullRequest`; la fila pasa a 6 casillas y se mide que quepa):
   - Cabecera: ←, "Revisiones", pestañas GitHub \| GitLab (solo las configuradas), Actualizar.
-  - Secciones **Por revisar** y **Míos**; filas con `ref` y título (una línea), autor (en "Por revisar") y hace cuánto se actualizó, y etiquetas: Borrador, Aprobado, Cambios pedidos, Sin revisar (en "Míos"), Conflictos, Checks ✓ / ✗ / en curso.
+  - Secciones **Por revisar** y **Míos**; filas de 2 líneas: título y hace cuánto se actualizó / `ref` · autor · etiquetas: Borrador, Aprobado, Cambios pedidos, Sin revisar (en "Míos"), Conflictos, Checks ✓ / ✗ / en curso.
   - Clic o Enter → `code-review:open`.
   - Estados: sin configurar (botón a Control Center), "Revisa el token en Control Center" (`auth-error`), sin conexión (últimos datos atenuados), vacío ("Nada pendiente").
   - Teclado: flechas entre filas, ←/→ entre pestañas, Enter abre, Esc vuelve.
@@ -104,7 +106,7 @@ Nueva página **"GitHub y GitLab"** (después de Gmail): tarjeta por plataforma 
 
 ## Coste
 
-GitHub: 1 consulta GraphQL cada 2 min (muy por debajo de 5000 puntos/h). GitLab: 3 + N llamadas cada 2 min (N = MR propios abiertos, ≤ 20).
+GitHub: 1 consulta GraphQL cada 2 min (muy por debajo de 5000 puntos/h). GitLab: hasta 3 + 2N llamadas cada 2 min (N = MR propios abiertos no borrador, ≤ 20: `/approvals` y `/reviewers` de cada uno).
 
 ## Pruebas
 
