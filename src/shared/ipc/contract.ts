@@ -5,6 +5,10 @@ import {
   codeReviewAlertSchema,
   codeReviewListSchema,
   codeReviewStateSchema,
+  codeReviewViewInputSchema,
+  contributionsChangedSchema,
+  contributionsInputSchema,
+  contributionsResultSchema,
   listInputSchema,
   openInputSchema,
   setTokenInputSchema,
@@ -233,6 +237,10 @@ export const contract = {
   /** Validates the token against the API before saving; the token never comes back. */
   'code-review:set-token': { input: setTokenInputSchema, output: setTokenResultSchema },
   'code-review:clear': { input: clearInputSchema, output: ack },
+  /** The "Revisiones" view opened or closed: contributions are queried only while it is open. */
+  'code-review:view': { input: codeReviewViewInputSchema, output: ack },
+  /** The cached month summary of a platform (null when unconfigured or not loaded yet) and the last query's error flag; never repositories. */
+  'code-review:contributions': { input: contributionsInputSchema, output: contributionsResultSchema },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -263,6 +271,8 @@ export const eventContract = {
   'code-review:state': codeReviewStateSchema,
   /** Own PR/MRs got their first review, to the notch only; `kind`/`ref`/`title` for a single one. */
   'code-review:alert': codeReviewAlertSchema,
+  /** A platform's contributions changed or a query ended (with its error flag), to the notch only. */
+  'code-review:contributions-changed': contributionsChangedSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

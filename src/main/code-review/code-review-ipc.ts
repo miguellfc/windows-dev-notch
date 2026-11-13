@@ -7,7 +7,7 @@ type Guard = (event: IpcEventLike) => boolean
 
 /** Every handler waits for the stored tokens to load, so the first state is never a guess. */
 export const createCodeReviewIpcHandlers = (
-  codeReview: Pick<CodeReviewIntegration, 'ready' | 'state' | 'list' | 'refresh' | 'open' | 'setToken' | 'clear'>,
+  codeReview: Pick<CodeReviewIntegration, 'ready' | 'state' | 'list' | 'refresh' | 'open' | 'setToken' | 'clear' | 'setViewOpen' | 'contributions'>,
 ): Pick<IpcHandlers, CodeReviewChannel> => ({
   'code-review:get-state': async () => {
     await codeReview.ready
@@ -29,10 +29,16 @@ export const createCodeReviewIpcHandlers = (
     await codeReview.clear(platform)
     return null
   },
+  'code-review:view': async ({ open }) => {
+    await codeReview.ready
+    codeReview.setViewOpen(open)
+    return null
+  },
+  'code-review:contributions': ({ platform }) => codeReview.contributions(platform),
 })
 
 /**
- * PR/MR lists and the browser opener live in the notch; tokens are managed from the Control Center
+ * PR/MR lists, contributions, the view signal and the browser opener live in the notch; tokens are managed from the Control Center
  * only. Both read the state.
  */
 export const codeReviewChannelGuards = ({
@@ -50,5 +56,7 @@ export const codeReviewChannelGuards = ({
     'code-review:open': fromNotch,
     'code-review:set-token': fromControlCenter,
     'code-review:clear': fromControlCenter,
+    'code-review:view': fromNotch,
+    'code-review:contributions': fromNotch,
   }
 }

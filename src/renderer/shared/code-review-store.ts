@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CodeReviewAlert, CodeReviewState, Platform } from '../../shared/code-review/schema'
+import type { CodeReviewAlert, CodeReviewState, ContributionsResult, Platform } from '../../shared/code-review/schema'
 import { EMPTY_REVIEW_BLOCKS, nextReviewBlocks, type ReviewBlocks } from '../notch/system/capsule-latch'
 import type { ReviewSection } from './code-review/format'
 
@@ -20,6 +20,8 @@ interface CodeReviewStoreState {
   reviewAlert: boolean
   /** Set by the alert's click: the view opens on this platform and section, then forgets it. */
   target: ReviewsTarget | null
+  /** The last `code-review:contributions` answer per platform (kept across openings); never repositories or titles. */
+  contributions: Partial<Record<Platform, ContributionsResult>>
 }
 
 export const useCodeReview = create<CodeReviewStoreState>(() => ({
@@ -28,6 +30,7 @@ export const useCodeReview = create<CodeReviewStoreState>(() => ({
   alert: null,
   reviewAlert: false,
   target: null,
+  contributions: {},
 }))
 
 const apply = (state: CodeReviewState) => useCodeReview.setState((store) => ({ state, blocks: nextReviewBlocks(store.blocks, state) }))
@@ -40,6 +43,19 @@ export const setReviewAlert = (reviewAlert: boolean): void => useCodeReview.setS
 
 /** Where the next opening of the reviews view lands (null: the first configured platform, its first row). */
 export const setReviewsTarget = (target: ReviewsTarget | null): void => useCodeReview.setState({ target })
+
+/**
+ * Asks main for one platform's contributions and keeps the answer. An answer that arrives after a
+ * newer request for the same platform is dropped, so a slow reply never overwrites a fresher one.
+ */
+const contributionRequests: Partial<Record<Platform, number>> = {}
+export async function loadContributions(platform: Platform): Promise<void> {
+  const request = (contributionRequests[platform] ?? 0) + 1
+  contributionRequests[platform] = request
+  const result = await window.notch.codeReview.contributions({ platform })
+  if (!result.ok || contributionRequests[platform] !== request) return
+  useCodeReview.setState((store) => ({ contributions: { ...store.contributions, [platform]: result.data } }))
+}
 
 /** Keeps the store in sync with the main process; subscribe first so an early read never wins. */
 export function bindCodeReview(): void {

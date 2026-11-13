@@ -140,3 +140,70 @@ export type SetTokenResult = z.infer<typeof setTokenResultSchema>
 
 export const clearInputSchema = z.strictObject({ platform: platformSchema })
 export type ClearInput = z.infer<typeof clearInputSchema>
+
+// Contributions (milestone 2).
+const dayKeySchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
+
+/** One square of the month chart. Days outside the month have `inMonth: false` and count 0. */
+export const contributionDaySchema = z.strictObject({
+  /** Local date `YYYY-MM-DD`. */
+  date: dayKeySchema,
+  count: z.int().min(0),
+  level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  inMonth: z.boolean(),
+  /** After today (local). */
+  future: z.boolean(),
+})
+export type ContributionDay = z.infer<typeof contributionDaySchema>
+export type ContributionLevel = ContributionDay['level']
+
+export const contributionTotalsSchema = z.strictObject({
+  commits: z.int().min(0),
+  opened: z.int().min(0),
+  merged: z.int().min(0),
+  reviews: z.int().min(0),
+})
+export type ContributionTotals = z.infer<typeof contributionTotalsSchema>
+
+/** `code-review:contributions` output: the current month's chart plus today / week / month totals. */
+export const contributionSummarySchema = z.strictObject({
+  /** `YYYY-MM` (local). */
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  /** Columns Monday -> Sunday; 4 (a 28-day month starting on Monday) to 6. */
+  weeks: z.array(z.array(contributionDaySchema).length(7)).min(4).max(6),
+  /** Contributions in the month (sum of the chart). */
+  monthTotal: z.int().min(0),
+  activeDays: z.int().min(0).max(31),
+  today: contributionTotalsSchema,
+  week: contributionTotalsSchema,
+  monthTotals: contributionTotalsSchema,
+  /** GitLab: the page limit was reached, older events of the month are missing. */
+  partial: z.boolean(),
+  /** GitHub: there are private contributions that are not detailed. */
+  restricted: z.boolean(),
+  /** ISO time of the query. */
+  updatedAt: z.string().max(64),
+})
+export type ContributionSummary = z.infer<typeof contributionSummarySchema>
+
+export const contributionsInputSchema = z.strictObject({ platform: platformSchema })
+export type ContributionsInput = z.infer<typeof contributionsInputSchema>
+
+/**
+ * `code-review:contributions` output: the cached summary (null when not connected or not loaded yet)
+ * and whether the last query failed (the summary, if any, is the last good one).
+ */
+export const contributionsResultSchema = z.strictObject({ summary: contributionSummarySchema.nullable(), error: z.boolean() })
+export type ContributionsResult = z.infer<typeof contributionsResultSchema>
+
+/** `code-review:view` input: the notch's "Revisiones" view opened or closed (contributions poll only while open). */
+export const codeReviewViewInputSchema = z.strictObject({ open: z.boolean() })
+export type CodeReviewViewInput = z.infer<typeof codeReviewViewInputSchema>
+
+/**
+ * Event main -> notch: a platform's contributions changed (new summary, cache cleared) or a query
+ * ended; `error` is true while the last query failed (the cached summary, if any, is kept).
+ * Never repositories or titles: the notch reads the summary with `code-review:contributions`.
+ */
+export const contributionsChangedSchema = z.strictObject({ platform: platformSchema, error: z.boolean() })
+export type ContributionsChanged = z.infer<typeof contributionsChangedSchema>

@@ -275,14 +275,16 @@ describe('question panel geometry', () => {
     expect(windowBoundsFor('question', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 504 + SHADOW_MARGIN.bottom })
   })
 
-  it('is the tallest panel: it grows the window from every other mode and shrinks it back', () => {
+  it('is taller than every panel but "Revisiones": it grows the window from them and shrinks it back', () => {
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
+      if (mode === 'reviews') continue
       expect(CAPSULE_SIZES.question.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
     }
     for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'terminal'] as const) {
       expect(resizeOrder(from, 'question')).toBe('resize-first')
       expect(resizeOrder('question', from)).toBe('animate-first')
     }
+    expect(resizeOrder('reviews', 'question')).toBe('animate-first')
   })
 })
 
@@ -309,10 +311,23 @@ describe('compact capsule width with the code-review blocks', () => {
 })
 
 describe('reviews panel geometry', () => {
-  it('is a panel no taller than the question card, so the window order stays as it was', () => {
-    expect(CAPSULE_SIZES.reviews.height).toBeLessThanOrEqual(CAPSULE_SIZES.question.height)
+  it('is the 520×560 panel measured with Playwright (contributions over the lists), inside the window width', () => {
+    expect(CAPSULE_SIZES.reviews).toEqual({ width: 520, height: 560 })
     expect(CAPSULE_SIZES.reviews.width).toBeLessThanOrEqual(WINDOW_WIDTH - SHADOW_MARGIN.side * 2)
-    expect(resizeOrder('compact', 'reviews')).toBe('resize-first')
-    expect(resizeOrder('reviews', 'expanded')).toBe('animate-first')
+    expect(windowBoundsFor('reviews', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 560 + SHADOW_MARGIN.bottom })
+  })
+
+  it('is the tallest panel: it grows the window from every other mode (resize first) and shrinks it back (animate first)', () => {
+    for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
+      expect(CAPSULE_SIZES.reviews.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
+      if (mode === 'reviews') continue
+      expect(growsWindow(mode, 'reviews')).toBe(true)
+      expect(resizeOrder(mode, 'reviews')).toBe('resize-first')
+      expect(resizeOrder('reviews', mode)).toBe('animate-first')
+    }
+  })
+
+  it('keeps the window width: the widest panel is still the terminal', () => {
+    expect(WINDOW_WIDTH).toBe(CAPSULE_SIZES.terminal.width + SHADOW_MARGIN.side * 2)
   })
 })

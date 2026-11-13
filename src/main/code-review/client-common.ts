@@ -1,5 +1,11 @@
 import type { z } from 'zod'
-import { CODE_REVIEW_LIST_LIMIT, CODE_REVIEW_TEXT_MAX, type ReviewItem, type ReviewState } from '../../shared/code-review/schema'
+import {
+  CODE_REVIEW_LIST_LIMIT,
+  CODE_REVIEW_TEXT_MAX,
+  type ContributionSummary,
+  type ReviewItem,
+  type ReviewState,
+} from '../../shared/code-review/schema'
 
 export type CodeReviewFetch = (url: string, init?: RequestInit) => Promise<Response>
 
@@ -36,6 +42,8 @@ export interface CodeReviewClient {
   /** Login (GitHub) or username (GitLab) of the token's account. */
   viewer(): Promise<string>
   fetch(): Promise<CodeReviewSnapshot>
+  /** The current month's contributions (local time of `now`): chart plus today / week / month totals. */
+  contributions(now: Date): Promise<ContributionSummary>
 }
 
 /** Drops the URL: what may cross IPC to the notch. */

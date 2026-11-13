@@ -1,14 +1,18 @@
 import { ArrowLeft, GitPullRequest, KeyRound, RefreshCw, type LucideIcon } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { localDate } from '../../../shared/code-review/contributions'
 import type { CodeReviewList, Platform } from '../../../shared/code-review/schema'
 import type { MessageKey } from '../../../shared/i18n/messages'
-import { setReviewsTarget, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
+import { loadContributions, setReviewsTarget, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
+import { contributionsPhase, graphSummaryText, placeholderGrid } from '../../shared/code-review/contributions-format'
 import { configuredPlatforms, PLATFORM_NAMES, reviewsBody } from '../../shared/code-review/format'
 import { formatUpdated } from '../../shared/gmail/format'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { Segmented } from '../../ui/Segmented'
 import { headerIconButton } from '../reminders/styles'
+import { ContributionGraph } from './ContributionGraph'
+import { ContributionSummary } from './ContributionSummary'
 import { firstRowOf, ReviewList, reviewRows } from './ReviewList'
 
 /** Main queries at most once per 5 s on a manual refresh; the button rests as long. */
@@ -68,6 +72,50 @@ function ReviewsSkeleton() {
   )
 }
 
+/**
+ * The month chart and the summary of one platform, side by side when they fit (else the summary
+ * wraps below), over the PR/MR lists. Loading: the grey chart and "—"; a failed query keeps the last
+ * data with "No se pudieron cargar las contribuciones · Reintentar".
+ */
+function Contributions({ platform, now, onRetry, retryResting }: { platform: Platform; now: Date; onRetry: () => void; retryResting: boolean }) {
+  const t = useT()
+  const language = useLanguage()
+  const result = useCodeReview((store) => store.contributions[platform])
+  const { phase, summary, error } = contributionsPhase(result)
+  const today = localDate(now)
+  const placeholder = summary ? null : placeholderGrid(now)
+  const [dayText, setDayText] = useState<string | null>(null)
+  return (
+    <section
+      aria-label={t('codeReview.contrib.region')}
+      data-testid="contributions"
+      data-phase={phase}
+      aria-busy={phase === 'loading' || undefined}
+      className="flex shrink-0 flex-wrap gap-x-5 gap-y-2 border-b border-line px-1.5 pb-2.5 pt-1"
+    >
+      <ContributionGraph
+        weeks={summary?.weeks ?? placeholder ?? []}
+        month={summary?.month ?? today.slice(0, 7)}
+        today={today}
+        interactive={summary !== null}
+        pulse={phase === 'loading'}
+        {...(summary ? { description: graphSummaryText(summary, language) } : {})}
+        onShowDay={setDayText}
+      />
+      <ContributionSummary
+        platform={platform}
+        summary={summary}
+        error={error}
+        loading={phase === 'loading'}
+        now={now}
+        onRetry={onRetry}
+        retryResting={retryResting}
+        dayText={summary ? dayText : null}
+      />
+    </section>
+  )
+}
+
 /** The lists last received per platform (kept while switching tabs) and the update they answer. */
 type Lists = Partial<Record<Platform, CodeReviewList>>
 
@@ -101,6 +149,17 @@ export function ReviewsView() {
     void window.notch.codeReview.refresh()
   }, [])
 
+  // Contributions are queried only while the view is open: listen first, then say it opened, so no
+  // change is missed; every change (new data, failure, cleared cache) asks for that platform again.
+  useEffect(() => {
+    const off = window.notch.events.on('code-review:contributions-changed', ({ platform: changed }) => void loadContributions(changed))
+    void window.notch.codeReview.view({ open: true })
+    return () => {
+      off()
+      void window.notch.codeReview.view({ open: false })
+    }
+  }, [])
+
   // Every reading of this platform (a poll, a status change) may carry new lists: ask again.
   useEffect(() => {
     if (platform === null || (status !== 'ok' && status !== 'offline')) return
@@ -112,6 +171,12 @@ export function ReviewsView() {
       current = false
     }
   }, [platform, status, updatedAt])
+
+  // The tab shown (or its status) changed: read its contributions (main answers from its cache).
+  useEffect(() => {
+    if (platform === null || (status !== 'ok' && status !== 'offline')) return
+    void loadContributions(platform)
+  }, [platform, status])
 
   useEffect(() => {
     if (!resting) return
@@ -233,8 +298,9 @@ export function ReviewsView() {
       {/* The selected platform's content; without any configured platform there are no tabs. */}
       <div
         {...(platform === null ? {} : { role: 'tabpanel', id: PANEL_ID, 'aria-labelledby': tabId(platform) })}
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col gap-1.5"
       >
+        {platform !== null && live && <Contributions platform={platform} now={now} onRetry={refresh} retryResting={resting} />}
         {body === 'loading' ? (
           <ReviewsSkeleton />
         ) : body === 'list' && list ? (

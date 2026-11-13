@@ -13,12 +13,20 @@ import {
   GITHUB_TO_REVIEW,
   GITLAB_MINE,
   GITLAB_TO_REVIEW,
+  GITHUB_TODAY_COUNT,
+  GITLAB_BIG_PUSH_COMMITS,
   SENSITIVE_DATA,
+  expectedGithubContributions,
+  expectedGitlabContributions,
+  expectedLevel,
+  localDay,
+  parseLocalDay,
   githubPrUrl,
   githubRef,
   gitlabMrUrl,
   gitlabRef,
   startFakeCodeReview,
+  type ExpectedContributions,
   type FakeCodeReview,
 } from './fixtures/fake-code-review'
 import { settle } from './settle'
@@ -30,6 +38,10 @@ type TestClockHost = { __notchTestClock: { advance: (ms: number) => Promise<void
 
 /** The 120 s query rhythm of both platforms. */
 const TICK_MS = 120_000
+/** The contributions rhythm while the "Revisiones" view is open. */
+const CONTRIBUTIONS_TICK_MS = 15 * 60_000
+/** The minimum gap between two manual refreshes (Actualizar, Reintentar). */
+const REFRESH_REST_MS = 5_000
 
 let userData: string
 let launched: ElectronApplication | undefined
@@ -203,6 +215,75 @@ const expectCleanLogs = (): void => {
   }
 }
 
+// --- Contributions --------------------------------------------------------------------------
+
+const contributionsBlock = (notch: Page) => notch.getByTestId('contributions')
+const graph = (notch: Page) => notch.getByTestId('contribution-graph')
+const contributionHits = (server: FakeCodeReview) => ({
+  github: server.hits['github contributions'] ?? 0,
+  gitlab: server.hits['gitlab contributions'] ?? 0,
+})
+
+const intlLocale = (language: 'es' | 'en') => (language === 'es' ? 'es-ES' : 'en-US')
+/** "13 nov" / "Nov 13", as the chart writes a day. */
+const shortDateText = (key: string, language: 'es' | 'en') =>
+  new Intl.DateTimeFormat(intlLocale(language), { day: 'numeric', month: 'short' }).format(new Date(`${key}T12:00:00`)).replace('.', '')
+const monthNameText = (key: string, language: 'es' | 'en') =>
+  new Intl.DateTimeFormat(intlLocale(language), { month: 'long' }).format(new Date(`${key.slice(0, 7)}-01T12:00:00`))
+const countText = (count: number, language: 'es' | 'en') =>
+  language === 'es' ? (count === 1 ? '1 contribución' : `${count} contribuciones`) : count === 1 ? '1 contribution' : `${count} contributions`
+
+/** Today as the chart marks it (the renderer's clock: the same day the app queried). */
+const chartToday = async (notch: Page): Promise<Date> => {
+  const key = await graph(notch).locator('[data-today]').getAttribute('data-date')
+  expect(key).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  return parseLocalDay(key!)
+}
+
+/**
+ * The open tab's chart and summary against the fake's month: one square per day of the month, the
+ * level of every day up to today (later days outlined as future), the 12 summary numbers and the
+ * month's total line.
+ */
+const expectContributions = async (notch: Page, expected: ExpectedContributions, language: 'es' | 'en'): Promise<void> => {
+  await expect(contributionsBlock(notch)).toHaveAttribute('data-phase', 'ready')
+  const today = await chartToday(notch)
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+  const cells = graph(notch).locator('[data-date]')
+  await expect(cells).toHaveCount(daysInMonth)
+  const shown = await cells.evaluateAll((els) =>
+    els.map((el) => ({ date: el.getAttribute('data-date') ?? '', level: Number(el.getAttribute('data-level')), future: el.hasAttribute('data-future') })),
+  )
+  const max = Math.max(...expected.counts.values())
+  for (const cell of shown) {
+    const count = expected.counts.get(cell.date)
+    if (count === undefined) {
+      expect(cell.future, `${cell.date} is after today`).toBe(true)
+      continue
+    }
+    expect(cell.future, `${cell.date} is not in the future`).toBe(false)
+    expect(cell.level, `level of ${cell.date} (${count} of ${max})`).toBe(expectedLevel(count, max))
+  }
+  // Today is the busiest day of the fake's month: the darkest square.
+  await expect(graph(notch).locator('[data-today]')).toHaveAttribute('data-level', '4')
+
+  const summary = notch.getByTestId('contribution-summary')
+  for (const row of ['commits', 'opened', 'merged', 'reviews'] as const) {
+    for (const [column, totals] of [
+      ['today', expected.today],
+      ['week', expected.week],
+      ['monthTotals', expected.month],
+    ] as const) {
+      await expect(summary.locator(`[data-row="${row}"] [data-column="${column}"]`), `${row} · ${column}`).toHaveText(String(totals[row]))
+    }
+  }
+  const month = monthNameText(localDay(today), language)
+  await expect(notch.getByTestId('contributions-total')).toHaveText(
+    language === 'es' ? `${countText(expected.monthTotal, 'es')} en el gráfico de ${month}` : `${countText(expected.monthTotal, 'en')} in ${month}'s chart`,
+  )
+}
+
+
 const screenshot = async (page: Page, name: string): Promise<void> => {
   await settle(page)
   await page.screenshot({ path: `test-results/${name}` })
@@ -259,8 +340,10 @@ test('save tokens in Control Center, counts in the capsule, the view with tabs a
 
   // The capsule: one block per platform with its own unreviewed PR/MRs (drafts and reviewed ones left out).
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  const github = notch.getByTestId('metric-review-github')
-  const gitlab = notch.getByTestId('metric-review-gitlab')
+  // By role, not test id: a compact width change (the CPU figure gaining a digit under load) cross-fades
+  // two copies of the content, and the outgoing one can linger while the Control Center has focus.
+  const github = capsule(notch).getByRole('img', { name: /en GitHub$/ })
+  const gitlab = capsule(notch).getByRole('img', { name: /en GitLab$/ })
   await expect(github).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
   await expect(gitlab).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
   await expect(github).toContainText('2')
@@ -470,6 +553,159 @@ test('a rejected token (401) shows "Revisa el token" in the view and the Control
   await saveToken(cc, 'github', FAKE_GITHUB_TOKEN)
   await expect(cc.getByTestId('code-review-github-status').locator('span')).toHaveText(`Conectado como ${FAKE_GITHUB_LOGIN}`)
   await expect(notch.getByTestId('metric-review-github')).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
+
+  expect(server.violations).toEqual([])
+  expectCleanLogs()
+})
+
+test('contributions: the month chart and summary per tab, keyboard, and queries only while the view is open', async () => {
+  const server = fake!
+  const { app, notch, cc } = await connected(server)
+  await cc.close()
+  // Both platforms connected, the view closed: no contributions asked yet.
+  expect(contributionHits(server)).toEqual({ github: 0, gitlab: 0 })
+
+  // Opening "Revisiones" asks each platform once (GitLab: two pages of events).
+  await openReviewsView(notch)
+  await expect.poll(() => contributionHits(server)).toEqual({ github: 1, gitlab: 1 })
+  await expect.poll(() => server.hits['gitlab events']).toBe(2)
+
+  // GitHub: the month's calendar (today 12, the rest 0/3/6/9/2), the totals and the merged searches.
+  await expect(contributionsBlock(notch)).toHaveAttribute('data-phase', 'ready')
+  const today = await chartToday(notch)
+  const github = expectedGithubContributions(today)
+  await expectContributions(notch, github, 'es')
+  await expect(graph(notch).getByRole('grid')).toHaveAccessibleName(`Contribuciones de ${monthNameText(localDay(today), 'es')}`)
+  await expect(notch.getByTestId('contributions-restricted')).toHaveText('Incluye contribuciones privadas que no se detallan')
+  await expect(notch.getByTestId('contributions-partial')).toHaveCount(0)
+  await expect(notch.getByTestId('contributions-error')).toHaveCount(0)
+  // The lists still below the chart.
+  await expect(rowsOf(notch, 'toReview')).toHaveCount(3)
+  await expect(rowsOf(notch, 'mine')).toHaveCount(4)
+  await notch.getByTestId('reviews-panel').locator('h2').hover()
+  await screenshot(notch, 'contributions-github-es.png')
+
+  // Keyboard: Tab from the last header button lands on today; the day line shows its date and count.
+  const todayKey = localDay(today)
+  const dayLine = notch.getByTestId('contribution-day')
+  await notch.getByTestId('reviews-refresh').focus()
+  await notch.keyboard.press('Tab')
+  await expect(graph(notch).locator(`[data-date="${todayKey}"]`)).toBeFocused()
+  await expect(dayLine).toHaveText(`${shortDateText(todayKey, 'es')} · ${countText(GITHUB_TODAY_COUNT, 'es')}`)
+  // Up is the day before (down the day after, a future day with only its date, on the 1st); then back.
+  const back = today.getDate() > 1
+  const neighbour = localDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() + (back ? -1 : 1)))
+  await notch.keyboard.press(back ? 'ArrowUp' : 'ArrowDown')
+  await expect(graph(notch).locator(`[data-date="${neighbour}"]`)).toBeFocused()
+  await expect(dayLine).toHaveText(
+    back ? `${shortDateText(neighbour, 'es')} · ${countText(github.counts.get(neighbour)!, 'es')}` : shortDateText(neighbour, 'es'),
+  )
+  await notch.keyboard.press(back ? 'ArrowDown' : 'ArrowUp')
+  await expect(graph(notch).locator(`[data-date="${todayKey}"]`)).toBeFocused()
+  // Left/right move a week (when that day is still in the month); the view's tab arrows stay quiet.
+  const step = today.getDate() > 7 ? -7 : 7
+  const weekAway = new Date(today.getFullYear(), today.getMonth(), today.getDate() + step)
+  if (weekAway.getMonth() === today.getMonth()) {
+    await notch.keyboard.press(step < 0 ? 'ArrowLeft' : 'ArrowRight')
+    await expect(graph(notch).locator(`[data-date="${localDay(weekAway)}"]`)).toBeFocused()
+    await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', 'github')
+  }
+  // Tab leaves the chart: the "Actualizado" line is back.
+  await notch.keyboard.press('Tab')
+  await expect(dayLine).toHaveCount(0)
+  await expect(notch.getByTestId('contributions-updated')).toBeVisible()
+
+  // GitLab: one square per event (a push is 1), the summary's commits are the pushes' commit_count.
+  await notch.getByRole('tab', { name: 'GitLab' }).click()
+  await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', 'gitlab')
+  await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
+  await expect(rowsOf(notch, 'mine')).toHaveCount(3)
+  const gitlab = expectedGitlabContributions(today)
+  // Today in the fixture: pushes of 1-3 commits plus one of GITLAB_BIG_PUSH_COMMITS, an MR opened,
+  // approved, commented on and accepted, an issue opened and commented on, and a "joined".
+  expect(gitlab.today).toMatchObject({ opened: 1, merged: 1, reviews: 2 })
+  expect(gitlab.today.commits).toBeGreaterThanOrEqual(gitlab.counts.get(todayKey)! - 7 + GITLAB_BIG_PUSH_COMMITS)
+  await expectContributions(notch, gitlab, 'es')
+  await expect(graph(notch).locator(`[data-date="${todayKey}"]`)).toHaveAttribute(
+    'aria-label',
+    `${shortDateText(todayKey, 'es')} · ${countText(gitlab.counts.get(todayKey)!, 'es')}`,
+  )
+  await expect(notch.getByTestId('contributions-total')).toHaveAttribute('title', 'En el gráfico un push cuenta 1; el resumen cuenta commits')
+  await expect(notch.getByTestId('contributions-restricted')).toHaveCount(0)
+  await expect(notch.getByTestId('contributions-partial')).toHaveCount(0)
+
+  await setLanguage(notch, 'en')
+  await expect(notch.locator('#reviews-section-toReview')).toHaveText(/^To review\s*2$/)
+  await expectContributions(notch, gitlab, 'en')
+  await notch.getByTestId('reviews-panel').locator('h2').hover()
+  await screenshot(notch, 'contributions-gitlab-en.png')
+  await setLanguage(notch, 'es')
+  await expect(notch.locator('#reviews-section-toReview')).toHaveText(/^Por revisar\s*2$/)
+
+  // While open: one more query per platform every 15 min (test clock).
+  expect(contributionHits(server)).toEqual({ github: 1, gitlab: 1 })
+  await advance(app, CONTRIBUTIONS_TICK_MS)
+  await expect.poll(() => contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
+  await expect.poll(() => server.hits['gitlab events']).toBe(4)
+
+  // Closed: no contributions query across two more 15-min steps (the 120 s lists keep going).
+  await notch.getByTestId('reviews-panel').focus()
+  await notch.keyboard.press('Escape')
+  await expect(notch.getByTestId('reviews-panel')).toHaveCount(0)
+  await expect(capsule(notch)).not.toHaveAttribute('data-mode', 'reviews')
+  const fetches = server.hits['github fetch'] ?? 0
+  await advance(app, CONTRIBUTIONS_TICK_MS)
+  await advance(app, CONTRIBUTIONS_TICK_MS)
+  await expect.poll(() => server.hits['github fetch'] ?? 0).toBeGreaterThan(fetches)
+  await notch.waitForTimeout(1_000)
+  expect(contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
+
+  expect(server.violations).toEqual([])
+  // No event title, branch, commit or note text in the log (only counts and codes).
+  expectCleanLogs()
+})
+
+test('a contributions failure shows "No se pudieron cargar las contribuciones · Reintentar" while the lists still show; Reintentar recovers', async () => {
+  const server = fake!
+  const { app, notch, cc } = await connected(server)
+  await cc.close()
+  server.contributionsFail.github = true
+  server.contributionsFail.gitlab = true
+
+  await openReviewsView(notch)
+  const error = notch.getByTestId('contributions-error')
+  await expect(error).toHaveText(/^No se pudieron cargar las contribuciones\s*·\s*Reintentar$/)
+  await expect(contributionsBlock(notch)).toHaveAttribute('data-phase', 'error')
+  // The grey chart without data (not a grid) and "—" in the summary; the lists are all there.
+  await expect(graph(notch).getByRole('grid')).toHaveCount(0)
+  await expect(notch.locator('[data-row="commits"] [data-column="today"]')).toHaveText('—')
+  await expect(rowsOf(notch, 'toReview')).toHaveCount(3)
+  await expect(rowsOf(notch, 'mine')).toHaveCount(4)
+  await expect(notch.getByTestId('reviews-status')).toHaveCount(0)
+  await notch.getByRole('tab', { name: 'GitLab' }).click()
+  await expect(error).toBeVisible()
+  await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
+  await expect(rowsOf(notch, 'mine')).toHaveCount(3)
+  expect(server.hits['github contributions 500']).toBeGreaterThanOrEqual(1)
+  expect(server.hits['gitlab contributions 500']).toBeGreaterThanOrEqual(1)
+  await notch.getByRole('tab', { name: 'GitHub' }).click()
+  await expect(error).toBeVisible()
+
+  // The servers recover; Reintentar, once the 5 s rest since opening is over, asks both platforms again.
+  server.contributionsFail.github = false
+  server.contributionsFail.gitlab = false
+  const before = contributionHits(server)
+  await advance(app, REFRESH_REST_MS)
+  await notch.getByTestId('contributions-retry').click()
+  await expect.poll(() => contributionHits(server)).toEqual({ github: before.github + 1, gitlab: before.gitlab + 1 })
+  await expect(error).toHaveCount(0)
+  await expect(contributionsBlock(notch)).toHaveAttribute('data-phase', 'ready')
+  const today = await chartToday(notch)
+  await expectContributions(notch, expectedGithubContributions(today), 'es')
+  await notch.getByRole('tab', { name: 'GitLab' }).click()
+  await expect(error).toHaveCount(0)
+  await expectContributions(notch, expectedGitlabContributions(today), 'es')
+  await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
 
   expect(server.violations).toEqual([])
   expectCleanLogs()

@@ -12,8 +12,8 @@ export type VisibleMode = Exclude<NotchMode, 'hidden'>
 /**
  * Heights of the home panel (integrations row), measured with Playwright: Claude sessions get
  * their own line under the tiles (12 px gap, 12 px heading and one 24 px row per session, two
- * visible, the rest scroll). The window height follows the mode (the question
- * card, 520×504 in a 582 px window, is the tallest panel); with fewer sessions the capsule is
+ * visible, the rest scroll). The window height follows the mode (the
+ * "Revisiones" panel, 520×560 in a 638 px window, is the tallest); with fewer sessions the capsule is
  * shorter inside its window, like the compact capsule is narrower than the window, and the
  * transparent strip below lets clicks through (the window ignores the mouse outside the capsule).
  */
@@ -46,18 +46,20 @@ export function gmailSizeFor(reading: boolean): { width: number; height: number 
  * header and footer around the questions' own scroll. One question with 4 options whose
  * descriptions take two lines, one picked and "Other…" open with its field, needs 367 px of body,
  * so it shows whole (ES and EN alike); 4 questions scroll inside the body and the header and the
- * footer never clip. The tallest panel: the window grows for it (resize first, then animate).
+ * footer never clip. Taller than every panel but "Revisiones": the window grows for it (resize first).
  */
 export const QUESTION_SIZE = { width: 520, height: 504 } as const
 
 /**
- * The "Revisiones" panel, measured with Playwright in ES and EN with 20 + 20 items: a fixed 32 px
- * header (back, title, GitHub | GitLab, refresh) over one 382 px scroll holding both sections
- * (28 px heading, 50 px rows: title and time on the first line; ref, author and labels on the second), so
- * seven rows and a heading show at once and the rest scroll; the header never moves. As tall as the
- * Gmail reader, shorter than the question card: the window order is unchanged.
+ * The "Revisiones" panel, measured with Playwright in ES and EN (built app, 6-column month, worst
+ * case with the partial-data, private-contributions and error lines): a fixed 32 px header (back,
+ * title, GitHub | GitLab, refresh); under it the contributions block (the 114 px month chart column beside
+ * the summary table, 199-235 px tall) and then "Por revisar" and "Míos" in their own scroll (28 px
+ * heading, 50 px rows), which keeps 297 px (a heading and five rows) in the usual case and about
+ * four rows in the worst one; the header and the chart never clip. The tallest panel (taller than
+ * the question card): the window grows before it opens (resize first) and shrinks after it closes.
  */
-export const REVIEWS_SIZE = { width: 480, height: 440 } as const
+export const REVIEWS_SIZE = { width: 520, height: 560 } as const
 
 /** Size of the visible capsule per mode, in DIP. */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {

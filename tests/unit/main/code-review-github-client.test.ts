@@ -6,7 +6,7 @@ import {
   type CodeReviewFetch,
 } from '../../../src/main/code-review/client-common'
 import { GITHUB_API_BASE, createGithubClient } from '../../../src/main/code-review/github-client'
-import { itemSchema } from '../../../src/shared/code-review/schema'
+import { contributionSummarySchema, itemSchema } from '../../../src/shared/code-review/schema'
 
 const TOKEN = 'ghp_test_token'
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -322,5 +322,145 @@ describe('toReviewItem', () => {
     const item = toReviewItem(first!)
     expect(itemSchema.parse(item)).toEqual(item)
     expect(item).not.toHaveProperty('url')
+  })
+})
+
+describe('github client: contributions', () => {
+  // Friday 13 Nov 2026, 10:30 in Europe/Madrid (tests/unit/setup-tz.ts), CET = UTC+1.
+  const NOW = new Date(2026, 10, 13, 10, 30)
+
+  const collection = (t: { commits?: number; prs?: number; reviews?: number; restricted?: number } = {}) => ({
+    totalCommitContributions: t.commits ?? 0,
+    totalPullRequestContributions: t.prs ?? 0,
+    totalPullRequestReviewContributions: t.reviews ?? 0,
+    restrictedContributionsCount: t.restricted ?? 0,
+  })
+
+  const calendar = (days: [string, number][]) => ({
+    contributionCalendar: {
+      weeks: [
+        { contributionDays: days.slice(0, 3).map(([date, contributionCount]) => ({ date, contributionCount })) },
+        { contributionDays: days.slice(3).map(([date, contributionCount]) => ({ date, contributionCount })) },
+      ],
+    },
+  })
+
+  const contributionsData = (o: { restricted?: number; merged?: [number | null, number | null, number | null]; errors?: unknown[] } = {}) => {
+    const [mm, mw, mt] = o.merged ?? [4, 2, 1]
+    const search = (n: number | null) => (n === null ? null : { issueCount: n })
+    return {
+      data: {
+        viewer: {
+          month: {
+            ...calendar([
+              ['2026-11-01', 2],
+              ['2026-11-02', 0],
+              ['2026-11-09', 5],
+              ['2026-11-12', 1],
+              ['2026-11-13', 3],
+            ]),
+            ...collection({ commits: 9, prs: 3, reviews: 6, restricted: o.restricted ?? 0 }),
+          },
+          week: collection({ commits: 7, prs: 2, reviews: 4 }),
+          today: collection({ commits: 3, prs: 1, reviews: 2 }),
+        },
+        mergedMonth: search(mm),
+        mergedWeek: search(mw),
+        mergedToday: search(mt),
+      },
+      ...(o.errors ? { errors: o.errors } : {}),
+    }
+  }
+
+  it('posts one query with the three collections (local midnights as instants) and three merged searches', async () => {
+    const { client, fetchMock } = setup(() => json(contributionsData()))
+    await client.contributions(NOW)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0]!
+    expect(url).toBe(`${GITHUB_API_BASE}/graphql`)
+    expect(init?.redirect).toBe('manual')
+    expect((init?.headers as Record<string, string>)['authorization']).toBe(`Bearer ${TOKEN}`)
+    const { query, variables } = JSON.parse(String(init?.body)) as { query: string; variables: Record<string, unknown> }
+    expect(query).toMatch(/month: contributionsCollection\(from: \$monthFrom, to: \$to\)/)
+    expect(query).toMatch(/week: contributionsCollection\(from: \$weekFrom, to: \$to\)/)
+    expect(query).toMatch(/today: contributionsCollection\(from: \$todayFrom, to: \$to\)/)
+    expect(query).toContain('contributionCalendar { weeks { contributionDays { date contributionCount } } }')
+    expect(query).toMatch(/mergedMonth: search\(type: ISSUE, first: 0, query: \$mergedMonth\) \{ issueCount \}/)
+    expect(variables).toEqual({
+      monthFrom: '2026-10-31T23:00:00.000Z',
+      weekFrom: '2026-11-08T23:00:00.000Z',
+      todayFrom: '2026-11-12T23:00:00.000Z',
+      to: '2026-11-13T09:30:00.000Z',
+      mergedMonth: 'is:pr author:@me is:merged merged:>=2026-11-01T00:00:00+01:00',
+      mergedWeek: 'is:pr author:@me is:merged merged:>=2026-11-09T00:00:00+01:00',
+      mergedToday: 'is:pr author:@me is:merged merged:>=2026-11-13T00:00:00+01:00',
+    })
+  })
+
+  it('never sends an empty today range (now exactly at local midnight)', async () => {
+    const { client, fetchMock } = setup(() => json(contributionsData()))
+    await client.contributions(new Date(2026, 10, 13, 0, 0, 0))
+    const { variables } = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as { variables: Record<string, unknown> }
+    expect(variables['todayFrom']).toBe('2026-11-12T23:00:00.000Z')
+    expect(variables['to']).toBe('2026-11-12T23:00:01.000Z')
+  })
+
+  it('merged searches use the local start with its offset (summer time too)', async () => {
+    const { client, fetchMock } = setup(() => json(contributionsData()))
+    await client.contributions(new Date(2026, 6, 15, 12))
+    const { variables } = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as { variables: Record<string, unknown> }
+    expect(variables['mergedToday']).toBe('is:pr author:@me is:merged merged:>=2026-07-15T00:00:00+02:00')
+  })
+
+  it('maps the calendar into the month grid and the totals', async () => {
+    const { client } = setup(() => json(contributionsData()))
+    const s = await client.contributions(NOW)
+    expect(contributionSummarySchema.parse(s)).toEqual(s)
+    expect(s.month).toBe('2026-11')
+    expect(s.weeks).toHaveLength(6)
+    const byDate = new Map(s.weeks.flat().map((d) => [d.date, d]))
+    expect(byDate.get('2026-11-09')).toMatchObject({ count: 5, level: 4, inMonth: true, future: false })
+    expect(byDate.get('2026-11-13')).toMatchObject({ count: 3, future: false })
+    expect(byDate.get('2026-11-14')).toMatchObject({ count: 0, future: true })
+    expect(s.monthTotal).toBe(11)
+    expect(s.activeDays).toBe(4)
+    expect(s.today).toEqual({ commits: 3, opened: 1, merged: 1, reviews: 2 })
+    expect(s.week).toEqual({ commits: 7, opened: 2, merged: 2, reviews: 4 })
+    expect(s.monthTotals).toEqual({ commits: 9, opened: 3, merged: 4, reviews: 6 })
+    expect(s.partial).toBe(false)
+    expect(s.restricted).toBe(false)
+    expect(s.updatedAt).toBe(NOW.toISOString())
+  })
+
+  it('flags restricted private contributions', async () => {
+    const { client } = setup(() => json(contributionsData({ restricted: 2 })))
+    expect((await client.contributions(NOW)).restricted).toBe(true)
+  })
+
+  it('uses the data of a 200 with errors (a failed merged search counts 0)', async () => {
+    const { client } = setup(() => json(contributionsData({ merged: [null, 2, null], errors: [{ type: 'FORBIDDEN', path: ['mergedMonth'] }] })))
+    const s = await client.contributions(NOW)
+    expect(s.monthTotals.merged).toBe(0)
+    expect(s.week.merged).toBe(2)
+    expect(s.monthTotal).toBe(11)
+  })
+
+  it('errors without data: rate-limited or invalid-response', async () => {
+    await expectCode(setup(() => json({ errors: [{ type: 'RATE_LIMITED' }] })).client.contributions(NOW), 'rate-limited')
+    await expectCode(setup(() => json({ data: null, errors: [{ type: 'X' }] })).client.contributions(NOW), 'invalid-response')
+    await expectCode(setup(() => json({ data: { viewer: { month: {} } } })).client.contributions(NOW), 'invalid-response')
+  })
+
+  it('maps HTTP statuses to codes', async () => {
+    const cases: [number, Record<string, string>, CodeReviewErrorCode][] = [
+      [401, {}, 'auth'],
+      [403, {}, 'auth'],
+      [403, { 'x-ratelimit-remaining': '0' }, 'rate-limited'],
+      [429, {}, 'rate-limited'],
+      [502, {}, 'server'],
+    ]
+    for (const [status, headers, code] of cases) {
+      await expectCode(setup(() => json({}, status, headers)).client.contributions(NOW), code)
+    }
   })
 })
