@@ -1185,7 +1185,7 @@ describe('gmail integration: new mail', () => {
     }
 
     const notchStates: [string, NotchEvent][] = [
-      ['mini (a window in front)', { type: 'foreground', verdict: 'mini' }],
+      ['mini (pinned by the user)', { type: 'pin-mini' }],
       ['hidden (yielding to fullscreen)', { type: 'foreground', verdict: 'hidden' }],
       ['hidden by the user', { type: 'user-visibility', hidden: true }],
     ]

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
+import { settle } from './settle'
 
 type NotchWindow = { notch: NotchApi; require?: unknown; process?: unknown }
 interface WindowInfo {
@@ -87,16 +88,170 @@ test('capsule floats at the top, grows to the panel and shrinks back', async () 
 
   const compact = await capsuleWindow(app)
   expect(compact).toMatchObject({ visible: true, alwaysOnTop: true, y: 0 })
-  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
+  // At rest the capsule peeks (time and date only).
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'peek')
 
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
   await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'expanded')
   await expect.poll(async () => (await capsuleWindow(app)).height).toBeGreaterThan(compact.height)
 
   await notch.keyboard.press('Escape')
-  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'peek')
   await expect.poll(async () => (await capsuleWindow(app)).height).toBe(compact.height)
 
+  await app.close()
+})
+
+test('capsule modes: peek at rest, compact on hover, right click pins the pill to the top edge, left click unpins', async () => {
+  const { app, notch } = await launch()
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.settings.update({ language: 'es' }))
+  await expect
+    .poll(() => notch.evaluate(() => (globalThis as unknown as { document: { documentElement: { lang: string } } }).document.documentElement.lang))
+    .toBe('es')
+  const capsule = notch.getByTestId('notch-capsule')
+  /** The capsule holds `mode` for ~500 ms (no flicker under a still pointer). */
+  const stays = async (mode: string) => {
+    const seen: (string | null)[] = []
+    for (let i = 0; i < 10; i++) {
+      seen.push(await capsule.getAttribute('data-mode'))
+      await notch.waitForTimeout(50)
+    }
+    expect(seen).toEqual(Array(10).fill(mode))
+  }
+  const staysCompact = () => stays('compact')
+  /** The painted capsule, once its morph is over. */
+  const paintedBox = async () => {
+    await settle(notch)
+    const box = await capsule.boundingBox()
+    expect(box).not.toBeNull()
+    return box!
+  }
+  // Real pointer events. Playwright's mouse is virtual: when main stops ignoring the mouse, Windows can
+  // report the real cursor (elsewhere on the desktop) leaving the window, so the hover itself is retried
+  // until it lands (tests/e2e/pointer.ts explains the IPC shortcut the other specs use instead); once it
+  // has, the capsule must hold compact (checked outside the retry, so a flicker is never masked).
+  const hoverIntoCompact = async () => {
+    await expect(async () => {
+      await notch.mouse.move(1, 40)
+      await capsule.hover()
+      await expect(capsule).toHaveAttribute('data-mode', 'compact', { timeout: 1000 })
+    }).toPass({ timeout: 15_000 })
+    await staysCompact()
+  }
+  /** Horizontal centre of the capsule column (the window is centred on the work area). */
+  const centreX = async () => {
+    const box = await capsule.boundingBox()
+    return box!.x + box!.width / 2
+  }
+  const workAreaTop = await app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea.y)
+
+  // Peek, the resting capsule: time and date, no shortcut keycaps, no metrics.
+  await expect(capsule).toHaveAttribute('data-mode', 'peek')
+  await expect(capsule.locator('kbd')).toHaveCount(0)
+  await expect(notch.getByTestId('capsule-metrics')).toHaveCount(0)
+  const peek = await capsuleWindow(app)
+  await settle(notch)
+  await notch.screenshot({ path: 'test-results/capsule-modes-peek-es.png' })
+
+  // Pointer in: compact (metrics), same window height (only the width morphs).
+  await hoverIntoCompact()
+  await expect(notch.getByTestId('capsule-metrics')).toBeVisible({ timeout: 10_000 })
+  expect((await capsuleWindow(app)).height).toBe(peek.height)
+  await settle(notch)
+  await notch.screenshot({ path: 'test-results/capsule-modes-compact-es.png' })
+
+  // Pointer out: back to peek.
+  await notch.mouse.move(1, 1)
+  await expect(capsule).toHaveAttribute('data-mode', 'peek')
+
+  // Only the painted capsule hovers: 2 px above or below it (its shadow room) does nothing, in peek and
+  // in compact, and its rounded corners are not part of it either.
+  const peekBox = await paintedBox()
+  const cx = peekBox.x + peekBox.width / 2
+  for (const y of [peekBox.y - 2, peekBox.y + peekBox.height + 2]) {
+    await notch.mouse.move(cx, y)
+    await stays('peek')
+  }
+  const hitAt = (x: number, y: number) =>
+    notch.evaluate(
+      ([px, py]) =>
+        (globalThis as unknown as { document: { elementFromPoint(x: number, y: number): { closest(s: string): unknown } | null } }).document
+          .elementFromPoint(px!, py!)
+          ?.closest('[data-testid="notch-capsule"]') != null,
+      [x, y],
+    )
+  expect(await hitAt(cx, peekBox.y + peekBox.height / 2)).toBe(true)
+  expect(await hitAt(peekBox.x + 1, peekBox.y + 1)).toBe(false)
+  await notch.mouse.move(cx, peekBox.y + peekBox.height / 2)
+  await expect(capsule).toHaveAttribute('data-mode', 'compact')
+  const compactBox = await paintedBox()
+  for (const y of [compactBox.y - 2, compactBox.y + compactBox.height + 2]) {
+    await hoverIntoCompact()
+    await notch.mouse.move(cx, y)
+    await expect(capsule).toHaveAttribute('data-mode', 'peek')
+  }
+  await notch.mouse.move(1, 1)
+  await expect(capsule).toHaveAttribute('data-mode', 'peek')
+
+  // Right click on compact: the thin pill, flush against the top edge of the screen.
+  await hoverIntoCompact()
+  await capsule.click({ button: 'right' })
+  await expect(capsule).toHaveAttribute('data-mode', 'mini')
+  await expect.poll(async () => (await capsuleWindow(app)).height).toBeLessThan(peek.height)
+  expect((await capsuleWindow(app)).y).toBe(workAreaTop)
+  await settle(notch)
+  const pill = await capsule.boundingBox()
+  expect(pill).not.toBeNull()
+  expect(pill!.y).toBe(0)
+  expect(pill!.height).toBeLessThanOrEqual(5)
+  await notch.screenshot({ path: 'test-results/capsule-modes-mini-es.png' })
+
+  // The pointer on the pill (and leaving it) keeps the pill.
+  await notch.mouse.move(1, 40)
+  await capsule.hover()
+  await notch.waitForTimeout(300)
+  await expect(capsule).toHaveAttribute('data-mode', 'mini')
+
+  // Left click on the pill: compact, which sticks while the pointer stays at the top edge (y < 6, above
+  // the capsule itself), then peek once the pointer has been on compact and leaves it.
+  const x = await centreX()
+  await capsule.click()
+  await expect(capsule).toHaveAttribute('data-mode', 'compact')
+  await notch.mouse.move(x + 1, 3)
+  await notch.mouse.move(x + 2, 4)
+  await staysCompact()
+  await notch.mouse.move(x, 24)
+  await expect(capsule).toHaveAttribute('data-mode', 'compact')
+  await notch.mouse.move(1, 1)
+  await expect(capsule).toHaveAttribute('data-mode', 'peek')
+
+  // Hover again: compact; a left click opens the panel.
+  await hoverIntoCompact()
+  await capsule.click()
+  await expect(capsule).toHaveAttribute('data-mode', 'expanded')
+  await settle(notch)
+  await notch.screenshot({ path: 'test-results/capsule-modes-panel-es.png' })
+
+  await app.close()
+})
+
+test('a pinned pill takes the panel from the shortcut and returns to the pill; it is not remembered after a restart', async () => {
+  let { app, notch } = await launch()
+  const capsule = notch.getByTestId('notch-capsule')
+  await capsule.hover()
+  await capsule.click({ button: 'right' })
+  await expect(capsule).toHaveAttribute('data-mode', 'mini')
+  await notch.mouse.move(1, 40)
+
+  // The global shortcut and the tray toggle the panel over the pill; closing it goes back to the pill.
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'toggle' }))
+  await expect(capsule).toHaveAttribute('data-mode', 'expanded')
+  await notch.keyboard.press('Escape')
+  await expect(capsule).toHaveAttribute('data-mode', 'mini')
+  await app.close()
+
+  ;({ app, notch } = await launch())
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'peek')
   await app.close()
 })
 

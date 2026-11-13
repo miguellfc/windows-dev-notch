@@ -163,7 +163,7 @@ export const contract = {
   'settings:get': { input: none, output: settingsSchema },
   'settings:update': { input: settingsPatchSchema, output: settingsSchema },
   'notch:get-mode': { input: none, output: notchModeSchema },
-  'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle', 'next']) }), output: ack },
+  'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle', 'next', 'pin-mini', 'unpin-mini']) }), output: ack },
   'notch:pointer': { input: z.strictObject({ inside: z.boolean() }), output: ack },
   'notch:settled': { input: none, output: ack },
   'notch:open-integration': { input: z.strictObject({ id: z.enum(integrationIds) }), output: ack },

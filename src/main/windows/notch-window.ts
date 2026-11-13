@@ -30,7 +30,8 @@ export function nativeHandle(window: BrowserWindow): string {
  */
 export function createNotchWindow(options: NotchWindowOptions): { window: BrowserWindow; surface: NotchSurface } {
   const window = new BrowserWindow({
-    ...windowBoundsFor('compact', options.workArea),
+    // The resting capsule (time and date); the controller sizes the window for the real mode on start.
+    ...windowBoundsFor('peek', options.workArea),
     title: 'Developer Notch',
     frame: false,
     transparent: true,

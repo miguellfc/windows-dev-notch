@@ -19,7 +19,13 @@ export const WARMUP_MS = 600
 /** The light rhythm reads free disk space (no PDH) at most this often, for the disk alert. */
 export const DISK_CHECK_MS = 60_000
 
-/** Modes where nothing is sampled: the capsule is a pill, off screen, or showing an alert. */
+/**
+ * Modes where nothing is sampled: the capsule is the user's pinned pill, off screen, or showing an
+ * alert. Peek (the resting capsule, time and date only) keeps the light rhythm although it shows no
+ * metrics: the capsule rests there, and pausing would reset the CPU baseline and the sustained-alert
+ * window after every long rest, so each hover into compact would open on "—" and stale alerts. The
+ * light sample is cheap (no PDH, no process list).
+ */
 const PAUSED_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['mini', 'hidden', 'alert'])
 
 export interface MonitorTimers {
@@ -59,8 +65,8 @@ export interface SystemMonitor {
 type Rhythm = 'paused' | 'light' | 'full'
 
 /**
- * Decides when to sample: light every 3 s while the capsule is visible, full + processes every
- * 1 s in 'system' mode (the System view), nothing in mini / hidden / alert. Exactly one of light()
+ * Decides when to sample: light every 3 s while the capsule is visible (peek included), full +
+ * processes every 1 s in 'system' mode (the System view), nothing in mini / hidden / alert. Exactly one of light()
  * or full() runs per tick, because both share the CPU baseline. The view's open state follows the
  * mode alone, so a renderer remount (e.g. a revived exit animation) can never stop the rhythm.
  */

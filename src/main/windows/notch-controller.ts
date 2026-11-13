@@ -9,11 +9,12 @@ import {
   reduceNotch,
   REVIEW_ALERT_MS,
   reviewAlertShown,
+  STICKY_COMPACT_MS,
   type NotchEvent,
   type NotchMode,
 } from '../../shared/notch/state'
 
-export { MAIL_ALERT_MS, REVIEW_ALERT_MS }
+export { MAIL_ALERT_MS, REVIEW_ALERT_MS, STICKY_COMPACT_MS }
 import type { Logger } from '../services/logger'
 
 /** What the controller needs from the capsule window; the Electron adapter implements it. */
@@ -78,10 +79,12 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   let hidden = isCapsuleHidden(state)
   let workArea = options.workArea
   /** Mode the window is currently sized for (may be larger than `mode` while shrinking). */
-  let windowMode: VisibleMode = 'compact'
+  let windowMode: VisibleMode = 'peek'
   let pendingShrink: { target: VisibleMode; timer: ReturnType<typeof setTimeout> } | null = null
   let mailTimer: ReturnType<typeof setTimeout> | null = null
   let reviewTimer: ReturnType<typeof setTimeout> | null = null
+  /** Ends the sticky compact after a click on the pill if the pointer never reaches compact. */
+  let stickyTimer: ReturnType<typeof setTimeout> | null = null
   let started = false
   let disposed = false
 
@@ -95,6 +98,11 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   const clearReviewTimer = () => {
     if (reviewTimer !== null) clearTimeout(reviewTimer)
     reviewTimer = null
+  }
+
+  const clearStickyTimer = () => {
+    if (stickyTimer !== null) clearTimeout(stickyTimer)
+    stickyTimer = null
   }
 
   const cancelPendingShrink = () => {
@@ -170,6 +178,16 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       }
       const nextState = reduceNotch(state, event)
       if (nextState === state) return
+      // The sticky compact (after a click on the pill) has a deadline; anything that ends it first clears it.
+      if (nextState.stickyCompact && !state.stickyCompact) {
+        clearStickyTimer()
+        stickyTimer = setTimeout(() => {
+          stickyTimer = null
+          controller.dispatch({ type: 'sticky-end' })
+        }, STICKY_COMPACT_MS)
+      } else if (!nextState.stickyCompact) {
+        clearStickyTimer()
+      }
       state = nextState
       // The alert's kind can change while the mode stays `alert` (a permission over a mail alert, a
       // review replacing mail), and it reaches the renderer before a mode change that shows it. The
@@ -223,6 +241,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       cancelPendingShrink()
       clearMailTimer()
       clearReviewTimer()
+      clearStickyTimer()
     },
   }
   return controller

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
 import { settle } from './settle'
+import { showCompact } from './pointer'
 
 type NotchWindow = { notch: NotchApi }
 
@@ -76,6 +77,8 @@ test('the RAM metric alerts against a 50 % threshold and recovers when it is rai
   const usedAtStart = (1 - freemem() / totalmem()) * 100
   test.skip(usedAtStart < 52, `RAM in use is ${usedAtStart.toFixed(1)} % (< 52 %): the 50 % threshold cannot be crossed`)
   const { app, notch } = await launch()
+  // The capsule rests in peek (time and date): the metrics show in compact, with the pointer on it.
+  await showCompact(notch)
   const ram = notch.getByTestId('metric-ram')
   await expect(ram).toBeVisible({ timeout: 10_000 })
   await expect(ram).toHaveAttribute('data-alert', 'true', { timeout: 5000 })

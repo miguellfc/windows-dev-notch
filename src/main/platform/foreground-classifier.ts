@@ -15,7 +15,6 @@ export type NotificationState = 'normal' | 'busy' | 'd3d' | 'presentation' | 'ap
 export interface ForegroundSnapshot {
   readonly handle: string | null
   readonly className: string
-  readonly zoomed: boolean
   /** The window covers its whole monitor (borderless fullscreen, F11, games). */
   readonly coversMonitor: boolean
   /** Monitor of the foreground window, in physical pixels. */
@@ -37,7 +36,8 @@ const sameMonitor = (a: MonitorRect, b: MonitorRect) =>
   a.left === b.left && a.top === b.top && a.right === b.right && a.bottom === b.bottom
 
 /**
- * Decides how the capsule should yield to the foreground window.
+ * Decides how the capsule should yield to the foreground window: only fullscreen hides it. A maximized
+ * window no longer shrinks it (the thin pill is the user's choice: a right click on the capsule).
  * Geometry is checked first because Windows reports fullscreen ~0.5 s late (M0).
  * `keep` means "this window says nothing new": our own windows, the taskbar, unknown.
  */
@@ -52,6 +52,5 @@ export function classifyForeground(snapshot: ForegroundSnapshot, context: Classi
   }
 
   if (snapshot.coversMonitor || FULLSCREEN_STATES.has(snapshot.notificationState)) return 'hidden'
-  if (snapshot.zoomed) return 'mini'
   return 'none'
 }

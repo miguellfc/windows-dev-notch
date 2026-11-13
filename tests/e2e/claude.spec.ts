@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import type { NotchApi } from '../../src/shared/ipc/api'
 import { settle } from './settle'
+import { showCompact } from './pointer'
 
 type NotchWindow = { notch: NotchApi }
 type HookReply = { status: number; body: string }
@@ -145,6 +146,8 @@ test('shows Claude sessions as dots (working then done) and in the panel', async
   const bridge = readBridge()
 
   expect((await sendHook(bridge, event('api-server', 'UserPromptSubmit', { prompt: 'secret prompt' }))).status).toBe(200)
+  // The dots live in the compact capsule (the resting peek shows only time and date): hover it.
+  await showCompact(notch)
   const dots = notch.getByTestId('claude-dots')
   await expect(dots).toBeVisible()
   await expect(dots).toHaveAttribute('aria-label', /Claude Code.*(1)/)

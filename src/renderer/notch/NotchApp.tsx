@@ -1,7 +1,7 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
-import { Suspense, useEffect, useState, type ReactNode, type Ref } from 'react'
-import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
+import { Suspense, useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
+import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
 import { useClaude } from '../shared/claude-store'
@@ -52,7 +52,7 @@ interface ModeState {
 }
 
 function useNotchMode(): ModeState {
-  const [state, setState] = useState<ModeState>({ mode: 'compact', growing: true, lastVisible: 'compact' })
+  const [state, setState] = useState<ModeState>({ mode: 'peek', growing: true, lastVisible: 'peek' })
   // Main sends the alert's kind before the mode that shows it; subscribe to it first as well.
   useEffect(() => window.notch.events.on('notch:mail-alert', setMailAlert), [])
   useEffect(() => window.notch.events.on('notch:review-alert', setReviewAlert), [])
@@ -207,10 +207,24 @@ export function NotchApp() {
           : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
+  // Left click: the pill goes back to compact (then peek once the pointer leaves); peek and compact
+  // open the panel. Right click on peek or compact pins the pill at the top edge.
+  const onClick = expanded
+    ? undefined
+    : () => void window.notch.notch.request({ intent: mode === 'mini' ? 'unpin-mini' : 'expand' })
+  const onContextMenu =
+    mode === 'compact' || mode === 'peek'
+      ? (event: MouseEvent) => {
+          event.preventDefault()
+          void window.notch.notch.request({ intent: 'pin-mini' })
+        }
+      : undefined
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="flex h-screen justify-center" style={{ paddingTop: SHADOW_MARGIN.top }}>
+      {/* The pinned mini sits flush against the top edge of the screen; every other capsule keeps its shadow room. */}
+      {/* items-start: a stretched wrapper would reach the window's bottom (its 72 px shadow room). */}
+      <div className="flex h-screen items-start justify-center" style={{ paddingTop: capsuleTopFor(mode) }}>
         {/* Unscaled wrapper: its drop shadow follows the morph without being stretched by it. */}
         <div style={{ filter: mode === 'mini' ? LEVITATION_LOW_DROP : LEVITATION_DROP }}>
           <motion.div
@@ -222,9 +236,12 @@ export function NotchApp() {
             animate={{ borderRadius: capsuleRadius(mode) }}
             transition={reduceMotion ? { ...morph, borderRadius: { duration: 0 } } : morph}
             onLayoutAnimationComplete={() => void window.notch.notch.settled()}
+            // Hover and clicks belong to the painted capsule alone (its rounded corners clip hit-testing
+            // too): never the shadow room around it, which stays click-through.
             onPointerEnter={() => void window.notch.notch.pointer({ inside: true })}
             onPointerLeave={() => void window.notch.notch.pointer({ inside: false })}
-            onClick={expanded ? undefined : () => void window.notch.notch.request({ intent: 'expand' })}
+            onClick={onClick}
+            onContextMenu={onContextMenu}
             style={{
               width: size.width,
               height: size.height,
@@ -329,7 +346,18 @@ function CapsuleContent({
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
-  const dateOrDots = <StatusDots fallback={<span className="truncate text-small text-graphite-glass">{date}</span>} />
+  const dateText = <span className="truncate text-small text-graphite-glass">{date}</span>
+
+  // Peek, the resting capsule: time and date only (hovering turns it into compact).
+  if (mode === 'peek')
+    return (
+      <div className="flex h-full items-center justify-between gap-2 px-3.5">
+        {timeText}
+        {dateText}
+      </div>
+    )
+
+  const dateOrDots = <StatusDots fallback={dateText} />
 
   if (mode === 'compact' && (view || unread !== null || hasReviews))
     return (
@@ -349,16 +377,11 @@ function CapsuleContent({
       </div>
     )
 
+  // Compact with nothing besides time and date yet (no sample, no mail, no reviews).
   return (
     <div className="flex h-full items-center justify-between gap-2 px-3.5">
       {timeText}
-      {mode === 'peek' ? (
-        <span className="min-w-0 overflow-hidden">
-          <Kbd accelerator={settings.shortcut} size="sm" glass />
-        </span>
-      ) : (
-        dateOrDots
-      )}
+      {dateOrDots}
     </div>
   )
 }
