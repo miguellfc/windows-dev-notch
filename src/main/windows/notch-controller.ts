@@ -7,11 +7,13 @@ import {
   notchMode,
   PANEL_MODES,
   reduceNotch,
+  REVIEW_ALERT_MS,
+  reviewAlertShown,
   type NotchEvent,
   type NotchMode,
 } from '../../shared/notch/state'
 
-export { MAIL_ALERT_MS }
+export { MAIL_ALERT_MS, REVIEW_ALERT_MS }
 import type { Logger } from '../services/logger'
 
 /** What the controller needs from the capsule window; the Electron adapter implements it. */
@@ -26,6 +28,8 @@ export interface NotchSurface {
   sendMode(mode: NotchMode): void
   /** Whether the alert capsule shows the new-mail alert; sent before the mode that shows it. */
   sendMailAlert(on: boolean): void
+  /** Whether the alert capsule shows the first-review alert; sent before the mode that shows it. */
+  sendReviewAlert(on: boolean): void
 }
 
 export interface NotchControllerOptions {
@@ -68,6 +72,8 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   let mode: NotchMode = notchMode(state)
   /** Last value of {@link mailAlertShown}, sent to the renderer whenever it changes. */
   let mailShown = false
+  /** Last value of {@link reviewAlertShown}, sent like `mailShown`. */
+  let reviewShown = false
   /** Last value of {@link isCapsuleHidden}, reported through `onHiddenChange`. */
   let hidden = isCapsuleHidden(state)
   let workArea = options.workArea
@@ -75,6 +81,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   let windowMode: VisibleMode = 'compact'
   let pendingShrink: { target: VisibleMode; timer: ReturnType<typeof setTimeout> } | null = null
   let mailTimer: ReturnType<typeof setTimeout> | null = null
+  let reviewTimer: ReturnType<typeof setTimeout> | null = null
   let started = false
   let disposed = false
 
@@ -83,6 +90,11 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   const clearMailTimer = () => {
     if (mailTimer !== null) clearTimeout(mailTimer)
     mailTimer = null
+  }
+
+  const clearReviewTimer = () => {
+    if (reviewTimer !== null) clearTimeout(reviewTimer)
+    reviewTimer = null
   }
 
   const cancelPendingShrink = () => {
@@ -131,6 +143,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       if (mode !== 'hidden') resizeTo(mode)
       surface.setIgnoreMouse(true)
       if (mailShown) surface.sendMailAlert(true)
+      if (reviewShown) surface.sendReviewAlert(true)
       surface.sendMode(mode)
       if (mode === 'hidden') surface.hide()
       else surface.show()
@@ -146,15 +159,39 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
           controller.dispatch({ type: 'mail', on: false })
         }, MAIL_ALERT_MS)
       }
+      if (event.type === 'review' && event.on) {
+        // Same rules as mail: dropped with a panel open; each new review alert restarts the 6 s.
+        if (PANEL_MODES.has(mode)) return
+        clearReviewTimer()
+        reviewTimer = setTimeout(() => {
+          reviewTimer = null
+          controller.dispatch({ type: 'review', on: false })
+        }, REVIEW_ALERT_MS)
+      }
       const nextState = reduceNotch(state, event)
       if (nextState === state) return
       state = nextState
-      // The alert's kind can change while the mode stays `alert` (a permission over a mail alert),
-      // and it reaches the renderer before a mode change that shows it.
+      // The alert's kind can change while the mode stays `alert` (a permission over a mail alert, a
+      // review replacing mail), and it reaches the renderer before a mode change that shows it. The
+      // one turning off goes first, so the renderer never sees both on.
       const nextMailShown = mailAlertShown(state)
-      if (nextMailShown !== mailShown) {
+      const nextReviewShown = reviewAlertShown(state)
+      const sendMail = () => {
+        if (nextMailShown === mailShown) return
         mailShown = nextMailShown
         if (started) surface.sendMailAlert(mailShown)
+      }
+      const sendReview = () => {
+        if (nextReviewShown === reviewShown) return
+        reviewShown = nextReviewShown
+        if (started) surface.sendReviewAlert(reviewShown)
+      }
+      if (nextMailShown) {
+        sendReview()
+        sendMail()
+      } else {
+        sendMail()
+        sendReview()
       }
       const nextMode = notchMode(state)
       if (nextMode !== mode) {
@@ -185,6 +222,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       disposed = true
       cancelPendingShrink()
       clearMailTimer()
+      clearReviewTimer()
     },
   }
   return controller

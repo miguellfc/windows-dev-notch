@@ -3,6 +3,7 @@ import {
   DEFAULT_GMAIL_SETTINGS,
   DEFAULT_REMINDERS_SETTINGS,
   SETTINGS_VERSION,
+  cloneDefaultCodeReviewSettings,
   cloneDefaultSystemAlerts,
 } from '../../shared/settings/schema'
 
@@ -25,6 +26,8 @@ export const settingsMigrations: Readonly<Record<number, Migration>> = {
     version: 5,
     gmail: { ...(isRecord(raw['gmail']) ? raw['gmail'] : DEFAULT_GMAIL_SETTINGS), alerts: { ...DEFAULT_GMAIL_ALERTS } },
   }),
+  // v6 adds the GitHub/GitLab settings (no GitLab server, first-review alerts on).
+  5: (raw) => ({ ...raw, version: 6, codeReview: cloneDefaultCodeReviewSettings() }),
 }
 
 export type MigrationResult =

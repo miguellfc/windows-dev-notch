@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_CODE_REVIEW_SETTINGS,
   DEFAULT_GMAIL_ALERTS,
   DEFAULT_GMAIL_SETTINGS,
   DEFAULT_SYSTEM_ALERTS,
@@ -151,8 +152,7 @@ describe('settingsPatchSchema', () => {
 })
 
 describe('gmail settings', () => {
-  it('is at version 5 with empty credentials and the alert defaults', () => {
-    expect(SETTINGS_VERSION).toBe(5)
+  it('has empty credentials and the alert defaults', () => {
     expect(DEFAULT_GMAIL_SETTINGS).toEqual({ clientId: '', clientSecret: '' })
     expect(DEFAULT_GMAIL_ALERTS).toEqual({ enabled: true, hideContent: false, sound: true })
     expect(createDefaultSettings('en-US').gmail).toEqual({
@@ -185,5 +185,46 @@ describe('gmail settings', () => {
     expect(
       settingsPatchSchema.safeParse({ gmail: { ...base, alerts: { enabled: true, hideContent: false, sound: true, x: 1 } } }).success,
     ).toBe(false)
+  })
+})
+
+describe('code review settings', () => {
+  const valid = createDefaultSettings('en-US')
+  const alerts = { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } }
+  const withCodeReview = (codeReview: unknown) => settingsSchema.safeParse({ ...valid, codeReview }).success
+
+  it('is at version 6 with an empty GitLab URL and every alert on', () => {
+    expect(SETTINGS_VERSION).toBe(6)
+    expect(DEFAULT_CODE_REVIEW_SETTINGS).toEqual({ gitlabUrl: '', alerts })
+    expect(valid.codeReview).toEqual({ gitlabUrl: '', alerts })
+  })
+
+  it('gives each default settings object its own copy', () => {
+    const a = createDefaultSettings('en-US')
+    const b = createDefaultSettings('en-US')
+    expect(a.codeReview.alerts.github).not.toBe(b.codeReview.alerts.github)
+    expect(a.codeReview.alerts.gitlab).not.toBe(DEFAULT_CODE_REVIEW_SETTINGS.alerts.gitlab)
+  })
+
+  it('accepts an empty or normalized https GitLab URL only', () => {
+    expect(withCodeReview({ gitlabUrl: '', alerts })).toBe(true)
+    expect(withCodeReview({ gitlabUrl: 'https://gitlab.x.com', alerts })).toBe(true)
+    expect(withCodeReview({ gitlabUrl: 'https://gitlab.x.com/base', alerts })).toBe(true)
+    for (const gitlabUrl of ['http://gitlab.x.com', 'https://gitlab.x.com/', 'https://u@gitlab.x.com', 'https://gitlab.x.com?a=1', 'nope']) {
+      expect(withCodeReview({ gitlabUrl, alerts }), gitlabUrl).toBe(false)
+    }
+  })
+
+  it('is strict about alerts', () => {
+    expect(withCodeReview({ gitlabUrl: '', alerts: { github: alerts.github } })).toBe(false)
+    expect(withCodeReview({ gitlabUrl: '', alerts: { ...alerts, github: { enabled: true } } })).toBe(false)
+    expect(withCodeReview({ gitlabUrl: '', alerts: { ...alerts, github: { enabled: 'yes', sound: true } } })).toBe(false)
+    expect(withCodeReview({ gitlabUrl: '', alerts: { ...alerts, x: alerts.github } })).toBe(false)
+    expect(withCodeReview({ gitlabUrl: '', alerts, x: 1 })).toBe(false)
+  })
+
+  it('accepts a codeReview patch', () => {
+    const patch = { codeReview: { gitlabUrl: 'https://gitlab.x.com', alerts } }
+    expect(settingsPatchSchema.parse(patch)).toEqual(patch)
   })
 })

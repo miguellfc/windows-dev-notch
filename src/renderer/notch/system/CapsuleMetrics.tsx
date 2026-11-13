@@ -1,5 +1,8 @@
 import { Battery, BatteryCharging, BatteryLow, Cpu, HardDrive, Mail, MemoryStick, type LucideIcon } from 'lucide-react'
+import type { Platform } from '../../../shared/code-review/schema'
+import { reviewCountText, unreviewedLabel } from '../../shared/code-review/format'
 import { unreadLabel, unreadText } from '../../shared/gmail/format'
+import { PLATFORM_ICONS } from '../code-review/icons'
 import { useLanguage, useT } from '../../shared/use-t'
 import type { CapsuleView } from './capsule-latch'
 import { formatPercent } from './format'
@@ -90,6 +93,29 @@ export function CapsuleMail({ unread }: { unread: number }) {
       align="left"
       label={unreadLabel(unread, language)}
       testId="metric-mail"
+    />
+  )
+}
+
+/** Widest unreviewed count a code-review block can show (the cap, 100); it fixes the block width. */
+const WIDEST_UNREVIEWED = reviewCountText(100)
+
+/**
+ * A platform's own unreviewed PR/MRs (`Github`/`Gitlab` mark + "2" / "99+"), after the mail block,
+ * in Grafito Cristal. Only rendered while that platform's latch holds a count; like the mail block
+ * it reserves "99+" (so REVIEW_BLOCK_WIDTH holds) and sits left, next to its icon.
+ */
+export function CapsuleReview({ platform, count }: { platform: Platform; count: number }) {
+  const language = useLanguage()
+  return (
+    <Metric
+      icon={PLATFORM_ICONS[platform]}
+      text={reviewCountText(count)}
+      reserve={WIDEST_UNREVIEWED}
+      alert={false}
+      align="left"
+      label={unreviewedLabel(platform, count, language)}
+      testId={`metric-review-${platform}`}
     />
   )
 }

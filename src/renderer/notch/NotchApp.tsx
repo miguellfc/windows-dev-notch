@@ -2,9 +2,10 @@ import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react'
 import { Suspense, useEffect, useState, type ReactNode } from 'react'
 import { CAPSULE_SIZES, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, SHADOW_MARGIN, type VisibleMode } from '../../shared/notch/geometry'
-import { MAIL_ALERT_MS, PANEL_MODES, type NotchMode } from '../../shared/notch/state'
+import { MAIL_ALERT_MS, PANEL_MODES, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
 import { useClaude } from '../shared/claude-store'
+import { setReviewAlert, setReviewAlertPayload, setReviewsTarget, useCodeReview } from '../shared/code-review-store'
 import { setMailAlert, setNewMail, setReading, useGmail } from '../shared/gmail-store'
 import { keepsReader } from '../shared/gmail/format'
 import { useSettings } from '../shared/settings-store'
@@ -14,6 +15,8 @@ import { locale, useLanguage, useT } from '../shared/use-t'
 import { Kbd } from '../ui/Kbd'
 import { AlertCapsule } from './claude/AlertCapsule'
 import { PermissionCard } from './claude/PermissionCard'
+import { ReviewAlert } from './code-review/ReviewAlert'
+import { ReviewsView } from './code-review/ReviewsView'
 import { QuestionCard } from './claude/QuestionCard'
 import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots } from './claude/StatusDots'
@@ -35,8 +38,8 @@ import {
 import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
-import type { CapsuleView } from './system/capsule-latch'
-import { CapsuleMail, CapsuleMetrics } from './system/CapsuleMetrics'
+import { reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
+import { CapsuleMail, CapsuleMetrics, CapsuleReview } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
 import { TerminalBoundary } from './TerminalBoundary'
 import { LazyTerminalView } from './terminal-loader'
@@ -52,6 +55,7 @@ function useNotchMode(): ModeState {
   const [state, setState] = useState<ModeState>({ mode: 'compact', growing: true, lastVisible: 'compact' })
   // Main sends the alert's kind before the mode that shows it; subscribe to it first as well.
   useEffect(() => window.notch.events.on('notch:mail-alert', setMailAlert), [])
+  useEffect(() => window.notch.events.on('notch:review-alert', setReviewAlert), [])
   useEffect(() => {
     const apply = (mode: NotchMode) =>
       setState((previous) =>
@@ -119,15 +123,56 @@ function useMailAlert(mode: NotchMode): void {
   }, [])
 }
 
+/**
+ * Forgets the alert's payload and the view target it set. A reviews view opened from the alert has
+ * already read the target while rendering (before this effect runs), so it still lands on "Míos".
+ */
+function spendReviewAlert(): void {
+  setReviewAlertPayload(null)
+  setReviewsTarget(null)
+}
+
+/**
+ * Keeps the first-review alert's payload for the alert capsule and plays the chime when that
+ * platform's sound is on (also with the capsule hidden, as the alert shows over it). Like the mail
+ * alert, the payload is spent once the capsule leaves the alert, and after the alert's 6 s.
+ */
+function useReviewAlert(mode: NotchMode): void {
+  useEffect(() => {
+    if (mode !== 'alert' && mode !== 'hidden') spendReviewAlert()
+  }, [mode])
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const unsubscribe = window.notch.events.on('code-review:alert', (alert) => {
+      setReviewAlertPayload(alert)
+      // Opening the panel while the alert shows (click, shortcut or tray) lands on that platform's "Míos".
+      setReviewsTarget({ platform: alert.platform, section: 'mine' })
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        if (useCodeReview.getState().alert === alert) spendReviewAlert()
+      }, REVIEW_ALERT_MS)
+      const sound = useSettings.getState().settings?.codeReview.alerts[alert.platform].sound ?? false
+      if (sound) playChime()
+    })
+    return () => {
+      unsubscribe()
+      if (timer !== null) clearTimeout(timer)
+    }
+  }, [])
+}
+
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
   const hasMail = useGmail((state) => state.mail.unread !== null)
-  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail))
+  const reviewBlocks = useCodeReview((state) => reviewBlockCount(state.blocks))
+  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail, reviewBlocks))
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
   useMailAlert(mode)
+  useReviewAlert(mode)
   const gmailReading = useGmail((state) => state.reading !== null)
 
   useEffect(() => {
@@ -214,10 +259,11 @@ export function NotchApp() {
   )
 }
 
-/** What the compact capsule shows besides time and date: the system metrics and the unread-mail count. */
+/** What the compact capsule shows besides time and date: system metrics, unread mail and code reviews. */
 interface CompactContent {
   view: CapsuleView | null
   unread: number | null
+  reviews: ReviewBlocks
 }
 
 /**
@@ -228,10 +274,11 @@ interface CompactContent {
 function useCompactContent(compactWidth: number): CompactContent {
   const view = useSystem((state) => state.capsule.view)
   const unread = useGmail((state) => state.mail.unread)
-  const matches = compactWidthFor(view, unread !== null) === compactWidth
-  const [kept, setKept] = useState<CompactContent>({ view, unread })
-  if (matches && (kept.view !== view || kept.unread !== unread)) setKept({ view, unread })
-  return matches ? { view, unread } : kept
+  const reviews = useCodeReview((state) => state.blocks)
+  const matches = compactWidthFor(view, unread !== null, reviewBlockCount(reviews)) === compactWidth
+  const [kept, setKept] = useState<CompactContent>({ view, unread, reviews })
+  if (matches && (kept.view !== view || kept.unread !== unread || kept.reviews !== reviews)) setKept({ view, unread, reviews })
+  return matches ? { view, unread, reviews } : kept
 }
 
 function CapsuleContent({
@@ -247,7 +294,8 @@ function CapsuleContent({
   const language = useLanguage()
   const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
-  const { view, unread } = useCompactContent(compactWidth)
+  const { view, unread, reviews } = useCompactContent(compactWidth)
+  const hasReviews = reviewBlockCount(reviews) > 0
 
   if (mode === 'mini') return null
   if (mode === 'terminal')
@@ -267,22 +315,26 @@ function CapsuleContent({
   if (mode === 'system') return <SystemView />
   if (mode === 'notes') return <NotesView />
   if (mode === 'gmail') return <GmailView />
+  if (mode === 'reviews') return <ReviewsView />
   if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
 
   const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
   const dateOrDots = <StatusDots fallback={<span className="truncate text-small text-graphite-glass">{date}</span>} />
 
-  if (mode === 'compact' && (view || unread !== null))
+  if (mode === 'compact' && (view || unread !== null || hasReviews))
     return (
       <div className="flex h-full items-center justify-between gap-3 px-3.5">
         <span className="flex min-w-0 items-center gap-2.5">
           {timeText}
           {dateOrDots}
         </span>
-        {/* Metrics, then the unread-mail block last; each slot exists only while its latch holds it. */}
+        {/* Metrics, the unread-mail block, then one block per code-review platform; each slot exists
+            only while its latch holds it. */}
         <span className="flex shrink-0 items-center gap-2.5">
           {view && <CapsuleMetrics view={view} />}
           {unread !== null && <CapsuleMail unread={unread} />}
+          {reviews.github.count !== null && <CapsuleReview platform="github" count={reviews.github.count} />}
+          {reviews.gitlab.count !== null && <CapsuleReview platform="gitlab" count={reviews.gitlab.count} />}
         </span>
       </div>
     )
@@ -302,15 +354,18 @@ function CapsuleContent({
 }
 
 /**
- * The alert capsule: the new-mail alert only when main says mail is the pending alert ("Correo
- * nuevo" when its payload is already spent, so the capsule is never empty); otherwise a Claude
+ * The alert capsule: the new-mail or first-review alert only when main says it is the pending alert
+ * ("Correo nuevo" / "Revisado" when its payload is already spent, so the capsule is never empty); otherwise a Claude
  * permission or due reminders (AlertCapsule picks between them). Main decides, so a renderer store
  * that has not caught up yet never shows a mail alert in place of a permission or a reminder.
  */
 function Alert() {
   const mailAlert = useGmail((store) => store.mailAlert)
   const newMail = useGmail((store) => store.newMail)
-  return mailAlert ? <MailAlert mail={newMail} /> : <AlertCapsule />
+  const reviewAlert = useCodeReview((store) => store.reviewAlert)
+  const review = useCodeReview((store) => store.alert)
+  if (mailAlert) return <MailAlert mail={newMail} />
+  return reviewAlert ? <ReviewAlert alert={review} /> : <AlertCapsule />
 }
 
 /** How many Claude sessions the home panel lists (its height follows). */

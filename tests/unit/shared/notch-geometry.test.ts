@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, REVIEW_BLOCK_WIDTH, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -283,5 +283,36 @@ describe('question panel geometry', () => {
       expect(resizeOrder(from, 'question')).toBe('resize-first')
       expect(resizeOrder('question', from)).toBe('animate-first')
     }
+  })
+})
+
+describe('compact capsule width with the code-review blocks', () => {
+  const battery = { percent: 82, charging: false }
+  const disk = { letter: 'C', freePercent: 6 }
+
+  it('adds one measured block per platform after the other slots', () => {
+    expect(compactWidthFor({ battery, disk }, true, 0)).toBe(COMPACT_WIDTHS.metricsBatteryDiskMail)
+    expect(compactWidthFor({ battery, disk }, true, 1)).toBe(Math.ceil(COMPACT_WIDTHS.metricsBatteryDiskMail + REVIEW_BLOCK_WIDTH))
+    expect(compactWidthFor({ battery, disk }, true, 2)).toBe(Math.ceil(COMPACT_WIDTHS.metricsBatteryDiskMail + 2 * REVIEW_BLOCK_WIDTH))
+    expect(compactWidthFor({ battery: null, disk: null }, false, 1)).toBe(Math.ceil(COMPACT_WIDTHS.metrics + REVIEW_BLOCK_WIDTH))
+  })
+
+  it('after time and date alone takes the wider gaps, like the mail block', () => {
+    expect(compactWidthFor(null, false, 1)).toBe(COMPACT_WIDTHS.plainMail)
+    expect(compactWidthFor(null, false, 2)).toBe(Math.ceil(COMPACT_WIDTHS.plain + 4 + 2 * REVIEW_BLOCK_WIDTH))
+    expect(compactWidthFor(null, true, 1)).toBe(Math.ceil(COMPACT_WIDTHS.plainMail + REVIEW_BLOCK_WIDTH))
+  })
+
+  it('still fits the fixed window in the worst case (two "99+" blocks with mail, battery and disk)', () => {
+    expect(compactWidthFor({ battery, disk }, true, 2) + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
+  })
+})
+
+describe('reviews panel geometry', () => {
+  it('is a panel no taller than the question card, so the window order stays as it was', () => {
+    expect(CAPSULE_SIZES.reviews.height).toBeLessThanOrEqual(CAPSULE_SIZES.question.height)
+    expect(CAPSULE_SIZES.reviews.width).toBeLessThanOrEqual(WINDOW_WIDTH - SHADOW_MARGIN.side * 2)
+    expect(resizeOrder('compact', 'reviews')).toBe('resize-first')
+    expect(resizeOrder('reviews', 'expanded')).toBe('animate-first')
   })
 })

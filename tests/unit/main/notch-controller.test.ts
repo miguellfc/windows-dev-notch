@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNotchController, MAIL_ALERT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
+import { createNotchController, MAIL_ALERT_MS, REVIEW_ALERT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
 import { windowBoundsFor } from '../../../src/shared/notch/geometry'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -8,6 +8,7 @@ const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 function setup() {
   const calls: string[] = []
   const mailAlerts: boolean[] = []
+  const reviewAlerts: boolean[] = []
   const surface: NotchSurface = {
     setBounds: (rect) => calls.push(`bounds:${rect.width}x${rect.height}`),
     show: () => calls.push('show'),
@@ -17,13 +18,15 @@ function setup() {
     setIgnoreMouse: (ignore) => calls.push(`ignore:${ignore}`),
     sendMode: (mode) => calls.push(`mode:${mode}`),
     sendMailAlert: (on) => mailAlerts.push(on),
+    sendReviewAlert: (on) => reviewAlerts.push(on),
   }
   const onModeChange = vi.fn()
   const controller = createNotchController({ surface, workArea, settleTimeoutMs: 400, logger: createMemoryLogger(), onModeChange })
   controller.start()
   calls.length = 0
   mailAlerts.length = 0
-  return { controller, calls, mailAlerts, onModeChange }
+  reviewAlerts.length = 0
+  return { controller, calls, mailAlerts, reviewAlerts, onModeChange }
 }
 
 const size = (mode: Parameters<typeof windowBoundsFor>[0]) => {
@@ -46,6 +49,7 @@ describe('notch controller', () => {
       setIgnoreMouse: (i: boolean) => calls.push(`ignore:${i}`),
       sendMode: (m: string) => calls.push(`mode:${m}`),
       sendMailAlert: () => {},
+      sendReviewAlert: () => {},
     }
     createNotchController({ surface, workArea, logger: createMemoryLogger() }).start()
     expect(calls).toEqual([size('compact'), 'ignore:true', 'mode:compact', 'show'])
@@ -62,6 +66,7 @@ describe('notch controller', () => {
       setIgnoreMouse: (i) => calls.push(`ignore:${i}`),
       sendMode: (m) => calls.push(`mode:${m}`),
       sendMailAlert: () => {},
+      sendReviewAlert: () => {},
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger() })
     controller.dispatch({ type: 'foreground', verdict: 'hidden' })
@@ -398,6 +403,7 @@ describe('notch controller: new mail', () => {
       setIgnoreMouse: () => {},
       sendMode: (m) => order.push(`mode:${m}`),
       sendMailAlert: (on) => order.push(`mail:${on}`),
+      sendReviewAlert: (on) => order.push(`review:${on}`),
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger() })
     controller.start()
@@ -508,6 +514,7 @@ describe('notch controller: alerts over a hidden capsule', () => {
       setIgnoreMouse: () => {},
       sendMode: () => {},
       sendMailAlert: () => {},
+      sendReviewAlert: () => {},
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger(), onHiddenChange })
     controller.start()
@@ -570,5 +577,61 @@ describe('notch controller: Claude question', () => {
     controller.dispatch({ type: 'mail', on: true })
     expect(controller.mode()).toBe('alert')
     expect(mailAlerts).toEqual([])
+  })
+})
+
+describe('notch controller: first-review alert', () => {
+  it('shows the review alert for 6 s and tells the renderer before the mode', () => {
+    const { controller, reviewAlerts, mailAlerts } = setup()
+    expect(REVIEW_ALERT_MS).toBe(6000)
+    controller.dispatch({ type: 'review', on: true })
+    expect(controller.mode()).toBe('alert')
+    expect(reviewAlerts).toEqual([true])
+    expect(mailAlerts).toEqual([])
+    vi.advanceTimersByTime(5999)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(1)
+    expect(controller.mode()).toBe('compact')
+    expect(reviewAlerts).toEqual([true, false])
+  })
+
+  it('is ignored with a panel open, like mail', () => {
+    const { controller, reviewAlerts } = setup()
+    controller.dispatch({ type: 'expand' })
+    controller.dispatch({ type: 'review', on: true })
+    expect(controller.mode()).toBe('expanded')
+    expect(reviewAlerts).toEqual([])
+  })
+
+  it('the newer of mail and review shows, with its own full 6 s', () => {
+    const { controller, reviewAlerts, mailAlerts } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    vi.advanceTimersByTime(4000)
+    controller.dispatch({ type: 'review', on: true })
+    expect(mailAlerts).toEqual([true, false])
+    expect(reviewAlerts).toEqual([true])
+    // The mail timer ending does not cut the review alert short.
+    vi.advanceTimersByTime(2000)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(4000)
+    expect(controller.mode()).toBe('compact')
+    expect(reviewAlerts).toEqual([true, false])
+  })
+
+  it('shows over a hidden capsule and hides again', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'user-visibility', hidden: true })
+    calls.length = 0
+    controller.dispatch({ type: 'review', on: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert', 'show'])
+    vi.advanceTimersByTime(6000)
+    expect(controller.mode()).toBe('hidden')
+  })
+
+  it('opens the reviews view when expanding from the review alert', () => {
+    const { controller } = setup()
+    controller.dispatch({ type: 'review', on: true })
+    controller.dispatch({ type: 'expand' })
+    expect(controller.mode()).toBe('reviews')
   })
 })

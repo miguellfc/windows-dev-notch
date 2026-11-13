@@ -131,6 +131,15 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'gmail:delete': () => null,
     'gmail:open-link': () => null,
     'gmail:close-message': () => null,
+    'code-review:get-state': () => ({
+      github: { status: 'unconfigured', account: null, unreviewed: null, updatedAt: null, persistent: true },
+      gitlab: { status: 'unconfigured', account: null, unreviewed: null, updatedAt: null, persistent: true },
+    }),
+    'code-review:list': () => ({ toReview: [], mine: [] }),
+    'code-review:refresh': () => null,
+    'code-review:open': () => null,
+    'code-review:set-token': () => ({ ok: false, reason: 'auth' }),
+    'code-review:clear': () => null,
     ...overrides,
   }
 }
@@ -323,6 +332,12 @@ describe('terminal write isolation', () => {
     'gmail:delete': { id: 'm1' },
     'gmail:open-link': { id: 'm1', index: 0 },
     'gmail:close-message': undefined,
+    'code-review:get-state': undefined,
+    'code-review:list': { platform: 'github' },
+    'code-review:refresh': undefined,
+    'code-review:open': { platform: 'github', id: 'n1' },
+    'code-review:set-token': { platform: 'gitlab', token: 'fake-token', url: 'https://gitlab.example.test' },
+    'code-review:clear': { platform: 'github' },
   }
 
   it('has a sample input for every channel', () => {

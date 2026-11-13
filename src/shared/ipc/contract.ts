@@ -1,5 +1,15 @@
 import { z } from 'zod'
 import { appInfoSchema } from '../app-info'
+import {
+  clearInputSchema,
+  codeReviewAlertSchema,
+  codeReviewListSchema,
+  codeReviewStateSchema,
+  listInputSchema,
+  openInputSchema,
+  setTokenInputSchema,
+  setTokenResultSchema,
+} from '../code-review/schema'
 import { QUESTION_LIMITS, questionAnswerInputSchema } from '../claude/questions'
 import type { ClaudeRotateOutcome, ClaudeState, PendingQuestionView } from '../claude/types'
 import {
@@ -26,13 +36,13 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
  * here must also exist in the Control Center's own page list.
  */
-export const controlCenterPageSchema = z.enum(['gmail'])
+export const controlCenterPageSchema = z.enum(['gmail', 'code-review'])
 export type ControlCenterPage = z.infer<typeof controlCenterPageSchema>
 
 export const runtimeSchema = z.strictObject({
@@ -214,6 +224,15 @@ export const contract = {
   'gmail:open-link': { input: gmailOpenLinkInputSchema, output: ack },
   /** The reader closed: main forgets the open message (body and links); list ids stay shown. */
   'gmail:close-message': { input: none, output: ack },
+  'code-review:get-state': { input: none, output: codeReviewStateSchema },
+  /** Lists of one platform without URLs (main keeps them); remembered as the ids `open` accepts. */
+  'code-review:list': { input: listInputSchema, output: codeReviewListSchema },
+  'code-review:refresh': { input: none, output: ack },
+  /** Main opens the URL of an id from the last list, on github.com or the configured GitLab origin only. */
+  'code-review:open': { input: openInputSchema, output: ack },
+  /** Validates the token against the API before saving; the token never comes back. */
+  'code-review:set-token': { input: setTokenInputSchema, output: setTokenResultSchema },
+  'code-review:clear': { input: clearInputSchema, output: ack },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -221,6 +240,8 @@ export const eventContract = {
   'notch:mode-changed': notchModeSchema,
   /** Whether the alert capsule shows the new-mail alert (not a permission or a reminder); sent before the mode. */
   'notch:mail-alert': z.boolean(),
+  /** Whether the alert capsule shows the first-review alert; sent before the mode, like `notch:mail-alert`. */
+  'notch:review-alert': z.boolean(),
   'settings:changed': settingsSchema,
   'terminal:data': z.string(),
   'terminal:exit': z.strictObject({ exitCode: z.int() }),
@@ -238,6 +259,10 @@ export const eventContract = {
   'gmail:state': gmailStateSchema,
   /** New unread mail, to the notch only; no sender or subject when the user hides them. */
   'gmail:new-mail': gmailNewMailSchema,
+  /** GitHub/GitLab status, account and unreviewed counts, to the notch and the Control Center (never tokens). */
+  'code-review:state': codeReviewStateSchema,
+  /** Own PR/MRs got their first review, to the notch only; `kind`/`ref`/`title` for a single one. */
+  'code-review:alert': codeReviewAlertSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

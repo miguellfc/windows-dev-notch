@@ -64,7 +64,7 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'events', 'gmail', 'notch', 'notes', 'reminders', 'settings', 'system', 'terminal', 'usage'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'reminders', 'settings', 'system', 'terminal', 'usage'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")
@@ -110,6 +110,55 @@ test('hide from the panel removes the capsule without quitting', async () => {
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'toggle' }))
   await expect.poll(async () => (await capsuleWindow(app)).visible).toBe(true)
 
+  await app.close()
+})
+
+test('the six integration tiles fit the panel without cutting a label, in ES and EN', async () => {
+  const { app, notch } = await launch()
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'expanded')
+  for (const language of ['es', 'en'] as const) {
+    await notch.evaluate(
+      (value) => (globalThis as unknown as NotchWindow).notch.settings.update({ language: value }),
+      language,
+    )
+    await expect
+      .poll(() =>
+        notch.evaluate(
+          () => (globalThis as unknown as { document: { documentElement: { lang: string } } }).document.documentElement.lang,
+        ),
+      )
+      .toBe(language)
+    const measureFit = () =>
+      notch.evaluate(() => {
+        interface El {
+          querySelector(selector: string): El | null
+          scrollWidth: number
+          clientWidth: number
+          parentElement: El | null
+          getBoundingClientRect(): { left: number; right: number }
+          dataset: Record<string, string | undefined>
+        }
+        const doc = (globalThis as unknown as { document: { querySelectorAll(selector: string): ArrayLike<El> } }).document
+        const tiles = Array.from(doc.querySelectorAll('[data-testid^="integration-"]:not([data-testid$="-badge"])'))
+        const row = tiles[0]?.parentElement
+        return {
+          count: tiles.length,
+          cut: tiles
+            .filter((tile) => {
+              const label = tile.querySelector('span')
+              return !label || label.scrollWidth > label.clientWidth
+            })
+            .map((tile) => tile.dataset.testid),
+          // Rects, not scrollWidth: sub-pixel tile widths round the row's scrollWidth up by 1 px.
+          rowOverflows: row
+            ? tiles.some((tile) => tile.getBoundingClientRect().right > row.getBoundingClientRect().right + 0.5)
+            : true,
+        }
+      })
+    // Polled: the labels re-render with the language a frame after `lang` changes.
+    await expect.poll(measureFit).toEqual({ count: 6, cut: [], rowOverflows: false })
+  }
   await app.close()
 })
 

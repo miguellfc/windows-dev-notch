@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialNotchState, isCapsuleHidden, mailAlertShown, notchMode, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
+import { initialNotchState, isCapsuleHidden, mailAlertShown, notchMode, reviewAlertShown, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
 
 const run = (...events: NotchEvent[]): NotchState => events.reduce(reduceNotch, initialNotchState)
 
@@ -547,5 +547,62 @@ describe('question (pending Claude question)', () => {
     expect(reduceNotch(on, question(true))).toBe(on)
     expect(reduceNotch(initialNotchState, question(false))).toBe(initialNotchState)
     expect(reduceNotch(initialNotchState, first('permission'))).toBe(initialNotchState)
+  })
+})
+
+describe('reviewAlert (first review of own PR/MRs, same priority as mail)', () => {
+  const review = (on: boolean): NotchEvent => ({ type: 'review', on })
+  const mail = (on: boolean): NotchEvent => ({ type: 'mail', on })
+
+  it('starts without a review alert; reviews is a panel mode', () => {
+    expect(initialNotchState.reviewAlert).toBe(false)
+    expect(PANEL_MODES.has('reviews')).toBe(true)
+    const open = run({ type: 'open-integration', id: 'reviews' })
+    expect(notchMode(open)).toBe('reviews')
+    expect(notchMode(reduceNotch(open, { type: 'back' }))).toBe('expanded')
+  })
+
+  it('shows the alert over compact, mini and hidden, and goes back when it ends', () => {
+    expect(notchMode(run(review(true)))).toBe('alert')
+    expect(notchMode(run(review(true), review(false)))).toBe('compact')
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, review(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'foreground', verdict: 'mini' }, review(true), review(false)))).toBe('mini')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, review(true)))).toBe('alert')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, review(true), review(false)))).toBe('hidden')
+  })
+
+  it('is dropped while a panel is open and spent by opening one; expanding opens the reviews view', () => {
+    const expanded = run({ type: 'expand' })
+    expect(reduceNotch(expanded, review(true))).toBe(expanded)
+    const open = run(review(true), { type: 'expand' })
+    expect(open).toMatchObject({ view: 'reviews', reviewAlert: false })
+    expect(run(review(true), { type: 'open-integration', id: 'notes' }).reviewAlert).toBe(false)
+    expect(run(review(true), { type: 'show' }).reviewAlert).toBe(false)
+  })
+
+  it('shares the lowest priority with mail: the newer replaces the older', () => {
+    const reviewThenMail = run(review(true), mail(true))
+    expect(reviewThenMail).toMatchObject({ reviewAlert: false, mailAlert: true })
+    expect(mailAlertShown(reviewThenMail)).toBe(true)
+    expect(reviewAlertShown(reviewThenMail)).toBe(false)
+    const mailThenReview = run(mail(true), review(true))
+    expect(mailThenReview).toMatchObject({ reviewAlert: true, mailAlert: false })
+    expect(mailAlertShown(mailThenReview)).toBe(false)
+    expect(reviewAlertShown(mailThenReview)).toBe(true)
+    // The older one's timer ending later changes nothing.
+    expect(reduceNotch(mailThenReview, mail(false))).toBe(mailThenReview)
+  })
+
+  it('yields to a permission, a question and a due reminder', () => {
+    expect(reviewAlertShown(run(review(true)))).toBe(true)
+    expect(reviewAlertShown(run(review(true), { type: 'attention', on: true }))).toBe(false)
+    expect(reviewAlertShown(run(review(true), { type: 'question', on: true }))).toBe(false)
+    expect(reviewAlertShown(run(review(true), { type: 'reminders', due: true }))).toBe(false)
+    expect(run(review(true), { type: 'reminders', due: true }, { type: 'expand' }).view).toBe('reminders')
+    expect(reviewAlertShown(run(review(true), { type: 'expand' }))).toBe(false)
+  })
+
+  it('mailAlertShown is false for a review alert alone', () => {
+    expect(mailAlertShown(run(review(true)))).toBe(false)
   })
 })

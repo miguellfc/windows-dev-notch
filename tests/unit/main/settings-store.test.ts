@@ -175,3 +175,16 @@ describe('SettingsStore.update', () => {
     expect(files).toEqual(['settings.json'])
   })
 })
+
+describe('SettingsStore.update codeReview', () => {
+  it('merges a codeReview patch one level deep, keeping the URL main saved', async () => {
+    const store = createStore()
+    await store.load()
+    await store.update({ codeReview: { gitlabUrl: 'https://gitlab.example.com' } })
+    const alerts = { github: { enabled: false, sound: false }, gitlab: { enabled: true, sound: true } }
+    // A queued toggle was built before the URL was written; it only carries the alerts.
+    await store.update({ codeReview: { alerts } })
+    expect(store.get().codeReview).toEqual({ gitlabUrl: 'https://gitlab.example.com', alerts })
+    await expect(readSaved()).resolves.toMatchObject({ codeReview: { gitlabUrl: 'https://gitlab.example.com', alerts } })
+  })
+})
