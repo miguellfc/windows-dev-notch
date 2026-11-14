@@ -1,4 +1,4 @@
-import { Bot } from 'lucide-react'
+import { ClaudeMark } from '../../shared/brand-icons'
 import type { CSSProperties } from 'react'
 import type { PendingQuestionView } from '../../../shared/claude/types'
 import { useClaude } from '../../shared/claude-store'
@@ -43,7 +43,7 @@ export function AlertCapsule() {
         className="flex h-full items-center gap-2 px-3.5"
       >
         {/* Claude's icon (as in Control Center) in amber: Claude waits for the user. */}
-        <Bot size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
+        <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
         {/* Claude's texts are always plain text: React escapes them. */}
         <span className="min-w-0 flex-1 truncate text-body text-chalk">
           <span className="font-medium">{t('claude.alert.question')}</span>

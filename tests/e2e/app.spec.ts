@@ -268,7 +268,43 @@ test('hide from the panel removes the capsule without quitting', async () => {
   await app.close()
 })
 
-test('the seven integration tiles fit the panel without cutting a label, in ES and EN', async () => {
+test('the panel header has the Control Center and Hide icon buttons, reachable with Tab, and no "Esc para cerrar" footer', async () => {
+  const { app, notch } = await launch()
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
+  const capsule = notch.getByTestId('notch-capsule')
+  await expect(capsule).toHaveAttribute('data-mode', 'expanded')
+
+  const header = capsule.locator('header')
+  const controlCenter = header.getByRole('button', { name: 'Control Center', exact: true })
+  const hide = header.getByRole('button', { name: /^(Hide|Ocultar)$/ })
+  await expect(controlCenter).toBeVisible()
+  await expect(hide).toBeVisible()
+  expect((await controlCenter.boundingBox())?.width).toBe(28)
+  expect((await hide.boundingBox())?.height).toBe(28)
+  await expect(capsule.getByText(/Esc para cerrar|Esc to close/)).toHaveCount(0)
+
+  // Both are in the Tab order (before the tiles, which follow the header).
+  const focusedLabel = () =>
+    notch.evaluate(() => (globalThis as unknown as { document: { activeElement: { getAttribute(name: string): string | null } | null } }).document.activeElement?.getAttribute('aria-label') ?? null)
+  await notch.keyboard.press('Tab')
+  await expect.poll(focusedLabel).toBe('Control Center')
+  await notch.keyboard.press('Tab')
+  await expect.poll(focusedLabel).toMatch(/^(Hide|Ocultar)$/)
+
+  // Control Center opens its window.
+  const opened = app.waitForEvent('window', (page) => page.url().includes('control-center'))
+  await controlCenter.click()
+  await opened
+
+  // Opening the other window takes the focus and the panel closes: open it again. Hide hides the notch.
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
+  await expect(capsule).toHaveAttribute('data-mode', 'expanded')
+  await hide.click()
+  await expect.poll(async () => (await capsuleWindow(app)).visible).toBe(false)
+  await app.close()
+})
+
+test('the eight integration tiles fit the panel without cutting a label, in ES and EN', async () => {
   const { app, notch } = await launch()
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
   await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'expanded')
@@ -312,10 +348,10 @@ test('the seven integration tiles fit the panel without cutting a label, in ES a
         }
       })
     // Polled: the labels re-render with the language a frame after `lang` changes.
-    await expect.poll(measureFit).toEqual({ count: 7, cut: [], rowOverflows: false })
+    await expect.poll(measureFit).toEqual({ count: 8, cut: [], rowOverflows: false })
     if (language === 'es') {
       await settle(notch)
-      await notch.screenshot({ path: 'test-results/integration-row-7-es.png' })
+      await notch.screenshot({ path: 'test-results/integration-row-8-es.png' })
     }
   }
   await app.close()

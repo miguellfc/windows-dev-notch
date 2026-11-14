@@ -14,7 +14,7 @@ describe('windowBoundsFor', () => {
     const bounds = windowBoundsFor('expanded', workArea)
     expect(bounds.width).toBe(694)
     // The window fits the panel with Claude sessions; without them the capsule is shorter inside it.
-    expect(bounds.height).toBe(6 + 308 + 72)
+    expect(bounds.height).toBe(6 + 200 + 72)
   })
 
   it('keeps one width for every mode: the widest capsule plus the shadow', () => {
@@ -63,7 +63,7 @@ describe('alert and permission geometry', () => {
     expect(resizeOrder('compact', 'alert')).toBe('resize-first')
     expect(resizeOrder('alert', 'permission')).toBe('resize-first')
     expect(resizeOrder('permission', 'alert')).toBe('animate-first')
-    expect(resizeOrder('permission', 'expanded')).toBe('resize-first')
+    expect(resizeOrder('permission', 'expanded')).toBe('animate-first')
   })
 
   it('orders reminders (420×320) and permission (480×300) by height, not area', () => {
@@ -85,17 +85,17 @@ describe('system panel geometry', () => {
   })
 
   it('orders the window against the other panels by height', () => {
-    // 280 (system) < 300 (permission) < 308 (expanded window) < 320 (reminders) < 560 (reviews).
-    expect(growsWindow('expanded', 'system')).toBe(false)
+    // 200 (expanded window) < 280 (system) < 300 (permission) < 320 (reminders) < 560 (reviews).
+    expect(growsWindow('expanded', 'system')).toBe(true)
     expect(growsWindow('system', 'permission')).toBe(true)
     expect(growsWindow('system', 'reminders')).toBe(true)
     expect(growsWindow('system', 'reviews')).toBe(true)
     expect(growsWindow('permission', 'system')).toBe(false)
     expect(growsWindow('reminders', 'system')).toBe(false)
     expect(growsWindow('reviews', 'system')).toBe(false)
-    expect(growsWindow('system', 'expanded')).toBe(true)
-    expect(resizeOrder('system', 'expanded')).toBe('resize-first')
-    expect(resizeOrder('expanded', 'system')).toBe('animate-first')
+    expect(growsWindow('system', 'expanded')).toBe(false)
+    expect(resizeOrder('system', 'expanded')).toBe('animate-first')
+    expect(resizeOrder('expanded', 'system')).toBe('resize-first')
     expect(resizeOrder('system', 'reminders')).toBe('resize-first')
     expect(resizeOrder('reminders', 'system')).toBe('animate-first')
     expect(resizeOrder('reviews', 'system')).toBe('animate-first')
@@ -241,16 +241,16 @@ describe('gmail panel geometry', () => {
 })
 
 describe('expanded panel height', () => {
-  it('is 236 without Claude sessions, 284 with one and 308 with two or more (sessions on their own line)', () => {
-    expect(EXPANDED_HEIGHTS).toEqual({ plain: 236, oneSession: 284, sessions: 308 })
-    expect(expandedHeightFor(0)).toBe(236)
-    expect(expandedHeightFor(1)).toBe(284)
-    expect(expandedHeightFor(2)).toBe(308)
-    expect(expandedHeightFor(7)).toBe(308)
+  it('is 128 without Claude sessions, 176 with one and 200 with two or more (sessions on their own line)', () => {
+    expect(EXPANDED_HEIGHTS).toEqual({ plain: 128, oneSession: 176, sessions: 200 })
+    expect(expandedHeightFor(0)).toBe(128)
+    expect(expandedHeightFor(1)).toBe(176)
+    expect(expandedHeightFor(2)).toBe(200)
+    expect(expandedHeightFor(7)).toBe(200)
   })
 
   it('sizes the window for the taller panel, so sessions appearing never outgrow it', () => {
-    expect(CAPSULE_SIZES.expanded).toEqual({ width: 440, height: EXPANDED_HEIGHTS.sessions })
+    expect(CAPSULE_SIZES.expanded).toEqual({ width: 480, height: EXPANDED_HEIGHTS.sessions })
   })
 })
 

@@ -202,8 +202,8 @@ describe('notch controller', () => {
       controller.dispatch({ type: 'open-integration', id: 'system' })
       calls.length = 0
       controller.dispatch({ type: 'back' })
-      // The home panel's window (308, room for Claude sessions) is taller than the system view's (280).
-      expect(calls).toEqual([size('expanded'), 'mode:expanded'])
+      // The home panel's window (200, room for Claude sessions) is shorter than the system view's (280): the mode first, the window shrinks after the animation.
+      expect(calls).toEqual(['mode:expanded'])
     })
   })
 })
@@ -242,8 +242,8 @@ describe('notch controller: attention', () => {
     controller.dispatch({ type: 'expand' })
     calls.length = 0
     controller.dispatch({ type: 'attention', on: false })
-    // The home panel's window (308) is taller than the permission card's (300): it grows first.
-    expect(calls).toEqual([size('expanded'), 'mode:expanded'])
+    // The home panel's window (200) is shorter than the permission card's (300): it animates first, the window shrinks after.
+    expect(calls).toEqual(['mode:expanded'])
   })
 })
 

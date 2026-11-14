@@ -1,9 +1,8 @@
-import { EyeOff, SlidersHorizontal } from 'lucide-react'
+import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import { useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
-import type { Settings } from '../../shared/settings/schema'
 import { useClaude } from '../shared/claude-store'
 import { setReviewAlert, setReviewAlertPayload, setReviewsTarget, useCodeReview } from '../shared/code-review-store'
 import { setMailAlert, setNewMail, setReading, useGmail } from '../shared/gmail-store'
@@ -12,7 +11,6 @@ import { useSettings } from '../shared/settings-store'
 import { useSystem } from '../shared/system-store'
 import { useClock } from '../shared/use-clock'
 import { locale, useLanguage, useT } from '../shared/use-t'
-import { Kbd } from '../ui/Kbd'
 import { AlertCapsule } from './claude/AlertCapsule'
 import { PermissionCard } from './claude/PermissionCard'
 import { ReviewAlert } from './code-review/ReviewAlert'
@@ -261,7 +259,7 @@ export function NotchApp() {
                 exit={{ opacity: 0, transition: CONTENT_EXIT }}
                 className="absolute inset-0"
               >
-                <CapsuleContent mode={mode} settings={settings} compactWidth={size.width} />
+                <CapsuleContent mode={mode} compactWidth={size.width} />
               </PresenceLayer>
             </AnimatePresence>
           </motion.div>
@@ -305,11 +303,9 @@ function useCompactContent(compactWidth: number): CompactContent {
 
 function CapsuleContent({
   mode,
-  settings,
   compactWidth,
 }: {
   mode: VisibleMode
-  settings: Settings
   compactWidth: number
 }): ReactNode {
   const now = useClock()
@@ -328,7 +324,7 @@ function CapsuleContent({
   if (mode === 'notes') return <NotesView />
   if (mode === 'gmail') return <GmailView />
   if (mode === 'reviews') return <ReviewsView />
-  if (mode === 'expanded') return <Panel time={time} date={date} shortcut={settings.shortcut} />
+  if (mode === 'expanded') return <Panel time={time} date={date} />
 
   const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
   const dateText = <span className="truncate text-small text-graphite-glass">{date}</span>
@@ -391,16 +387,37 @@ function useSessionCount(): number {
   return useClaude((store) => store.state?.sessions.length ?? 0)
 }
 
-function Panel({ time, date, shortcut }: { time: string; date: string; shortcut: string }) {
+const panelIconButton =
+  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk focus-visible:bg-veil-tile focus-visible:text-chalk'
+
+function Panel({ time, date }: { time: string; date: string }) {
   const t = useT()
   const hasSessions = useSessionCount() > 0
-  const action =
-    'flex h-9 w-full cursor-pointer items-center gap-3 rounded-tile px-3 text-left text-body text-chalk transition-colors duration-150 hover:bg-veil-tile'
   return (
     <motion.div initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-3 pt-3.5">
-      <motion.header variants={PANEL_ITEM} className="flex items-baseline justify-between px-2">
+      <motion.header variants={PANEL_ITEM} className="flex items-center justify-between pl-2">
         <span className="tabular font-mono text-title font-medium">{time}</span>
-        <span className="text-small text-graphite">{date}</span>
+        <span className="flex items-center gap-1">
+          <span className="mr-1 text-small text-graphite">{date}</span>
+          <button
+            type="button"
+            aria-label={t('notch.panel.controlCenter')}
+            title={t('notch.panel.controlCenter')}
+            className={panelIconButton}
+            onClick={() => void window.notch.app.openControlCenter()}
+          >
+            <Cog size={16} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={t('notch.panel.hide')}
+            title={t('notch.panel.hide')}
+            className={panelIconButton}
+            onClick={() => void window.notch.app.hideNotch()}
+          >
+            <EyeOff size={16} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        </span>
       </motion.header>
       <motion.div variants={PANEL_ITEM} className="mt-3 flex">
         <IntegrationRow />
@@ -410,20 +427,6 @@ function Panel({ time, date, shortcut }: { time: string; date: string; shortcut:
           <SessionsSection />
         </motion.div>
       )}
-      <motion.nav variants={PANEL_ITEM} className="mt-3 flex flex-col gap-1" aria-label="Developer Notch">
-        <button type="button" className={action} onClick={() => void window.notch.app.openControlCenter()}>
-          <SlidersHorizontal size={16} strokeWidth={1.8} className="text-graphite" aria-hidden="true" />
-          {t('notch.panel.controlCenter')}
-        </button>
-        <button type="button" className={action} onClick={() => void window.notch.app.hideNotch()}>
-          <EyeOff size={16} strokeWidth={1.8} className="text-graphite" aria-hidden="true" />
-          {t('notch.panel.hide')}
-        </button>
-      </motion.nav>
-      <motion.footer variants={PANEL_ITEM} className="mt-auto flex items-center justify-between px-2 text-label text-graphite">
-        <span>{t('notch.panel.escHint')}</span>
-        <Kbd accelerator={shortcut} size="sm" />
-      </motion.footer>
     </motion.div>
   )
 }

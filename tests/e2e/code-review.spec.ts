@@ -174,11 +174,29 @@ const connected = async (server: FakeCodeReview): Promise<{ app: ElectronApplica
   return { app, notch, cc }
 }
 
-const openReviewsView = async (notch: Page): Promise<void> => {
+const openReviewsView = async (notch: Page, platform: 'github' | 'gitlab' = 'github'): Promise<void> => {
   await request(notch, 'expand')
-  await notch.getByTestId('integration-reviews').click()
+  await notch.getByTestId(`integration-${platform}`).click()
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'reviews')
   await expect(notch.getByTestId('reviews-panel')).toBeVisible()
+  await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', platform)
+}
+
+/** The view has no tabs: Esc back to the tile row, then the other platform's tile. */
+const switchReviewsPlatform = async (notch: Page, platform: 'github' | 'gitlab'): Promise<void> => {
+  await notch.getByTestId('reviews-panel').focus()
+  await notch.keyboard.press('Escape')
+  await expect(notch.getByTestId('reviews-panel')).toHaveCount(0)
+  await notch.getByTestId(`integration-${platform}`).click()
+  await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', platform)
+}
+
+/** The reviews view is one platform per opening: no tablist, no tab, and the header names the platform. */
+const expectNoTabs = async (notch: Page, name: 'GitHub' | 'GitLab'): Promise<void> => {
+  await expect(notch.getByRole('tablist')).toHaveCount(0)
+  await expect(notch.getByRole('tab')).toHaveCount(0)
+  await expect(notch.getByTestId('reviews-panel').locator('h2')).toHaveText(name)
+  await expect(notch.getByTestId('reviews-panel')).toHaveAccessibleName(name)
 }
 
 const rowsOf = (notch: Page, section: 'toReview' | 'mine'): Locator => notch.locator(`[data-section="${section}"] [data-testid="review-item"]`)
@@ -244,7 +262,7 @@ const chartToday = async (notch: Page): Promise<Date> => {
 }
 
 /**
- * The open tab's chart and summary against the fake's month: one square per day of the month, the
+ * The open view's chart and summary against the fake's month: one square per day of the month, the
  * level of every day up to today (later days outlined as future), the 12 summary numbers and the
  * month's total line.
  */
@@ -306,7 +324,7 @@ test.afterEach(async () => {
   rmSync(userData, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
-test('save tokens in Control Center, counts in the capsule, the view with tabs and sections, open in the browser', async () => {
+test('save tokens in Control Center, counts in the capsule, the GitHub and GitLab tiles open the view with sections, open in the browser', async () => {
   const server = fake!
   const { app, notch } = await launch(server)
   const cc = await openControlCenter(app, notch)
@@ -321,6 +339,17 @@ test('save tokens in Control Center, counts in the capsule, the view with tabs a
   await expect(cc.getByTestId('code-review-github-status').locator('span')).toHaveText(`Conectado como ${FAKE_GITHUB_LOGIN}`)
   await expect(cc.getByTestId('code-review-github').getByLabel('Token de GitHub')).toHaveValue('')
   expect(server.hits['github viewer']).toBe(1)
+
+  // Only GitHub is connected: the GitLab tile opens the view on GitLab with its "sin configurar" state.
+  await openReviewsView(notch, 'gitlab')
+  await expectNoTabs(notch, 'GitLab')
+  await expect(notch.getByTestId('reviews-status')).toHaveAttribute('data-notice', 'unconfigured')
+  await expect(notch.getByTestId('reviews-status')).toContainText('Conecta GitHub o GitLab en Control Center')
+  await notch.getByTestId('reviews-panel').focus()
+  await notch.keyboard.press('Escape')
+  await expect(notch.getByTestId('reviews-panel')).toHaveCount(0)
+  await request(notch, 'dismiss')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
 
   // GitLab: a plain-http server is refused before anything is sent.
   await saveToken(cc, 'gitlab', FAKE_GITLAB_TOKEN, 'http://gitlab.example.test')
@@ -354,13 +383,9 @@ test('save tokens in Control Center, counts in the capsule, the view with tabs a
     await screenshot(notch, 'code-review-capsule-es.png')
   })
 
-  // The view: tabs for the two platforms, GitHub first, "Por revisar" (3) and "Míos" (4).
-  await openReviewsView(notch)
-  const githubTab = notch.getByRole('tab', { name: 'GitHub' })
-  const gitlabTab = notch.getByRole('tab', { name: 'GitLab' })
-  await expect(githubTab).toHaveAttribute('aria-selected', 'true')
-  await expect(gitlabTab).toHaveAttribute('aria-selected', 'false')
-  await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', 'github')
+  // The view from the GitHub tile: no tabs, the header says GitHub, "Por revisar" (3) and "Míos" (4).
+  await openReviewsView(notch, 'github')
+  await expectNoTabs(notch, 'GitHub')
   await expect(rowsOf(notch, 'toReview')).toHaveCount(3)
   await expect(rowsOf(notch, 'mine')).toHaveCount(4)
   await expect(notch.locator('#reviews-section-toReview')).toHaveText(/^Por revisar\s*3$/)
@@ -408,10 +433,9 @@ test('save tokens in Control Center, counts in the capsule, the view with tabs a
   await notch.keyboard.press('Enter')
   await expect.poll(() => openedUrls(app)).toContain(githubPrUrl(GITHUB_MINE[1]!))
 
-  // GitLab tab: "Por revisar" (2) and "Míos" (3); refs with `!`, the draft labelled.
-  await gitlabTab.click()
-  await expect(gitlabTab).toHaveAttribute('aria-selected', 'true')
-  await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', 'gitlab')
+  // The GitLab tile: the header says GitLab, "Por revisar" (2) and "Míos" (3); refs with `!`, the draft labelled.
+  await switchReviewsPlatform(notch, 'gitlab')
+  await expectNoTabs(notch, 'GitLab')
   await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
   await expect(rowsOf(notch, 'mine')).toHaveCount(3)
   for (const [index, mr] of GITLAB_TO_REVIEW.entries()) {
@@ -524,8 +548,8 @@ test('a rejected token (401) shows "Revisa el token" in the view and the Control
   await expect(notch.getByTestId('reviews-open-control-center')).toBeVisible()
   await expect(cc.getByTestId('code-review-github-status')).toHaveAttribute('data-status', 'auth-error')
   await expect(cc.getByTestId('code-review-github-status')).toContainText('Revisa el token')
-  // GitLab is unaffected: its tab still lists.
-  await notch.getByRole('tab', { name: 'GitLab' }).click()
+  // GitLab is unaffected: its tile still lists.
+  await switchReviewsPlatform(notch, 'gitlab')
   await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
 
   // No more GitHub requests: not on the rhythm, not on a refresh. GitLab keeps going.
@@ -566,7 +590,7 @@ test('a rejected token (401) shows "Revisa el token" in the view and the Control
   expectCleanLogs()
 })
 
-test('contributions: the month chart and summary per tab, keyboard, and queries only while the view is open', async () => {
+test('contributions: the month chart and summary per platform, keyboard, and queries only while the view is open', async () => {
   const server = fake!
   const { app, notch, cc } = await connected(server)
   await cc.close()
@@ -610,7 +634,7 @@ test('contributions: the month chart and summary per tab, keyboard, and queries 
   )
   await notch.keyboard.press(back ? 'ArrowDown' : 'ArrowUp')
   await expect(graph(notch).locator(`[data-date="${todayKey}"]`)).toBeFocused()
-  // Left/right move a week (when that day is still in the month); the view's tab arrows stay quiet.
+  // Left/right move a week (when that day is still in the month); the view stays on its platform.
   const step = today.getDate() > 7 ? -7 : 7
   const weekAway = new Date(today.getFullYear(), today.getMonth(), today.getDate() + step)
   if (weekAway.getMonth() === today.getMonth()) {
@@ -624,8 +648,7 @@ test('contributions: the month chart and summary per tab, keyboard, and queries 
   await expect(notch.getByTestId('contributions-updated')).toBeVisible()
 
   // GitLab: one square per event (a push is 1), the summary's commits are the pushes' commit_count.
-  await notch.getByRole('tab', { name: 'GitLab' }).click()
-  await expect(notch.getByTestId('reviews-panel')).toHaveAttribute('data-platform', 'gitlab')
+  await switchReviewsPlatform(notch, 'gitlab')
   await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
   await expect(rowsOf(notch, 'mine')).toHaveCount(3)
   const gitlab = expectedGitlabContributions(today)
@@ -650,11 +673,12 @@ test('contributions: the month chart and summary per tab, keyboard, and queries 
   await setLanguage(notch, 'es')
   await expect(notch.locator('#reviews-section-toReview')).toHaveText(/^Por revisar\s*2$/)
 
+  // Each opening asks again (the GitLab tile reopened the view): one for GitHub, one for GitLab.
+  expect(contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
   // While open: one more query per platform every 15 min (test clock).
-  expect(contributionHits(server)).toEqual({ github: 1, gitlab: 1 })
   await advance(app, CONTRIBUTIONS_TICK_MS)
-  await expect.poll(() => contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
-  await expect.poll(() => server.hits['gitlab events']).toBe(4)
+  await expect.poll(() => contributionHits(server)).toEqual({ github: 3, gitlab: 3 })
+  await expect.poll(() => server.hits['gitlab events']).toBe(6)
 
   // Closed: no contributions query across two more 15-min steps (the 120 s lists keep going).
   await notch.getByTestId('reviews-panel').focus()
@@ -666,7 +690,7 @@ test('contributions: the month chart and summary per tab, keyboard, and queries 
   await advance(app, CONTRIBUTIONS_TICK_MS)
   await expect.poll(() => server.hits['github fetch'] ?? 0).toBeGreaterThan(fetches)
   await notch.waitForTimeout(1_000)
-  expect(contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
+  expect(contributionHits(server)).toEqual({ github: 3, gitlab: 3 })
 
   expect(server.violations).toEqual([])
   // No event title, branch, commit or note text in the log (only counts and codes).
@@ -690,13 +714,13 @@ test('a contributions failure shows "No se pudieron cargar las contribuciones ·
   await expect(rowsOf(notch, 'toReview')).toHaveCount(3)
   await expect(rowsOf(notch, 'mine')).toHaveCount(4)
   await expect(notch.getByTestId('reviews-status')).toHaveCount(0)
-  await notch.getByRole('tab', { name: 'GitLab' }).click()
+  await switchReviewsPlatform(notch, 'gitlab')
   await expect(error).toBeVisible()
   await expect(rowsOf(notch, 'toReview')).toHaveCount(2)
   await expect(rowsOf(notch, 'mine')).toHaveCount(3)
   expect(server.hits['github contributions 500']).toBeGreaterThanOrEqual(1)
   expect(server.hits['gitlab contributions 500']).toBeGreaterThanOrEqual(1)
-  await notch.getByRole('tab', { name: 'GitHub' }).click()
+  await switchReviewsPlatform(notch, 'github')
   await expect(error).toBeVisible()
 
   // The servers recover; Reintentar, once the 5 s rest since opening is over, asks both platforms again.
@@ -710,7 +734,7 @@ test('a contributions failure shows "No se pudieron cargar las contribuciones ·
   await expect(contributionsBlock(notch)).toHaveAttribute('data-phase', 'ready')
   const today = await chartToday(notch)
   await expectContributions(notch, expectedGithubContributions(today), 'es')
-  await notch.getByRole('tab', { name: 'GitLab' }).click()
+  await switchReviewsPlatform(notch, 'gitlab')
   await expect(error).toHaveCount(0)
   await expectContributions(notch, expectedGitlabContributions(today), 'es')
   await expect(rowsOf(notch, 'toReview')).toHaveCount(2)

@@ -6,6 +6,7 @@ import {
   reviewAlertLabel,
   reviewCountText,
   reviewsBody,
+  reviewsPlatform,
   shortRef,
   splitRef,
   unreviewedLabel,
@@ -127,5 +128,16 @@ describe('splitRef / shortRef', () => {
     expect(shortRef('acme/web-frontend#1234')).toBe('web-frontend#1234')
     expect(shortRef('group/sub/project!45')).toBe('project!45')
     expect(shortRef('odd-ref')).toBe('odd-ref')
+  })
+})
+
+describe('reviewsPlatform', () => {
+  it('keeps the requested platform even when it is not configured', () => {
+    expect(reviewsPlatform('gitlab', ['github'])).toBe('gitlab')
+  })
+
+  it('falls back to the first configured platform, then to GitHub', () => {
+    expect(reviewsPlatform(null, ['gitlab'])).toBe('gitlab')
+    expect(reviewsPlatform(null, [])).toBe('github')
   })
 })

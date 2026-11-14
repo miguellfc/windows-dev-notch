@@ -3,10 +3,10 @@ import type { CodeReviewAlert, CodeReviewState, ContributionsResult, Platform } 
 import { EMPTY_REVIEW_BLOCKS, nextReviewBlocks, type ReviewBlocks } from '../notch/system/capsule-latch'
 import type { ReviewSection } from './code-review/format'
 
-/** Where the reviews view opens: a platform's tab and the section to land on. */
+/** Where the reviews view opens: a platform and, optionally, the section whose first row takes focus. */
 export interface ReviewsTarget {
   platform: Platform
-  section: ReviewSection
+  section?: ReviewSection
 }
 
 interface CodeReviewStoreState {
@@ -41,7 +41,7 @@ export const setReviewAlertPayload = (alert: CodeReviewAlert | null): void => us
 /** Whether main's pending alert is the first-review alert (`notch:review-alert`). */
 export const setReviewAlert = (reviewAlert: boolean): void => useCodeReview.setState({ reviewAlert })
 
-/** Where the next opening of the reviews view lands (null: the first configured platform, its first row). */
+/** Where the next opening of the reviews view lands (null: the first configured platform, no row focused). */
 export const setReviewsTarget = (target: ReviewsTarget | null): void => useCodeReview.setState({ target })
 
 /**

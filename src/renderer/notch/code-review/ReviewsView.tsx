@@ -5,11 +5,10 @@ import type { CodeReviewList, Platform } from '../../../shared/code-review/schem
 import type { MessageKey } from '../../../shared/i18n/messages'
 import { loadContributions, setReviewsTarget, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
 import { contributionsPhase, graphSummaryText, placeholderGrid } from '../../shared/code-review/contributions-format'
-import { configuredPlatforms, PLATFORM_NAMES, reviewsBody } from '../../shared/code-review/format'
+import { configuredPlatforms, PLATFORM_NAMES, reviewsBody, reviewsPlatform, type ReviewSection } from '../../shared/code-review/format'
 import { formatUpdated } from '../../shared/gmail/format'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
-import { Segmented } from '../../ui/Segmented'
 import { headerIconButton } from '../reminders/styles'
 import { ContributionGraph } from './ContributionGraph'
 import { ContributionSummary } from './ContributionSummary'
@@ -19,9 +18,6 @@ import { firstRowOf, ReviewList, reviewRows } from './ReviewList'
 const REFRESH_REST_MS = 5_000
 
 type Notice = 'unconfigured' | 'auth' | 'empty'
-
-const PANEL_ID = 'reviews-tabpanel'
-const tabId = (platform: Platform): string => `reviews-tab-${platform}`
 
 const NOTICES: Readonly<Record<Notice, { icon: LucideIcon; title: MessageKey; action: boolean }>> = {
   unconfigured: { icon: GitPullRequest, title: 'codeReview.state.unconfigured', action: true },
@@ -116,12 +112,13 @@ function Contributions({ platform, now, onRetry, retryResting }: { platform: Pla
   )
 }
 
-/** The lists last received per platform (kept while switching tabs) and the update they answer. */
+/** The lists last received per platform and the update they answer. */
 type Lists = Partial<Record<Platform, CodeReviewList>>
 
 /**
- * The "Revisiones" mini tool: tabs for the configured platforms, then "Por revisar" and "Míos".
- * Keyboard: arrows between rows, ←/→ between tabs, Enter opens, Esc back to the integrations row.
+ * The reviews mini tool for one platform, named in the header ("GitHub" / "GitLab", no tabs): the
+ * tile (or the alert) that opened it picks the platform, then "Por revisar" and "Míos".
+ * Keyboard: arrows between rows, Enter opens, Esc back to the integrations row.
  * Opening the view asks main for a query now; every new reading asks for the lists again.
  */
 export function ReviewsView() {
@@ -131,16 +128,16 @@ export function ReviewsView() {
   const state = useCodeReview((store) => store.state)
   // Where the alert asked to land, read once: the store forgets it so the next opening is plain.
   const [target] = useState<ReviewsTarget | null>(() => useCodeReview.getState().target)
-  const [chosen, setChosen] = useState<Platform | null>(target?.platform ?? null)
   const [lists, setLists] = useState<Lists>({})
   const [resting, setResting] = useState(false)
-  const pendingFocus = useRef<ReviewsTarget['section'] | null>(target?.section ?? null)
+  const pendingFocus = useRef<ReviewSection | null>(target?.section ?? null)
   const panel = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
 
   const configured = configuredPlatforms(state)
-  const platform = chosen !== null && configured.includes(chosen) ? chosen : (configured[0] ?? null)
-  const platformState = platform === null ? null : (state?.[platform] ?? null)
+  const platform = reviewsPlatform(target?.platform ?? null, configured)
+  const platformName = PLATFORM_NAMES[platform]
+  const platformState = state?.[platform] ?? null
   const status = platformState?.status
   const updatedAt = platformState?.updatedAt ?? null
 
@@ -162,7 +159,7 @@ export function ReviewsView() {
 
   // Every reading of this platform (a poll, a status change) may carry new lists: ask again.
   useEffect(() => {
-    if (platform === null || (status !== 'ok' && status !== 'offline')) return
+    if (status !== 'ok' && status !== 'offline') return
     let current = true
     void window.notch.codeReview.list({ platform }).then((result) => {
       if (current && result.ok) setLists((previous) => ({ ...previous, [platform]: result.data }))
@@ -172,9 +169,9 @@ export function ReviewsView() {
     }
   }, [platform, status, updatedAt])
 
-  // The tab shown (or its status) changed: read its contributions (main answers from its cache).
+  // The platform's status changed: read its contributions (main answers from its cache).
   useEffect(() => {
-    if (platform === null || (status !== 'ok' && status !== 'offline')) return
+    if (status !== 'ok' && status !== 'offline') return
     void loadContributions(platform)
   }, [platform, status])
 
@@ -184,8 +181,8 @@ export function ReviewsView() {
     return () => clearTimeout(timer)
   }, [resting])
 
-  const list = platform === null ? null : (lists[platform] ?? null)
-  const body = state === null ? 'loading' : platform === null ? 'unconfigured' : reviewsBody(platformState, list)
+  const list = lists[platform] ?? null
+  const body = state === null ? 'loading' : reviewsBody(platformState, list)
 
   // The alert's click lands on the first row of "Míos" once its list is shown.
   useLayoutEffect(() => {
@@ -215,7 +212,7 @@ export function ReviewsView() {
   }
 
   const open = (id: string) => {
-    if (platform !== null) void window.notch.codeReview.open({ platform, id })
+    void window.notch.codeReview.open({ platform, id })
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -225,15 +222,8 @@ export function ReviewsView() {
       void window.notch.notch.back()
       return
     }
-    // The tabs handle their own arrows (and mark the event handled).
+    // The rows and the chart handle their own arrows (and mark the event handled).
     if (event.defaultPrevented) return
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && platform !== null && configured.length > 1) {
-      event.preventDefault()
-      const index = configured.indexOf(platform)
-      const next = configured[(index + (event.key === 'ArrowRight' ? 1 : configured.length - 1)) % configured.length]
-      if (next) setChosen(next)
-      return
-    }
     if ((event.key === 'ArrowDown' || event.key === 'Home') && !scroller.current?.contains(document.activeElement)) {
       const first = reviewRows(scroller.current)[0]
       if (!first) return
@@ -252,9 +242,9 @@ export function ReviewsView() {
     <div
       ref={panel}
       role="region"
-      aria-label={t('integration.reviews')}
+      aria-label={platformName}
       data-testid="reviews-panel"
-      data-platform={platform ?? undefined}
+      data-platform={platform}
       tabIndex={-1}
       onKeyDown={onKeyDown}
       className="flex h-full flex-col gap-1.5 px-3 pb-2.5 pt-2 outline-none"
@@ -269,16 +259,7 @@ export function ReviewsView() {
         >
           <ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />
         </button>
-        <h2 className="ml-2 mr-2 shrink-0 text-body font-medium text-chalk">{t('integration.reviews')}</h2>
-        {platform !== null && (
-          <Segmented
-            label={t('codeReview.view.platforms')}
-            value={platform}
-            options={configured.map((value) => ({ value, label: PLATFORM_NAMES[value] }))}
-            onChange={setChosen}
-            tabs={{ panelId: PANEL_ID, tabId }}
-          />
-        )}
+        <h2 className="ml-2 mr-2 shrink-0 text-body font-medium text-chalk">{platformName}</h2>
         {live && (
           <button
             type="button"
@@ -295,12 +276,8 @@ export function ReviewsView() {
         )}
       </header>
 
-      {/* The selected platform's content; without any configured platform there are no tabs. */}
-      <div
-        {...(platform === null ? {} : { role: 'tabpanel', id: PANEL_ID, 'aria-labelledby': tabId(platform) })}
-        className="flex min-h-0 flex-1 flex-col gap-1.5"
-      >
-        {platform !== null && live && <Contributions platform={platform} now={now} onRetry={refresh} retryResting={resting} />}
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+        {live && <Contributions platform={platform} now={now} onRetry={refresh} retryResting={resting} />}
         {body === 'loading' ? (
           <ReviewsSkeleton />
         ) : body === 'list' && list ? (
