@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, REVIEW_BLOCK_WIDTH, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, capsuleTopFor, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, REVIEW_BLOCK_WIDTH, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -329,5 +329,33 @@ describe('reviews panel geometry', () => {
 
   it('keeps the window width: the widest panel is still the terminal', () => {
     expect(WINDOW_WIDTH).toBe(CAPSULE_SIZES.terminal.width + SHADOW_MARGIN.side * 2)
+  })
+})
+
+describe('capsule modes geometry (peek at rest, compact on hover, pinned mini)', () => {
+  it('peek is the time-and-date capsule: as tall as compact, so hovering never resizes the window', () => {
+    expect(CAPSULE_SIZES.peek).toEqual({ width: COMPACT_WIDTHS.plain, height: CAPSULE_SIZES.compact.height })
+    expect(windowHeightFor('peek')).toBe(windowHeightFor('compact'))
+  })
+
+  it('the pinned mini is a thin pill flush against the top edge (no shadow room above it)', () => {
+    expect(CAPSULE_SIZES.mini.height).toBeLessThan(6)
+    expect(CAPSULE_SIZES.mini.height).toBeGreaterThanOrEqual(3)
+    expect(CAPSULE_SIZES.mini.width).toBeGreaterThanOrEqual(24)
+    expect(capsuleTopFor('mini')).toBe(0)
+    expect(windowHeightFor('mini')).toBe(CAPSULE_SIZES.mini.height + SHADOW_MARGIN.bottom)
+    expect(windowBoundsFor('mini', workArea).y).toBe(workArea.y)
+  })
+
+  it('every other capsule keeps its shadow room above it', () => {
+    for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
+      if (mode !== 'mini') expect(capsuleTopFor(mode)).toBe(SHADOW_MARGIN.top)
+    }
+  })
+
+  it('peek ↔ compact and compact → mini order the window like any other change', () => {
+    expect(resizeOrder('peek', 'compact')).toBe('resize-first')
+    expect(resizeOrder('compact', 'mini')).toBe('animate-first')
+    expect(resizeOrder('mini', 'compact')).toBe('resize-first')
   })
 })

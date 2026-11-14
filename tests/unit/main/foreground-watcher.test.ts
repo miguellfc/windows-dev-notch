@@ -26,38 +26,38 @@ function setup(verdicts: (ForegroundVerdict | 'keep' | Error)[]) {
 
 describe('createForegroundWatcher', () => {
   it('reports only changes of verdict', () => {
-    const { watcher, onChange } = setup(['none', 'none', 'mini', 'mini', 'hidden', 'none'])
+    const { watcher, onChange } = setup(['none', 'none', 'hidden', 'hidden', 'none', 'none'])
     watcher.start()
     vi.advanceTimersByTime(500 * 6)
-    expect(onChange.mock.calls.map(([v]) => v)).toEqual(['mini', 'hidden', 'none'])
+    expect(onChange.mock.calls.map(([v]) => v)).toEqual(['hidden', 'none'])
     expect(watcher.current()).toBe('none')
   })
 
   it('keeps the previous verdict when told to', () => {
-    const { watcher, onChange } = setup(['mini', 'keep', 'keep', 'none'])
+    const { watcher, onChange } = setup(['hidden', 'keep', 'keep', 'none'])
     watcher.start()
     vi.advanceTimersByTime(500 * 4)
-    expect(onChange.mock.calls.map(([v]) => v)).toEqual(['mini', 'none'])
+    expect(onChange.mock.calls.map(([v]) => v)).toEqual(['hidden', 'none'])
   })
 
   it('survives probe errors and logs them once', () => {
-    const { watcher, onChange, logger } = setup([new Error('boom'), new Error('boom'), 'mini'])
+    const { watcher, onChange, logger } = setup([new Error('boom'), new Error('boom'), 'hidden'])
     watcher.start()
     vi.advanceTimersByTime(500 * 3)
-    expect(onChange).toHaveBeenCalledWith('mini')
+    expect(onChange).toHaveBeenCalledWith('hidden')
     expect(logger.entries.filter((e) => e.level === 'error')).toHaveLength(1)
   })
 
   it('re-reports the verdict on refresh, e.g. after moving to another monitor', () => {
-    const { watcher, onChange } = setup(['mini', 'mini'])
+    const { watcher, onChange } = setup(['hidden', 'hidden'])
     watcher.start()
     vi.advanceTimersByTime(500)
     watcher.refresh()
-    expect(onChange.mock.calls.map(([v]) => v)).toEqual(['mini', 'mini'])
+    expect(onChange.mock.calls.map(([v]) => v)).toEqual(['hidden', 'hidden'])
   })
 
   it('stops polling when stopped', () => {
-    const { watcher, onChange } = setup(['mini'])
+    const { watcher, onChange } = setup(['hidden'])
     watcher.start()
     watcher.stop()
     vi.advanceTimersByTime(5000)

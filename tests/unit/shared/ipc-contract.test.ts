@@ -19,6 +19,9 @@ describe('IPC contract', () => {
   it('validates request payloads for the notch channels', () => {
     expect(contract['notch:request'].input.safeParse({ intent: 'toggle' }).success).toBe(true)
     expect(contract['notch:request'].input.safeParse({ intent: 'explode' }).success).toBe(false)
+    // Right click pins the thin pill; a left click on it unpins.
+    expect(contract['notch:request'].input.safeParse({ intent: 'pin-mini' }).success).toBe(true)
+    expect(contract['notch:request'].input.safeParse({ intent: 'unpin-mini' }).success).toBe(true)
     expect(contract['notch:pointer'].input.safeParse({ inside: 'yes' }).success).toBe(false)
   })
 

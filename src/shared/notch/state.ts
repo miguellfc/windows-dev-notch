@@ -1,6 +1,10 @@
 import type { IntegrationId } from '../integrations/registry'
 
-/** What the capsule shows. `hidden` means the window is not on screen at all. */
+/**
+ * What the capsule shows. `peek` (time and date) is the resting capsule, `compact` (metrics, mail,
+ * reviews) the one under the pointer, `mini` the thin pill the user pins with a right click.
+ * `hidden` means the window is not on screen at all.
+ */
 export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'question' | 'reminders' | 'system' | 'notes' | 'gmail' | 'reviews' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
@@ -15,17 +19,35 @@ export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded
 /** How long the new-mail alert stays in the capsule before it goes away on its own (main owns the timer). */
 export const MAIL_ALERT_MS = 6_000
 
+/**
+ * How long compact stays after a left click on the pill if the pointer never enters it (main owns the
+ * timer): long enough to read it, short enough that a pointer left at the screen edge rests in peek.
+ */
+export const STICKY_COMPACT_MS = 3_000
+
 /** How long the first-review alert stays (main owns the timer), like the mail alert. */
 export const REVIEW_ALERT_MS = 6_000
 
-/** How the capsule yields to the window in front: nothing, shrink to a pill, or disappear. */
-export type Yielding = 'none' | 'mini' | 'hidden'
+/**
+ * How the capsule yields to the window in front: nothing, or disappear (fullscreen). Maximized windows
+ * no longer shrink it: mini is the user's choice alone (`pinnedMini`).
+ */
+export type Yielding = 'none' | 'hidden'
 
 export interface NotchState {
   readonly expanded: boolean
   readonly yielding: Yielding
   readonly userHidden: boolean
   readonly pointerInside: boolean
+  /** The user pinned the thin pill (right click on the compact capsule); a left click on it unpins. Never persisted. */
+  readonly pinnedMini: boolean
+  /**
+   * Compact right after a left click on the pill, wherever the pointer is: the pill sits at the screen
+   * edge, above the compact capsule, so the pointer is off compact at once. Ends when the pointer enters
+   * compact (then leaving it rests in peek as usual), on a panel, a new pin or hiding, or when main's
+   * timer sends `sticky-end` ({@link STICKY_COMPACT_MS}).
+   */
+  readonly stickyCompact: boolean
   /** A Claude permission request is waiting for the user. */
   readonly attention: boolean
   /** At least one Claude question is waiting for an answer: the same alert level as a permission. */
@@ -49,6 +71,12 @@ export interface NotchState {
 
 export type NotchEvent =
   | { readonly type: 'pointer'; readonly inside: boolean }
+  /** Right click on the compact capsule: shrink to the thin pill at the top edge until a left click. */
+  | { readonly type: 'pin-mini' }
+  /** Left click on the pill: back to compact (the pointer is on it), then peek once it leaves. */
+  | { readonly type: 'unpin-mini' }
+  /** The sticky compact after unpinning timed out (main owns the timer). */
+  | { readonly type: 'sticky-end' }
   | { readonly type: 'expand' }
   /** The user asks to see the notch (tray icon, tray "Show"): un-hides and opens the panel. */
   | { readonly type: 'show' }
@@ -75,6 +103,8 @@ export const initialNotchState: NotchState = Object.freeze({
   yielding: 'none',
   userHidden: false,
   pointerInside: false,
+  pinnedMini: false,
+  stickyCompact: false,
   attention: false,
   question: false,
   claudeFirst: 'permission',
@@ -86,7 +116,8 @@ export const initialNotchState: NotchState = Object.freeze({
 
 /**
  * Explicit user intent (expand) beats alerts; a pending alert shows even over a hidden capsule
- * (hidden by the user or yielding to a fullscreen window); hiding beats yielding to mini and hover.
+ * (hidden by the user or yielding to a fullscreen window); hiding beats the pinned mini, the pinned mini
+ * beats hover, and hover turns the resting peek (time and date) into compact (metrics, mail, reviews).
  * The alert never touches the hiding flags: when it ends the capsule goes back to what it was.
  */
 export function notchMode(state: NotchState): NotchMode {
@@ -95,8 +126,8 @@ export function notchMode(state: NotchState): NotchMode {
   }
   if (state.attention || state.question || state.reminderDue || state.mailAlert || state.reviewAlert) return 'alert'
   if (isCapsuleHidden(state)) return 'hidden'
-  if (state.pointerInside) return 'peek'
-  return state.yielding === 'mini' ? 'mini' : 'compact'
+  if (state.pinnedMini) return 'mini'
+  return state.pointerInside || state.stickyCompact ? 'compact' : 'peek'
 }
 
 /** The capsule is off screen apart from alerts: hidden by the user or yielding, with no panel open. */
@@ -166,7 +197,10 @@ function next(state: NotchState, changes: Partial<NotchState>): NotchState {
 export function reduceNotch(state: NotchState, event: NotchEvent): NotchState {
   const nextState = applyEvent(state, event)
   // A hidden window never receives pointerleave, so forget the pointer when the capsule disappears.
-  return nextState.pointerInside && notchMode(nextState) === 'hidden' ? next(nextState, { pointerInside: false }) : nextState
+  const forgotten = nextState.pointerInside && notchMode(nextState) === 'hidden' ? next(nextState, { pointerInside: false }) : nextState
+  // The sticky compact only bridges the click on the pill and the pointer reaching compact.
+  const sticky = forgotten.stickyCompact && (forgotten.expanded || forgotten.pinnedMini || isCapsuleHidden(forgotten))
+  return sticky ? next(forgotten, { stickyCompact: false }) : forgotten
 }
 
 /**
@@ -183,7 +217,17 @@ function withPermissionCard(state: NotchState, changes: Partial<Pick<NotchState,
 function applyEvent(state: NotchState, event: NotchEvent): NotchState {
   switch (event.type) {
     case 'pointer':
-      return next(state, { pointerInside: event.inside })
+      // Entering ends the sticky compact: from then on, leaving rests in peek.
+      return event.inside ? next(state, { pointerInside: true, stickyCompact: false }) : next(state, { pointerInside: false })
+    case 'sticky-end':
+      return next(state, { stickyCompact: false })
+    case 'pin-mini':
+      // Only the resting or hovered capsule takes a right click: never with a panel open, an alert
+      // showing or the capsule hidden (a late click must not pin a pill nobody can see).
+      return notchMode(state) === 'peek' || notchMode(state) === 'compact' ? next(state, { pinnedMini: true }) : state
+    case 'unpin-mini':
+      // The click came from the pill, above compact: compact sticks until the pointer has been on it.
+      return state.pinnedMini ? next(state, { pinnedMini: false, stickyCompact: true }) : state
     // Opening the panel spends the mail and review alerts: they are never shown with a panel open.
     case 'expand':
       return next(state, { expanded: true, userHidden: userHiddenOnOpen(state), ...SPENT, view: openingView(state) })

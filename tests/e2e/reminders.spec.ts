@@ -196,9 +196,9 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   await settle(notch)
   await notch.screenshot({ path: 'test-results/m4-list.png' })
 
-  // Back to the compact capsule so the alert can take it over.
+  // Back to the resting capsule so the alert can take it over.
   await dismiss(notch)
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
 
   await advance(app, 31 * 60_000)
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'alert', { timeout: 1000 })
@@ -248,7 +248,7 @@ test('creates two reminders, raises the alert when due, then snoozes and complet
   await expect(notch.getByRole('button', { name: /Posponer/ })).toHaveCount(0)
 
   await dismiss(notch)
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
   await expect(notch.getByTestId('reminder-alert')).toBeHidden()
   await app.close()
 })
@@ -262,7 +262,7 @@ const notchWindowVisible = (app: ElectronApplication): Promise<boolean> =>
 test('a due reminder alerts over a capsule hidden by the user ("Ocultar"); closing its panel hides it again', async () => {
   writeReminders([{ text: 'regar las plantas', dueAt: new Date(Date.now() + 30 * 60_000) }])
   const { app, notch } = await launch()
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
 
   await expand(notch)
   await notch.getByRole('button', { name: 'Ocultar', exact: true }).click()

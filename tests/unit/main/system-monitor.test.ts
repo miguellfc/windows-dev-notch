@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSystemMonitor, LONG_PAUSE_MS, WARMUP_MS, type MonitorTimers } from '../../../src/main/system/system-monitor'
+import { createSystemMonitor, LIGHT_INTERVAL_MS, LONG_PAUSE_MS, WARMUP_MS, type MonitorTimers } from '../../../src/main/system/system-monitor'
 import type { NotchMode } from '../../../src/shared/notch/state'
 import { NO_ALERTS, type ProcessRow, type SystemAlerts } from '../../../src/shared/system/schema'
 import { cloneDefaultSystemAlerts, type SystemAlertSettings } from '../../../src/shared/settings/schema'
@@ -88,6 +88,27 @@ describe('system monitor rhythms', () => {
     expect(metrics.light).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(1000)
     expect(metrics.light).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps sampling in peek (the resting capsule): the first hover into compact shows current values and live alerts', () => {
+    // Peek shows no metrics, but pausing there (where the capsule rests) would reset the CPU baseline and
+    // the sustained-CPU window after every long rest: each hover would open on "—" and stale alerts.
+    const { monitor, metrics, onMetrics } = setup()
+    monitor.setMode('peek')
+    vi.advanceTimersByTime(LONG_PAUSE_MS * 3)
+    const before = metrics.light.mock.calls.length
+    expect(before).toBeGreaterThan(1)
+    // The first start always takes a fresh baseline; what matters is that resting in peek never does again.
+    metrics.reset.mockClear()
+    onMetrics.mockClear()
+    monitor.setMode('compact')
+    // No restart (the next sample keeps the 3 s rhythm) and no reset of the baseline.
+    expect(metrics.light).toHaveBeenCalledTimes(before)
+    expect(metrics.reset).not.toHaveBeenCalled()
+    expect(onMetrics).not.toHaveBeenCalled()
+    monitor.setMode('peek')
+    vi.advanceTimersByTime(LIGHT_INTERVAL_MS)
+    expect(metrics.light).toHaveBeenCalledTimes(before + 1)
   })
 
   it('entering system mode the first time warms up silently, then emits full + processes', () => {

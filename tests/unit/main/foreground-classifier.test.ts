@@ -7,7 +7,6 @@ const other = { left: 1920, top: 0, right: 4480, bottom: 1440 }
 const snap = (overrides: Partial<ForegroundSnapshot> = {}): ForegroundSnapshot => ({
   handle: '100',
   className: 'Chrome_WidgetWin_1',
-  zoomed: false,
   coversMonitor: false,
   monitor,
   notificationState: 'normal',
@@ -21,8 +20,9 @@ describe('classifyForeground', () => {
     expect(classify(snap())).toBe('none')
   })
 
-  it('shrinks to mini over a maximized window', () => {
-    expect(classify(snap({ zoomed: true }))).toBe('mini')
+  it('never shrinks the capsule: a maximized window is an ordinary one (mini is the user choice)', () => {
+    // A maximized window does not cover the monitor (the taskbar stays visible): it says nothing new.
+    expect(classify(snap({ monitor, className: 'Chrome_WidgetWin_1' }))).toBe('none')
   })
 
   it('hides for a window covering the monitor, even before Windows reports it (M0)', () => {
@@ -46,8 +46,7 @@ describe('classifyForeground', () => {
     expect(classify(snap({ handle: null }))).toBe('keep')
   })
 
-  it('ignores maximized or fullscreen windows on another monitor', () => {
-    expect(classify(snap({ zoomed: true, monitor: other }))).toBe('none')
+  it('ignores fullscreen windows on another monitor', () => {
     expect(classify(snap({ coversMonitor: true, monitor: other }))).toBe('none')
   })
 

@@ -166,7 +166,8 @@ function start(): void {
         logger,
         onModeChange: (mode) => {
           tray?.refresh()
-          // Metrics still pause in mini, hidden and alert (an alert over a hidden capsule included).
+          // Metrics pause in mini, hidden and alert (an alert over a hidden capsule included); the light
+          // rhythm keeps running in peek so hovering into compact shows current values at once.
           system.setMode(mode)
         },
         // An alert over a hidden capsule keeps the mode `alert`: the tray's Show/Hide follows this instead.

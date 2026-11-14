@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNotchController, MAIL_ALERT_MS, REVIEW_ALERT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
+import { createNotchController, MAIL_ALERT_MS, REVIEW_ALERT_MS, STICKY_COMPACT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
 import { windowBoundsFor } from '../../../src/shared/notch/geometry'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -38,7 +38,7 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 describe('notch controller', () => {
-  it('starts compact, visible and click-through', () => {
+  it('starts in peek, visible and click-through', () => {
     const calls: string[] = []
     const surface = {
       setBounds: (r: { width: number; height: number }) => calls.push(`bounds:${r.width}x${r.height}`),
@@ -52,7 +52,7 @@ describe('notch controller', () => {
       sendReviewAlert: () => {},
     }
     createNotchController({ surface, workArea, logger: createMemoryLogger() }).start()
-    expect(calls).toEqual([size('compact'), 'ignore:true', 'mode:compact', 'show'])
+    expect(calls).toEqual([size('peek'), 'ignore:true', 'mode:peek', 'show'])
   })
 
   it('applies events that arrive before the window is ready once it starts', () => {
@@ -76,7 +76,7 @@ describe('notch controller', () => {
 
     calls.length = 0
     const other = createNotchController({ surface, workArea, logger: createMemoryLogger() })
-    other.dispatch({ type: 'foreground', verdict: 'mini' })
+    other.dispatch({ type: 'pin-mini' })
     other.start()
     expect(calls).toEqual([size('mini'), 'ignore:true', 'mode:mini', 'show'])
   })
@@ -93,9 +93,9 @@ describe('notch controller', () => {
     controller.dispatch({ type: 'expand' })
     calls.length = 0
     controller.dispatch({ type: 'dismiss' })
-    expect(calls).toEqual(['mode:compact', 'blur'])
+    expect(calls).toEqual(['mode:peek', 'blur'])
     controller.settled()
-    expect(calls).toEqual(['mode:compact', 'blur', size('compact')])
+    expect(calls).toEqual(['mode:peek', 'blur', size('peek')])
   })
 
   it('shrinks anyway after a timeout if the renderer never settles', () => {
@@ -104,7 +104,7 @@ describe('notch controller', () => {
     controller.dispatch({ type: 'dismiss' })
     calls.length = 0
     vi.advanceTimersByTime(400)
-    expect(calls).toEqual([size('compact')])
+    expect(calls).toEqual([size('peek')])
   })
 
   it('ignores a repeated dismiss instead of cutting the animation (M0)', () => {
@@ -140,14 +140,14 @@ describe('notch controller', () => {
     controller.dispatch({ type: 'foreground', verdict: 'hidden' })
     expect(calls).toEqual(['mode:hidden', 'hide', 'ignore:true'])
     calls.length = 0
-    controller.dispatch({ type: 'foreground', verdict: 'mini' })
-    expect(calls).toEqual([size('mini'), 'mode:mini', 'show'])
+    controller.dispatch({ type: 'foreground', verdict: 'none' })
+    expect(calls).toEqual([size('peek'), 'mode:peek', 'show'])
   })
 
   it('repositions on a new work area', () => {
     const { controller, calls } = setup()
     controller.setWorkArea({ x: 1920, y: 0, width: 2560, height: 1400 })
-    expect(calls).toEqual([size('compact')])
+    expect(calls).toEqual([size('peek')])
   })
 
   it('makes the window click-through again when it hides', () => {
@@ -164,9 +164,9 @@ describe('notch controller', () => {
     controller.dispatch({ type: 'dismiss' })
     calls.length = 0
     controller.dispatch({ type: 'pointer', inside: true })
-    expect(calls).toEqual(['mode:peek', 'ignore:false'])
+    expect(calls).toEqual(['mode:compact', 'ignore:false'])
     controller.settled()
-    expect(calls.at(-1)).toBe(size('peek'))
+    expect(calls.at(-1)).toBe(size('compact'))
   })
 
   it('stops pending work on dispose', () => {
@@ -194,7 +194,7 @@ describe('notch controller', () => {
       expect(calls).toEqual([size('system'), 'mode:system', 'focus'])
       calls.length = 0
       controller.dispatch({ type: 'dismiss' })
-      expect(calls).toEqual(['mode:compact', 'blur'])
+      expect(calls).toEqual(['mode:peek', 'blur'])
     })
 
     it('keeps focus when going back to the integrations row', () => {
@@ -232,7 +232,7 @@ describe('notch controller', () => {
       controller.dispatch({ type: 'open-integration', id: 'terminal' })
       calls.length = 0
       controller.dispatch({ type: 'dismiss' })
-      expect(calls).toEqual(['mode:compact', 'blur'])
+      expect(calls).toEqual(['mode:peek', 'blur'])
     })
   })
 })
@@ -297,7 +297,7 @@ describe('notch controller: reminders', () => {
     expect(calls).toEqual([size('reminders'), 'mode:reminders', 'focus'])
     calls.length = 0
     controller.dispatch({ type: 'dismiss' })
-    expect(calls).toEqual(['mode:compact', 'blur'])
+    expect(calls).toEqual(['mode:peek', 'blur'])
   })
 
   it('keeps the panel open and focused when the reminder is cleared', () => {
@@ -311,7 +311,7 @@ describe('notch controller: reminders', () => {
 })
 
 describe('notch controller: new mail', () => {
-  it('grows into the alert capsule without taking focus and goes back to compact after 6 s', () => {
+  it('grows into the alert capsule without taking focus and goes back to peek after 6 s', () => {
     const { controller, calls } = setup()
     controller.dispatch({ type: 'mail', on: true })
     expect(calls).toEqual([size('alert'), 'mode:alert'])
@@ -319,7 +319,7 @@ describe('notch controller: new mail', () => {
     vi.advanceTimersByTime(5999)
     expect(controller.mode()).toBe('alert')
     vi.advanceTimersByTime(1)
-    expect(controller.mode()).toBe('compact')
+    expect(controller.mode()).toBe('peek')
   })
 
   it('restarts the 6 s when more mail arrives while it shows', () => {
@@ -330,7 +330,7 @@ describe('notch controller: new mail', () => {
     vi.advanceTimersByTime(4000)
     expect(controller.mode()).toBe('alert')
     vi.advanceTimersByTime(2000)
-    expect(controller.mode()).toBe('compact')
+    expect(controller.mode()).toBe('peek')
   })
 
   it('is ignored while a panel is open, and does not show after it closes', () => {
@@ -340,7 +340,7 @@ describe('notch controller: new mail', () => {
     controller.dispatch({ type: 'mail', on: true })
     expect(calls).toEqual([])
     controller.dispatch({ type: 'dismiss' })
-    expect(controller.mode()).toBe('compact')
+    expect(controller.mode()).toBe('peek')
   })
 
   it('never covers a permission or a due reminder; expanding opens their view, not gmail', () => {
@@ -500,7 +500,7 @@ describe('notch controller: alerts over a hidden capsule', () => {
     expect(controller.hidden()).toBe(false)
     controller.dispatch({ type: 'attention', on: false })
     controller.dispatch({ type: 'dismiss' })
-    expect(controller.mode()).toBe('compact')
+    expect(controller.mode()).toBe('peek')
   })
 
   it('reports whether the capsule is hidden apart from alerts, and when that changes', () => {
@@ -534,7 +534,7 @@ describe('notch controller: alerts over a hidden capsule', () => {
 describe('notch controller: Claude question', () => {
   it('grows into the alert capsule without taking focus, also from mini', () => {
     const { controller, calls } = setup()
-    controller.dispatch({ type: 'foreground', verdict: 'mini' })
+    controller.dispatch({ type: 'pin-mini' })
     calls.length = 0
     controller.dispatch({ type: 'question', on: true })
     expect(calls).toEqual([size('alert'), 'mode:alert'])
@@ -551,8 +551,8 @@ describe('notch controller: Claude question', () => {
     controller.dispatch({ type: 'question', on: false })
     expect(controller.mode()).toBe('question')
     controller.dispatch({ type: 'next' })
-    expect(controller.mode()).toBe('compact')
-    expect(calls).toEqual(['mode:compact', 'blur'])
+    expect(controller.mode()).toBe('peek')
+    expect(calls).toEqual(['mode:peek', 'blur'])
   })
 
   it('opens the earliest of a permission and a question, then the other one', () => {
@@ -591,7 +591,7 @@ describe('notch controller: first-review alert', () => {
     vi.advanceTimersByTime(5999)
     expect(controller.mode()).toBe('alert')
     vi.advanceTimersByTime(1)
-    expect(controller.mode()).toBe('compact')
+    expect(controller.mode()).toBe('peek')
     expect(reviewAlerts).toEqual([true, false])
   })
 
@@ -614,7 +614,7 @@ describe('notch controller: first-review alert', () => {
     vi.advanceTimersByTime(2000)
     expect(controller.mode()).toBe('alert')
     vi.advanceTimersByTime(4000)
-    expect(controller.mode()).toBe('compact')
+    expect(controller.mode()).toBe('peek')
     expect(reviewAlerts).toEqual([true, false])
   })
 
@@ -633,5 +633,133 @@ describe('notch controller: first-review alert', () => {
     controller.dispatch({ type: 'review', on: true })
     controller.dispatch({ type: 'expand' })
     expect(controller.mode()).toBe('reviews')
+  })
+})
+
+describe('notch controller: capsule modes (peek, compact, pinned mini)', () => {
+  const at = (mode: Parameters<typeof windowBoundsFor>[0]) => windowBoundsFor(mode, workArea)
+
+  function placed() {
+    const rects: { x: number; y: number; width: number; height: number }[] = []
+    const ignores: boolean[] = []
+    const modes: string[] = []
+    const surface: NotchSurface = {
+      setBounds: (rect) => rects.push(rect),
+      show: () => {},
+      hide: () => {},
+      focus: () => {},
+      blur: () => {},
+      setIgnoreMouse: (ignore) => ignores.push(ignore),
+      sendMode: (mode) => modes.push(mode),
+      sendMailAlert: () => {},
+      sendReviewAlert: () => {},
+    }
+    const controller = createNotchController({ surface, workArea, settleTimeoutMs: 400, logger: createMemoryLogger() })
+    controller.start()
+    return { controller, rects, ignores, modes }
+  }
+
+  it('starts sized for peek at the top of the work area', () => {
+    const { rects, modes } = placed()
+    expect(rects).toEqual([at('peek')])
+    expect(modes).toEqual(['peek'])
+  })
+
+  it('hovering peek shows compact without resizing the window (same height), and leaving goes back', () => {
+    const { controller, rects, modes } = placed()
+    rects.length = 0
+    controller.dispatch({ type: 'pointer', inside: true })
+    expect(controller.mode()).toBe('compact')
+    controller.dispatch({ type: 'pointer', inside: false })
+    vi.advanceTimersByTime(400)
+    expect(controller.mode()).toBe('peek')
+    expect(modes.slice(1)).toEqual(['compact', 'peek'])
+    expect(new Set(rects.map((r) => r.height))).toEqual(new Set([at('peek').height]))
+  })
+
+  it('right click pins mini: animates first, then shrinks to a window whose top is the screen edge', () => {
+    const { controller, rects } = placed()
+    controller.dispatch({ type: 'pointer', inside: true })
+    rects.length = 0
+    controller.dispatch({ type: 'pin-mini' })
+    expect(controller.mode()).toBe('mini')
+    expect(rects).toEqual([])
+    controller.settled()
+    expect(rects).toEqual([at('mini')])
+    expect(rects[0]?.y).toBe(workArea.y)
+  })
+
+  it('in mini only the pill takes the mouse: click-through until the pointer is on it', () => {
+    const { controller, ignores } = placed()
+    controller.dispatch({ type: 'pointer', inside: true })
+    controller.dispatch({ type: 'pin-mini' })
+    controller.dispatch({ type: 'pointer', inside: false })
+    expect(ignores.at(-1)).toBe(true)
+    controller.dispatch({ type: 'pointer', inside: true })
+    expect(controller.mode()).toBe('mini')
+    expect(ignores.at(-1)).toBe(false)
+    controller.dispatch({ type: 'pointer', inside: false })
+    expect(ignores.at(-1)).toBe(true)
+  })
+
+  it('left click on mini grows back to compact, which sticks until the pointer has been on it', () => {
+    const { controller, rects } = placed()
+    controller.dispatch({ type: 'pointer', inside: true })
+    controller.dispatch({ type: 'pin-mini' })
+    controller.settled()
+    rects.length = 0
+    controller.dispatch({ type: 'unpin-mini' })
+    expect(controller.mode()).toBe('compact')
+    expect(rects).toEqual([at('compact')])
+    // The pill is above compact: the pointer is off it at once, and compact stays.
+    controller.dispatch({ type: 'pointer', inside: false })
+    expect(controller.mode()).toBe('compact')
+    controller.dispatch({ type: 'pointer', inside: true })
+    controller.dispatch({ type: 'pointer', inside: false })
+    expect(controller.mode()).toBe('peek')
+    // The entered pointer cancelled the timer: nothing fires later.
+    vi.advanceTimersByTime(STICKY_COMPACT_MS)
+    expect(controller.mode()).toBe('peek')
+  })
+
+  it('a sticky compact the pointer never enters rests in peek after STICKY_COMPACT_MS', () => {
+    const { controller } = placed()
+    controller.dispatch({ type: 'pin-mini' })
+    controller.dispatch({ type: 'unpin-mini' })
+    controller.dispatch({ type: 'pointer', inside: false })
+    vi.advanceTimersByTime(STICKY_COMPACT_MS - 1)
+    expect(controller.mode()).toBe('compact')
+    vi.advanceTimersByTime(1)
+    expect(controller.mode()).toBe('peek')
+  })
+
+  it('dispose stops the sticky timer', () => {
+    const { controller } = placed()
+    controller.dispatch({ type: 'pin-mini' })
+    controller.dispatch({ type: 'unpin-mini' })
+    controller.dispose()
+    vi.advanceTimersByTime(STICKY_COMPACT_MS)
+    expect(controller.mode()).toBe('compact')
+  })
+
+  it('an alert grows out of mini and goes back to mini when it ends', () => {
+    const { controller, rects } = placed()
+    controller.dispatch({ type: 'pin-mini' })
+    controller.settled()
+    rects.length = 0
+    controller.dispatch({ type: 'mail', on: true })
+    expect(rects).toEqual([at('alert')])
+    vi.advanceTimersByTime(MAIL_ALERT_MS)
+    expect(controller.mode()).toBe('mini')
+    controller.settled()
+    expect(rects.at(-1)).toEqual(at('mini'))
+  })
+
+  it('a maximized window cannot shrink the capsule any more; fullscreen still hides it', () => {
+    const { controller } = placed()
+    controller.dispatch({ type: 'foreground', verdict: 'none' })
+    expect(controller.mode()).toBe('peek')
+    controller.dispatch({ type: 'foreground', verdict: 'hidden' })
+    expect(controller.mode()).toBe('hidden')
   })
 })

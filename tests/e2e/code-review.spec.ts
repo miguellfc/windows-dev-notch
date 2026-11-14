@@ -30,6 +30,7 @@ import {
   type FakeCodeReview,
 } from './fixtures/fake-code-review'
 import { settle } from './settle'
+import { present, whileHovered } from './pointer'
 
 type NotchWindow = { notch: NotchApi }
 /** Where the replaced `shell.openExternal` keeps the URLs main asked to open. */
@@ -166,8 +167,10 @@ const connected = async (server: FakeCodeReview): Promise<{ app: ElectronApplica
   const { app, notch } = await launch(server)
   const cc = await openControlCenter(app, notch)
   await connectBoth(cc)
-  await expect(notch.getByTestId('metric-review-github')).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
-  await expect(notch.getByTestId('metric-review-gitlab')).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
+  await whileHovered(notch, async () => {
+    await expect(present(notch, 'metric-review-github')).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
+    await expect(present(notch, 'metric-review-gitlab')).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
+  })
   return { app, notch, cc }
 }
 
@@ -311,7 +314,7 @@ test('save tokens in Control Center, counts in the capsule, the view with tabs a
   await expect(cc.getByTestId('code-review-gitlab-status')).toHaveAttribute('data-status', 'unconfigured')
   // Nothing configured: nothing is asked of either platform, no block in the capsule.
   expect(server.requests).toEqual({ github: 0, gitlab: 0 })
-  await expect(notch.getByTestId('metric-review-github')).toHaveCount(0)
+  await whileHovered(notch, () => expect(present(notch, 'metric-review-github')).toHaveCount(0))
 
   // GitHub: the token is checked against the API, the account shows, the field is emptied.
   await saveToken(cc, 'github', FAKE_GITHUB_TOKEN)
@@ -339,16 +342,17 @@ test('save tokens in Control Center, counts in the capsule, the view with tabs a
   await screenshot(cc, 'code-review-settings.png')
 
   // The capsule: one block per platform with its own unreviewed PR/MRs (drafts and reviewed ones left out).
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
   // By role, not test id: a compact width change (the CPU figure gaining a digit under load) cross-fades
   // two copies of the content, and the outgoing one can linger while the Control Center has focus.
-  const github = capsule(notch).getByRole('img', { name: /en GitHub$/ })
-  const gitlab = capsule(notch).getByRole('img', { name: /en GitLab$/ })
-  await expect(github).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
-  await expect(gitlab).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
-  await expect(github).toContainText('2')
-  await expect(gitlab).toContainText('1')
-  await screenshot(notch, 'code-review-capsule-es.png')
+  await whileHovered(notch, async () => {
+    const github = capsule(notch).getByRole('img', { name: /en GitHub$/ })
+    const gitlab = capsule(notch).getByRole('img', { name: /en GitLab$/ })
+    await expect(github).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
+    await expect(gitlab).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
+    await expect(github).toContainText('2')
+    await expect(gitlab).toContainText('1')
+    await screenshot(notch, 'code-review-capsule-es.png')
+  })
 
   // The view: tabs for the two platforms, GitHub first, "Por revisar" (3) and "Míos" (4).
   await openReviewsView(notch)
@@ -447,7 +451,7 @@ test('a first review shows the alert (also over a capsule hidden with "Ocultar")
   const server = fake!
   const { app, notch, cc } = await connected(server)
   await cc.close()
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
 
   // Someone approves one of the user's PRs; the next 120 s query (test clock) sees its first review.
   const [first] = GITHUB_MINE
@@ -460,10 +464,12 @@ test('a first review shows the alert (also over a capsule hidden with "Ocultar")
   await expect(alert).toHaveAttribute('aria-live', 'polite')
   await screenshot(notch, 'code-review-alert-es.png')
   // It ends on its own after about 6 s; the GitHub count went down by one.
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact', { timeout: 12_000 })
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek', { timeout: 12_000 })
   expect(Date.now() - shownAt).toBeGreaterThan(4_000)
-  await expect(notch.getByTestId('metric-review-github')).toHaveAttribute('aria-label', '1 PR tuyo sin revisar en GitHub')
-  await expect(notch.getByTestId('metric-review-gitlab')).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
+  await whileHovered(notch, async () => {
+    await expect(present(notch, 'metric-review-github')).toHaveAttribute('aria-label', '1 PR tuyo sin revisar en GitHub')
+    await expect(present(notch, 'metric-review-gitlab')).toHaveAttribute('aria-label', '1 MR tuyo sin revisar en GitLab')
+  })
 
   // The user hides the notch ("Ocultar"): the window leaves the screen, the queries go on.
   await request(notch, 'expand')
@@ -486,16 +492,16 @@ test('a first review shows the alert (also over a capsule hidden with "Ocultar")
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
   await notch.mouse.move(1, 1)
   await request(notch, 'dismiss')
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  await expect(notch.getByTestId('metric-review-github')).toHaveAttribute('aria-label', '1 PR tuyo sin revisar en GitHub')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, () => expect(present(notch, 'metric-review-github')).toHaveAttribute('aria-label', '1 PR tuyo sin revisar en GitHub'))
 
   // A later query with nothing new alerts nothing; GitLab has nothing unreviewed left, so its block
   // is gone at once (a live 0 does not linger).
-  const gitlab = notch.getByTestId('metric-review-gitlab')
+  const gitlab = present(notch, 'metric-review-gitlab')
   await advance(app, TICK_MS)
   await notch.waitForTimeout(500)
-  await expect(gitlab).toHaveCount(0)
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, () => expect(gitlab).toHaveCount(0))
   await expect(notch.getByTestId('review-alert')).toHaveCount(0)
 
   expect(server.violations).toEqual([])
@@ -544,15 +550,17 @@ test('a rejected token (401) shows "Revisa el token" in the view and the Control
   await notch.keyboard.press('Escape')
   await notch.mouse.move(1, 1)
   await request(notch, 'dismiss')
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  await expect(notch.getByTestId('metric-review-github')).toHaveCount(0)
-  await expect(notch.getByTestId('metric-review-gitlab')).toHaveCount(0)
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, async () => {
+    await expect(present(notch, 'metric-review-github')).toHaveCount(0)
+    await expect(present(notch, 'metric-review-gitlab')).toHaveCount(0)
+  })
 
   // A new valid token brings GitHub back.
   server.unauthorized.github = false
   await saveToken(cc, 'github', FAKE_GITHUB_TOKEN)
   await expect(cc.getByTestId('code-review-github-status').locator('span')).toHaveText(`Conectado como ${FAKE_GITHUB_LOGIN}`)
-  await expect(notch.getByTestId('metric-review-github')).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub')
+  await whileHovered(notch, () => expect(present(notch, 'metric-review-github')).toHaveAttribute('aria-label', '2 PR tuyos sin revisar en GitHub'))
 
   expect(server.violations).toEqual([])
   expectCleanLogs()

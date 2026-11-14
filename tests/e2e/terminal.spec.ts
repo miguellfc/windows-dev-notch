@@ -113,10 +113,10 @@ test('keeps the session and its history when the panel closes', async () => {
   await waitForPrompt(notch)
   await run(notch, "$m = 'notch-' + 7; $m", /notch-7/)
 
-  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in peek.
+  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in compact.
   await notch.mouse.move(1, 1)
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
-  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'peek')
 
   // Reopening shows the integrations row; the same session is one click away.
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
@@ -133,9 +133,11 @@ test('exit closes the terminal like a terminal window, and the next open starts 
   await waitForPrompt(notch)
   await run(notch, "$m = 'old-session'; $m", /old-session/)
 
+  // The pointer (left on the terminal tile by the click) leaves the capsule, or it would close to compact.
+  await notch.mouse.move(1, 1)
   await notch.keyboard.type('exit')
   await notch.keyboard.press('Enter')
-  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'peek')
 
   await openTerminal(notch)
   await waitForPrompt(notch)
@@ -153,7 +155,7 @@ test('Esc stays in the terminal and the back button returns to the row', async (
   await notch.getByRole('button', { name: /Volver|Back/ }).click()
   await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'expanded')
   await notch.keyboard.press('Escape')
-  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'compact')
+  await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'peek')
   await app.close()
 })
 

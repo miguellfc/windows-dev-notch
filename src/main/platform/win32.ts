@@ -18,7 +18,7 @@ const QUNS: Record<number, NotificationState> = {
 
 /**
  * Win32 reads for the foreground watcher (validated in M0). Returns null when koffi
- * cannot load, so the app keeps working without automatic mini/hidden.
+ * cannot load, so the app keeps working without automatic hiding.
  */
 export function createWin32ForegroundProbe(logger: Logger): ForegroundProbe | null {
   try {
@@ -38,7 +38,6 @@ export function createWin32ForegroundProbe(logger: Logger): ForegroundProbe | nu
     })
 
     const GetForegroundWindow = user32.func('HWND __stdcall GetForegroundWindow()')
-    const IsZoomed = user32.func('bool __stdcall IsZoomed(HWND hWnd)')
     const GetWindowRect = user32.func('bool __stdcall GetWindowRect(HWND hWnd, _Out_ NOTCH_RECT *rect)')
     const MonitorFromWindow = user32.func('void * __stdcall MonitorFromWindow(HWND hwnd, uint32_t flags)')
     const GetMonitorInfoW = user32.func('bool __stdcall GetMonitorInfoW(void *monitor, _Inout_ NOTCH_MONITORINFO *info)')
@@ -60,7 +59,7 @@ export function createWin32ForegroundProbe(logger: Logger): ForegroundProbe | nu
         const hwnd = GetForegroundWindow()
         const emptyMonitor: MonitorRect = { left: 0, top: 0, right: 0, bottom: 0 }
         if (!hwnd) {
-          return { handle: null, className: '', zoomed: false, coversMonitor: false, monitor: emptyMonitor, notificationState }
+          return { handle: null, className: '', coversMonitor: false, monitor: emptyMonitor, notificationState }
         }
 
         const rect = { left: 0, top: 0, right: 0, bottom: 0 }
@@ -72,7 +71,6 @@ export function createWin32ForegroundProbe(logger: Logger): ForegroundProbe | nu
         return {
           handle: koffi.address(hwnd).toString(),
           className: className(hwnd),
-          zoomed: Boolean(IsZoomed(hwnd)),
           coversMonitor:
             rect.left <= monitor.left && rect.top <= monitor.top && rect.right >= monitor.right && rect.bottom >= monitor.bottom,
           monitor,
@@ -81,7 +79,7 @@ export function createWin32ForegroundProbe(logger: Logger): ForegroundProbe | nu
       },
     }
   } catch (error) {
-    logger.child('foreground').error('Win32 bindings unavailable; automatic mini/hidden disabled', { error })
+    logger.child('foreground').error('Win32 bindings unavailable; automatic hiding disabled', { error })
     return null
   }
 }

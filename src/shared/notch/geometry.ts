@@ -61,10 +61,16 @@ export const QUESTION_SIZE = { width: 520, height: 504 } as const
  */
 export const REVIEWS_SIZE = { width: 520, height: 560 } as const
 
-/** Size of the visible capsule per mode, in DIP. */
+/**
+ * Size of the visible capsule per mode, in DIP. `peek` is the resting capsule (time and date): the
+ * width of the compact capsule without metrics (`COMPACT_WIDTHS.plain`) and its height, so hovering
+ * into compact only widens it and never resizes the window. `mini` is the pill the user pins with a
+ * right click: 4 px tall, flush against the top edge of the screen ({@link capsuleTopFor}), where the
+ * edge stops the pointer, so it stays easy to hit while covering a 96×4 strip of what is under it.
+ */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
   compact: { width: 358, height: 36 },
-  peek: { width: 240, height: 40 },
+  peek: { width: 168, height: 36 },
   alert: { width: 320, height: 44 },
   expanded: { width: 440, height: EXPANDED_HEIGHTS.sessions },
   terminal: { width: 640, height: 360 },
@@ -75,7 +81,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   notes: { width: 420, height: 320 },
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
-  mini: { width: 120, height: 6 },
+  mini: { width: 96, height: 4 },
 }
 
 /**
@@ -148,9 +154,17 @@ export const SHADOW_MARGIN = { side: 56, top: 6, bottom: 72 } as const
  */
 export const WINDOW_WIDTH = Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2
 
-/** Window height for a mode: the capsule plus the shadow room above and below it. */
+/**
+ * Distance from the window's top to the capsule: the shadow room above it, except for the pinned mini,
+ * which sits flush against the top edge of the screen (its low shadow only falls below it).
+ */
+export function capsuleTopFor(mode: VisibleMode): number {
+  return mode === 'mini' ? 0 : SHADOW_MARGIN.top
+}
+
+/** Window height for a mode: the capsule plus the shadow room above (see {@link capsuleTopFor}) and below it. */
 export function windowHeightFor(mode: VisibleMode): number {
-  return SHADOW_MARGIN.top + CAPSULE_SIZES[mode].height + SHADOW_MARGIN.bottom
+  return capsuleTopFor(mode) + CAPSULE_SIZES[mode].height + SHADOW_MARGIN.bottom
 }
 
 /** Window bounds for a mode: fixed width, horizontally centred at the top of the given work area. */

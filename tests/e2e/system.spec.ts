@@ -7,6 +7,7 @@ import { CONFIRM_ARM_MS } from '../../src/renderer/notch/system/confirm-guard'
 import type { NotchApi } from '../../src/shared/ipc/api'
 import { PROCESS_LIMIT } from '../../src/shared/system/schema'
 import { settle } from './settle'
+import { leaveCapsule, showCompact } from './pointer'
 
 type NotchWindow = { notch: NotchApi }
 
@@ -77,6 +78,8 @@ test.afterEach(async () => {
 
 test('the capsule shows CPU and RAM, in both languages', async () => {
   const { notch } = await launch()
+  // The capsule rests in peek (time and date): the metrics show in compact, with the pointer on it.
+  await showCompact(notch)
   await expect(notch.getByTestId('capsule-metrics')).toBeVisible({ timeout: 10_000 })
   await expect(notch.getByTestId('metric-cpu')).toBeVisible()
   await expect(notch.getByTestId('metric-ram')).toBeVisible()
@@ -187,11 +190,14 @@ test('closes a busy process through the UI; a non-killable row (when listed) has
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'system')
 })
 
-test('idle cost in compact stays under 0.5 % CPU', async () => {
+test('idle cost at rest (peek, still sampling light metrics) stays under 0.5 % CPU', async () => {
   test.setTimeout(150_000)
   const { app, notch } = await launch()
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  // Peek keeps the light rhythm (so a hover shows current values at once): check it flows, then rest.
+  await showCompact(notch)
   await expect(notch.getByTestId('metric-cpu')).toBeVisible({ timeout: 10_000 })
+  await leaveCapsule(notch)
   const SAMPLES = 12
   const readings: number[] = []
   for (let i = 0; i < SAMPLES; i++) {
@@ -204,7 +210,7 @@ test('idle cost in compact stays under 0.5 % CPU', async () => {
   // The first sample is a warm-up (startup work, first metrics tick); it is discarded.
   const totals = readings.slice(1)
   const mean = totals.reduce((a, b) => a + b, 0) / totals.length
-  console.log(`idle CPU (compact, ${SAMPLES} samples, first discarded): mean ${mean.toFixed(3)} %, samples ${totals.map((v) => v.toFixed(2)).join(' ')}`)
+  console.log(`idle CPU (peek, ${SAMPLES} samples, first discarded): mean ${mean.toFixed(3)} %, samples ${totals.map((v) => v.toFixed(2)).join(' ')}`)
   expect(mean).toBeLessThan(0.5)
 })
 

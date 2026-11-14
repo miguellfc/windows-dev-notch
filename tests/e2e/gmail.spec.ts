@@ -14,6 +14,7 @@ import {
   type FakeMessage,
 } from './fixtures/fake-gmail'
 import { settle } from './settle'
+import { present, whileHovered } from './pointer'
 
 type NotchWindow = { notch: NotchApi }
 /** Where the replaced `shell.openExternal` keeps the URLs main asked to open. */
@@ -194,7 +195,7 @@ const signedIn = async (server: FakeGmail, alerts: Alerts = QUIET_ALERTS): Promi
   const { app, notch } = await launch(server)
   const cc = await openControlCenterGmail(app, notch)
   await signInThroughBrowser(app, cc, server)
-  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '3 correos sin leer')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '3 correos sin leer'))
   return { app, notch, cc }
 }
 
@@ -265,14 +266,15 @@ test('configure from Control Center, sign in, unread count in the capsule, 5 mos
   await settle(cc)
   await cc.screenshot({ path: 'test-results/gmail-settings.png' })
 
-  // The poll right after sign-in puts the unread count of Primary in the compact capsule.
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  const mail = notch.getByTestId('metric-mail')
-  await expect(mail).toHaveAttribute('aria-label', '3 correos sin leer')
-  // The visible figure (an invisible "99+" beside it reserves the width).
-  await expect(mail.locator('span span').last()).toHaveText('3')
-  await settle(notch)
-  await notch.screenshot({ path: 'test-results/gmail-capsule-es.png' })
+  // The poll right after sign-in puts the unread count of Primary in the compact capsule (on hover).
+  await whileHovered(notch, async () => {
+    const mail = present(notch, 'metric-mail')
+    await expect(mail).toHaveAttribute('aria-label', '3 correos sin leer')
+    // The visible figure (an invisible "99+" beside it reserves the width).
+    await expect(mail.locator('span span').last()).toHaveText('3')
+    await settle(notch)
+    await notch.screenshot({ path: 'test-results/gmail-capsule-es.png' })
+  })
 
   // The view: the 5 most recent messages of Primary, newest first, unread ones marked.
   await openGmailView(notch)
@@ -351,8 +353,8 @@ test('a revoked session (401) shows "Vuelve a iniciar sesión" in the view and t
 
   // Back on the compact capsule the mail block is gone.
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  await expect(notch.getByTestId('metric-mail')).toHaveCount(0)
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveCount(0))
   expect(server.violations).toEqual([])
 })
 
@@ -365,7 +367,7 @@ test('without a client id the view asks to set Gmail up in Control Center and no
   const status = notch.getByTestId('gmail-status')
   await expect(status).toHaveAttribute('data-notice', 'unconfigured')
   await expect(status).toContainText('Configura Gmail en Control Center')
-  await expect(notch.getByTestId('metric-mail')).toHaveCount(0)
+  await expect(present(notch, 'metric-mail')).toHaveCount(0)
 
   // Its button opens the Control Center on the Gmail page, where signing in waits for a client.
   const opened = app.waitForEvent('window', (page) => page.url().includes('control-center'))
@@ -540,8 +542,8 @@ test('mark as read lowers the count; delete asks first, cancel deletes nothing, 
 
   // Back on the compact capsule the count says the same.
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '1 correo sin leer')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '1 correo sin leer'))
   expect(server.mailbox.map((m) => m.id)).not.toContain(builds!.id)
   expect(server.violations).toEqual([])
   expectCleanLogs(server)
@@ -550,7 +552,7 @@ test('mark as read lowers the count; delete asks first, cancel deletes nothing, 
 test('new mail: a capsule alert with sender and subject for ~6 s, "Correo nuevo" when hidden, a click opens the reader', async () => {
   const server = fake!
   const { app, notch, cc } = await signedIn(server)
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
 
   // Mail arrives; the next 60 s poll (the test clock moves it forward) sees a new unread id.
   server.addMail(NEW_MAILS.rosa)
@@ -563,11 +565,11 @@ test('new mail: a capsule alert with sender and subject for ~6 s, "Correo nuevo"
   await settle(notch)
   await notch.screenshot({ path: 'test-results/gmail-alert-es.png' })
   // It ends on its own after about 6 s, back to the capsule with the new count.
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact', { timeout: 12_000 })
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek', { timeout: 12_000 })
   const shownFor = Date.now() - shownAt
   expect(shownFor).toBeGreaterThan(4_000)
   expect(shownFor).toBeLessThan(9_000)
-  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '4 correos sin leer')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '4 correos sin leer'))
 
   // Hide sender and subject (Control Center): the next alert only says "Correo nuevo".
   const hide = cc.getByRole('switch', { name: 'Ocultar remitente y asunto' })
@@ -599,11 +601,11 @@ test('new mail: a capsule alert with sender and subject for ~6 s, "Correo nuevo"
   await notch.waitForTimeout(1_000)
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
   await expect(alert).toHaveCount(0)
-  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in peek.
+  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in compact.
   await notch.mouse.move(1, 1)
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '6 correos sin leer')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '6 correos sin leer'))
   await expect(alert).toHaveCount(0)
 
   expect(server.violations).toEqual([])
@@ -620,7 +622,7 @@ test('new mail alerts over a capsule hidden by the user ("Ocultar"), even after 
   const server = fake!
   const { app, notch, cc } = await signedIn(server)
   await cc.close()
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
 
   // The notch's own "Ocultar" (the user-hide path): the window leaves the screen.
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
@@ -650,8 +652,8 @@ test('new mail alerts over a capsule hidden by the user ("Ocultar"), even after 
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
   await notch.mouse.move(1, 1)
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
-  await expect(capsule(notch)).toHaveAttribute('data-mode', 'compact')
-  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '4 correos sin leer')
+  await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '4 correos sin leer'))
 
   expect(server.violations).toEqual([])
   expectCleanLogs(server)
@@ -669,7 +671,7 @@ test('a session without the full mail permission asks to sign in again for it', 
   await expect(cc.getByTestId('gmail-scope')).toContainText('Vuelve a iniciar sesión para conceder el nuevo permiso')
   await expect(cc.getByTestId('gmail-scope-denied')).toBeVisible()
   await expect(cc.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled()
-  await expect(notch.getByTestId('metric-mail')).toHaveCount(0)
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveCount(0))
   // That token was never used.
   expect(server.hits['GET messages']).toBeUndefined()
   expect(server.hits['GET profile']).toBeUndefined()
@@ -678,7 +680,7 @@ test('a session without the full mail permission asks to sign in again for it', 
   server.grantReadonlyScope = false
   await signInThroughBrowser(app, cc, server)
   await expect(cc.getByTestId('gmail-scope')).toHaveCount(0)
-  await expect(notch.getByTestId('metric-mail')).toHaveAttribute('aria-label', '3 correos sin leer')
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '3 correos sin leer'))
 
   // A session whose refresh comes back with only gmail.readonly (a milestone-1 grant): once the
   // access token expires (test clock past its hour), the refresh is refused and the user is asked again.
@@ -688,7 +690,7 @@ test('a session without the full mail permission asks to sign in again for it', 
   await expect(cc.getByTestId('gmail-session')).toHaveAttribute('data-status', 'expired')
   await expect(cc.getByTestId('gmail-scope')).toContainText('Vuelve a iniciar sesión para conceder el nuevo permiso')
   expect(server.hits['POST /token:refresh_token']).toBe(refreshes + 1)
-  await expect(notch.getByTestId('metric-mail')).toHaveCount(0)
+  await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveCount(0))
   await openGmailView(notch)
   // The notch names the missing permission too, with a way to the Control Center's Gmail page.
   const status = notch.getByTestId('gmail-status')
