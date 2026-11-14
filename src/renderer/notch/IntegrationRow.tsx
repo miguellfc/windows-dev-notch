@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { Activity, AlarmClock, GitPullRequest, Mail, MessagesSquare, SquareTerminal, StickyNote, type LucideIcon } from 'lucide-react'
-import { tiles, type AppTileId, type IntegrationId } from '../../shared/integrations/registry'
+import { Activity, AlarmClock, SquareTerminal, StickyNote, type LucideIcon } from 'lucide-react'
+import { ClaudeMark, GithubMark, GitlabMark, GmailMark } from '../shared/brand-icons'
+import { tiles, type AppTileId, type ReviewTileId } from '../../shared/integrations/registry'
 import type { MessageKey } from '../../shared/i18n/messages'
+import { setReviewsTarget } from '../shared/code-review-store'
 import { useAttentionCount } from '../shared/reminders-store'
 import { remindersBadgeLabel } from '../shared/reminders/format'
 import { useLanguage, useT } from '../shared/use-t'
 
-const icons: Readonly<Record<IntegrationId | AppTileId, LucideIcon>> = {
+const icons: Readonly<Record<(typeof tiles)[number]['id'], LucideIcon>> = {
   terminal: SquareTerminal,
-  claude: MessagesSquare,
+  claude: ClaudeMark,
   reminders: AlarmClock,
   system: Activity,
   notes: StickyNote,
-  gmail: Mail,
-  reviews: GitPullRequest,
+  gmail: GmailMark,
+  github: GithubMark,
+  gitlab: GitlabMark,
 }
 
 const FAILURE_VISIBLE_MS = 4_000
@@ -27,6 +30,12 @@ export function IntegrationRow() {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
 
+  // GitHub and GitLab are two tiles over one view: the tile says which platform it opens on.
+  const openReviews = (platform: ReviewTileId) => {
+    setReviewsTarget({ platform })
+    void window.notch.notch.openIntegration({ id: 'reviews' })
+  }
+
   const openApp = async (app: AppTileId, labelKey: MessageKey) => {
     const result = await window.notch.apps.open({ app })
     if (result.ok && result.data.ok) return
@@ -35,14 +44,13 @@ export function IntegrationRow() {
     timer.current = setTimeout(() => setFailed(null), FAILURE_VISIBLE_MS)
   }
 
-  // Seven tiles share the 414 px row (440 px panel, px-1): flex-1 over each tile's own content, px-1 inside
+  // Eight tiles share the 454 px row (480 px panel, px-1): flex-1 over each tile's own content, px-1 inside
   // each tile (4 px + 1 px border per side) and 4 px gaps. A tile never shrinks below its label, so the
   // row only fits when the natural widths add up: measured with the 11 px label font, the labels are
-  // 310 px in ES (Terminal 44, Recordatorios 72, Sistema 42, Notas 31, Gmail 29, Revisiones 56,
-  // Claude 36) and 277 px in EN (Reminders 55, System 39, Reviews 43) plus 10 px per tile and 24 px of
-  // gaps = 404 px ES / 371 px EN of the 414 px (the previous 8 px gaps and px-1.5 needed 456 / 423 px
-  // and overflowed). Tiles stay 60 px tall and at least 43 px wide. app.spec checks that no label is
-  // cut in either language. The failure line is absolutely positioned above the row so it never
+  // 323 px in ES (Terminal 44, Recordatorios 72, Sistema 42, Notas 31, Gmail 29, GitHub 35, GitLab 34,
+  // Claude 36) and 303 px in EN (Reminders 55, System 39) plus 10 px per tile and 28 px of gaps =
+  // 431 px ES / 411 px EN of the 454 px. Tiles stay 60 px tall and at least 43 px wide. app.spec checks that no
+  // label is cut in either language. The failure line is absolutely positioned above the row so it never
   // changes the panel's height (fixed per session count in EXPANDED_HEIGHTS).
   return (
     <section aria-label={t('notch.integrations.label')} className="relative flex w-full shrink-0 gap-1 px-1">
@@ -58,6 +66,7 @@ export function IntegrationRow() {
             aria-label={badge > 0 ? `${label}, ${remindersBadgeLabel(badge, language)}` : undefined}
             onClick={() => {
               if (tile.kind === 'view') void window.notch.notch.openIntegration({ id: tile.id })
+              else if (tile.kind === 'review') openReviews(tile.id)
               else void openApp(tile.id, tile.labelKey)
             }}
             className="relative flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-tile border border-line bg-veil-tile px-1 text-chalk transition-colors duration-150 hover:bg-veil-hover"

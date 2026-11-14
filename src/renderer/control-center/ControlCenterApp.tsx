@@ -1,4 +1,5 @@
-import { Activity, AlarmClock, Bot, GitPullRequest, Info, Keyboard, Mail, Settings2, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, GitPullRequest, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
+import { ClaudeMark, GmailMark } from '../shared/brand-icons'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import { useSettings } from '../shared/settings-store'
@@ -17,10 +18,10 @@ type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmai
 const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'general', label: 'cc.nav.general', icon: Settings2 },
   { id: 'shortcut', label: 'cc.nav.shortcut', icon: Keyboard },
-  { id: 'claude', label: 'cc.nav.claude', icon: Bot },
+  { id: 'claude', label: 'cc.nav.claude', icon: ClaudeMark },
   { id: 'reminders', label: 'cc.nav.reminders', icon: AlarmClock },
   { id: 'system', label: 'cc.nav.system', icon: Activity },
-  { id: 'gmail', label: 'cc.nav.gmail', icon: Mail },
+  { id: 'gmail', label: 'cc.nav.gmail', icon: GmailMark },
   { id: 'code-review', label: 'cc.nav.codeReview', icon: GitPullRequest },
   { id: 'about', label: 'cc.nav.about', icon: Info },
 ]

@@ -2,7 +2,7 @@
 
 Developer Notch muestra tus PR de **GitHub** (github.com) y tus MR de un **GitLab propio** con **tokens personales de solo lectura**. Se configuran una vez, en unos minutos.
 
-Qué verás después: en la cápsula, por plataforma, cuántos PR/MR tuyos abiertos siguen **sin revisar**; un aviso breve cuando uno recibe su primera revisión (**Aprobado**, **Cambios pedidos** o **Revisado**); y en la vista "Revisiones" del notch, lo que **espera tu revisión** y **lo tuyo abierto**, con su estado. Un clic abre cada uno en el navegador.
+Qué verás después: en la cápsula, por plataforma, cuántos PR/MR tuyos abiertos siguen **sin revisar**; un aviso breve cuando uno recibe su primera revisión (**Aprobado**, **Cambios pedidos** o **Revisado**); y en la vista "Revisiones" del notch (se abre desde el tile de GitHub o de GitLab del panel), lo que **espera tu revisión** y **lo tuyo abierto**, con su estado. Un clic abre cada uno en el navegador.
 
 El notch **solo lee**: nunca aprueba, comenta, fusiona ni cambia nada.
 
@@ -56,7 +56,7 @@ En la misma página puedes activar o quitar los **avisos** y su **sonido** por p
 
 ## Contribuciones
 
-Arriba de la vista "Revisiones", cada pestaña muestra tus contribuciones en esa plataforma (con el mismo token, sin permisos nuevos):
+Arriba de la vista "Revisiones" (la de la plataforma cuyo tile abriste, GitHub o GitLab), se muestran tus contribuciones en esa plataforma (con el mismo token, sin permisos nuevos):
 
 - **Gráfico del mes en curso**: un cuadrado por día, de lunes a domingo; cuanto más claro, más actividad ese día respecto al día más activo del mes. Hoy va marcado y los días que aún no han llegado salen solo con el borde. Pasa el ratón o recorre los días con el teclado (Tab entra en hoy, flechas para moverte) y verás la fecha y cuántas contribuciones tuvo.
 - **Resumen**: **Hoy · Semana** (de lunes a domingo) **· Mes**, con commits, PR/MR abiertos, PR/MR fusionados y revisiones, y el total de contribuciones del gráfico.
@@ -95,5 +95,5 @@ Los tokens caducan cuando tú decidiste al crearlos (o cuando los revocas). Si G
 | "Sin conexión con GitHub/GitLab" | No hay red, el servidor no responde o la URL no es de un GitLab | Comprueba la red y la URL; el notch reintenta solo |
 | "Revisa el token" | El token caducó o se revocó | Crea otro y pulsa **Comprobar y guardar** |
 | Falta un PR o un repositorio | El token detallado no incluye ese repositorio, o la organización aún no lo aprobó | Edita el token y añade el repositorio, o pide la aprobación |
-| La cápsula no muestra el bloque | No tienes PR/MR propios abiertos sin revisar (los borradores no cuentan) | Es lo esperado; la vista "Revisiones" sigue listando todo |
+| La cápsula no muestra el bloque | No tienes PR/MR propios abiertos sin revisar (los borradores no cuentan) | Es lo esperado; la vista "Revisiones" (tile de GitHub o GitLab) sigue listando todo |
 | Un aviso tarda | El notch consulta cada 2 minutos | Espera o pulsa **Actualizar** en la vista |

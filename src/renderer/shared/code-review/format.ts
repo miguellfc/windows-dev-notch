@@ -10,7 +10,7 @@ import {
 import { translate, type MessageKey } from '../../../shared/i18n/messages'
 import type { Language } from '../../../shared/settings/schema'
 
-/** Platforms in tab and capsule order. */
+/** Platforms in capsule order. */
 export const PLATFORMS: readonly Platform[] = ['github', 'gitlab']
 
 /** Brand names are never translated. */
@@ -104,10 +104,18 @@ export function itemBadges(item: ReviewItem, section: ReviewSection): Badge[] {
   return badges
 }
 
-/** Platforms with a token (any status but `unconfigured`), GitHub first: the view's tabs. */
+/** Platforms with a token (any status but `unconfigured`), GitHub first: the view opens on the first one when no platform was asked for. */
 export function configuredPlatforms(state: CodeReviewState | null): Platform[] {
   if (!state) return []
   return PLATFORMS.filter((platform) => state[platform].status !== 'unconfigured')
+}
+
+/**
+ * The platform the view shows: the one asked for (a tile or the alert), even when it is not
+ * configured (its tile then shows "sin configurar"), else the first configured one, else GitHub.
+ */
+export function reviewsPlatform(target: Platform | null, configured: readonly Platform[]): Platform {
+  return target ?? configured[0] ?? 'github'
 }
 
 export type ReviewsBody = 'loading' | 'unconfigured' | 'auth' | 'empty' | 'list'

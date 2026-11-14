@@ -1,4 +1,5 @@
-import { Battery, BatteryCharging, BatteryLow, Cpu, HardDrive, Mail, MemoryStick, type LucideIcon } from 'lucide-react'
+import { Battery, BatteryCharging, BatteryLow, Cpu, HardDrive, MemoryStick, type LucideIcon } from 'lucide-react'
+import { GmailMark } from '../../shared/brand-icons'
 import type { Platform } from '../../../shared/code-review/schema'
 import { reviewCountText, unreviewedLabel } from '../../shared/code-review/format'
 import { unreadLabel, unreadText } from '../../shared/gmail/format'
@@ -77,7 +78,7 @@ export function CapsuleMetrics({ view }: { view: CapsuleView }) {
 const WIDEST_UNREAD = unreadText(100)
 
 /**
- * Unread mail in Primary, last in the compact capsule (`Mail` + "3" / "99+"), in Grafito Cristal.
+ * Unread mail in Primary, last in the compact capsule (Gmail mark + "3" / "99+"), in Grafito Cristal.
  * Only rendered while the mail latch holds a count; it reserves the width of "99+" (so the
  * measured COMPACT_WIDTHS hold) but sits left, next to its icon: it is the last block, so the
  * spare room falls at the capsule's edge instead of between the icon and the figure.
@@ -86,7 +87,7 @@ export function CapsuleMail({ unread }: { unread: number }) {
   const language = useLanguage()
   return (
     <Metric
-      icon={Mail}
+      icon={GmailMark}
       text={unreadText(unread)}
       reserve={WIDEST_UNREAD}
       alert={false}

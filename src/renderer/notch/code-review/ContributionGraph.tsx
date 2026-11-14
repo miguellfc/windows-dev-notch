@@ -64,7 +64,7 @@ export function ContributionGraph({
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!interactive || !NAV_KEYS.has(event.key) || stop === null) return
-    // Handled here even at the month's edge: the view's arrows (tabs, list) must not fire from the chart.
+    // Handled here even at the month's edge: the view's arrows (list navigation) must not fire from the chart.
     event.preventDefault()
     const target = gridKeyTarget(weeks, focused ?? stop, event.key)
     if (target === null) return
