@@ -1,0 +1,175 @@
+@import 'tailwindcss';
+
+/* Obsidian design tokens (DESIGN.md). Fonts are bundled from @fontsource in each entry. */
+@theme {
+  --color-obsidian: rgba(14, 14, 16, 0.86);
+  /* Opaque on purpose: even 5% transparency lets text behind show through (M1 QA). */
+  --color-obsidian-dense: #0e0e10;
+  --color-veil: rgba(255, 255, 255, 0.04);
+  --color-veil-tile: rgba(255, 255, 255, 0.06);
+  /* Hover on a Velo Tile surface (tiles, chips, secondary buttons). */
+  --color-veil-hover: rgba(255, 255, 255, 0.09);
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-chalk: #ededef;
+  --color-graphite: #8b8b93;
+  /* Secondary text on the translucent capsule (Obsidiana 86 %): ≥ 4.5:1 even over a white window. */
+  --color-graphite-glass: #a3a3ab;
+  --color-ice: #7dd3fc;
+  --color-abyss: #06202b;
+  --color-ok: #4ade80;
+  --color-wait: #fbbf24;
+  /* Text on Ámbar Espera (the reminders badge). */
+  --color-on-wait: #1a1205;
+  --color-fail: #f87171;
+  /* Contributions chart: level 0 is Grafito at 14 %, levels 1-4 step up the Azul Hielo (One Voice Rule). */
+  --color-contrib-0: rgba(139, 139, 147, 0.14);
+  --color-contrib-1: rgba(125, 211, 252, 0.24);
+  --color-contrib-2: rgba(125, 211, 252, 0.45);
+  --color-contrib-3: rgba(125, 211, 252, 0.7);
+  --color-contrib-4: #7dd3fc;
+
+  --font-sans: 'Geist Variable', 'Segoe UI Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Cascadia Mono', Consolas, monospace;
+
+  --text-label: 11px;
+  /* The one exception to the Short Scale: uppercase group labels, smaller with open tracking. */
+  --text-caps: 10.5px;
+  --text-caps--letter-spacing: 0.09em;
+  --text-small: 12.5px;
+  --text-body: 13px;
+  --text-title: 15px;
+
+  --radius-panel: 24px;
+  --radius-card: 16px;
+  --radius-tile: 14px;
+  --radius-control: 10px;
+  /* Small controls and the options nested inside a 10 px control (10 − 2 px padding). */
+  --radius-control-sm: 8px;
+  /* Keyboard keys (Kbd) and the app icon on About. */
+  --radius-key: 6px;
+  --radius-icon: 12px;
+
+  /* The levitation shadows live in src/renderer/notch/motion.ts: Motion must parse them inline
+     to correct them for the morph's scale, so a CSS token would only be an unused copy. */
+}
+
+/* The root keeps the browser's 16 px so 1rem stays 16 px and Tailwind's spacing is the 4 px
+   scale of DESIGN.md; the 13 px body size is set on body, not on html. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+}
+
+body {
+  color: var(--color-chalk);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Browser surfaces carry the design too. */
+::selection {
+  background: var(--color-ice);
+  color: var(--color-abyss);
+}
+
+* {
+  caret-color: var(--color-ice);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ice);
+  outline-offset: 2px;
+}
+/* Inside a clipping scroller (session rows) the ring is drawn inward so it is never cut. Unlayered
+   on purpose: a Tailwind outline-offset utility would lose to the rule above. */
+.focus-inset:focus-visible {
+  outline-offset: -2px;
+}
+/* Contribution squares sit 3 px apart: the ice focus ring (outside the square) stays inside the gap. */
+.contrib-cell:focus-visible {
+  outline-offset: 1px;
+}
+/* Today: a Tiza ring inside the square, so it never looks like the ice focus ring outside it. */
+.contrib-today {
+  box-shadow:
+    inset 0 0 0 1.5px var(--color-chalk),
+    inset 0 0 0 3px var(--color-obsidian-dense);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  background-clip: content-box;
+  border: 4px solid transparent;
+  border-radius: 999px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Claude status dots: 8 px with a 3 px halo, the only glow the system allows. */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--dot);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 22%, transparent);
+}
+
+@keyframes wait-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+@keyframes wait-pulse-opacity {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.pulse-wait {
+  animation: wait-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Opacity only, at the authored pace (the blanket rule above would otherwise freeze it into a flicker). */
+  .pulse-wait {
+    animation: wait-pulse-opacity 1.6s ease-in-out infinite !important;
+    animation-duration: 1.6s !important;
+  }
+}

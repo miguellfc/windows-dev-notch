@@ -1,0 +1,39 @@
+# Minimal Windows packaging. Verified end to end in plan task 1.12.
+appId: dev.developernotch.app
+productName: Developer Notch
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - '!**/*.map'
+  - package.json
+asar: true
+# node-pty's native binaries (.node, conpty .dll/.exe) must load from disk, not from the asar.
+# node-pty and koffi ship N-API prebuilds that work in Electron as is (M2 spike);
+# rebuilding would need Visual Studio build tools for no benefit.
+npmRebuild: false
+# Package the Electron already installed in node_modules (same pinned version) instead
+# of downloading it from GitHub, so packaging works without network access.
+electronDist: node_modules/electron/dist
+asarUnpack:
+  - '**/node_modules/node-pty/**'
+electronLanguages:
+  - en-US
+  - es
+# Hardening: the packaged binary cannot be turned into a generic Node runtime
+# and only loads its own integrity-checked app.asar.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+win:
+  target: nsis
+  icon: resources/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

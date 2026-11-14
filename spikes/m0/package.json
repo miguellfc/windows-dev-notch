@@ -1,0 +1,12 @@
+{
+  "name": "notch-m0-spike",
+  "private": true,
+  "description": "THROWAWAY M0 spike. Not product code; never import from src/.",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "koffi": "3.3.7"
+  }
+}
