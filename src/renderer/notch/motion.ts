@@ -8,7 +8,7 @@ import { PANEL_MODES } from '../../shared/notch/state'
 export const EASE_OUT = [0.23, 1, 0.32, 1] as const
 
 // One authored motion: the capsule morphs as a single object. Opening springs, closing is quicker.
-/** Capsule → panel (expanded, terminal, reminders, permission): a large object, subtle bounce. */
+/** Capsule → panel (expanded, reminders, permission): a large object, subtle bounce. */
 export const GROW_PANEL = { type: 'spring', visualDuration: 0.32, bounce: 0.1 } as const
 /** Small growths (compact on hover, alert, peek, mini): short and without overshoot. */
 export const GROW_CAPSULE = { type: 'spring', visualDuration: 0.22, bounce: 0 } as const

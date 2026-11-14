@@ -73,7 +73,6 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   peek: { width: 168, height: 36 },
   alert: { width: 320, height: 44 },
   expanded: { width: 440, height: EXPANDED_HEIGHTS.sessions },
-  terminal: { width: 640, height: 360 },
   permission: { width: 480, height: 300 },
   question: QUESTION_SIZE,
   reminders: { width: 420, height: 320 },
@@ -147,12 +146,17 @@ function baseCompactWidth(content: { battery: object | null; disk: object | null
  */
 export const SHADOW_MARGIN = { side: 56, top: 6, bottom: 72 } as const
 
+/** The widest the compact capsule gets: mail, battery, disk and both code-review blocks (581 px). */
+const WIDEST_COMPACT_WIDTH = compactWidthFor({ battery: {}, disk: {} }, true, 2)
+
 /**
- * Constant window width: the widest capsule plus its shadow. The width never changes between
- * modes because Motion suspends layout animations for 250 ms whenever `innerWidth` changes,
- * which turned every growing morph into a jump. Only the height follows the mode.
+ * Constant window width: the widest capsule (a panel, or the compact capsule with every block
+ * showing) plus its shadow. The width never changes between modes because Motion suspends layout
+ * animations for 250 ms whenever `innerWidth` changes, which turned every growing morph into a
+ * jump. Only the height follows the mode. Rounded up to an even number so the window centres
+ * on the screen without a half pixel.
  */
-export const WINDOW_WIDTH = Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2
+export const WINDOW_WIDTH = Math.ceil((Math.max(WIDEST_COMPACT_WIDTH, ...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2) / 2) * 2
 
 /**
  * Distance from the window's top to the capsule: the shadow room above it, except for the pinned mini,

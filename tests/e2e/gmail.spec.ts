@@ -601,8 +601,13 @@ test('new mail: a capsule alert with sender and subject for ~6 s, "Correo nuevo"
   await notch.waitForTimeout(1_000)
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'expanded')
   await expect(alert).toHaveCount(0)
-  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in compact.
+  // The pointer (left on the capsule by the click) leaves it, or the capsule would stay in compact. Through
+  // the same IPC as the capsule's pointerleave (tests/e2e/pointer.ts): by this point Chromium no longer
+  // counts the capsule as hovered (:hover is false right after the click, whatever the real cursor does
+  // over the other windows), so a virtual mouse move would send no pointerleave and the app would keep
+  // pointerInside = true from the alert click.
   await notch.mouse.move(1, 1)
+  await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.pointer({ inside: false }))
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'dismiss' }))
   await expect(capsule(notch)).toHaveAttribute('data-mode', 'peek')
   await whileHovered(notch, () => expect(present(notch, 'metric-mail')).toHaveAttribute('aria-label', '6 correos sin leer'))

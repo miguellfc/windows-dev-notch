@@ -61,33 +61,39 @@ describe('notch state machine', () => {
     expect(reduceNotch(expanded, { type: 'expand' })).toBe(expanded)
   })
 
-  describe('terminal view', () => {
-    const terminal = () => run({ type: 'open-integration', id: 'terminal' })
+  it('leaves the state as it is when dismissing a panel that is already closed (app tiles dismiss after launching)', () => {
+    const closed = reduceNotch(initialNotchState, { type: 'dismiss' })
+    expect(closed).toEqual(initialNotchState)
+    expect(notchMode(closed)).toBe(notchMode(initialNotchState))
+  })
 
-    it('opens the terminal integration as its own expanded mode', () => {
-      const state = terminal()
-      expect(notchMode(state)).toBe('terminal')
-      expect(state).toMatchObject({ expanded: true, view: 'terminal', userHidden: false })
-      expect(notchMode(run({ type: 'user-visibility', hidden: true }, { type: 'open-integration', id: 'terminal' }))).toBe('terminal')
+  describe('integration view', () => {
+    const notes = () => run({ type: 'open-integration', id: 'notes' })
+
+    it('opens the notes integration as its own expanded mode', () => {
+      const state = notes()
+      expect(notchMode(state)).toBe('notes')
+      expect(state).toMatchObject({ expanded: true, view: 'notes', userHidden: false })
+      expect(notchMode(run({ type: 'user-visibility', hidden: true }, { type: 'open-integration', id: 'notes' }))).toBe('notes')
     })
 
     it('goes back to the integrations row without closing the panel', () => {
-      const state = reduceNotch(terminal(), { type: 'back' })
+      const state = reduceNotch(notes(), { type: 'back' })
       expect(notchMode(state)).toBe('expanded')
       expect(state.view).toBe('home')
     })
 
-    it('always reopens on the integrations row after closing from the terminal', () => {
-      const dismissed = reduceNotch(terminal(), { type: 'dismiss' })
+    it('always reopens on the integrations row after closing from a view', () => {
+      const dismissed = reduceNotch(notes(), { type: 'dismiss' })
       expect(notchMode(dismissed)).toBe('peek')
       expect(dismissed.view).toBe('home')
       expect(notchMode(reduceNotch(dismissed, { type: 'expand' }))).toBe('expanded')
 
-      const toggled = reduceNotch(terminal(), { type: 'toggle' })
+      const toggled = reduceNotch(notes(), { type: 'toggle' })
       expect(notchMode(toggled)).toBe('peek')
       expect(toggled.view).toBe('home')
 
-      const hidden = reduceNotch(terminal(), { type: 'user-visibility', hidden: true })
+      const hidden = reduceNotch(notes(), { type: 'user-visibility', hidden: true })
       expect(notchMode(hidden)).toBe('hidden')
       expect(hidden.view).toBe('home')
     })
@@ -124,8 +130,8 @@ describe('attention (pending Claude permission)', () => {
   })
 
   it('still opens the requested integration while attention is on', () => {
-    const state = run(attention(true), { type: 'open-integration', id: 'terminal' })
-    expect(notchMode(state)).toBe('terminal')
+    const state = run(attention(true), { type: 'open-integration', id: 'notes' })
+    expect(notchMode(state)).toBe('notes')
   })
 
   it('falls back from permission to home on back', () => {

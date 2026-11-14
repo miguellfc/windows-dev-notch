@@ -5,7 +5,7 @@ import type { IntegrationId } from '../integrations/registry'
  * reviews) the one under the pointer, `mini` the thin pill the user pins with a right click.
  * `hidden` means the window is not on screen at all.
  */
-export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'terminal' | 'permission' | 'question' | 'reminders' | 'system' | 'notes' | 'gmail' | 'reviews' | 'mini' | 'hidden'
+export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'permission' | 'question' | 'reminders' | 'system' | 'notes' | 'gmail' | 'reviews' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
 export type NotchView = 'home' | ClaudeItem | IntegrationId
@@ -14,7 +14,7 @@ export type NotchView = 'home' | ClaudeItem | IntegrationId
 export type ClaudeItem = 'permission' | 'question'
 
 /** Modes that show the panel and therefore own the keyboard focus. */
-export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'terminal', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews'])
+export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews'])
 
 /** How long the new-mail alert stays in the capsule before it goes away on its own (main owns the timer). */
 export const MAIL_ALERT_MS = 6_000

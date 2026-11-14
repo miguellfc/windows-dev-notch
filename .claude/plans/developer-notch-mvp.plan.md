@@ -4,6 +4,8 @@
 **Selected Milestone**: MVP completo, en orden M0 → M1 → M2 → M3 → M4 (siguiente pendiente: M0 · Spike técnico)
 **Complexity**: Large
 
+> **Cambio (2026-11-13):** la terminal integrada se retira; las baldosas Terminal y Claude abren aplicaciones (Windows Terminal con pwsh en la carpeta de usuario y Claude Desktop en un chat nuevo). Cualquier mención posterior a una terminal embebida queda superada por este cambio.
+
 ## Summary
 
 Construir Developer Notch por hitos verificables: primero un spike desechable que confirma las suposiciones de las que depende el diseño (M0), luego la base de la cápsula (M1) y encima tres módulos independientes: Quick Launcher (M2), estado de Claude Code (M3) y recordatorios (M4). Cada hito termina con la app ejecutada, capturas de todos sus estados y los criterios de aceptación del PRD cumplidos. Las fases 2–4 del producto quedan a alto nivel y se replanifican tras validar la hipótesis.

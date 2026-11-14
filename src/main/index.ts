@@ -5,6 +5,8 @@ import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, nativeT
 import type { ControlCenterPage } from '../shared/ipc/contract'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
+import { createAppLauncher, nodeTrySpawn, pathExists, type AppLauncherDeps } from './apps/app-launcher'
+import { appsChannelGuards } from './apps/apps-ipc'
 import { createClaudeIntegration } from './claude/claude-integration'
 import { claudeChannelGuards } from './claude/claude-ipc'
 import { createCodeReviewIntegration, parseCodeReviewBaseOverrides } from './code-review/code-review-integration'
@@ -40,8 +42,6 @@ import { createRemindersIntegration } from './reminders/reminders-integration'
 import { remindersChannelGuards } from './reminders/reminders-ipc'
 import { createSystemIntegration } from './system/system-integration'
 import { systemChannelGuards } from './system/system-ipc'
-import { pathExists, resolveShell, shellEnvironment } from './terminal/shell-resolver'
-import { createTerminalSession } from './terminal/terminal-session'
 import { controlCenterWindow, openControlCenter } from './windows/control-center-window'
 import { createNotchController } from './windows/notch-controller'
 import { createNotchWindow, nativeHandle } from './windows/notch-window'
@@ -63,6 +63,8 @@ const claudeSettingsOverride = app.isPackaged ? undefined : process.env['NOTCH_C
 const claudePortRaw = app.isPackaged ? undefined : process.env['NOTCH_CLAUDE_PORT']
 const claudePortOverride =
   claudePortRaw !== undefined && /^\d{1,5}$/.test(claudePortRaw) && Number(claudePortRaw) <= 65_535 ? Number(claudePortRaw) : undefined
+// E2E: tile clicks record what would be launched instead of opening Claude or a terminal.
+const appLaunchLogEnabled = !app.isPackaged && process.env['NOTCH_APP_LAUNCH_LOG'] === '1'
 const testClockEnabled = !app.isPackaged && process.env['NOTCH_TEST_CLOCK'] === '1'
 // One fake server for E2E: replaces the Gmail API and the OAuth token/revoke/consent origins.
 // Only an exact http://127.0.0.1:<port> origin is accepted.
@@ -279,32 +281,6 @@ function start(): void {
 
       app.on('second-instance', () => notch.dispatch({ type: 'expand' }))
 
-      // --- Terminal --------------------------------------------------------------------
-      // One PowerShell session owned by main. Only the notch window may read or write it,
-      // and only through the terminal:* channels below.
-      const terminal = createTerminalSession({
-        spawn: (file, args, options) => {
-          // Loaded on first use so the native module costs nothing until the terminal opens.
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const pty = require('node-pty') as typeof import('node-pty')
-          return pty.spawn(file, args, options)
-        },
-        shell: resolveShell({ exists: pathExists, env: process.env }),
-        cwd: homedir(),
-        env: shellEnvironment(process.env),
-        // Output can still arrive while the app quits and the window is already gone.
-        onData: (chunk) => {
-          if (!notchWindow.isDestroyed()) emitEvent([notchWindow.webContents], 'terminal:data', chunk, logger)
-        },
-        onExit: (exitCode) => {
-          if (!notchWindow.isDestroyed()) emitEvent([notchWindow.webContents], 'terminal:exit', { exitCode }, logger)
-          // `exit` closes the terminal like closing a terminal window: the panel closes and focus
-          // goes back to the previous app. The next open starts a new shell.
-          if (notch.mode() === 'terminal') notch.dispatch({ type: 'dismiss' })
-        },
-        isViewing: () => notch.mode() === 'terminal',
-        logger,
-      })
       const fromNotchWindow = (event: IpcEventLike) =>
         !notchWindow.isDestroyed() && event.sender.id === notchWindow.webContents.id
       // The Control Center may not exist yet; then nothing matches.
@@ -459,15 +435,42 @@ function start(): void {
         codeReview.setViewOpen(false)
         gmail?.setViewOpen(false)
       })
+      // --- Apps ----------------------------------------------------------------------
+      const launchFail = appLaunchLogEnabled ? process.env['NOTCH_APP_LAUNCH_FAIL'] : undefined
+      const launches = appLaunchLogEnabled ? (globalThis.__notchAppLaunches ??= []) : []
+      const launcherDeps: AppLauncherDeps = appLaunchLogEnabled
+        ? {
+            openExternal: (url) => {
+              if (launchFail === 'claude') return Promise.reject(new Error('launch failure (test switch)'))
+              launches.push({ kind: 'external', file: url })
+              return Promise.resolve()
+            },
+            trySpawn: (file, args) => {
+              if (launchFail === 'terminal') return Promise.resolve(false)
+              launches.push({ kind: 'spawn', file, args })
+              return Promise.resolve(true)
+            },
+            exists: () => true,
+            homeDir: app.getPath('home'),
+            env: process.env,
+            now: Date.now,
+          }
+        : {
+            openExternal: (url) => shell.openExternal(url),
+            trySpawn: nodeTrySpawn(),
+            exists: pathExists,
+            homeDir: app.getPath('home'),
+            env: process.env,
+            now: Date.now,
+          }
+      const appLauncher = createAppLauncher(launcherDeps)
       // --- IPC -----------------------------------------------------------------------
       registerIpc({
         ipcMain,
         logger,
         isTrustedUrl: createSenderGuard({ rendererDir: join(__dirname, '../renderer'), devServerUrl }),
         channelGuards: {
-          'terminal:open': fromNotchWindow,
-          'terminal:input': fromNotchWindow,
-          'terminal:resize': fromNotchWindow,
+          ...appsChannelGuards({ fromNotch: fromNotchWindow }),
           ...claudeChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...remindersChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...usageChannelGuards({ fromControlCenter }),
@@ -506,17 +509,15 @@ function start(): void {
             notch.dispatch({ type: 'open-integration', id })
             return null
           },
+          'apps:open': async ({ app: appId }) => {
+            const result = await appLauncher.open(appId)
+            logger.info('App launch', { app: appId, result })
+            // The app takes the screen: close the panel (a no-op when it is already closed).
+            if (result !== 'failed' && result !== 'ignored') notch.dispatch({ type: 'dismiss' })
+            return { ok: result !== 'failed' }
+          },
           'notch:back': () => {
             notch.dispatch({ type: 'back' })
-            return null
-          },
-          'terminal:open': () => terminal.open(),
-          'terminal:input': ({ data }) => {
-            terminal.write(data)
-            return null
-          },
-          'terminal:resize': ({ cols, rows }) => {
-            terminal.resize(cols, rows)
             return null
           },
           ...claude.handlers,

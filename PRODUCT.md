@@ -58,7 +58,7 @@ Restricciones:
 - Sin secretos en el renderer ni credenciales en texto plano; futuros tokens OAuth con `safeStorage` de Electron.
 - Sin APIs no documentadas de Claude Code; los transcripts no se leen como API. No existe forma documentada de abrir una sesión concreta de la app de escritorio por ID: "ir a la sesión" significa traer la app Claude al frente.
 - Debe seguir funcionando con proveedores externos desconectados; cada módulo muestra "no conectado" en lugar de fallar.
-- Coste en reposo casi nulo: CPU ≈ 0 % siempre; RAM total < 200 MB sin integraciones abiertas. Una integración abierta añade el coste de su herramienta (la terminal suma ~100 MB, casi todo el propio `pwsh`, igual que tener abierta una Windows Terminal); decisión del usuario del 2026-11-09.
+- Coste en reposo casi nulo: CPU ≈ 0 % siempre; RAM total < 200 MB sin integraciones abiertas. Una integración abierta añade el coste de su herramienta (cuando existía la terminal embebida sumaba ~100 MB, casi todo el propio `pwsh`; retirada el 2026-11-13, ver más abajo); decisión del usuario del 2026-11-09.
 - Fuera de alcance: multiplataforma, launcher universal, terminal o chat con Claude embebidos, widgets de multimedia/portapapeles, sync en la nube, cuentas, firma de código y auto-update (por ahora).
 
 Sin decidir: enfocar la sesión exacta de Claude en lugar de la app; detección de compartir pantalla (solo el modo presentación es detectable); si aprobar permisos de Claude desde la cápsula compensa su coste de seguridad.
@@ -88,6 +88,10 @@ Sin necesidades específicas del producto más allá del estándar: contraste WC
 
 ## Cambio de dirección (2026-11-09)
 
-El notch es un punto de **integraciones vivas**: iconos que despliegan una mini versión de una herramienta dentro del propio notch, sin configurar listas de aplicaciones. La primera integración es una **terminal real de PowerShell** embebida. Esto sustituye al Quick Launcher de favoritos (aparcado en `feat/m2-quick-launcher`) y a dos líneas anteriores de este documento:
-- "Fuera de alcance: terminal embebida" → ahora dentro de alcance.
-- "Sin ejecución arbitraria de comandos" → **solo se ejecuta lo que el usuario escribe en la terminal**; la terminal vive aislada, la crea solo el proceso main y ningún otro canal puede escribir en ella.
+El notch es un punto de **integraciones vivas**: iconos que despliegan una mini versión de una herramienta dentro del propio notch, sin configurar listas de aplicaciones. La primera integración era una **terminal real de PowerShell** embebida (retirada el 2026-11-13, ver la nota al final). Esto sustituye al Quick Launcher de favoritos (aparcado en `feat/m2-quick-launcher`) y a dos líneas anteriores de este documento:
+- "Fuera de alcance: terminal embebida" → entonces dentro de alcance (retirada el 2026-11-13).
+- "Sin ejecución arbitraria de comandos" → entonces **solo se ejecutaba lo que el usuario escribía en la terminal**; ya no aplica: no hay terminal embebida ni ejecución de comandos del usuario dentro del notch.
+
+## Nota (2026-11-13): terminal embebida retirada
+
+La terminal embebida se retira en favor de abrir **Windows Terminal** (con `pwsh` en la carpeta de usuario) desde la baldosa Terminal, y se añade la baldosa **Claude**, que abre **Claude Desktop** en un chat nuevo; el notch no embebe terminal ni chat con Claude. Se mantiene lo demás: la fila de integraciones pasa a 7 casillas y el ancho de la ventana a 694 px. Las líneas anteriores de este documento sobre la terminal embebida quedan como historia, marcadas arriba.

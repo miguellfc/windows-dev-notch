@@ -6,3 +6,10 @@
  */
 // eslint-disable-next-line no-var -- only `var` adds a typed property to globalThis
 declare var __notchTestClock: { advance(ms: number): Promise<void> } | undefined
+
+/**
+ * Dev/test-only record of app launches (`NOTCH_APP_LAUNCH_LOG=1`, never in a packaged build): the
+ * launcher's dependencies push here instead of opening Claude or a terminal.
+ */
+// eslint-disable-next-line no-var -- only `var` adds a typed property to globalThis
+declare var __notchAppLaunches: Array<{ kind: 'external' | 'spawn'; file: string; args?: readonly string[] }> | undefined

@@ -23,7 +23,7 @@ export interface RegisterIpcOptions {
   ipcMain: IpcMainLike
   handlers: IpcHandlers
   isTrustedUrl: (url: string) => boolean
-  /** Extra sender checks for channels only one window may use (e.g. the terminal). */
+  /** Extra sender checks for channels only one window may use (e.g. the notch window). */
   channelGuards?: Partial<Record<ChannelName, (event: IpcEventLike) => boolean>>
   logger: Logger
 }

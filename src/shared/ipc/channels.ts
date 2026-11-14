@@ -21,10 +21,8 @@ export const channels = {
     openIntegration: 'notch:open-integration',
     back: 'notch:back',
   },
-  terminal: {
-    open: 'terminal:open',
-    input: 'terminal:input',
-    resize: 'terminal:resize',
+  apps: {
+    open: 'apps:open',
   },
   claude: {
     getState: 'claude:get-state',
@@ -99,8 +97,6 @@ export const eventChannels = {
   notchMailAlert: 'notch:mail-alert',
   notchReviewAlert: 'notch:review-alert',
   settingsChanged: 'settings:changed',
-  terminalData: 'terminal:data',
-  terminalExit: 'terminal:exit',
   claudeStateChanged: 'claude:state-changed',
   claudeQuestions: 'claude:questions',
   remindersChanged: 'reminders:changed',
