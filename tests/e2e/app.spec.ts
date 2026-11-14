@@ -65,13 +65,13 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'reminders', 'settings', 'system', 'terminal', 'usage'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'reminders', 'settings', 'system', 'usage'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")
   expect(csp).toMatch(/script-src 'self';/)
   expect(csp).not.toContain('unsafe-eval')
-  // Only styles are relaxed (xterm.js injects <style> at runtime).
+  // Only styles are relaxed (inline styles injected at runtime).
   expect(csp?.match(/'unsafe-inline'/g)).toHaveLength(1)
   expect(csp).toContain("style-src 'self' 'unsafe-inline'")
 
@@ -268,7 +268,7 @@ test('hide from the panel removes the capsule without quitting', async () => {
   await app.close()
 })
 
-test('the six integration tiles fit the panel without cutting a label, in ES and EN', async () => {
+test('the seven integration tiles fit the panel without cutting a label, in ES and EN', async () => {
   const { app, notch } = await launch()
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
   await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'expanded')
@@ -312,7 +312,11 @@ test('the six integration tiles fit the panel without cutting a label, in ES and
         }
       })
     // Polled: the labels re-render with the language a frame after `lang` changes.
-    await expect.poll(measureFit).toEqual({ count: 6, cut: [], rowOverflows: false })
+    await expect.poll(measureFit).toEqual({ count: 7, cut: [], rowOverflows: false })
+    if (language === 'es') {
+      await settle(notch)
+      await notch.screenshot({ path: 'test-results/integration-row-7-es.png' })
+    }
   }
   await app.close()
 })

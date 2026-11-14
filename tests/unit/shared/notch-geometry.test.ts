@@ -12,14 +12,14 @@ describe('windowBoundsFor', () => {
 
   it('leaves room for the shadow around the capsule', () => {
     const bounds = windowBoundsFor('expanded', workArea)
-    expect(bounds.width).toBe(752)
+    expect(bounds.width).toBe(694)
     // The window fits the panel with Claude sessions; without them the capsule is shorter inside it.
     expect(bounds.height).toBe(6 + 308 + 72)
   })
 
   it('keeps one width for every mode: the widest capsule plus the shadow', () => {
     // Motion skips layout animations for 250 ms after innerWidth changes, so the width must not.
-    expect(WINDOW_WIDTH).toBe(752)
+    expect(WINDOW_WIDTH).toBe(694)
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
       const bounds = windowBoundsFor(mode, workArea)
       expect(bounds.width).toBe(WINDOW_WIDTH)
@@ -53,20 +53,6 @@ describe('resizeOrder', () => {
   })
 })
 
-describe('terminal panel geometry', () => {
-  it('is 640x360 plus the shadow margin', () => {
-    expect(CAPSULE_SIZES.terminal).toEqual({ width: 640, height: 360 })
-    expect(windowBoundsFor('terminal', workArea).width).toBe(640 + SHADOW_MARGIN.side * 2)
-    expect(windowBoundsFor('terminal', workArea).height).toBe(SHADOW_MARGIN.top + 360 + SHADOW_MARGIN.bottom)
-  })
-
-  it('grows the window before animating into the terminal and shrinks after leaving it', () => {
-    expect(resizeOrder('expanded', 'terminal')).toBe('resize-first')
-    expect(resizeOrder('terminal', 'expanded')).toBe('animate-first')
-    expect(resizeOrder('terminal', 'compact')).toBe('animate-first')
-  })
-})
-
 describe('alert and permission geometry', () => {
   it('has the alert capsule and the permission card sizes', () => {
     expect(CAPSULE_SIZES.alert).toEqual({ width: 320, height: 44 })
@@ -92,27 +78,27 @@ describe('alert and permission geometry', () => {
 })
 
 describe('system panel geometry', () => {
-  it('is 520x280 (5 process rows) and keeps the window width set by the terminal', () => {
+  it('is 520x280 (5 process rows) and keeps the window width set by the widest compact capsule', () => {
     expect(CAPSULE_SIZES.system).toEqual({ width: 520, height: 280 })
-    expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
+    expect(WINDOW_WIDTH).toBe(694)
     expect(windowBoundsFor('system', workArea).height).toBe(SHADOW_MARGIN.top + 280 + SHADOW_MARGIN.bottom)
   })
 
   it('orders the window against the other panels by height', () => {
-    // 280 (system) < 300 (permission) < 308 (expanded window) < 320 (reminders) < 360 (terminal).
+    // 280 (system) < 300 (permission) < 308 (expanded window) < 320 (reminders) < 560 (reviews).
     expect(growsWindow('expanded', 'system')).toBe(false)
     expect(growsWindow('system', 'permission')).toBe(true)
     expect(growsWindow('system', 'reminders')).toBe(true)
-    expect(growsWindow('system', 'terminal')).toBe(true)
+    expect(growsWindow('system', 'reviews')).toBe(true)
     expect(growsWindow('permission', 'system')).toBe(false)
     expect(growsWindow('reminders', 'system')).toBe(false)
-    expect(growsWindow('terminal', 'system')).toBe(false)
+    expect(growsWindow('reviews', 'system')).toBe(false)
     expect(growsWindow('system', 'expanded')).toBe(true)
     expect(resizeOrder('system', 'expanded')).toBe('resize-first')
     expect(resizeOrder('expanded', 'system')).toBe('animate-first')
     expect(resizeOrder('system', 'reminders')).toBe('resize-first')
     expect(resizeOrder('reminders', 'system')).toBe('animate-first')
-    expect(resizeOrder('terminal', 'system')).toBe('animate-first')
+    expect(resizeOrder('reviews', 'system')).toBe('animate-first')
   })
 })
 
@@ -171,10 +157,10 @@ describe('compact capsule width', () => {
   })
 
   it('stays narrower than the panels, so the window width is unchanged', () => {
-    expect(CAPSULE_SIZES.compact.width).toBeLessThan(CAPSULE_SIZES.terminal.width)
+    expect(CAPSULE_SIZES.compact.width).toBeLessThan(CAPSULE_SIZES.reviews.width)
     // Widest compact content (EN, battery and low-disk block: 433.8 px) still fits the fixed window.
     expect(Math.max(...Object.values(COMPACT_WIDTHS)) + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
-    expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
+    expect(WINDOW_WIDTH).toBe(694)
   })
 })
 
@@ -189,8 +175,8 @@ describe('notes panel geometry', () => {
     expect(growsWindow('notes', 'expanded')).toBe(false)
     expect(growsWindow('permission', 'notes')).toBe(true)
     expect(growsWindow('notes', 'permission')).toBe(false)
-    expect(growsWindow('notes', 'terminal')).toBe(true)
-    expect(growsWindow('terminal', 'notes')).toBe(false)
+    expect(growsWindow('notes', 'reviews')).toBe(true)
+    expect(growsWindow('reviews', 'notes')).toBe(false)
     expect(resizeOrder('expanded', 'notes')).toBe('resize-first')
     expect(resizeOrder('notes', 'expanded')).toBe('animate-first')
   })
@@ -242,7 +228,7 @@ describe('gmail panel geometry', () => {
     expect(CAPSULE_SIZES.gmail).toEqual(GMAIL_SIZES.reader)
     expect(GMAIL_SIZES.reader.height).toBeGreaterThanOrEqual(GMAIL_SIZES.list.height)
     expect(windowBoundsFor('gmail', workArea).height).toBe(SHADOW_MARGIN.top + GMAIL_SIZES.reader.height + SHADOW_MARGIN.bottom)
-    expect(WINDOW_WIDTH).toBe(640 + SHADOW_MARGIN.side * 2)
+    expect(WINDOW_WIDTH).toBe(694)
   })
 
   it('grows the window from the integrations row and the alert, and shrinks back to them', () => {
@@ -250,7 +236,7 @@ describe('gmail panel geometry', () => {
     expect(resizeOrder('alert', 'gmail')).toBe('resize-first')
     expect(resizeOrder('gmail', 'expanded')).toBe('animate-first')
     expect(resizeOrder('gmail', 'compact')).toBe('animate-first')
-    expect(growsWindow('terminal', 'gmail')).toBe(true)
+    expect(growsWindow('reminders', 'gmail')).toBe(true)
   })
 })
 
@@ -280,7 +266,7 @@ describe('question panel geometry', () => {
       if (mode === 'reviews') continue
       expect(CAPSULE_SIZES.question.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
     }
-    for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'terminal'] as const) {
+    for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'reminders'] as const) {
       expect(resizeOrder(from, 'question')).toBe('resize-first')
       expect(resizeOrder('question', from)).toBe('animate-first')
     }
@@ -327,8 +313,9 @@ describe('reviews panel geometry', () => {
     }
   })
 
-  it('keeps the window width: the widest panel is still the terminal', () => {
-    expect(WINDOW_WIDTH).toBe(CAPSULE_SIZES.terminal.width + SHADOW_MARGIN.side * 2)
+  it('keeps the window width: the widest panels are 520 px, so the compact capsule 581 px worst case sets it', () => {
+    expect(Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width))).toBe(520)
+    expect(WINDOW_WIDTH).toBe(694)
   })
 })
 

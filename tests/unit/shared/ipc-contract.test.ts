@@ -25,24 +25,20 @@ describe('IPC contract', () => {
     expect(contract['notch:pointer'].input.safeParse({ inside: 'yes' }).success).toBe(false)
   })
 
-  it('bounds terminal input and size', () => {
-    const input = contract['terminal:input'].input
-    expect(input.safeParse({ data: 'dir\r' }).success).toBe(true)
-    expect(input.safeParse({ data: '' }).success).toBe(false)
-    expect(input.safeParse({ data: 'a'.repeat(65_536) }).success).toBe(true)
-    expect(input.safeParse({ data: 'a'.repeat(65_537) }).success).toBe(false)
-    expect(input.safeParse({ data: 'x', shell: 'cmd.exe' }).success).toBe(false)
-
-    const resize = contract['terminal:resize'].input
-    expect(resize.safeParse({ cols: 80, rows: 24 }).success).toBe(true)
-    for (const bad of [{ cols: 1, rows: 24 }, { cols: 501, rows: 24 }, { cols: 80, rows: 0 }, { cols: 80, rows: 201 }, { cols: 80.5, rows: 24 }]) {
-      expect(resize.safeParse(bad).success).toBe(false)
-    }
+  it('only opens known integrations', () => {
+    expect(contract['notch:open-integration'].input.safeParse({ id: 'notes' }).success).toBe(true)
+    expect(contract['notch:open-integration'].input.safeParse({ id: 'browser' }).success).toBe(false)
+    // Terminal is an app now, not an in-notch view.
+    expect(contract['notch:open-integration'].input.safeParse({ id: 'terminal' }).success).toBe(false)
   })
 
-  it('only opens known integrations', () => {
-    expect(contract['notch:open-integration'].input.safeParse({ id: 'terminal' }).success).toBe(true)
-    expect(contract['notch:open-integration'].input.safeParse({ id: 'browser' }).success).toBe(false)
+  it('opens only the known apps, with no extra keys', () => {
+    const input = contract['apps:open'].input
+    expect(input.safeParse({ app: 'claude' }).success).toBe(true)
+    expect(input.safeParse({ app: 'terminal' }).success).toBe(true)
+    expect(input.safeParse({ app: 'notes' }).success).toBe(false)
+    expect(input.safeParse({ app: 'claude', url: 'https://example.test' }).success).toBe(false)
+    expect(contract['apps:open'].output.safeParse({ ok: true }).success).toBe(true)
   })
 
   it('decides only on a uuid with allow or deny', () => {

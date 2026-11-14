@@ -1,6 +1,6 @@
 import { EyeOff, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
-import { Suspense, useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
+import { useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
 import type { Settings } from '../../shared/settings/schema'
@@ -41,8 +41,6 @@ import { RemindersView } from './reminders/RemindersView'
 import { reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
 import { CapsuleMail, CapsuleMetrics, CapsuleReview } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
-import { TerminalBoundary } from './TerminalBoundary'
-import { LazyTerminalView } from './terminal-loader'
 
 interface ModeState {
   mode: NotchMode
@@ -182,9 +180,6 @@ export function NotchApp() {
   }, [reduceMotion, mode])
 
   useEffect(() => {
-    // In the terminal, Esc belongs to PowerShell (it clears the line); leave with the
-    // global shortcut, a click outside or the back button instead.
-    if (mode === 'terminal') return
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') void window.notch.notch.request({ intent: 'dismiss' })
     }
@@ -325,16 +320,6 @@ function CapsuleContent({
   const hasReviews = reviewBlockCount(reviews) > 0
 
   if (mode === 'mini') return null
-  if (mode === 'terminal')
-    return (
-      // The chunk is preloaded on intent and read from disk, so the empty panel never shows for
-      // more than a frame; a placeholder would flash instead. A failed load stays in this panel.
-      <TerminalBoundary>
-        <Suspense fallback={null}>
-          <LazyTerminalView />
-        </Suspense>
-      </TerminalBoundary>
-    )
   if (mode === 'alert') return <Alert />
   if (mode === 'permission') return <PermissionCard />
   if (mode === 'question') return <QuestionCard />

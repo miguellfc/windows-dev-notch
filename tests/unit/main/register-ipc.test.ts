@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { appsChannelGuards } from '../../../src/main/apps/apps-ipc'
 import { claudeChannelGuards } from '../../../src/main/claude/claude-ipc'
 import { registerIpc, type IpcEventLike, type IpcHandlers, type IpcMainLike } from '../../../src/main/ipc/register'
 import { SettingsReadOnlyError } from '../../../src/main/services/settings-store'
@@ -58,10 +59,8 @@ function createHandlers(overrides: Partial<IpcHandlers> = {}): IpcHandlers {
     'notch:pointer': () => null,
     'notch:settled': () => null,
     'notch:open-integration': () => null,
+    'apps:open': () => ({ ok: true }),
     'notch:back': () => null,
-    'terminal:open': () => ({ state: 'running', snapshot: '', shell: 'pwsh.exe' }),
-    'terminal:input': () => null,
-    'terminal:resize': () => null,
     'settings:get': () => settings,
     'settings:update': (patch) => settingsSchema.parse({ ...settings, ...patch }),
     'claude:get-state': () => ({ connection: 'not-installed', hooks: 'missing', sessions: [], pending: [] }),
@@ -256,25 +255,25 @@ describe('registerIpc', () => {
     const input = vi.fn(() => null)
     registerIpc({
       ipcMain: fake.ipcMain,
-      handlers: createHandlers({ 'terminal:input': input }),
+      handlers: createHandlers({ 'notch:back': input }),
       isTrustedUrl: (url) => url === 'app://trusted',
       logger,
-      channelGuards: { 'terminal:input': (event) => event.sender.id === 1 },
+      channelGuards: { 'notch:back': (event) => event.sender.id === 1 },
     })
     const other = { sender: { id: 2 }, senderFrame: { url: 'app://trusted', parent: null } }
 
-    await expect(fake.invoke('terminal:input', other, { data: 'dir\r' })).resolves.toMatchObject({
+    await expect(fake.invoke('notch:back', other)).resolves.toMatchObject({
       ok: false,
       error: { code: 'FORBIDDEN' },
     })
     expect(input).not.toHaveBeenCalled()
-    await expect(fake.invoke('terminal:input', trustedEvent, { data: 'dir\r' })).resolves.toEqual({ ok: true, data: null })
+    await expect(fake.invoke('notch:back', trustedEvent)).resolves.toEqual({ ok: true, data: null })
     expect(input).toHaveBeenCalledOnce()
   })
 })
 
-// Acceptance criterion 4: no IPC channel other than the terminal's own input can write to the session.
-describe('terminal write isolation', () => {
+// Every contract channel has a sample input that its registered handler accepts.
+describe('contract sample inputs', () => {
   const sampleInput: { [C in keyof typeof contract]: unknown } = {
     'app:get-info': undefined,
     'app:get-runtime': undefined,
@@ -286,11 +285,9 @@ describe('terminal write isolation', () => {
     'notch:request': { intent: 'toggle' },
     'notch:pointer': { inside: true },
     'notch:settled': undefined,
-    'notch:open-integration': { id: 'terminal' },
+    'notch:open-integration': { id: 'notes' },
+    'apps:open': { app: 'claude' },
     'notch:back': undefined,
-    'terminal:open': undefined,
-    'terminal:input': { data: 'Get-ChildItem\r' },
-    'terminal:resize': { cols: 80, rows: 24 },
     'claude:get-state': undefined,
     'claude:decide': { requestId: '3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e7f', decision: 'allow' },
     'claude:focus-app': undefined,
@@ -348,23 +345,16 @@ describe('terminal write isolation', () => {
     expect(Object.keys(sampleInput).sort()).toEqual(Object.keys(contract).sort())
   })
 
-  it.each(Object.keys(sampleInput) as (keyof typeof contract)[])('%s writes to the session only if it is terminal:input', async (channel) => {
+  it.each(Object.keys(sampleInput) as (keyof typeof contract)[])('%s accepts its sample input', async (channel) => {
     const fake = createFakeIpcMain()
-    const write = vi.fn()
     registerIpc({
       ipcMain: fake.ipcMain,
-      handlers: createHandlers({
-        'terminal:input': ({ data }) => {
-          write(data)
-          return null
-        },
-      }),
+      handlers: createHandlers(),
       isTrustedUrl: (url) => url === 'app://trusted',
       logger: createMemoryLogger(),
     })
     const result = await fake.invoke(channel, trustedEvent, ...(sampleInput[channel] === undefined ? [] : [sampleInput[channel]]))
     expect(result).toMatchObject({ ok: true })
-    expect(write).toHaveBeenCalledTimes(channel === 'terminal:input' ? 1 : 0)
   })
 })
 
@@ -423,6 +413,32 @@ describe('claude channel guards', () => {
       expect(result).toMatchObject(expectFor(id) ? { ok: true } : { ok: false, error: { code: 'FORBIDDEN' } })
     }
     expect(handler).toHaveBeenCalledTimes(who === 'both' ? 2 : 1)
+  })
+})
+
+// Apps: launching Claude or a terminal is a notch tile action, never the Control Center's.
+describe('apps channel', () => {
+  const NOTCH = 1
+  const CONTROL_CENTER = 2
+  const from = (id: number) => ({ sender: { id }, senderFrame: { url: 'app://trusted', parent: null } })
+
+  it('is reachable only from the notch', async () => {
+    const fake = createFakeIpcMain()
+    const open = vi.fn(() => ({ ok: true }))
+    registerIpc({
+      ipcMain: fake.ipcMain,
+      handlers: createHandlers({ 'apps:open': open }),
+      isTrustedUrl: (url) => url === 'app://trusted',
+      logger: createMemoryLogger(),
+      channelGuards: appsChannelGuards({ fromNotch: (event) => event.sender.id === NOTCH }),
+    })
+    await expect(fake.invoke('apps:open', from(CONTROL_CENTER), { app: 'claude' })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    })
+    expect(open).not.toHaveBeenCalled()
+    await expect(fake.invoke('apps:open', from(NOTCH), { app: 'claude' })).resolves.toEqual({ ok: true, data: { ok: true } })
+    expect(open).toHaveBeenCalledOnce()
   })
 })
 

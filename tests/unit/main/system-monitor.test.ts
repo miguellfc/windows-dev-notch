@@ -62,7 +62,7 @@ describe('system monitor rhythms', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it.each<NotchMode>(['compact', 'peek', 'expanded', 'terminal', 'reminders', 'permission'])(
+  it.each<NotchMode>(['compact', 'peek', 'expanded', 'reminders', 'permission'])(
     '%s samples light at once and then every 3000 ms',
     (mode) => {
       const { monitor, metrics, onMetrics, processes } = setup()

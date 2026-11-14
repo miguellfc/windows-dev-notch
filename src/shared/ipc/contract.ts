@@ -27,7 +27,7 @@ import {
   gmailOpenLinkInputSchema,
   gmailStateSchema,
 } from '../gmail/schema'
-import { integrationIds } from '../integrations/registry'
+import { appIds, viewIntegrationIds } from '../integrations/registry'
 import { createNoteInputSchema, noteIdInputSchema, noteSchema, pinNoteInputSchema, updateNoteInputSchema } from '../notes/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
@@ -40,7 +40,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'terminal', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
@@ -52,16 +52,6 @@ export type ControlCenterPage = z.infer<typeof controlCenterPageSchema>
 export const runtimeSchema = z.strictObject({
   isPackaged: z.boolean(),
   shortcutRegistered: z.boolean(),
-})
-
-/** Largest chunk the renderer may send in one terminal write; bigger pastes are split. */
-export const TERMINAL_INPUT_MAX = 65_536
-
-export const terminalOpenSchema = z.strictObject({
-  state: z.enum(['running', 'exited']),
-  exitCode: z.int().optional(),
-  snapshot: z.string(),
-  shell: z.string(),
 })
 
 export const claudeStateSchema = z.strictObject({
@@ -166,14 +156,10 @@ export const contract = {
   'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle', 'next', 'pin-mini', 'unpin-mini']) }), output: ack },
   'notch:pointer': { input: z.strictObject({ inside: z.boolean() }), output: ack },
   'notch:settled': { input: none, output: ack },
-  'notch:open-integration': { input: z.strictObject({ id: z.enum(integrationIds) }), output: ack },
+  'notch:open-integration': { input: z.strictObject({ id: z.enum(viewIntegrationIds) }), output: ack },
+  /** Launches the real Claude / terminal app; `ok` is false only when nothing could be launched. */
+  'apps:open': { input: z.strictObject({ app: z.enum(appIds) }), output: z.strictObject({ ok: z.boolean() }) },
   'notch:back': { input: none, output: ack },
-  'terminal:open': { input: none, output: terminalOpenSchema },
-  'terminal:input': { input: z.strictObject({ data: z.string().min(1).max(TERMINAL_INPUT_MAX) }), output: ack },
-  'terminal:resize': {
-    input: z.strictObject({ cols: z.int().min(2).max(500), rows: z.int().min(1).max(200) }),
-    output: ack,
-  },
   'claude:get-state': { input: none, output: claudeStateSchema },
   'claude:decide': {
     input: z.strictObject({ requestId: z.uuid(), decision: z.enum(['allow', 'deny']) }),
@@ -251,8 +237,6 @@ export const eventContract = {
   /** Whether the alert capsule shows the first-review alert; sent before the mode, like `notch:mail-alert`. */
   'notch:review-alert': z.boolean(),
   'settings:changed': settingsSchema,
-  'terminal:data': z.string(),
-  'terminal:exit': z.strictObject({ exitCode: z.int() }),
   'claude:state-changed': claudeStateSchema,
   /** Pending questions, to the notch only (the Control Center never gets Claude's question texts). */
   'claude:questions': pendingQuestionsSchema,

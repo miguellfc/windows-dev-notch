@@ -18,7 +18,7 @@ describe('Content Security Policy', () => {
   it('production policy allows no inline or eval script', () => {
     expect(PRODUCTION_CSP).not.toContain('unsafe-eval')
     expect(PRODUCTION_CSP).toMatch(/script-src 'self'(;|$)/)
-    // xterm.js injects <style> elements at runtime; only styles are relaxed.
+    // Inline styles are injected at runtime; only styles are relaxed.
     expect(PRODUCTION_CSP).toContain("style-src 'self' 'unsafe-inline'")
     expect(PRODUCTION_CSP.match(/unsafe-inline/g)).toHaveLength(1)
     expect(PRODUCTION_CSP).toContain("default-src 'none'")

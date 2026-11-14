@@ -26,7 +26,7 @@ Sabremos que acertamos cuando, tras 2 semanas de uso diario: (a) ya no compruebo
 
 - Multiplataforma (macOS/Linux) - solo Windows 11 por ahora.
 - Launcher universal (indexar todo el PC, Menú Inicio, archivos) - PowerToys/Flow Launcher ya lo resuelven; aquí solo favoritos curados en el MVP.
-- Chat con Claude desde la cápsula - duplica la app Claude y amplía mucho el alcance. (La terminal embebida ya NO está aquí: entró en alcance con el cambio de dirección de 2026-11-09 y está hecha en M2.)
+- Chat con Claude desde la cápsula - duplica la app Claude y amplía mucho el alcance. (La terminal embebida ya NO está aquí: entró en alcance con el cambio de dirección de 2026-11-09 y se hizo en M2; **Cambio (2026-11-13): se retiró**, ver la nota al final de "Cambio de dirección".)
 - ~~Aprobar/denegar permisos de Claude desde la cápsula~~ - ya NO está excluido: se decidió el 2026-11-10 y está hecho en M3 (solo "permitir una vez" o "denegar", solo con click).
 - Multimedia, portapapeles, widgets decorativos - no resuelven el problema planteado.
 - Sincronización en la nube, cuentas, multiusuario - herramienta personal.
@@ -171,7 +171,7 @@ M0 spike técnico + M1 Foundation + M2 (redirigido a Integraciones + terminal Po
 |---|-------|-------------|--------|----------|---------|----------|
 | 1 | M0 · Spike técnico | Código desechable que resuelve las 4 incertidumbres críticas | complete | - | - | - |
 | 2 | M1 · Foundation | Scaffold, contrato IPC, tokens, cápsula con todos los estados, ventanas, Windows integration, instalador | complete | - | 1 | - |
-| 3 | M2 · Integraciones + terminal PowerShell | Fila de integraciones en el panel y terminal PowerShell real (`node-pty` + `xterm.js`). El launcher de favoritos (CRUD, búsqueda, lanzamiento por ID) queda aparcado en `feat/m2-quick-launcher` | complete | with 4, 5 | 2 | - |
+| 3 | M2 · Integraciones + terminal PowerShell (terminal embebida RETIRADA el 2026-11-13: el icono Terminal abre Windows Terminal) | Fila de integraciones en el panel y terminal PowerShell real (`node-pty` + `xterm.js`). El launcher de favoritos (CRUD, búsqueda, lanzamiento por ID) queda aparcado en `feat/m2-quick-launcher` | complete | with 4, 5 | 2 | - |
 | 4 | M3 · Claude Code status | Bridge, instalador de hooks, registro de sesiones, alertas, toast, aprobar/denegar permisos desde el notch | complete | with 3, 5 | 2 | - |
 | 5 | M4 · Recordatorios | Recordatorios locales rápidos con alerta y toast | complete | with 3, 4 | 2 | - |
 | 6 | Fase 2 · Productivity | Centro de notificaciones (SQLite), Developer Toolbox, ajustes avanzados, indexado Menú Inicio/repos | pending | - | 3, 4, 5 | - |
@@ -322,6 +322,9 @@ Verificados en la máquina real con screenshots de cada estado, no solo compilan
 5. Esc no cierra la terminal mientras tiene el foco (se usa un atajo propio para salir), y el foco vuelve a la app anterior al cerrar.
 
 ---
+
+> **Cambio (2026-11-13):** la terminal embebida (`node-pty` + `xterm.js`) se retiró. El icono Terminal ya no abre un panel con una sesión dentro del notch: lanza Windows Terminal con PowerShell 7 en la carpeta de usuario (con respaldo a pwsh y a Windows PowerShell 5.1), y el nuevo icono Claude abre Claude Desktop en un chat nuevo (`claude://claude.ai/new`). Lo anterior sobre la terminal embebida (alcance, M2, criterios) se conserva solo como historia; el chat con Claude dentro de la cápsula sigue fuera de alcance. Ver `docs/superpowers/specs/2026-11-13-claude-chat-design.md`.
+
 
 ## M4: cambios respecto al PRD original (2026-11-10)
 
