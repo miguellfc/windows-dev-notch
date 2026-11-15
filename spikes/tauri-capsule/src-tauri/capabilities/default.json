@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The capsule page only listens to the hover event.",
+  "windows": ["capsule"],
+  "permissions": ["core:default"]
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEV_CSP, PRODUCTION_CSP, injectCspMeta } from '../../../src/shared/security/csp'
+import { DEV_CSP, PRODUCTION_CSP, TAURI_PRODUCTION_CSP, injectCspMeta } from '../../../src/shared/security/csp'
+import { productionCsp } from '../../../src/shared/security/vite-csp'
 
 describe('injectCspMeta', () => {
   it('inserts the policy as the first element of <head>', () => {
@@ -28,5 +29,35 @@ describe('Content Security Policy', () => {
 
   it('dev policy never allows eval', () => {
     expect(DEV_CSP).not.toContain('unsafe-eval')
+  })
+})
+
+describe('Tauri production policy', () => {
+  it('only adds Tauri IPC to connect-src', () => {
+    expect(TAURI_PRODUCTION_CSP).toContain("connect-src 'self' ipc: http://ipc.localhost;")
+    const strip = (policy: string) => policy.split('; ').filter((directive) => !directive.startsWith('connect-src'))
+    expect(strip(TAURI_PRODUCTION_CSP)).toEqual(strip(PRODUCTION_CSP))
+  })
+
+  it('leaves the Electron policy without Tauri IPC', () => {
+    expect(PRODUCTION_CSP).toContain("connect-src 'self';")
+    expect(PRODUCTION_CSP).not.toContain('ipc')
+  })
+})
+
+describe('productionCsp plugin', () => {
+  const transform = (policy?: string) => {
+    const hook = productionCsp(policy).transformIndexHtml as { handler: (html: string) => string }
+    return (html: string) => hook.handler(html)
+  }
+
+  it('injects the Electron policy by default and the given one otherwise', () => {
+    const page = '<html><head></head><body></body></html>'
+    expect(transform()(page)).toContain(`content="${PRODUCTION_CSP}"`)
+    expect(transform(TAURI_PRODUCTION_CSP)(page)).toContain(`content="${TAURI_PRODUCTION_CSP}"`)
+  })
+
+  it('still fails the build for a page without <head>', () => {
+    expect(() => transform(TAURI_PRODUCTION_CSP)('<html><body></body></html>')).toThrow(/head/)
   })
 })

@@ -1,6 +1,6 @@
 import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
-import { useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
+import { useCallback, useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
 import { useClaude } from '../shared/claude-store'
@@ -12,6 +12,7 @@ import { useSettings } from '../shared/settings-store'
 import { useSystem } from '../shared/system-store'
 import { useClock } from '../shared/use-clock'
 import { locale, useLanguage, useT } from '../shared/use-t'
+import { createCapsuleRectReporter } from './capsule-rect'
 import { AlertCapsule } from './claude/AlertCapsule'
 import { PermissionCard } from './claude/PermissionCard'
 import { ReviewAlert } from './code-review/ReviewAlert'
@@ -190,6 +191,19 @@ function useRedmineAlert(mode: NotchMode): void {
   }, [])
 }
 
+/**
+ * Reports the painted capsule's box to main whenever it resizes and when a layout animation ends
+ * (only if it changed): Tauri lets clicks through everywhere else. Returns the capsule's ref and
+ * the re-measure for `onLayoutAnimationComplete`.
+ */
+function useCapsuleRect() {
+  const [reporter] = useState(() =>
+    createCapsuleRectReporter<HTMLDivElement>((rect) => void window.notch.notch.capsuleRect(rect), ResizeObserver),
+  )
+  const ref = useCallback((element: HTMLDivElement | null) => (element ? reporter.observe(element) : undefined), [reporter])
+  return { ref, refresh: () => reporter.refresh() }
+}
+
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
@@ -204,6 +218,7 @@ export function NotchApp() {
   useReviewAlert(mode)
   useRedmineAlert(mode)
   const gmailReading = useGmail((state) => state.reading !== null)
+  const capsuleRect = useCapsuleRect()
 
   useEffect(() => {
     // Reduced motion snaps the morph, so no layout animation completes: let the window shrink
@@ -255,6 +270,7 @@ export function NotchApp() {
         {/* Unscaled wrapper: its drop shadow follows the morph without being stretched by it. */}
         <div style={{ filter: mode === 'mini' ? LEVITATION_LOW_DROP : LEVITATION_DROP }}>
           <motion.div
+            ref={capsuleRect.ref}
             layout
             data-testid="notch-capsule"
             data-mode={mode}
@@ -262,7 +278,10 @@ export function NotchApp() {
             // would turn into a percentage of the target box and flash an ellipse on close.
             animate={{ borderRadius: capsuleRadius(mode) }}
             transition={reduceMotion ? { ...morph, borderRadius: { duration: 0 } } : morph}
-            onLayoutAnimationComplete={() => void window.notch.notch.settled()}
+            onLayoutAnimationComplete={() => {
+              void window.notch.notch.settled()
+              capsuleRect.refresh()
+            }}
             // Hover and clicks belong to the painted capsule alone (its rounded corners clip hit-testing
             // too): never the shadow room around it, which stays click-through.
             onPointerEnter={() => void window.notch.notch.pointer({ inside: true })}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The bridge only listens to events. notch_ipc is an app command (not ACL-gated); no window, tray, menu or emit permission is granted to the webviews.",
+  "windows": ["notch", "control-center"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

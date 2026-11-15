@@ -1,0 +1,51 @@
+[package]
+name = "developer-notch"
+version = "0.2.0-dev"
+edition = "2021"
+publish = false
+
+[lib]
+name = "developer_notch_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+url = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sys-locale = "0.3"
+tokio = { version = "1", features = ["fs", "sync", "macros", "time"] }
+# Cursor, monitors and focus hand-back for the capsule window (same major as tauri's own).
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+
+[features]
+# E2E builds only (`npm run test:e2e:tauri`): the `__e2e:*` channels, live `notch:pointer`, the test
+# clock and the dev overrides (data dir, watchers). Release builds never enable it.
+e2e = []
+
+# Size-oriented release profile, as a shipped Tauri app would use.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+# An always-on tray app must turn a handler panic into INTERNAL (see ipc::dispatch), not abort.
+panic = "unwind"
+
+[dev-dependencies]
+# Paused time for the usage ticker test (same tokio as above).
+tokio = { version = "1", features = ["rt", "test-util"] }

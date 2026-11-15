@@ -1,0 +1,3406 @@
+[
+  {
+    "channel": "app:get-info",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "app:get-info",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "app:get-info",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "app:get-info",
+    "direction": "output",
+    "value": {
+      "name": "Developer Notch",
+      "version": "0.2.0-dev",
+      "platform": "win32"
+    },
+    "accept": true
+  },
+  {
+    "channel": "app:get-info",
+    "direction": "output",
+    "value": {
+      "name": "",
+      "version": "0.2.0-dev",
+      "platform": "win32"
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:get-info",
+    "direction": "output",
+    "value": {
+      "name": "Developer Notch",
+      "version": "0.2.0-dev",
+      "platform": "win32",
+      "arch": "x64"
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:get-info",
+    "direction": "output",
+    "value": {
+      "name": "Developer Notch",
+      "version": "0.2.0-dev"
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:get-runtime",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "app:get-runtime",
+    "direction": "input",
+    "value": false,
+    "accept": false
+  },
+  {
+    "channel": "app:get-runtime",
+    "direction": "output",
+    "value": {
+      "isPackaged": false,
+      "shortcutRegistered": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "app:get-runtime",
+    "direction": "output",
+    "value": {
+      "isPackaged": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:get-runtime",
+    "direction": "output",
+    "value": {
+      "isPackaged": "no",
+      "shortcutRegistered": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {
+      "page": "gmail"
+    },
+    "accept": true
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {
+      "page": "code-review"
+    },
+    "accept": true
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {
+      "page": "redmine"
+    },
+    "accept": true
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {
+      "page": "settings"
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {
+      "page": "gmail",
+      "extra": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "app:hide-notch",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "app:hide-notch",
+    "direction": "input",
+    "value": 0,
+    "accept": false
+  },
+  {
+    "channel": "app:hide-notch",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "app:hide-notch",
+    "direction": "output",
+    "value": true,
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 6,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "theme": "dark"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "output",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "output",
+    "value": {
+      "version": 7,
+      "language": "fr",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:changed",
+    "direction": "event",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:changed",
+    "direction": "event",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:changed",
+    "direction": "event",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "https://redmine.example.com/",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:changed",
+    "direction": "event",
+    "value": {
+      "version": 7,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "https://redmine.example.com",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": [],
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "foo": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "version": 7
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "version": 7,
+      "language": "en"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": "en"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": "es"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": "fr"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control+Alt+Space"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Alt+F4"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Super+K"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Ctrl+num1"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "CommandOrControl+Shift+P"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Space"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Shift+A"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control+Shift"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control+"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control+Alt+Space "
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control-Alt-Space"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "shortcut": "Control+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "launchAtLogin": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "launchAtLogin": "yes"
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "reminders": {
+        "snoozeMinutes": 5,
+        "sound": false
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "reminders": {
+        "snoozeMinutes": 30,
+        "sound": true
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "reminders": {
+        "snoozeMinutes": 7,
+        "sound": true
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "reminders": {
+        "snoozeMinutes": 10.5,
+        "sound": true
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "reminders": {
+        "snoozeMinutes": 10
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true,
+        "extra": 1
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": false,
+          "percent": 50,
+          "sustainSeconds": 5
+        },
+        "ram": {
+          "enabled": false,
+          "percent": 50
+        },
+        "battery": {
+          "enabled": false,
+          "percent": 5
+        },
+        "disk": {
+          "enabled": false,
+          "freePercent": 1
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 100,
+          "sustainSeconds": 300
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 99
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 50
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 50
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 49,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 101,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90.5,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 4
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 301
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 49
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 100
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 4
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 51
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 0
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 51
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": -1
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "clientSecret": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "",
+        "clientSecret": ""
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {}
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": ""
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/group/sub"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com:8443"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/a%20b"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "http://gitlab.example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/group/"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://GitLab.Example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com:443"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://user:pw@gitlab.example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com?x=1"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com#"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": " https://gitlab.example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/a b"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "gitlab.example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "alerts": {
+          "github": {
+            "enabled": false,
+            "sound": false
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": false
+          }
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "alerts": {
+          "github": {
+            "enabled": false,
+            "sound": false
+          }
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "token": "x"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {}
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": ""
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://redmine.example.com/redmine"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "http://redmine.example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://redmine.example.com/"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://redmine.example.com?key=1"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": 1
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": 24
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": 7.5
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": 0.5
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": 24.5
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": 7.25
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "dailyTargetHours": "8"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {}
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "00:00"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "23:59"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "09:05",
+          "enabled": false,
+          "sound": false
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "24:00"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "9:00"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "18:60"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "18:00\n"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "time": "１８:００"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "endOfDay": {
+          "remindAt": "18:00"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "apiKey": "x"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "input",
+    "value": "",
+    "accept": false
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "compact",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "peek",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "alert",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "expanded",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "permission",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "question",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "reminders",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "system",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "notes",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "gmail",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "reviews",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "redmine",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "mini",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "hidden",
+    "accept": true
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "full",
+    "accept": false
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": "Compact",
+    "accept": false
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "expand"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "dismiss"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "toggle"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "next"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "pin-mini"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "unpin-mini"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "close"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": "pin_mini"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "notch:request",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notch:request",
+    "direction": "output",
+    "value": 0,
+    "accept": false
+  },
+  {
+    "channel": "notch:pointer",
+    "direction": "input",
+    "value": {
+      "inside": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:pointer",
+    "direction": "input",
+    "value": {
+      "inside": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:pointer",
+    "direction": "input",
+    "value": {
+      "inside": "yes"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:pointer",
+    "direction": "input",
+    "value": {
+      "inside": true,
+      "x": 0
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:pointer",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notch:pointer",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "notch:settled",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "notch:settled",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "notch:settled",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notch:settled",
+    "direction": "output",
+    "value": false,
+    "accept": false
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "reminders"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "system"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "notes"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "gmail"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "reviews"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "redmine"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "terminal"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "claude"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": "github"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "integration": "notes"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "notch:back",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "notch:back",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notch:back",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notch:back",
+    "direction": "output",
+    "value": "ok",
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 296,
+      "y": 6,
+      "width": 168,
+      "height": 36
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 0,
+      "y": 0,
+      "width": 358.5,
+      "height": 36.25
+    },
+    "accept": true
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": -1,
+      "y": 6,
+      "width": 168,
+      "height": 36
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 296,
+      "y": -0.5,
+      "width": 168,
+      "height": 36
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 296,
+      "y": 6,
+      "width": 0,
+      "height": 36
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 296,
+      "y": 6,
+      "width": 168,
+      "height": 0
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 296,
+      "y": 6,
+      "width": 168,
+      "height": 36,
+      "z": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": 296,
+      "y": 6,
+      "width": 168
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": {
+      "x": "296",
+      "y": "6",
+      "width": "168",
+      "height": "36"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notch:capsule-rect",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {},
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": 7
+    },
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": 14
+    },
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": 30
+    },
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": 10
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": "7"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": {
+      "days": 7,
+      "extra": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 0,
+      "runningHoursAvg": 0,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": null,
+      "claudeLatencyP95Ms": 0,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 9007199254740991,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": true
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 9007199254740992,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": -0.1,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": -1,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 1.5,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": -5,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-1-01",
+      "to": "2026-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14T00:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "２０２６-11-14"
+    },
+    "accept": false
+  },
+  {
+    "channel": "usage:summary",
+    "direction": "output",
+    "value": {
+      "days": 3,
+      "runningHoursAvg": 2.5,
+      "launches": 4,
+      "remindersFired": 1,
+      "remindersMissed": 0,
+      "remindersCompleted": 1,
+      "claudeAlerts": 2,
+      "claudeLatencyMedianMs": 1200,
+      "claudeLatencyP95Ms": null,
+      "from": "2026-11-01",
+      "to": "2026-11-14",
+      "sessions": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:mode-changed",
+    "direction": "event",
+    "value": "peek",
+    "accept": true
+  },
+  {
+    "channel": "notch:mode-changed",
+    "direction": "event",
+    "value": "hidden",
+    "accept": true
+  },
+  {
+    "channel": "notch:mode-changed",
+    "direction": "event",
+    "value": "Compact",
+    "accept": false
+  },
+  {
+    "channel": "notch:mode-changed",
+    "direction": "event",
+    "accept": false
+  },
+  {
+    "channel": "notch:mail-alert",
+    "direction": "event",
+    "value": true,
+    "accept": true
+  },
+  {
+    "channel": "notch:mail-alert",
+    "direction": "event",
+    "value": false,
+    "accept": true
+  },
+  {
+    "channel": "notch:mail-alert",
+    "direction": "event",
+    "value": "true",
+    "accept": false
+  },
+  {
+    "channel": "notch:mail-alert",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notch:mail-alert",
+    "direction": "event",
+    "value": 1,
+    "accept": false
+  },
+  {
+    "channel": "notch:review-alert",
+    "direction": "event",
+    "value": true,
+    "accept": true
+  },
+  {
+    "channel": "notch:review-alert",
+    "direction": "event",
+    "value": false,
+    "accept": true
+  },
+  {
+    "channel": "notch:review-alert",
+    "direction": "event",
+    "value": "true",
+    "accept": false
+  },
+  {
+    "channel": "notch:review-alert",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notch:review-alert",
+    "direction": "event",
+    "value": 1,
+    "accept": false
+  },
+  {
+    "channel": "notch:redmine-alert",
+    "direction": "event",
+    "value": true,
+    "accept": true
+  },
+  {
+    "channel": "notch:redmine-alert",
+    "direction": "event",
+    "value": false,
+    "accept": true
+  },
+  {
+    "channel": "notch:redmine-alert",
+    "direction": "event",
+    "value": "true",
+    "accept": false
+  },
+  {
+    "channel": "notch:redmine-alert",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notch:redmine-alert",
+    "direction": "event",
+    "value": 1,
+    "accept": false
+  },
+  {
+    "channel": "notch:request",
+    "direction": "input",
+    "value": {
+      "intent": {
+        "expand": null
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:open-integration",
+    "direction": "input",
+    "value": {
+      "id": {
+        "gmail": null
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "app:open-control-center",
+    "direction": "input",
+    "value": {
+      "page": {
+        "gmail": null
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": {
+        "es": null
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 7,
+      "language": {
+        "es": null
+      },
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:get-mode",
+    "direction": "output",
+    "value": {
+      "compact": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "notch:mode-changed",
+    "direction": "event",
+    "value": {
+      "compact": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://xn--bcher-kva.example.com"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://bücher.example.com"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://[::1]"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://[::1]:8443/gitlab"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://[0:0::1]"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/~user"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/%7Euser"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/%C3%BC"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "codeReview": {
+        "gitlabUrl": "https://gitlab.example.com/ü"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://xn--bcher-kva.example.com/redmine"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://[2001:db8::1]"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://[2001:DB8::1]"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://192.168.0.1"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://0xC0.168.0.1"
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://redmine.example.com/a%2Fb"
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "redmine": {
+        "url": "https://redmine.example.com/a\\b"
+      }
+    },
+    "accept": false
+  }
+]

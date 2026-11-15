@@ -1,0 +1,16 @@
+{
+  "en": {
+    "tray.controlCenter": "Control Center",
+    "tray.hide": "Hide",
+    "tray.launchAtLogin": "Start with Windows",
+    "tray.quit": "Quit",
+    "tray.show": "Show"
+  },
+  "es": {
+    "tray.controlCenter": "Control Center",
+    "tray.hide": "Ocultar",
+    "tray.launchAtLogin": "Iniciar con Windows",
+    "tray.quit": "Salir",
+    "tray.show": "Mostrar"
+  }
+}

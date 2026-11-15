@@ -1,0 +1,12 @@
+{
+  "name": "tauri-capsule-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Throwaway spike: the notch capsule in Tauri 2, and the same page in a minimal Electron, to compare memory and size.",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
