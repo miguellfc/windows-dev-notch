@@ -1,0 +1,1 @@
+{"session_id":"sess-aaa-111","cwd":"/fake/proj","hook_event_name":"PermissionRequest","permission_mode":"default","tool_name":"Bash","tool_input":{"command":"npm run build"},"permission_suggestions":[]}

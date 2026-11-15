@@ -1,0 +1,1 @@
+{"session_id":"sess-aaa-111","cwd":"/fake/proj","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls -la"},"tool_response":{"stdout":"fake output"},"tool_use_id":"tu1","duration_ms":12}
