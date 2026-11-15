@@ -177,11 +177,10 @@ describe('Developer Notch (Tauri)', () => {
     await expect($$('[data-testid="capsule-metrics"]')).toBeElementsArrayOfSize(0)
     const peek = await capsuleWindow()
 
-    // Pointer in: compact, same window height (only the width morphs).
-    // GAP: Electron also waits for the system metrics in compact; `system:*` answers UNAVAILABLE
-    // until part 2, so the metrics block never shows here.
+    // Pointer in: compact (with the system metrics), same window height (only the width morphs).
     await pointer(true)
     await expectMode('compact')
+    await $('[data-testid="capsule-metrics"]').waitForDisplayed({ timeout: 10_000 })
     await stays('compact')
     expect((await capsuleWindow()).height).toBe(peek.height)
 

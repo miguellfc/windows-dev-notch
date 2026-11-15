@@ -48,9 +48,30 @@ macro_rules! string_enum {
     };
 }
 
+/// `pub fn from_input(value)` on each input type: [`parse_input`] for the handlers that take it.
+macro_rules! input_entry {
+    ($($name:ident),+ $(,)?) => {
+        $(
+            impl $name {
+                /// Deserializes and validates a channel input; a refusal is INVALID_INPUT.
+                pub fn from_input(
+                    value: ::serde_json::Value,
+                ) -> Result<Self, $crate::ipc::ExposedError> {
+                    $crate::contract::parse_input(value)
+                }
+            }
+        )+
+    };
+}
+
 pub mod app;
+pub mod apps;
 pub mod notch;
+pub mod notes;
+pub mod reminders;
 pub mod settings;
+pub mod system;
+pub mod text;
 pub mod usage;
 
 use serde::de::DeserializeOwned;
@@ -71,6 +92,15 @@ pub type Ack = ();
 
 impl Validate for () {}
 impl Validate for bool {}
+
+string_enum! {
+    /// Why a notes or reminders snapshot may be incomplete: the corrupt file was moved aside, or
+    /// the session is read-only.
+    pub enum StoreNotice {
+        Quarantined = "quarantined",
+        ReadOnly = "read-only",
+    }
+}
 
 /// Which schema of a channel a value is checked against.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -147,11 +177,46 @@ pub fn check(
         ("notch:capsule-rect", Output) => required::<Ack>(value),
         ("usage:summary", Input) => required::<usage::UsageSummaryInput>(value),
         ("usage:summary", Output) => required::<usage::UsageSummary>(value),
+        ("apps:open", Input) => required::<apps::OpenAppInput>(value),
+        ("apps:open", Output) => required::<apps::OpenAppResult>(value),
+        ("system:view", Input) => required::<system::ViewInput>(value),
+        ("system:view", Output) => required::<Ack>(value),
+        ("system:kill-process", Input) => required::<system::KillInput>(value),
+        ("system:kill-process", Output) => required::<system::KillResult>(value),
+        ("notes:list", Input) | ("reminders:list", Input) => none(value),
+        ("notes:list", Output) => required::<notes::NotesSnapshot>(value),
+        ("notes:create", Input) => required::<notes::CreateNoteInput>(value),
+        ("notes:update", Input) => required::<notes::UpdateNoteInput>(value),
+        ("notes:pin", Input) => required::<notes::PinNoteInput>(value),
+        ("notes:delete" | "notes:restore" | "notes:copy", Input) => {
+            required::<notes::NoteIdInput>(value)
+        }
+        (
+            "notes:create" | "notes:update" | "notes:pin" | "notes:delete" | "notes:restore",
+            Output,
+        ) => required::<notes::Note>(value),
+        ("notes:copy", Output) => required::<Ack>(value),
+        ("reminders:list", Output) => required::<reminders::RemindersSnapshot>(value),
+        ("reminders:create", Input) => required::<reminders::CreateReminderInput>(value),
+        ("reminders:update", Input) => required::<reminders::UpdateReminderInput>(value),
+        ("reminders:snooze" | "reminders:complete" | "reminders:delete", Input) => {
+            required::<reminders::ReminderIdInput>(value)
+        }
+        (
+            "reminders:create" | "reminders:update" | "reminders:snooze" | "reminders:complete",
+            Output,
+        ) => required::<reminders::Reminder>(value),
+        ("reminders:delete", Output) => required::<Ack>(value),
         ("notch:mode-changed", Event) => required::<notch::NotchMode>(value),
         ("notch:mail-alert" | "notch:review-alert" | "notch:redmine-alert", Event) => {
             required::<bool>(value)
         }
         ("settings:changed", Event) => required::<settings::Settings>(value),
+        ("system:metrics", Event) => required::<system::SystemMetrics>(value),
+        ("system:processes", Event) => required::<system::ProcessList>(value),
+        ("notes:changed", Event) => required::<notes::NotesSnapshot>(value),
+        ("reminders:changed", Event) => required::<reminders::RemindersSnapshot>(value),
+        ("reminders:fired", Event) => required::<reminders::ReminderFired>(value),
         _ => return None,
     };
     Some(verdict)
@@ -177,7 +242,8 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-/// String length as zod measures it for `.min()`/`.max()`: Unicode code points.
+/// String length as zod measures it for `.min()`/`.max()`: Unicode code points (zod 4 counts
+/// them, not UTF-16 units; the astral-emoji cases in `contract-cases.json` pin it).
 pub(crate) fn length(value: &str) -> usize {
     value.chars().count()
 }

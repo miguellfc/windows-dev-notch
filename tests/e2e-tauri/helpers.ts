@@ -6,9 +6,10 @@
 // Callbacks passed to `browser.execute` are serialized into the page: they cannot use anything
 // from this module, only their arguments. The node tsconfig has no DOM lib, hence the casts.
 import { kill } from 'node:process'
-import { readdirSync, rmSync } from 'node:fs'
+import { readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { browser } from '@wdio/globals'
+import { createDefaultSettings, type Settings } from '../../src/shared/settings/schema'
 
 /**
  * Runs `script` in the page with `args` and returns its (awaited) result. The result travels as
@@ -152,11 +153,24 @@ export async function quitApp(): Promise<void> {
   }
 }
 
+export interface LaunchOptions {
+  /** Empty the profile first. */
+  fresh: boolean
+  /**
+   * `NOTCH_*` switches for this app only (tauri-driver gives every session the environment it
+   * started with): passed as `--e2e-env-NAME=VALUE` arguments, which the `e2e` build applies
+   * before anything reads the environment (`e2e::apply_cli_env`).
+   */
+  env?: Record<string, string>
+  /** Files written into the profile before the app starts (`settings.json`, `reminders.json`...). */
+  files?: Record<string, unknown>
+}
+
 /**
  * Starts the app in a new WebDriver session (tauri-driver launches a new process), on the notch
  * webview once the capsule is on screen. `fresh` empties the profile first.
  */
-export async function launch({ fresh }: { fresh: boolean }): Promise<void> {
+export async function launch({ fresh, env = {}, files = {} }: LaunchOptions): Promise<void> {
   // The first launch (or one after a failed launch) does not know the pid of the app the current
   // session started, which still writes into the profile: adopt it so it is quit before the
   // profile is emptied (Windows cannot delete its open log file).
@@ -175,13 +189,121 @@ export async function launch({ fresh }: { fresh: boolean }): Promise<void> {
       rmSync(join(dataDir(), entry), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
     }
   }
+  for (const [name, value] of Object.entries(files)) {
+    writeFileSync(join(dataDir(), name), JSON.stringify(value), 'utf8')
+  }
   sessionAppUnknown = true
-  await browser.reloadSession()
+  const application = process.env['NOTCH_E2E_APP']
+  if (!application) throw new Error('NOTCH_E2E_APP is not set: run through wdio.conf.mts')
+  // One switch per variable: msedgedriver passes them on as Chromium switches (one value per name).
+  const args = Object.entries(env).map(([name, value]) => `--e2e-env-${name}=${value}`)
+  await browser.reloadSession({ 'tauri:options': { application, args } } as WebdriverIO.Capabilities)
   await useWindow('notch')
   await browser.$('[data-testid="notch-capsule"]').waitForDisplayed({ timeout: 20_000 })
   appPid = await e2e<number>('pid')
   sessionAppUnknown = false
 }
+
+/**
+ * `settings.json` as the Electron specs seed it (Spanish, reminders without sound, these system
+ * alerts). GAP: Electron writes a version 3 file and its store migrates it; the Rust store has no
+ * migrations (an older version is quarantined), so the same values go into a current-version file.
+ */
+export const seededSettings = (systemAlerts: Settings['systemAlerts']): Settings => ({
+  ...createDefaultSettings('es'),
+  language: 'es',
+  shortcut: 'Control+Alt+Space',
+  launchAtLogin: false,
+  reminders: { snoozeMinutes: 10, sound: false },
+  systemAlerts,
+})
+
+/** Every system alert on, at the defaults (the seed of the notes and reminders specs). */
+export const DEFAULT_ALERTS = {
+  cpu: { enabled: true, percent: 90, sustainSeconds: 30 },
+  ram: { enabled: true, percent: 90 },
+  battery: { enabled: true, percent: 15 },
+  disk: { enabled: true, freePercent: 10 },
+}
+
+/** Saves the language through the page's own API. */
+export const setLanguage = async (language: 'es' | 'en'): Promise<void> => {
+  const saved = await inPage(
+    (value) =>
+      (
+        globalThis as unknown as { notch: { settings: { update(patch: unknown): Promise<unknown> } } }
+      ).notch.settings.update({ language: value }),
+    language,
+  )
+  if (!(saved as { ok?: boolean } | null)?.ok) throw new Error(`settings.update failed: ${JSON.stringify(saved)}`)
+}
+
+/** `window.notch.notch.request({ intent })`. */
+export const requestIntent = (intent: 'expand' | 'toggle' | 'dismiss'): Promise<unknown> =>
+  inPage(
+    (value) =>
+      (globalThis as unknown as { notch: { notch: { request(input: unknown): Promise<unknown> } } }).notch.notch.request({
+        intent: value,
+      }),
+    intent,
+  )
+
+/** Opens the Control Center from the notch and switches WebDriver to it. */
+export async function openControlCenter(): Promise<void> {
+  await inPage(() => (globalThis as unknown as { notch: { app: { openControlCenter(): Promise<unknown> } } }).notch.app.openControlCenter())
+  await useWindow('control-center')
+  await browser.$('h1').waitForDisplayed()
+}
+
+/**
+ * Playwright's `fill`: focuses the field and sets its whole value at once (a date input takes
+ * WebDriver keystrokes in the OS locale's order, and a cleared React field keeps its old state):
+ * the native setter, then the `input` and `change` events React listens to.
+ */
+export const fillValue = (selector: string, value: string): Promise<void> =>
+  inPage(
+    (sel: string, text: string) => {
+      type Input = { dispatchEvent(event: unknown): boolean; focus(): void; tagName: string }
+      const w = globalThis as unknown as {
+        document: { querySelector(s: string): Input | null }
+        HTMLInputElement: { prototype: object }
+        HTMLTextAreaElement: { prototype: object }
+        Event: new (type: string, init: Record<string, unknown>) => unknown
+      }
+      const el = w.document.querySelector(sel)
+      if (!el) throw new Error(`No element ${sel}`)
+      el.focus()
+      const proto = el.tagName === 'TEXTAREA' ? w.HTMLTextAreaElement.prototype : w.HTMLInputElement.prototype
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
+      setter?.call(el, text)
+      el.dispatchEvent(new w.Event('input', { bubbles: true }))
+      el.dispatchEvent(new w.Event('change', { bubbles: true }))
+    },
+    selector,
+    value,
+  )
+
+/** Moves WebDriver's virtual pointer to the top-left corner of the page (`mouse.move(1, 1)`). */
+export const pointerToCorner = (): Promise<void> =>
+  browser.action('pointer').move({ x: 1, y: 1, origin: 'viewport' }).perform()
+
+/** A computed style of the first element matching `selector`. */
+export const cssOf = (selector: string, property: string): Promise<string | null> =>
+  inPage(
+    (sel: string, prop: string) => {
+      const w = globalThis as unknown as {
+        document: { querySelector(s: string): unknown }
+        getComputedStyle(el: unknown): { getPropertyValue(p: string): string }
+      }
+      const el = w.document.querySelector(sel)
+      return el ? w.getComputedStyle(el).getPropertyValue(prop) : null
+    },
+    selector,
+    property,
+  )
+
+/** Whether the process `pid` is running (signal 0). */
+export const isAlive = alive
 
 /**
  * Stable replacement for fixed sleeps (tests/e2e/settle.ts): resolves once fonts are loaded and,
@@ -242,3 +364,26 @@ export const clickCapsule = (button: 'left' | 'right' = 'left'): Promise<void> =
     const init = { bubbles: true, cancelable: true, button: which === 'right' ? 2 : 0 }
     el.dispatchEvent(new w.MouseEvent(which === 'right' ? 'contextmenu' : 'click', init))
   }, button)
+
+/** The first element matching `selector`: its box in the page (CSS px), `null` when absent. */
+export const rectOf = (selector: string): Promise<Rect | null> =>
+  inPage((sel: string) => {
+    const el = (
+      globalThis as unknown as { document: { querySelector(s: string): { getBoundingClientRect(): Rect } | null } }
+    ).document.querySelector(sel)
+    if (!el) return null
+    const { x, y, width, height } = el.getBoundingClientRect()
+    return { x, y, width, height }
+  }, selector)
+
+/** The bottom of the panel's clock (the first element whose whole text is HH:mm), in page px. */
+export const clockBottom = (): Promise<number | null> =>
+  inPage(() => {
+    const doc = (
+      globalThis as unknown as {
+        document: { querySelectorAll(s: string): ArrayLike<{ textContent: string | null; getBoundingClientRect(): { bottom: number } }> }
+      }
+    ).document
+    const el = Array.from(doc.querySelectorAll('span, time, div, p')).find((node) => /^[0-9]{2}:[0-9]{2}$/.test(node.textContent ?? ''))
+    return el ? el.getBoundingClientRect().bottom : null
+  })

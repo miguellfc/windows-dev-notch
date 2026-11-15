@@ -41,3 +41,21 @@ Lectura:
 - 7 procesos: el principal de Rust y 6 de WebView2. Son 17 MB de memoria privada más que la cápsula mínima, por React, las fuentes y la interfaz completa; todavía sin las integraciones, que sumarán su parte.
 - El instalador queda en 2,19 MB, por debajo de la estimación de 3–8 MB, frente a los 117 MB de la 0.1.0.
 - El ejecutable de `release` no contiene ningún canal `__e2e:`: solo existen con la feature `e2e`, que usan las pruebas de extremo a extremo (`docs/tauri-e2e.md`).
+
+## Parte 2: sistema, notas, recordatorios y apps (2026-11-15)
+
+La parte 1 más el monitor del sistema (métricas de la cápsula, alertas, vista Sistema con la lista de procesos), las notas, los recordatorios (avisos, notificaciones de Windows, eventos de energía) y las baldosas de Claude y Terminal. Claude, GitHub, GitLab, Redmine y Gmail siguen respondiendo `UNAVAILABLE`. Compilado con `npm run tauri:build` (perfil `release`, NSIS) y medido igual que la parte 1: el ejecutable de `release` con la carpeta de datos real, 15 s después de arrancar, en reposo en peek (ventana de la cápsula visible), sin abrir el Control Center y sin integraciones configuradas. Además de la ventana de 15 s de `measure.ps1`, se midió la CPU durante 60 s.
+
+| | Memoria privada | Conjunto de trabajo | CPU en reposo (15 s / 60 s) | Instalador | En disco |
+|---|---|---|---|---|---|
+| Developer Notch 0.2.0-dev (Tauri, parte 2) | 180–187 MB | 404–406 MB | 0,10 % / 0,22 % | 2,37 MB | 8,2 MB exe + WebView2 del sistema |
+
+Desglose de la memoria privada por proceso: principal (Rust) 7, navegador WebView2 36, GPU 83, renderer 33, utilidades 11 y 7, crashpad 3.
+
+Lectura:
+
+- Siguen siendo 7 procesos. La memoria privada sube unos 25–30 MB respecto a la parte 1 (155 MB). Casi todo es WebView2; la mayor partida es el proceso de GPU (83 MB; no hay desglose por proceso de la parte 1 para compararlo). El proceso de Rust con los cuatro módulos nuevos se queda en 7 MB.
+- El instalador pasa de 2,19 a 2,37 MB y el ejecutable de 7,5 a 8,2 MB, por los módulos nuevos y las dependencias de notificaciones (`tauri-winrt-notification`), identificadores (`uuid`) y normalización de texto (`icu_normalizer`).
+- CPU: ahora el monitor del sistema sigue muestreando en peek (ritmo ligero, cada 3 s), y aun así la medida sale más baja que en la parte 1 (0,9 %): 0,10 % de un núcleo en la ventana de 15 s y 0,22 % en la de 60 s. Con tan poco consumo, la medida depende mucho de qué hagan los procesos de WebView2 durante la ventana; la diferencia con la parte 1 entra en ese ruido, no se debe a ningún cambio que la reduzca.
+- La prueba de extremo a extremo de coste en reposo mide sobre la compilación de depuración con WebDriver conectado y da entre 0,54 y 1,07 % de un núcleo. Con 16 procesadores lógicos eso es entre 0,034 y 0,067 % de la máquina, la unidad de `percentCPUUsage` de Electron (comprobado: un núcleo ocupado durante 2 s marca 6,26 %), muy por debajo del umbral de 0,5 % de la prueba de Electron.
+- El ejecutable de `release` sigue sin ningún canal `__e2e:`.

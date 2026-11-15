@@ -10,7 +10,10 @@ import type { Capabilities, Options } from '@wdio/types'
 import { SevereServiceError } from 'webdriverio'
 
 const root = resolve(import.meta.dirname, '../..')
-const application = join(root, 'src-tauri/target/debug/developer-notch.exe')
+// Another `e2e` build (a release one, say) can be given with NOTCH_E2E_APP.
+const application = process.env['NOTCH_E2E_APP'] ?? join(root, 'src-tauri/target/debug/developer-notch.exe')
+// The specs relaunch the app with their own arguments (helpers.ts `launch`); workers inherit this.
+process.env['NOTCH_E2E_APP'] = application
 const tauriDriverPath = process.env['TAURI_DRIVER'] ?? join(homedir(), '.cargo/bin/tauri-driver.exe')
 const nativeDriverPath =
   process.env['NOTCH_MSEDGEDRIVER'] ?? join(process.env['LOCALAPPDATA'] ?? '', 'Programs/msedgedriver/msedgedriver.exe')
@@ -31,6 +34,9 @@ function appEnv(dataDir: string): Record<string, string> {
     NOTCH_DISABLE_FOREGROUND_WATCH: '1',
     NOTCH_DISABLE_CURSOR_POLL: '1',
     NOTCH_TEST_CLOCK: '1',
+    // Defence in depth: launches are recorded, never executed, in every session, so no spec can
+    // open Claude Desktop, a browser or a terminal for real (apps.spec also sets it per launch).
+    NOTCH_APP_LAUNCH_LOG: '1',
   }
 }
 
@@ -77,7 +83,7 @@ type TauriCapabilities = Capabilities.RequestedStandaloneCapabilities & { 'tauri
 
 export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } = {
   runner: 'local',
-  specs: ['./app.spec.ts'],
+  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts'],
   maxInstances: 1,
   hostname: '127.0.0.1',
   port: DRIVER_PORT,

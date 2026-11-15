@@ -1,5 +1,10 @@
 {
   "en": {
+    "reminders.toast.missedMany": "You have {count} missed reminders",
+    "reminders.toast.missedOne": "You have 1 missed reminder",
+    "reminders.toast.missedTitle": "Missed reminders",
+    "reminders.toast.title": "Reminder",
+    "reminders.toast.titleMany": "{count} reminders",
     "tray.controlCenter": "Control Center",
     "tray.hide": "Hide",
     "tray.launchAtLogin": "Start with Windows",
@@ -7,6 +12,11 @@
     "tray.show": "Show"
   },
   "es": {
+    "reminders.toast.missedMany": "Tienes {count} recordatorios perdidos",
+    "reminders.toast.missedOne": "Tienes 1 recordatorio perdido",
+    "reminders.toast.missedTitle": "Recordatorios perdidos",
+    "reminders.toast.title": "Recordatorio",
+    "reminders.toast.titleMany": "{count} recordatorios",
     "tray.controlCenter": "Control Center",
     "tray.hide": "Ocultar",
     "tray.launchAtLogin": "Iniciar con Windows",

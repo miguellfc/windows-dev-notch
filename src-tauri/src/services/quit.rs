@@ -1,11 +1,13 @@
 //! Ordered quit (`src/main/services/quit-flush.ts` and the `will-quit` block of
-//! `src/main/index.ts`): the first exit request is prevented, the usage log is flushed (at most
-//! [`QUIT_FLUSH_MS`]), the cleanup runs, and the app exits again with the same code.
+//! `src/main/index.ts`): the first exit request is prevented, the registered flushers run (in
+//! parallel, at most [`QUIT_FLUSH_MS`]), the registered cleanups run in order, and the app exits
+//! again with the same code.
 
 use std::future::Future;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use tauri::async_runtime::JoinHandle;
@@ -125,8 +127,88 @@ impl QuitFlush {
     }
 }
 
+/// Saves one module's pending state at quit (e.g. wait for in-flight writes).
+pub type Flusher = Box<dyn Fn() -> FlushFuture + Send + Sync>;
+/// Stops one module at quit; told which thread it runs on (see [`CleanupThread`]).
+pub type Cleanup = Box<dyn Fn(CleanupThread) + Send + Sync>;
+
+/// What each module registers for the quit (`Promise.all([usage.flush(), notes.flush()])` and
+/// the `will-quit` cleanup list of `src/main/index.ts`). Managed as `Arc<QuitTasks>` by
+/// [`install`]: the usage flush and the notch cleanup come first; modules add theirs after.
+#[derive(Default)]
+pub struct QuitTasks {
+    flushers: Mutex<Vec<Arc<Flusher>>>,
+    cleanups: Mutex<Vec<Arc<Cleanup>>>,
+}
+
+impl QuitTasks {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
+    }
+
+    /// Runs in parallel with the other flushers; all of them share the [`QUIT_FLUSH_MS`] cap.
+    pub fn add_flusher(&self, f: impl Fn() -> FlushFuture + Send + Sync + 'static) {
+        lock(&self.flushers).push(Arc::new(Box::new(f)));
+    }
+
+    /// Runs once, after the cleanups registered before it. On [`CleanupThread::Main`] it must
+    /// never wait on a lock a worker may hold nor on a main-thread round trip.
+    pub fn add_cleanup(&self, f: impl Fn(CleanupThread) + Send + Sync + 'static) {
+        lock(&self.cleanups).push(Arc::new(Box::new(f)));
+    }
+
+    /// Every flusher, each as its own task (a panic or a hang in one never stops the others);
+    /// settles when all have. The caller bounds the wait.
+    fn flush_all(&self) -> FlushFuture {
+        let flushers = lock(&self.flushers).clone();
+        let tasks: Vec<_> = flushers
+            .into_iter()
+            .map(|flusher| tauri::async_runtime::spawn(async move { (flusher)().await }))
+            .collect();
+        Box::pin(async move {
+            for task in tasks {
+                if task.await.is_err() {
+                    log::error!("A quit flusher failed");
+                }
+            }
+        })
+    }
+
+    /// Every cleanup in registration order; a panicking one is logged and the rest still run.
+    fn cleanup_all(&self, thread: CleanupThread) {
+        let cleanups = lock(&self.cleanups).clone();
+        for cleanup in cleanups {
+            if catch_unwind(AssertUnwindSafe(|| cleanup(thread))).is_err() {
+                log::error!("A quit cleanup panicked");
+            }
+        }
+        log::info!("Developer Notch stopped");
+    }
+}
+
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The [`QuitHooks`] that flush and clean up through `tasks`.
+pub fn tasks_hooks(
+    tasks: Arc<QuitTasks>,
+    on_flush_start: Box<dyn Fn() + Send + Sync>,
+    quit: Box<dyn Fn(i32) + Send + Sync>,
+) -> QuitHooks {
+    let flush_tasks = Arc::clone(&tasks);
+    QuitHooks {
+        on_flush_start,
+        flush: Box::new(move || flush_tasks.flush_all()),
+        cleanup: Box::new(move |thread| tasks.cleanup_all(thread)),
+        quit,
+    }
+}
+
 /// Wires the ordered quit of the app (the `will-quit` block of `src/main/index.ts`): stop the
-/// usage ticker, flush the usage log, then the cleanup and the exit.
+/// usage ticker, run every registered flusher (the usage log first), then every registered
+/// cleanup (the notch one first) and the exit. Manages the [`QuitTasks`] so modules installed
+/// later can add theirs (`app.state::<Arc<QuitTasks>>()`).
 ///
 /// Threads: the flush runs on the async runtime and the cleanup on a blocking-pool thread while
 /// the main thread keeps pumping events, so the shortcut's `dispose` (which waits on its `turn`
@@ -135,28 +217,32 @@ impl QuitFlush {
 /// that path never waits on a lock a worker may hold (`try_dispose`) and removes the tray inline.
 pub fn install(app: &AppHandle, usage: UsageLog, ticker: JoinHandle<()>) -> Arc<QuitFlush> {
     let ticker = Mutex::new(Some(ticker));
+    let tasks = QuitTasks::new();
+    tasks.add_flusher(move || {
+        let usage = usage.clone();
+        Box::pin(async move { usage.flush().await })
+    });
     let cleanup_app = app.clone();
+    tasks.add_cleanup(move |thread| cleanup(&cleanup_app, thread));
+    app.manage(Arc::clone(&tasks));
     let quit_app = app.clone();
     QuitFlush::new(
-        QuitHooks {
-            on_flush_start: Box::new(move || {
-                let ticker = ticker.lock().unwrap_or_else(PoisonError::into_inner).take();
+        tasks_hooks(
+            tasks,
+            Box::new(move || {
+                let ticker = lock(&ticker).take();
                 if let Some(ticker) = ticker {
                     ticker.abort();
                 }
             }),
-            flush: Box::new(move || {
-                let usage = usage.clone();
-                Box::pin(async move { usage.flush().await })
-            }),
-            cleanup: Box::new(move |thread| cleanup(&cleanup_app, thread)),
-            quit: Box::new(move |code| quit_app.exit(code)),
-        },
+            Box::new(move |code| quit_app.exit(code)),
+        ),
         Duration::from_millis(QUIT_FLUSH_MS),
     )
 }
 
-/// Foreground watcher, pollers, controller, shortcut and tray, in the Electron order.
+/// The first cleanup: foreground watcher, pollers, controller, shortcut and tray, in the Electron
+/// order.
 fn cleanup(app: &AppHandle, thread: CleanupThread) {
     if let Some(notch) = app.try_state::<Arc<NotchRuntime>>() {
         notch.stop_foreground_watch();
@@ -174,7 +260,6 @@ fn cleanup(app: &AppHandle, thread: CleanupThread) {
         }
     }
     tray::remove(app, thread == CleanupThread::Main);
-    log::info!("Developer Notch stopped");
 }
 
 #[cfg(test)]
@@ -393,6 +478,89 @@ mod tests {
         assert_eq!(quit.on_exit_requested(0), ExitDecision::Proceed);
         assert_eq!(calls.starts.load(Ordering::SeqCst), 1);
         assert_eq!(*calls.order.lock().unwrap(), ["start", "flush", "cleanup"]);
+    }
+
+    /// A [`QuitFlush`] over registered tasks, like `install` builds, on a [`FakeApp`].
+    fn wire_tasks(tasks: &Arc<QuitTasks>, timeout_ms: u64) -> Arc<FakeApp> {
+        let app = Arc::new(FakeApp::default());
+        let weak: Weak<FakeApp> = Arc::downgrade(&app);
+        let hooks = tasks_hooks(
+            Arc::clone(tasks),
+            Box::new(|| {}),
+            Box::new(move |code| {
+                if let Some(app) = weak.upgrade() {
+                    app.exit(code);
+                }
+            }),
+        );
+        let quit = QuitFlush::new(hooks, Duration::from_millis(timeout_ms));
+        assert!(app.quit.set(quit).is_ok());
+        app
+    }
+
+    #[test]
+    fn quit_flushes_all_registered_flushers_within_cap() {
+        let tasks = QuitTasks::new();
+        let done = Arc::new(Mutex::new(Vec::new()));
+        for (name, ms) in [("usage", 150u64), ("notes", 150)] {
+            let done = Arc::clone(&done);
+            tasks.add_flusher(move || {
+                let done = Arc::clone(&done);
+                Box::pin(async move {
+                    tokio::time::sleep(Duration::from_millis(ms)).await;
+                    done.lock().unwrap().push(name);
+                })
+            });
+        }
+        // One that never settles and one that panics: neither holds up the others or the exit.
+        tasks.add_flusher(|| Box::pin(std::future::pending()));
+        tasks.add_flusher(|| Box::pin(async { panic!("disk on fire") }));
+        // In parallel: two 150 ms flushes fit in a 250 ms cap only if they overlap.
+        let app = wire_tasks(&tasks, 250);
+        let started = Instant::now();
+        app.exit(0);
+        wait_until(|| app.exited());
+        let elapsed = started.elapsed();
+        let mut done = done.lock().unwrap().clone();
+        done.sort_unstable();
+        assert_eq!(done, ["notes", "usage"]);
+        // The cap bounds the wait on the pending one.
+        assert!(elapsed >= Duration::from_millis(250), "{elapsed:?}");
+        assert!(elapsed < Duration::from_millis(2_000), "{elapsed:?}");
+    }
+
+    #[test]
+    fn cleanups_run_in_registration_order() {
+        let tasks = QuitTasks::new();
+        let order = Arc::new(Mutex::new(Vec::new()));
+        for name in ["notch", "reminders", "system"] {
+            let order = Arc::clone(&order);
+            tasks.add_cleanup(move |thread| order.lock().unwrap().push((name, thread)));
+        }
+        // A panicking cleanup is logged; the later ones still run.
+        tasks.add_cleanup(|_| panic!("boom"));
+        {
+            let order = Arc::clone(&order);
+            tasks.add_cleanup(move |thread| order.lock().unwrap().push(("last", thread)));
+        }
+        let app = wire_tasks(&tasks, 2_000);
+        app.exit(0);
+        wait_until(|| app.exited());
+        // A later request changes nothing: the cleanups ran once.
+        assert_eq!(
+            app.quit.get().unwrap().on_exit_requested(0),
+            ExitDecision::Proceed
+        );
+        let worker = CleanupThread::Worker;
+        assert_eq!(
+            *order.lock().unwrap(),
+            [
+                ("notch", worker),
+                ("reminders", worker),
+                ("system", worker),
+                ("last", worker)
+            ]
+        );
     }
 
     #[test]

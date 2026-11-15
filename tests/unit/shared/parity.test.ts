@@ -60,10 +60,35 @@ const fixtures: readonly ParityFixture[] = [
   { file: 'notch-traces.json', source: 'notch/state.ts', build: buildNotchTraces, compact: true },
   { file: 'geometry.json', source: 'notch/geometry.ts', build: buildGeometry },
   { file: 'i18n-main.json', source: 'i18n/messages.ts', build: buildMainMessages },
+  { file: 'unicode-classes.json', source: 'text.ts, notes/schema.ts, reminders/schema.ts', build: buildUnicodeClasses, compact: true },
 ]
 
+/**
+ * The code point classes the text rules use (`.trim()` and `\s`, `\p{Cc}`/`\p{Cf}`,
+ * `\p{Default_Ignorable_Code_Point}`), as inclusive ranges from this runtime's regex engine; the
+ * Rust tables must equal them.
+ */
+function buildUnicodeClasses(): unknown {
+  const ranges = (matches: (char: string) => boolean): [number, number][] => {
+    const out: [number, number][] = []
+    for (let code = 0; code <= 0x10ffff; code++) {
+      if (code >= 0xd800 && code <= 0xdfff) continue
+      if (!matches(String.fromCodePoint(code))) continue
+      const last = out.at(-1)
+      if (last && last[1] === code - 1) last[1] = code
+      else out.push([code, code])
+    }
+    return out
+  }
+  return {
+    whitespace: ranges((char) => char.trim() === '' && /^\s$/u.test(char)),
+    controlOrFormat: ranges((char) => /^[\p{Cc}\p{Cf}]$/u.test(char)),
+    defaultIgnorable: ranges((char) => /^\p{Default_Ignorable_Code_Point}$/u.test(char)),
+  }
+}
+
 /** Prefixes of the message keys the Rust crate shows itself (the tray menu). */
-const rustMessagePrefixes = ['tray.'] as const
+const rustMessagePrefixes = ['reminders.toast.', 'tray.'] as const
 
 /** The texts the Rust crate needs, per language, loaded there with `include_str!`. */
 function buildMainMessages(): unknown {
@@ -204,6 +229,22 @@ const portedChannels = [
   'notch:back',
   'notch:capsule-rect',
   'usage:summary',
+  'system:view',
+  'system:kill-process',
+  'notes:list',
+  'notes:create',
+  'notes:update',
+  'notes:pin',
+  'notes:delete',
+  'notes:restore',
+  'notes:copy',
+  'reminders:list',
+  'reminders:create',
+  'reminders:update',
+  'reminders:snooze',
+  'reminders:complete',
+  'reminders:delete',
+  'apps:open',
 ] as const satisfies readonly ChannelName[]
 const portedEvents = [
   'notch:mode-changed',
@@ -211,6 +252,11 @@ const portedEvents = [
   'notch:review-alert',
   'notch:redmine-alert',
   'settings:changed',
+  'system:metrics',
+  'system:processes',
+  'notes:changed',
+  'reminders:changed',
+  'reminders:fired',
 ] as const satisfies readonly EventName[]
 
 const contractCases = JSON.parse(readFileSync(resolve(parityDir, 'contract-cases.json'), 'utf8')) as ContractCase[]

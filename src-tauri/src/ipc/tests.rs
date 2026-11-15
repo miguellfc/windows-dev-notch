@@ -224,10 +224,7 @@ fn test_channels_exist_only_in_the_e2e_build() {
         .iter()
         .all(|name| !name.starts_with(TEST_CHANNEL_PREFIX)));
 
-    let registry = crate::build_registry(
-        &std::sync::Arc::new(crate::notch::ipc::NotchSlot::new()),
-        &std::sync::Arc::new(std::sync::OnceLock::new()),
-    );
+    let registry = crate::build_registry(&crate::Slots::default());
     let mut test_channels: Vec<&str> = registry
         .channel_names()
         .into_iter()

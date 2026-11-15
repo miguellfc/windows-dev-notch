@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
+use crate::apps::LaunchLog;
 use crate::contract::notch::PointerInput;
 use crate::contract::{parse_input, Validate};
 use crate::ipc::{
@@ -22,13 +23,26 @@ use crate::ipc::{
 use crate::notch::display::work_area_dip;
 use crate::notch::runtime::NotchRuntime;
 use crate::notch::state::NotchEvent;
+use crate::reminders::Reminders;
+use crate::services::clock::WallClock;
 
 /// `NOTCH_TEST_CLOCK=1`: the controller's timers follow a clock `__e2e:advance-clock` moves.
 pub fn test_clock_enabled() -> bool {
     std::env::var("NOTCH_TEST_CLOCK").as_deref() == Ok("1")
 }
 
-type Handler = fn(&AppHandle, Value) -> Result<Value, ExposedError>;
+type HandlerFn = fn(&AppHandle, Value) -> Result<Value, ExposedError>;
+type AsyncHandlerFn = fn(AppHandle, Value) -> BoxFuture<'static, Result<Value, ExposedError>>;
+
+/// How a test channel runs: inline on the IPC task, on a blocking-pool thread for the ones
+/// that wait on Win32 (the clipboard may retry for up to 100 ms), or as a future for the ones
+/// that wait on async work (the reminders check after the clock moves).
+#[derive(Clone, Copy)]
+pub enum Handler {
+    Inline(HandlerFn),
+    Blocking(HandlerFn),
+    Async(AsyncHandlerFn),
+}
 
 struct TestChannel(Handler);
 
@@ -38,11 +52,24 @@ impl Channel for TestChannel {
         ctx: &'a Ctx,
         input: Value,
     ) -> BoxFuture<'a, Result<Value, ExposedError>> {
-        let result = match ctx.app() {
-            Some(app) => (self.0)(app, input),
-            None => Err(unavailable()),
+        let Some(app) = ctx.app() else {
+            return Box::pin(async { Err(unavailable()) });
         };
-        Box::pin(async move { result })
+        match self.0 {
+            Handler::Inline(handler) => {
+                let result = handler(app, input);
+                Box::pin(async move { result })
+            }
+            Handler::Blocking(handler) => {
+                let app = app.clone();
+                Box::pin(async move {
+                    tauri::async_runtime::spawn_blocking(move || handler(&app, input))
+                        .await
+                        .map_err(internal)?
+                })
+            }
+            Handler::Async(handler) => handler(app.clone(), input),
+        }
     }
 }
 
@@ -156,12 +183,27 @@ struct AdvanceClockInput {
 
 impl Validate for AdvanceClockInput {}
 
-fn advance_clock(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
-    let AdvanceClockInput { ms } = parse_input(input)?;
-    let notch = runtime(app)?;
-    let clock = notch.test_clock().ok_or_else(unavailable)?;
-    clock.advance(ms);
-    Ok(Value::Null)
+/// Moves the test clock (`__notchTestClock.advance`): the wall clock, the timers due by then,
+/// and answers once the reminders check it forces has finished (Electron returns that promise).
+fn advance_clock(app: AppHandle, input: Value) -> BoxFuture<'static, Result<Value, ExposedError>> {
+    Box::pin(async move {
+        let AdvanceClockInput { ms } = parse_input(input)?;
+        let notch = runtime(&app)?;
+        let clock = notch.test_clock().ok_or_else(unavailable)?;
+        // The wall clock first (`clockOffsetMs += ms` in Electron), so whatever the due timers
+        // run already sees the new time.
+        if let Some(wall) = app.try_state::<Arc<WallClock>>() {
+            wall.advance(i64::try_from(ms).unwrap_or(i64::MAX));
+        }
+        clock.advance(ms);
+        let reminders = app
+            .try_state::<Arc<Reminders>>()
+            .map(|state| Arc::clone(&state));
+        if let Some(reminders) = reminders {
+            reminders.check().await;
+        }
+        Ok(Value::Null)
+    })
 }
 
 fn pointer(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
@@ -221,17 +263,166 @@ fn quit(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
     Ok(Value::Null)
 }
 
+/// What the launcher recorded under `NOTCH_APP_LAUNCH_LOG=1` (`__notchAppLaunches` in Electron)
+/// and the user folder the terminal must open in. UNAVAILABLE without the switch.
+fn app_launches(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
+    no_input(&input)?;
+    let log = app
+        .try_state::<Arc<LaunchLog>>()
+        .map(|state| Arc::clone(&state))
+        .ok_or_else(unavailable)?;
+    json(serde_json::json!({ "launches": log.records(), "home": log.home }))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClipboardInput {
+    text: String,
+}
+
+impl Validate for ClipboardInput {}
+
+/// The system clipboard: no input reads its text (`null` when it holds none); `{text}` writes
+/// it (to put back what the user had before the copy test).
+fn clipboard(_app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
+    if input.is_null() {
+        return json(crate::platform::clipboard::read_text().map_err(internal)?);
+    }
+    let ClipboardInput { text } = parse_input(input)?;
+    crate::platform::clipboard::write_text(&text).map_err(internal)?;
+    Ok(Value::Null)
+}
+
+/// Accumulated CPU time (user + kernel, ms) of this app's process tree (`cpuMs`, and `perProcess`
+/// by pid, this process first): this process and every
+/// descendant (the WebView2 browser, renderer, GPU and utility processes), the Tauri twin of
+/// summing Electron's `app.getAppMetrics()`. A process that ended between the snapshot and the
+/// read is skipped, so callers compare readings taken a few seconds apart.
+fn process_cpu(_app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
+    no_input(&input)?;
+    let tree = process_tree(std::process::id());
+    let per_process: Vec<Value> = tree
+        .iter()
+        .filter_map(|&pid| {
+            cpu_time_ms(pid).map(|ms| serde_json::json!({ "pid": pid, "cpuMs": ms }))
+        })
+        .collect();
+    let cpu_ms: f64 = per_process
+        .iter()
+        .filter_map(|entry| entry["cpuMs"].as_f64())
+        .sum();
+    json(serde_json::json!({
+        "cpuMs": cpu_ms,
+        "processes": tree.len(),
+        "perProcess": per_process,
+    }))
+}
+
+/// `root` and all its descendants, from one toolhelp snapshot.
+fn process_tree(root: u32) -> Vec<u32> {
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
+    };
+    let mut parents: Vec<(u32, u32)> = Vec::new();
+    // SAFETY: plain values in; the handle is checked and closed below.
+    let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+    if snapshot.is_null() || snapshot == INVALID_HANDLE_VALUE {
+        return vec![root];
+    }
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        ..Default::default()
+    };
+    // SAFETY: valid snapshot handle and a local entry with its size field set.
+    let mut ok = unsafe { Process32FirstW(snapshot, &mut entry) } != 0;
+    while ok {
+        parents.push((entry.th32ProcessID, entry.th32ParentProcessID));
+        // SAFETY: as above.
+        ok = unsafe { Process32NextW(snapshot, &mut entry) } != 0;
+    }
+    // SAFETY: the snapshot handle is valid and closed exactly once.
+    unsafe {
+        CloseHandle(snapshot);
+    }
+    let mut tree = vec![root];
+    let mut index = 0;
+    while index < tree.len() {
+        let parent = tree[index];
+        for &(pid, parent_pid) in &parents {
+            // pid 0 (System Idle) lists itself as its own parent.
+            if parent_pid == parent && pid != parent && !tree.contains(&pid) {
+                tree.push(pid);
+            }
+        }
+        index += 1;
+    }
+    tree
+}
+
+/// `GetProcessTimes` kernel + user time of `pid`, in ms; `None` when it cannot be read.
+fn cpu_time_ms(pid: u32) -> Option<f64> {
+    use windows_sys::Win32::Foundation::{CloseHandle, FILETIME};
+    use windows_sys::Win32::System::Threading::{
+        GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    // SAFETY: plain values in; a null handle is checked before use.
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if process.is_null() {
+        return None;
+    }
+    let mut times = [FILETIME::default(); 4];
+    let [creation, exit, kernel, user] = &mut times;
+    // SAFETY: a valid process handle and four local FILETIMEs.
+    let ok = unsafe { GetProcessTimes(process, creation, exit, kernel, user) } != 0;
+    // SAFETY: the handle is valid and closed exactly once.
+    unsafe {
+        CloseHandle(process);
+    }
+    let ticks =
+        |time: &FILETIME| (u64::from(time.dwHighDateTime) << 32) | u64::from(time.dwLowDateTime);
+    ok.then(|| (ticks(&times[2]) + ticks(&times[3])) as f64 / 10_000.0)
+}
+
+/// Applies `--e2e-env-NAME=VALUE` command-line arguments as environment variables, before
+/// anything reads them: tauri-driver gives every session the same environment, so a spec that
+/// needs its own switch (`NOTCH_APP_LAUNCH_FAIL=claude`) passes it through `tauri:options.args`.
+/// msedgedriver hands those arguments over as Chromium switches, which keeps one value per switch
+/// name and may lowercase the name: hence one switch per variable, and the name upper-cased here.
+/// Only `NOTCH_*` names are accepted. Called first thing in `run`, while the process has a
+/// single thread.
+pub fn apply_cli_env() {
+    for arg in std::env::args().skip(1) {
+        let Some(pair) = arg.strip_prefix("--e2e-env-") else {
+            continue;
+        };
+        if let Some((name, value)) = pair.split_once('=') {
+            let name = name.to_ascii_uppercase();
+            if name.starts_with("NOTCH_") {
+                std::env::set_var(name, value);
+            }
+        }
+    }
+}
+
 /// Every `__e2e:*` channel and its handler.
 pub const CHANNELS: &[(&str, Handler)] = &[
-    ("__e2e:window-bounds", window_bounds),
-    ("__e2e:foreground-is-ours", foreground_is_ours),
-    ("__e2e:advance-clock", advance_clock),
-    ("__e2e:pointer", pointer),
-    ("__e2e:mail-alert", mail_alert),
-    ("__e2e:shortcut", shortcut),
-    ("__e2e:work-area", work_area),
-    ("__e2e:pid", pid),
-    ("__e2e:quit", quit),
+    ("__e2e:window-bounds", Handler::Inline(window_bounds)),
+    (
+        "__e2e:foreground-is-ours",
+        Handler::Inline(foreground_is_ours),
+    ),
+    ("__e2e:advance-clock", Handler::Async(advance_clock)),
+    ("__e2e:pointer", Handler::Inline(pointer)),
+    ("__e2e:mail-alert", Handler::Inline(mail_alert)),
+    ("__e2e:shortcut", Handler::Inline(shortcut)),
+    ("__e2e:work-area", Handler::Inline(work_area)),
+    ("__e2e:pid", Handler::Inline(pid)),
+    ("__e2e:quit", Handler::Inline(quit)),
+    ("__e2e:app-launches", Handler::Inline(app_launches)),
+    ("__e2e:clipboard", Handler::Blocking(clipboard)),
+    ("__e2e:process-cpu", Handler::Blocking(process_cpu)),
 ];
 
 pub fn register(registry: &mut Registry) {
@@ -286,6 +477,6 @@ mod tests {
     #[should_panic(expected = "not a test channel")]
     fn only_e2e_names_can_be_registered_as_test_channels() {
         let mut registry = Registry::with_dev_origin(false);
-        registry.register_test_channel("notch:extra", TestChannel(pid));
+        registry.register_test_channel("notch:extra", TestChannel(Handler::Inline(pid)));
     }
 }

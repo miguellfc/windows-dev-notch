@@ -219,6 +219,87 @@ impl Timers for TestTimers {
     }
 }
 
+/// `setInterval` / `clearInterval` over any [`Timers`] (the part-1 trait is one-shot only): it
+/// re-arms a `set_timeout` each time it fires, before running the callback, so a slow callback
+/// does not shift the rhythm and a callback may [`stop`](Self::stop) its own interval. With
+/// [`TestTimers`] each `advance` fires it at most once (a timer armed by a fired callback waits
+/// for the next move). Dropping the handle stops it.
+pub struct Interval {
+    shared: Arc<IntervalShared>,
+}
+
+struct IntervalShared {
+    timers: Arc<dyn Timers>,
+    period_ms: u64,
+    f: Arc<dyn Fn() + Send + Sync>,
+    state: Mutex<IntervalState>,
+}
+
+#[derive(Default)]
+struct IntervalState {
+    timer: Option<TimerId>,
+    stopped: bool,
+}
+
+impl Interval {
+    /// Fires `f` every `period_ms`, the first time one period from now (never synchronously).
+    pub fn start(timers: Arc<dyn Timers>, period_ms: u64, f: Arc<dyn Fn() + Send + Sync>) -> Self {
+        let shared = Arc::new(IntervalShared {
+            timers,
+            period_ms,
+            f,
+            state: Mutex::new(IntervalState::default()),
+        });
+        IntervalShared::arm(&shared);
+        Self { shared }
+    }
+
+    /// Clears the pending timer: no new firing starts after `stop()`. A firing already in
+    /// progress (its timer fired just before) may still run its callback once, so a callback
+    /// that must not act after a stop checks its own state. Idempotent.
+    pub fn stop(&self) {
+        let timer = {
+            let mut state = lock(&self.shared.state);
+            state.stopped = true;
+            state.timer.take()
+        };
+        if let Some(timer) = timer {
+            self.shared.timers.clear(timer);
+        }
+    }
+}
+
+impl Drop for Interval {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+impl IntervalShared {
+    /// Arms the next firing unless stopped. `set_timeout` never runs the callback synchronously,
+    /// so holding the state lock across it is safe.
+    fn arm(this: &Arc<Self>) {
+        let mut state = lock(&this.state);
+        if state.stopped {
+            return;
+        }
+        let me = Arc::clone(this);
+        state.timer = Some(
+            this.timers
+                .set_timeout(this.period_ms, Box::new(move || Self::fire(&me))),
+        );
+    }
+
+    fn fire(this: &Arc<Self>) {
+        if lock(&this.state).stopped {
+            return;
+        }
+        Self::arm(this);
+        // No lock held: the callback may stop the interval or arm other timers.
+        (this.f)();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -362,6 +443,77 @@ mod tests {
         );
         timers.advance(100);
         assert_eq!(*order.lock().unwrap(), ["early", "clear"]);
+    }
+
+    fn counting_interval(timers: &Arc<TestTimers>, period_ms: u64) -> (Arc<AtomicUsize>, Interval) {
+        let count = Arc::new(AtomicUsize::new(0));
+        let tick = count.clone();
+        let interval = Interval::start(
+            timers.clone(),
+            period_ms,
+            Arc::new(move || {
+                tick.fetch_add(1, Ordering::SeqCst);
+            }),
+        );
+        (count, interval)
+    }
+
+    #[test]
+    fn interval_fires_every_period_with_test_timers() {
+        let timers = Arc::new(TestTimers::new());
+        let (count, _interval) = counting_interval(&timers, 1_000);
+        // Never synchronously on start.
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        timers.advance(999);
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        timers.advance(1);
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+        timers.advance(1_000);
+        timers.advance(1_000);
+        assert_eq!(count.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn stopped_interval_never_fires_again() {
+        let timers = Arc::new(TestTimers::new());
+        let (count, interval) = counting_interval(&timers, 1_000);
+        timers.advance(1_000);
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+        interval.stop();
+        timers.advance(1_000);
+        timers.advance(5_000);
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+        // Stopping twice is harmless, and so is dropping a stopped interval.
+        interval.stop();
+        drop(interval);
+
+        // A callback may stop its own interval: it never fires again.
+        let slot: Arc<Mutex<Option<Interval>>> = Arc::new(Mutex::new(None));
+        let fired = Arc::new(AtomicUsize::new(0));
+        let (stopper, counter) = (slot.clone(), fired.clone());
+        let interval = Interval::start(
+            timers.clone(),
+            10,
+            Arc::new(move || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                if let Some(interval) = stopper.lock().unwrap().as_ref() {
+                    interval.stop();
+                }
+            }),
+        );
+        *slot.lock().unwrap() = Some(interval);
+        timers.advance(10);
+        timers.advance(10);
+        assert_eq!(fired.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn dropping_an_interval_stops_it() {
+        let timers = Arc::new(TestTimers::new());
+        let (count, interval) = counting_interval(&timers, 100);
+        drop(interval);
+        timers.advance(100);
+        assert_eq!(count.load(Ordering::SeqCst), 0);
     }
 
     #[test]

@@ -3,15 +3,16 @@
 
 use std::io::ErrorKind;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use crate::contract::settings::{Settings, SettingsPatch, SETTINGS_VERSION};
 use crate::ipc::{ExposedError, IpcErrorCode};
 use crate::services::fs_atomic::write_atomic;
+use crate::services::quarantine_path;
 use crate::settings::validate::validate_settings;
 
 type Listener = Arc<dyn Fn(&Settings) + Send + Sync>;
@@ -170,18 +171,6 @@ impl SettingsStore {
         write_atomic(&self.path, &serialize(&self.defaults)).await?;
         Ok(self.use_settings(self.defaults.clone(), false))
     }
-}
-
-/// `<stem>.corrupt-<toISOString() with ':' and '.' as '-'>.json` next to `path`.
-fn quarantine_path(path: &Path, now: DateTime<Utc>) -> PathBuf {
-    let stamp = now
-        .to_rfc3339_opts(SecondsFormat::Millis, true)
-        .replace([':', '.'], "-");
-    let stem = path
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    path.with_file_name(format!("{stem}.corrupt-{stamp}.json"))
 }
 
 fn apply_patch(settings: &mut Settings, patch: SettingsPatch) {

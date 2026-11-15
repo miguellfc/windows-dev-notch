@@ -45,6 +45,8 @@ pub struct NotchRuntime {
     foreground: Mutex<Option<Arc<ForegroundWatcher>>>,
     /// HWND of the Control Center window, 0 while it does not exist (see `set_control_center_hwnd`).
     control_center_hwnd: Arc<AtomicIsize>,
+    /// The controller's timers, shared with the part-2 services (see [`timers`](Self::timers)).
+    timers: Arc<dyn Timers>,
     /// The controller's timers when the `e2e` build runs with `NOTCH_TEST_CLOCK=1`.
     #[cfg(feature = "e2e")]
     test_clock: Option<Arc<TestTimers>>,
@@ -90,8 +92,13 @@ impl NotchRuntime {
             Some(clock) => Arc::clone(clock) as Arc<dyn Timers>,
             None => real,
         };
-        let controller =
-            NotchController::new(surface, real, work_area_dip(&monitor), SETTLE_TIMEOUT_MS);
+        let timers = real;
+        let controller = NotchController::new(
+            surface,
+            Arc::clone(&timers),
+            work_area_dip(&monitor),
+            SETTLE_TIMEOUT_MS,
+        );
         let rects = Arc::new(CapsuleRectStore::new());
         let origin = window.outer_position()?;
         let placement = Arc::new(WindowPlacement::new(
@@ -131,9 +138,16 @@ impl NotchRuntime {
             pollers_stopped: Arc::new(AtomicBool::new(false)),
             foreground: Mutex::new(None),
             control_center_hwnd: Arc::new(AtomicIsize::new(0)),
+            timers,
             #[cfg(feature = "e2e")]
             test_clock,
         }))
+    }
+
+    /// The timers the controller uses: real ones, or the test clock's (`e2e` build with
+    /// `NOTCH_TEST_CLOCK=1`), so other modules' timers move with `__e2e:advance-clock` too.
+    pub fn timers(&self) -> Arc<dyn Timers> {
+        Arc::clone(&self.timers)
     }
 
     /// The test clock the controller's timers follow (`e2e` build with `NOTCH_TEST_CLOCK=1`).

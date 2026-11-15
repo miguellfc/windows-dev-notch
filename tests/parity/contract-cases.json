@@ -3402,5 +3402,3942 @@
       }
     },
     "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [
+        {
+          "letter": "C",
+          "usedPercent": 60,
+          "freeBytes": 100000000000,
+          "activityPercent": null
+        }
+      ],
+      "network": {
+        "upBytesPerSec": 1024,
+        "downBytesPerSec": 2048.5
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "unavailable"
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": null,
+      "ram": null,
+      "battery": null,
+      "alerts": {
+        "cpu": true,
+        "ram": false,
+        "battery": true,
+        "disk": null
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 0,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 100,
+        "charging": true,
+        "pluggedIn": true,
+        "secondsLeft": 0
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 100,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 0,
+        "charging": false,
+        "pluggedIn": false,
+        "secondsLeft": 9007199254740991
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [],
+      "network": null
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [
+        {
+          "letter": "Z",
+          "usedPercent": 100,
+          "freeBytes": 0,
+          "activityPercent": 0
+        },
+        {
+          "letter": "A",
+          "usedPercent": 0,
+          "freeBytes": 1.5,
+          "activityPercent": 100
+        }
+      ],
+      "network": {
+        "upBytesPerSec": 1024,
+        "downBytesPerSec": 2048.5
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "unavailable",
+      "reason": "pdh"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "partial"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [
+        {
+          "letter": "C",
+          "usedPercent": 60,
+          "freeBytes": 100000000000,
+          "activityPercent": null
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 100.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": -1,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": "12",
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": -1,
+        "totalBytes": 16
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 1
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": 1.5
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": -1
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": 9007199254740992
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "c",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "CD",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "Ñ",
+          "freePercent": 7.5
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 101
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": false,
+        "battery": false
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        },
+        "gpu": false
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [
+        {
+          "letter": "C",
+          "usedPercent": 60,
+          "freeBytes": 1,
+          "activityPercent": null,
+          "label": "OS"
+        }
+      ],
+      "network": {
+        "upBytesPerSec": 1024,
+        "downBytesPerSec": 2048.5
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [
+        {
+          "letter": "C",
+          "usedPercent": 60,
+          "freeBytes": -5,
+          "activityPercent": null
+        }
+      ],
+      "network": {
+        "upBytesPerSec": 1024,
+        "downBytesPerSec": 2048.5
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "full",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "disks": [
+        {
+          "letter": "C",
+          "usedPercent": 60,
+          "freeBytes": 100000000000,
+          "activityPercent": null
+        }
+      ],
+      "network": {
+        "upBytesPerSec": -1,
+        "downBytesPerSec": 0
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [],
+    "accept": true
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 1,
+        "name": "code.exe",
+        "cpuPercent": null,
+        "privateBytes": null,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": false
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 1,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 2,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 3,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 4,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 5,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "ssssssssssssssssssssssssssssssssssssssss",
+        "killable": true
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "",
+        "killable": true
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 9007199254740991,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 1,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 2,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 3,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 4,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 5,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      },
+      {
+        "pid": 6,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 0,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": -3,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 1.5,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 9007199254740992,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "sssssssssssssssssssssssssssssssssssssssss",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "code.exe",
+        "cpuPercent": 100.01,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": -1,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z",
+        "killable": true,
+        "user": "me"
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": [
+      {
+        "pid": 4321,
+        "name": "code.exe",
+        "cpuPercent": 3.25,
+        "privateBytes": 52428800,
+        "startTime": "2026-11-15T08:00:00.123Z"
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "system:processes",
+    "direction": "event",
+    "value": {
+      "pid": 4321,
+      "name": "code.exe",
+      "cpuPercent": 3.25,
+      "privateBytes": 52428800,
+      "startTime": "2026-11-15T08:00:00.123Z",
+      "killable": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:view",
+    "direction": "input",
+    "value": {
+      "by": "cpu"
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:view",
+    "direction": "input",
+    "value": {
+      "by": "ram"
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:view",
+    "direction": "input",
+    "value": {
+      "by": "name"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:view",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "system:view",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "system:view",
+    "direction": "input",
+    "value": {
+      "by": "cpu",
+      "open": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:view",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "system:view",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "system:view",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 1234,
+      "startTime": "2026-11-15T08:00:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 9007199254740991,
+      "startTime": "ssssssssssssssssssssssssssssssssssssssss"
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 1,
+      "startTime": ""
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 0,
+      "startTime": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": -1,
+      "startTime": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 12.5,
+      "startTime": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": "1234",
+      "startTime": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 1234,
+      "startTime": "sssssssssssssssssssssssssssssssssssssssss"
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 1234
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "value": {
+      "pid": 1234,
+      "startTime": "2026-11-15T09:30:00.000Z",
+      "force": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": "killed",
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": "gone",
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": "denied",
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": "not-killable",
+    "accept": true
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": "failed",
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "system:kill-process",
+    "direction": "output",
+    "value": {
+      "result": "killed"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3F2A1B4C-5D6E-4F70-8A9B-0C1D2E3F4A5B"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "00000000-0000-0000-0000-000000000000"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-1f70-bA9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-8f70-9a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-9f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-0f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-7a9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-ca9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c5d6e4f708a9b0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "{3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b}"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b\n"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5g"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T23:59:59.123456789Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2024-02-29T00:00:00Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2000-02-29T00:00:00Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "0000-02-29T00:00:00Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-12-31T00:00:00Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00+02:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000+00:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15t09:30:00z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15 09:30:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T24:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:60:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:60Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-02-29T00:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2100-02-29T00:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-04-31T00:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-13-01T00:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-00-10T00:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-00T00:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "+02026-11-15T09:30:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00Z\n"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "２026-11-15T09:30:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-9f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": "no",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z",
+      "deletedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "Comprar café"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "línea 1\nlínea 2\r\nlínea 3"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "columna\tcolumna"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "\u000ba"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "x﻿"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": " nota　"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "a b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "👩‍💻"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "❤️"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "  nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn  "
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "\nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\t"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn😀"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "a"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "   "
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "\n\t\r "
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": " 　﻿"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "‍"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": " ‍ ‍ "
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "️"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "ㅤ"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "ᅟᅠ"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "͏"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "​"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "a​b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "a\u000bb"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "a\u0000b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "ab"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "abc‮"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "a­b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn😀"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": 42
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "value": {
+      "text": "hola",
+      "pinned": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "línea\ttab",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "  recortado  ",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "   ",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "nuevo texto"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:update",
+    "direction": "input",
+    "value": {
+      "id": "not-a-uuid",
+      "text": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:update",
+    "direction": "input",
+    "value": {
+      "text": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:update",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": true,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:update",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "a\u0007",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "pinned": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "pinned": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "pinned": "yes"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "pinned": true,
+      "text": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": true,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:pin",
+    "direction": "output",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notes:restore",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:restore",
+    "direction": "input",
+    "value": {
+      "id": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:restore",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:restore",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:copy",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:copy",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:copy",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "notes:copy",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Comprar café",
+      "pinned": false,
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "updatedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "notes:list",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": [],
+      "notice": null
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Comprar café",
+          "pinned": false,
+          "createdAt": "2026-11-15T09:30:00.000Z",
+          "updatedAt": "2026-11-15T09:30:00.000Z"
+        },
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Comprar café",
+          "pinned": true,
+          "createdAt": "2026-11-15T09:30:00.000Z",
+          "updatedAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": "quarantined"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": [],
+      "notice": "read-only"
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": [],
+      "notice": "corrupt"
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "",
+          "pinned": false,
+          "createdAt": "2026-11-15T09:30:00.000Z",
+          "updatedAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": {
+      "notes": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Comprar café",
+          "pinned": false,
+          "createdAt": "2026-11-15T09:30:00.000Z",
+          "updatedAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": null,
+      "total": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:list",
+    "direction": "output",
+    "value": [
+      {
+        "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+        "text": "Comprar café",
+        "pinned": false,
+        "createdAt": "2026-11-15T09:30:00.000Z",
+        "updatedAt": "2026-11-15T09:30:00.000Z"
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "notes:changed",
+    "direction": "event",
+    "value": {
+      "notes": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Comprar café",
+          "pinned": false,
+          "createdAt": "2026-11-15T09:30:00.000Z",
+          "updatedAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": null
+    },
+    "accept": true
+  },
+  {
+    "channel": "notes:changed",
+    "direction": "event",
+    "value": {
+      "notes": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Comprar café",
+          "pinned": false,
+          "createdAt": "2026-11-15T10:30:00+01:00",
+          "updatedAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "notes:changed",
+    "direction": "event",
+    "value": {
+      "notes": null,
+      "notice": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "en 10 min café"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": ""
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "línea\ncon\tcontrol"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": 42
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "en 10 min",
+      "text": "café"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "input": "mañana 9:00",
+      "preset": "1h"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "preset": "1h"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "preset": "tomorrow-9"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "preset": "2h"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "preset": "1h",
+      "repeat": "none"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "dueAt": "2026-11-16T09:00:00Z",
+      "repeat": "weekdays"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "dueAt": "2026-11-16T09:00:00+02:00",
+      "repeat": "daily"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "dueAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "repeat": "daily"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "monthly"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "localTime": "09:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "preset": "1h"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Standup"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "Llamar a Ana",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "\tLlamar\n",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "x﻿",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "👩‍💻",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "  rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr  ",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr😀",
+      "preset": "15m"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "a\tb",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "a\nb",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "a\rb",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "   ",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "‍",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "️️",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "a⁦b",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "input",
+    "value": {
+      "text": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr😀",
+      "preset": "15m"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "09:00"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "weekdays",
+      "state": "due",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "23:59"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "missed",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "00:00"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "done",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "completedAt": "2026-11-15T10:00:00Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "weekdays",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "24:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "9:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "09:60"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "09:00:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "09:00\n"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "completedAt": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "completedAt": "2026-11-15T10:00:00+00:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "snoozed",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "a\tb",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-7a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00+02:00",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "snoozedUntil": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:create",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Nuevo texto"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "dueAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "repeat": "daily"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "x",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "dueAt": "2026-11-15T09:30:00+02:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "   "
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "a\tb"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "repeat": "yearly"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "localTime": "09:00"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-9f70-8a9b-0c1d2e3f4a5b",
+      "text": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "input",
+    "value": {
+      "text": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "daily",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "localTime": "07:30"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:update",
+    "direction": "output",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "reminders:snooze",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:snooze",
+    "direction": "input",
+    "value": {
+      "id": "abc"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:snooze",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "minutes": 10
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:complete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:complete",
+    "direction": "input",
+    "value": {
+      "id": "abc"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:complete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "minutes": 10
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:delete",
+    "direction": "input",
+    "value": {
+      "id": "abc"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:delete",
+    "direction": "input",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "minutes": 10
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:snooze",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "reminders:snooze",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:snooze",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:complete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "done",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "completedAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:complete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "done",
+      "createdAt": "2026-11-15T09:30:00.000Z",
+      "completedAt": "2026-11-15"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:delete",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "reminders:delete",
+    "direction": "output",
+    "value": {
+      "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+      "text": "Llamar a Ana",
+      "dueAt": "2026-11-15T09:30:00.000Z",
+      "repeat": "none",
+      "state": "pending",
+      "createdAt": "2026-11-15T09:30:00.000Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:delete",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "output",
+    "value": {
+      "reminders": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Llamar a Ana",
+          "dueAt": "2026-11-15T09:30:00.000Z",
+          "repeat": "none",
+          "state": "pending",
+          "createdAt": "2026-11-15T09:30:00.000Z"
+        },
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Llamar a Ana",
+          "dueAt": "2026-11-15T09:30:00.000Z",
+          "repeat": "daily",
+          "state": "pending",
+          "createdAt": "2026-11-15T09:30:00.000Z",
+          "localTime": "09:00"
+        }
+      ],
+      "notice": null
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "output",
+    "value": {
+      "reminders": [],
+      "notice": "read-only"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "output",
+    "value": {
+      "reminders": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Llamar a Ana",
+          "dueAt": "2026-11-15T09:30:00.000Z",
+          "repeat": "daily",
+          "state": "pending",
+          "createdAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "output",
+    "value": {
+      "reminders": [],
+      "notice": "locked"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:list",
+    "direction": "output",
+    "value": {
+      "reminders": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:changed",
+    "direction": "event",
+    "value": {
+      "reminders": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Llamar a Ana",
+          "dueAt": "2026-11-15T09:30:00.000Z",
+          "repeat": "none",
+          "state": "pending",
+          "createdAt": "2026-11-15T09:30:00.000Z"
+        }
+      ],
+      "notice": "quarantined"
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:changed",
+    "direction": "event",
+    "value": {
+      "reminders": [
+        {
+          "id": "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b",
+          "text": "Llamar a Ana",
+          "dueAt": "2026-11-15T09:30:00.000Z",
+          "repeat": "none",
+          "state": "pending",
+          "createdAt": "yesterday"
+        }
+      ],
+      "notice": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:changed",
+    "direction": "event",
+    "value": {
+      "reminders": [],
+      "notice": null,
+      "extra": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 1
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 37
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 9007199254740991
+    },
+    "accept": true
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 0
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": -1
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 2.5
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 9007199254740992
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": "1"
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {
+      "count": 1,
+      "missed": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "reminders:fired",
+    "direction": "event",
+    "value": 1,
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "value": {
+      "app": "terminal"
+    },
+    "accept": true
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "value": {
+      "app": "claude"
+    },
+    "accept": true
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "value": {
+      "app": "notepad"
+    },
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "value": {
+      "app": "Claude"
+    },
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "value": {
+      "app": "claude",
+      "args": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "output",
+    "value": {
+      "ok": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "apps:open",
+    "direction": "output",
+    "value": {
+      "ok": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "apps:open",
+    "direction": "output",
+    "value": {
+      "ok": "true"
+    },
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "result": "opened"
+    },
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "apps:open",
+    "direction": "output",
+    "value": null,
+    "accept": false
   }
 ]

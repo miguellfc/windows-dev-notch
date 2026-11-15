@@ -24,6 +24,20 @@ tokio = { version = "1", features = ["fs", "sync", "macros", "time"] }
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_Performance",
+  "Win32_System_Power",
+  "Win32_System_ProcessStatus",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_SystemInformation",
+  "Win32_System_Threading",
   "Win32_UI_HiDpi",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
@@ -31,6 +45,12 @@ windows-sys = { version = "0.61", features = [
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
+# Note and reminder ids (`randomUUID` in Electron): RFC 4122 v4, lowercase hyphenated.
+uuid = { version = "1", features = ["v4"] }
+# Reminder toasts with a click (activation) handler; Tauri's notification plugin has none on Windows.
+tauri-winrt-notification = "0.8"
+# `input.normalize('NFC')` for free-text reminders; already in the tree through `url` (idna).
+icu_normalizer = { version = "2", default-features = false, features = ["compiled_data"] }
 
 [features]
 # E2E builds only (`npm run test:e2e:tauri`): the `__e2e:*` channels, live `notch:pointer`, the test
@@ -49,3 +69,5 @@ panic = "unwind"
 [dev-dependencies]
 # Paused time for the usage ticker test (same tokio as above).
 tokio = { version = "1", features = ["rt", "test-util"] }
+# Fixed time zones (DST gaps and overlaps) for the reminders' local-time tests.
+chrono-tz = "0.10"

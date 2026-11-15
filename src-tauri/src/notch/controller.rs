@@ -168,7 +168,8 @@ pub struct NotchController {
     /// Fallback if the renderer never reports the end of a shrinking animation.
     settle_timeout_ms: u64,
     inner: Mutex<Inner>,
-    on_mode_change: Mutex<Option<ModeListener>>,
+    /// Called in registration order (see [`add_mode_listener`](Self::add_mode_listener)).
+    mode_listeners: Mutex<Vec<ModeListener>>,
     /// The capsule became hidden or shown again (by the user or yielding); alerts over it do not count.
     on_hidden_change: Mutex<Option<HiddenListener>>,
 }
@@ -206,7 +207,7 @@ impl NotchController {
                 effects: VecDeque::new(),
                 draining: false,
             }),
-            on_mode_change: Mutex::new(None),
+            mode_listeners: Mutex::new(Vec::new()),
             on_hidden_change: Mutex::new(None),
         })
     }
@@ -284,9 +285,16 @@ impl NotchController {
         self.clear_slot(&mut s.sticky_timer);
     }
 
-    /// Called after the window calls of each dispatch that changes the mode.
+    /// Adds a listener called after the window calls of each dispatch that changes the mode,
+    /// outside the lock. Listeners accumulate and run in registration order (the tray, the
+    /// system monitor...); none replaces another.
+    pub fn add_mode_listener(&self, f: impl Fn(NotchMode) + Send + Sync + 'static) {
+        lock(&self.mode_listeners).push(Arc::new(f));
+    }
+
+    /// Alias of [`add_mode_listener`](Self::add_mode_listener) (kept for the tray's wiring).
     pub fn on_mode_change(&self, f: impl Fn(NotchMode) + Send + Sync + 'static) {
-        *lock(&self.on_mode_change) = Some(Arc::new(f));
+        self.add_mode_listener(f);
     }
 
     /// Called after the window calls of each dispatch that changes [`hidden`](Self::hidden).
@@ -515,8 +523,9 @@ impl NotchController {
             Effect::Alert(AlertKind::Review, on) => surface.send_review_alert(on),
             Effect::Alert(AlertKind::Redmine, on) => surface.send_redmine_alert(on),
             Effect::ModeChanged(mode) => {
-                let listener = lock(&self.on_mode_change).clone();
-                if let Some(listener) = listener {
+                // A snapshot: a listener may add another one without deadlocking.
+                let listeners = lock(&self.mode_listeners).clone();
+                for listener in listeners {
                     listener(mode);
                 }
             }
@@ -986,6 +995,45 @@ mod tests {
         drop(controller);
         assert!(weak.upgrade().is_none());
         timers.advance(10_000);
+    }
+
+    #[test]
+    fn two_mode_listeners_both_run_in_order() {
+        let h = Harness::setup();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let (first, second) = (seen.clone(), seen.clone());
+        h.controller
+            .add_mode_listener(move |mode| first.lock().unwrap().push(("first", mode)));
+        h.controller
+            .add_mode_listener(move |mode| second.lock().unwrap().push(("second", mode)));
+        h.dispatch(E::Pointer { inside: true });
+        assert_eq!(
+            *seen.lock().unwrap(),
+            [
+                ("first", NotchMode::Compact),
+                ("second", NotchMode::Compact)
+            ]
+        );
+    }
+
+    #[test]
+    fn tray_listener_still_runs_after_adding_another() {
+        // `lib.rs` registers the tray refresh with `on_mode_change`; a module adding its own
+        // listener later must not replace it.
+        let h = Harness::setup();
+        let tray = Arc::new(Mutex::new(Vec::new()));
+        let other = Arc::new(Mutex::new(Vec::new()));
+        let tray_sink = tray.clone();
+        h.controller
+            .on_mode_change(move |mode| tray_sink.lock().unwrap().push(mode));
+        let other_sink = other.clone();
+        h.controller
+            .add_mode_listener(move |mode| other_sink.lock().unwrap().push(mode));
+        h.dispatch(E::Toggle);
+        assert_eq!(*tray.lock().unwrap(), [NotchMode::Expanded]);
+        assert_eq!(*other.lock().unwrap(), [NotchMode::Expanded]);
+        // The harness's own recorder (registered first) still runs too.
+        assert_eq!(*h.mode_changes.lock().unwrap(), [NotchMode::Expanded]);
     }
 
     #[test]
