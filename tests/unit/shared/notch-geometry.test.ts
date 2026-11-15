@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_SIZES, capsuleTopFor, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, REVIEW_BLOCK_WIDTH, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
+import { CAPSULE_SIZES, capsuleTopFor, COMPACT_WIDTHS, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, REDMINE_BLOCK_WIDTH, REVIEW_BLOCK_WIDTH, SHADOW_MARGIN, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -12,14 +12,14 @@ describe('windowBoundsFor', () => {
 
   it('leaves room for the shadow around the capsule', () => {
     const bounds = windowBoundsFor('expanded', workArea)
-    expect(bounds.width).toBe(694)
+    expect(bounds.width).toBe(760)
     // The window fits the panel with Claude sessions; without them the capsule is shorter inside it.
     expect(bounds.height).toBe(6 + 200 + 72)
   })
 
   it('keeps one width for every mode: the widest capsule plus the shadow', () => {
     // Motion skips layout animations for 250 ms after innerWidth changes, so the width must not.
-    expect(WINDOW_WIDTH).toBe(694)
+    expect(WINDOW_WIDTH).toBe(760)
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
       const bounds = windowBoundsFor(mode, workArea)
       expect(bounds.width).toBe(WINDOW_WIDTH)
@@ -80,7 +80,7 @@ describe('alert and permission geometry', () => {
 describe('system panel geometry', () => {
   it('is 520x280 (5 process rows) and keeps the window width set by the widest compact capsule', () => {
     expect(CAPSULE_SIZES.system).toEqual({ width: 520, height: 280 })
-    expect(WINDOW_WIDTH).toBe(694)
+    expect(WINDOW_WIDTH).toBe(760)
     expect(windowBoundsFor('system', workArea).height).toBe(SHADOW_MARGIN.top + 280 + SHADOW_MARGIN.bottom)
   })
 
@@ -160,7 +160,7 @@ describe('compact capsule width', () => {
     expect(CAPSULE_SIZES.compact.width).toBeLessThan(CAPSULE_SIZES.reviews.width)
     // Widest compact content (EN, battery and low-disk block: 433.8 px) still fits the fixed window.
     expect(Math.max(...Object.values(COMPACT_WIDTHS)) + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
-    expect(WINDOW_WIDTH).toBe(694)
+    expect(WINDOW_WIDTH).toBe(760)
   })
 })
 
@@ -228,7 +228,7 @@ describe('gmail panel geometry', () => {
     expect(CAPSULE_SIZES.gmail).toEqual(GMAIL_SIZES.reader)
     expect(GMAIL_SIZES.reader.height).toBeGreaterThanOrEqual(GMAIL_SIZES.list.height)
     expect(windowBoundsFor('gmail', workArea).height).toBe(SHADOW_MARGIN.top + GMAIL_SIZES.reader.height + SHADOW_MARGIN.bottom)
-    expect(WINDOW_WIDTH).toBe(694)
+    expect(WINDOW_WIDTH).toBe(760)
   })
 
   it('grows the window from the integrations row and the alert, and shrinks back to them', () => {
@@ -250,7 +250,8 @@ describe('expanded panel height', () => {
   })
 
   it('sizes the window for the taller panel, so sessions appearing never outgrow it', () => {
-    expect(CAPSULE_SIZES.expanded).toEqual({ width: 480, height: EXPANDED_HEIGHTS.sessions })
+    // 520 px wide since the ninth tile (Redmine): the 494 px row fits every label in ES and EN.
+    expect(CAPSULE_SIZES.expanded).toEqual({ width: 520, height: EXPANDED_HEIGHTS.sessions })
   })
 })
 
@@ -263,7 +264,7 @@ describe('question panel geometry', () => {
 
   it('is taller than every panel but "Revisiones": it grows the window from them and shrinks it back', () => {
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
-      if (mode === 'reviews') continue
+      if (mode === 'reviews' || mode === 'redmine') continue
       expect(CAPSULE_SIZES.question.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
     }
     for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'reminders'] as const) {
@@ -296,6 +297,27 @@ describe('compact capsule width with the code-review blocks', () => {
   })
 })
 
+describe('compact capsule width with the Redmine block', () => {
+  const battery = { percent: 82, charging: false }
+  const disk = { letter: 'C', freePercent: 6 }
+
+  it('adds the measured block after the code-review blocks', () => {
+    expect(compactWidthFor({ battery, disk }, true, 2, false)).toBe(compactWidthFor({ battery, disk }, true, 2))
+    expect(compactWidthFor({ battery, disk }, true, 2, true)).toBe(Math.ceil(COMPACT_WIDTHS.metricsBatteryDiskMail + 2 * REVIEW_BLOCK_WIDTH + REDMINE_BLOCK_WIDTH))
+    expect(compactWidthFor({ battery: null, disk: null }, false, 0, true)).toBe(Math.ceil(COMPACT_WIDTHS.metrics + REDMINE_BLOCK_WIDTH))
+  })
+
+  it('after time and date alone takes the wider gaps, once', () => {
+    expect(compactWidthFor(null, false, 0, true)).toBe(Math.ceil(COMPACT_WIDTHS.plain + 4 + REDMINE_BLOCK_WIDTH))
+    expect(compactWidthFor(null, false, 1, true)).toBe(Math.ceil(COMPACT_WIDTHS.plain + 4 + REVIEW_BLOCK_WIDTH + REDMINE_BLOCK_WIDTH))
+    expect(compactWidthFor(null, true, 0, true)).toBe(Math.ceil(COMPACT_WIDTHS.plainMail + REDMINE_BLOCK_WIDTH))
+  })
+
+  it('still fits the fixed window in the worst case (every block showing)', () => {
+    expect(compactWidthFor({ battery, disk }, true, 2, true) + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
+  })
+})
+
 describe('reviews panel geometry', () => {
   it('is the 520×560 panel measured with Playwright (contributions over the lists), inside the window width', () => {
     expect(CAPSULE_SIZES.reviews).toEqual({ width: 520, height: 560 })
@@ -306,16 +328,27 @@ describe('reviews panel geometry', () => {
   it('is the tallest panel: it grows the window from every other mode (resize first) and shrinks it back (animate first)', () => {
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
       expect(CAPSULE_SIZES.reviews.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
-      if (mode === 'reviews') continue
+      // The Redmine view is as tall: moving between the two never resizes the window.
+      if (mode === 'reviews' || mode === 'redmine') continue
       expect(growsWindow(mode, 'reviews')).toBe(true)
       expect(resizeOrder(mode, 'reviews')).toBe('resize-first')
       expect(resizeOrder('reviews', mode)).toBe('animate-first')
     }
   })
 
-  it('keeps the window width: the widest panels are 520 px, so the compact capsule 581 px worst case sets it', () => {
+  it('keeps the window width: the widest panels are 520 px, so the compact capsule 648 px worst case (every block) sets it', () => {
     expect(Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width))).toBe(520)
-    expect(WINDOW_WIDTH).toBe(694)
+    expect(WINDOW_WIDTH).toBe(760)
+  })
+})
+
+describe('Redmine panel geometry', () => {
+  it('is 520×560 like "Revisiones" (summary over the issue list), inside the window width', () => {
+    expect(CAPSULE_SIZES.redmine).toEqual({ width: 520, height: 560 })
+    expect(windowBoundsFor('redmine', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 560 + SHADOW_MARGIN.bottom })
+    expect(windowHeightFor('redmine')).toBe(windowHeightFor('reviews'))
+    expect(resizeOrder('expanded', 'redmine')).toBe('resize-first')
+    expect(resizeOrder('redmine', 'expanded')).toBe('animate-first')
   })
 })
 

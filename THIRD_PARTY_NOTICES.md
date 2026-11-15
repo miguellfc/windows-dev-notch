@@ -4,7 +4,7 @@
 
 - Origen: https://github.com/simple-icons/simple-icons
 - Licencia: CC0 1.0 Universal (dominio público)
-- Iconos usados: `gmail`, `github`, `claude` (en `src/renderer/shared/brand-icons.ts`)
+- Iconos usados: `gmail`, `github`, `claude`, `redmine` (en `src/renderer/shared/brand-icons.ts`)
 
 ## Lucide (iconos y marca de GitLab)
 
@@ -62,4 +62,4 @@ SOFTWARE.
 
 ## Marcas
 
-Gmail, GitHub, GitLab y Claude son marcas de sus respectivos dueños; se usan solo para identificar el servicio.
+Gmail, GitHub, GitLab, Claude y Redmine son marcas de sus respectivos dueños; se usan solo para identificar el servicio.

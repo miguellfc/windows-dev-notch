@@ -48,12 +48,12 @@ let userData: string
 let launched: ElectronApplication | undefined
 let fake: FakeCodeReview | undefined
 
-/** Settings v6: nothing connected yet (GitLab without a server), alerts on but silent. */
+/** Settings v7: nothing connected yet (GitLab without a server), alerts on but silent. */
 const writeSettings = (): void => {
   writeFileSync(
     join(userData, 'settings.json'),
     JSON.stringify({
-      version: 6,
+      version: 7,
       language: 'es',
       shortcut: 'Control+Alt+Space',
       launchAtLogin: false,
@@ -66,6 +66,7 @@ const writeSettings = (): void => {
       },
       gmail: { clientId: '', clientSecret: '', alerts: { enabled: true, hideContent: false, sound: false } },
       codeReview: { gitlabUrl: '', alerts: { github: { enabled: true, sound: false }, gitlab: { enabled: true, sound: false } } },
+      redmine: { url: '', dailyTargetHours: 8, endOfDay: { enabled: true, time: '18:00', sound: false } },
     }),
     'utf8',
   )

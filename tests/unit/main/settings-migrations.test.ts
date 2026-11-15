@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CODE_REVIEW_SETTINGS, DEFAULT_GMAIL_ALERTS, DEFAULT_SYSTEM_ALERTS } from '../../../src/shared/settings/schema'
+import {
+  DEFAULT_CODE_REVIEW_SETTINGS,
+  DEFAULT_GMAIL_ALERTS,
+  DEFAULT_REDMINE_SETTINGS,
+  DEFAULT_SYSTEM_ALERTS,
+} from '../../../src/shared/settings/schema'
 import {
   migrateSettings,
   settingsMigrations,
@@ -8,7 +13,7 @@ import {
 
 describe('migrateSettings', () => {
   it('returns current-version data unchanged', () => {
-    const raw = { version: 6, language: 'es' }
+    const raw = { version: 7, language: 'es' }
     expect(migrateSettings(raw)).toEqual({ kind: 'ok', value: raw, migrated: false })
   })
 
@@ -55,12 +60,31 @@ describe('migrateSettings', () => {
       gmail: { clientId: 'id.apps', clientSecret: 'sec', alerts: { enabled: false, hideContent: true, sound: false } },
     }
     const before = structuredClone(raw)
-    expect(migrateSettings(raw)).toEqual({
+    expect(migrateSettings(raw, 6)).toEqual({
       kind: 'ok',
       value: { ...before, version: 6, codeReview: DEFAULT_CODE_REVIEW_SETTINGS },
       migrated: true,
     })
     expect(raw).toEqual(before)
+  })
+
+  it('migrates v6 settings to v7 adding the redmine block and keeping everything else', () => {
+    const raw = { version: 6, language: 'es', codeReview: DEFAULT_CODE_REVIEW_SETTINGS }
+    const before = structuredClone(raw)
+    expect(migrateSettings(raw)).toEqual({
+      kind: 'ok',
+      value: { ...before, version: 7, redmine: DEFAULT_REDMINE_SETTINGS },
+      migrated: true,
+    })
+    expect(raw).toEqual(before)
+  })
+
+  it('gives each v7 migration its own redmine copy', () => {
+    const a = settingsMigrations[6]!({ version: 6 })['redmine'] as { endOfDay: unknown }
+    const b = settingsMigrations[6]!({ version: 6 })['redmine'] as { endOfDay: unknown }
+    expect(a.endOfDay).toEqual(DEFAULT_REDMINE_SETTINGS.endOfDay)
+    expect(a.endOfDay).not.toBe(b.endOfDay)
+    expect(a.endOfDay).not.toBe(DEFAULT_REDMINE_SETTINGS.endOfDay)
   })
 
   it('gives each v6 migration its own code review copy', () => {
@@ -73,13 +97,14 @@ describe('migrateSettings', () => {
     expect(alertsA.github).not.toBe(alertsB.github)
   })
 
-  it('chains v1 through v6', () => {
+  it('chains v1 through v7', () => {
     const result = migrateSettings({ version: 1, language: 'en' })
     expect(result).toMatchObject({
       kind: 'ok',
       migrated: true,
       value: {
-        version: 6,
+        version: 7,
+        redmine: DEFAULT_REDMINE_SETTINGS,
         systemAlerts: DEFAULT_SYSTEM_ALERTS,
         gmail: { clientId: '', clientSecret: '', alerts: DEFAULT_GMAIL_ALERTS },
         codeReview: DEFAULT_CODE_REVIEW_SETTINGS,

@@ -29,6 +29,22 @@ import {
 } from '../gmail/schema'
 import { appIds, viewIntegrationIds } from '../integrations/registry'
 import { createNoteInputSchema, noteIdInputSchema, noteSchema, pinNoteInputSchema, updateNoteInputSchema } from '../notes/schema'
+import {
+  logTimeInputSchema,
+  redmineActivitySchema,
+  redmineAlertSchema,
+  redmineIdInputSchema,
+  redmineIssueDetailSchema,
+  redmineIssueListSchema,
+  redmineSetKeyResultSchema,
+  redmineStateSchema,
+  redmineSummaryChangedSchema,
+  redmineSummaryResultSchema,
+  redmineViewInputSchema,
+  redmineWriteResultSchema,
+  setKeyInputSchema,
+  updateIssueInputSchema,
+} from '../redmine/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
 import { killInputSchema, killResultSchema, PROCESS_LIMIT, processRowSchema, systemMetricsSchema, viewInputSchema } from '../system/schema'
@@ -40,13 +56,13 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
  * here must also exist in the Control Center's own page list.
  */
-export const controlCenterPageSchema = z.enum(['gmail', 'code-review'])
+export const controlCenterPageSchema = z.enum(['gmail', 'code-review', 'redmine'])
 export type ControlCenterPage = z.infer<typeof controlCenterPageSchema>
 
 export const runtimeSchema = z.strictObject({
@@ -227,6 +243,25 @@ export const contract = {
   'code-review:view': { input: codeReviewViewInputSchema, output: ack },
   /** The cached month summary of a platform (null when unconfigured or not loaded yet) and the last query's error flag; never repositories. */
   'code-review:contributions': { input: contributionsInputSchema, output: contributionsResultSchema },
+  'redmine:get-state': { input: none, output: redmineStateSchema },
+  /** The last list of open assigned issues (no URLs; main keeps them); remembered as the ids `open` accepts. */
+  'redmine:issues': { input: none, output: redmineIssueListSchema },
+  /** One issue with the statuses it may move to. */
+  'redmine:issue': { input: redmineIdInputSchema, output: redmineIssueDetailSchema },
+  'redmine:activities': { input: none, output: z.array(redmineActivitySchema) },
+  /** Redmine's refusals (403/404/422) come back as data for the form; the session stays as it is. */
+  'redmine:update-issue': { input: updateIssueInputSchema, output: redmineWriteResultSchema },
+  'redmine:log-time': { input: logTimeInputSchema, output: redmineWriteResultSchema },
+  /** The cached month summary (null when unconfigured or not loaded yet) and the last query's error flag. */
+  'redmine:summary': { input: none, output: redmineSummaryResultSchema },
+  /** The Redmine view opened or closed: the summary is queried only while it is open. */
+  'redmine:view': { input: redmineViewInputSchema, output: ack },
+  'redmine:refresh': { input: none, output: ack },
+  /** Main opens `<server>/issues/<id>` for an id of the last list, on the configured server's origin only. */
+  'redmine:open': { input: redmineIdInputSchema, output: ack },
+  /** Validates the key against the server before saving the URL and the key; the key never comes back. */
+  'redmine:set-key': { input: setKeyInputSchema, output: redmineSetKeyResultSchema },
+  'redmine:clear': { input: none, output: ack },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -236,6 +271,8 @@ export const eventContract = {
   'notch:mail-alert': z.boolean(),
   /** Whether the alert capsule shows the first-review alert; sent before the mode, like `notch:mail-alert`. */
   'notch:review-alert': z.boolean(),
+  /** Whether the alert capsule shows the end-of-day Redmine alert; sent before the mode, like `notch:mail-alert`. */
+  'notch:redmine-alert': z.boolean(),
   'settings:changed': settingsSchema,
   'claude:state-changed': claudeStateSchema,
   /** Pending questions, to the notch only (the Control Center never gets Claude's question texts). */
@@ -257,6 +294,12 @@ export const eventContract = {
   'code-review:alert': codeReviewAlertSchema,
   /** A platform's contributions changed or a query ended (with its error flag), to the notch only. */
   'code-review:contributions-changed': contributionsChangedSchema,
+  /** Redmine status, account and today's hours, to the notch and the Control Center (never the key). */
+  'redmine:state': redmineStateSchema,
+  /** The month summary changed or a query ended (with its error flag), to the notch only. */
+  'redmine:summary-changed': redmineSummaryChangedSchema,
+  /** Hours logged today are under the daily target at the end of the day, to the notch only. */
+  'redmine:alert': redmineAlertSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

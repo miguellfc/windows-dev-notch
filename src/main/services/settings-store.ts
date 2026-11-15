@@ -104,6 +104,14 @@ export class SettingsStore {
       const changes = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined))
       // codeReview is merged one level deep: main writes gitlabUrl itself, so a patch of the alerts must not undo it.
       if (patch.codeReview !== undefined) changes['codeReview'] = { ...this.#current.codeReview, ...patch.codeReview }
+      // Same for redmine and its endOfDay: main writes the url, the Control Center patches the rest.
+      if (patch.redmine !== undefined) {
+        changes['redmine'] = {
+          ...this.#current.redmine,
+          ...patch.redmine,
+          endOfDay: { ...this.#current.redmine.endOfDay, ...patch.redmine.endOfDay },
+        }
+      }
       const next = settingsSchema.parse({ ...this.#current, ...changes })
       await this.#write(next)
       this.#use(next)

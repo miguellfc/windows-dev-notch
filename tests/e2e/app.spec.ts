@@ -65,7 +65,7 @@ test('renderer is isolated from Node and locked down by CSP', async () => {
     const win = globalThis as unknown as NotchWindow
     return { require: typeof win.require, process: typeof win.process, keys: Object.keys(win.notch).sort() }
   })
-  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'reminders', 'settings', 'system', 'usage'] })
+  expect(exposure).toEqual({ require: 'undefined', process: 'undefined', keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'system', 'usage'] })
 
   const csp = await notch.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(csp).toContain("default-src 'none'")
@@ -295,8 +295,20 @@ test('the panel header has the Control Center and Hide icon buttons, reachable w
   const opened = app.waitForEvent('window', (page) => page.url().includes('control-center'))
   await controlCenter.click()
   await opened
+  // The panel closes at once; the new window is created hidden and only shows (and takes the focus)
+  // once its first paint is ready. Wait for that, or a panel opened before it would close again on the
+  // notch's blur.
+  await expect(capsule).not.toHaveAttribute('data-mode', 'expanded')
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) => {
+        const cc = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('control-center'))
+        return cc !== undefined && cc.isVisible() && cc.isFocused()
+      }),
+    )
+    .toBe(true)
 
-  // Opening the other window takes the focus and the panel closes: open it again. Hide hides the notch.
+  // Opening the other window took the focus and the panel closed: open it again. Hide hides the notch.
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
   await expect(capsule).toHaveAttribute('data-mode', 'expanded')
   await hide.click()
@@ -304,7 +316,7 @@ test('the panel header has the Control Center and Hide icon buttons, reachable w
   await app.close()
 })
 
-test('the eight integration tiles fit the panel without cutting a label, in ES and EN', async () => {
+test('the nine integration tiles fit the panel without cutting a label, in ES and EN', async () => {
   const { app, notch } = await launch()
   await notch.evaluate(() => (globalThis as unknown as NotchWindow).notch.notch.request({ intent: 'expand' }))
   await expect(notch.getByTestId('notch-capsule')).toHaveAttribute('data-mode', 'expanded')
@@ -348,10 +360,10 @@ test('the eight integration tiles fit the panel without cutting a label, in ES a
         }
       })
     // Polled: the labels re-render with the language a frame after `lang` changes.
-    await expect.poll(measureFit).toEqual({ count: 8, cut: [], rowOverflows: false })
+    await expect.poll(measureFit).toEqual({ count: 9, cut: [], rowOverflows: false })
     if (language === 'es') {
       await settle(notch)
-      await notch.screenshot({ path: 'test-results/integration-row-8-es.png' })
+      await notch.screenshot({ path: 'test-results/integration-row-9-es.png' })
     }
   }
   await app.close()

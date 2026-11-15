@@ -89,6 +89,20 @@ export const channels = {
     view: 'code-review:view',
     contributions: 'code-review:contributions',
   },
+  redmine: {
+    getState: 'redmine:get-state',
+    issues: 'redmine:issues',
+    issue: 'redmine:issue',
+    activities: 'redmine:activities',
+    updateIssue: 'redmine:update-issue',
+    logTime: 'redmine:log-time',
+    summary: 'redmine:summary',
+    view: 'redmine:view',
+    refresh: 'redmine:refresh',
+    open: 'redmine:open',
+    setKey: 'redmine:set-key',
+    clear: 'redmine:clear',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
@@ -96,6 +110,7 @@ export const eventChannels = {
   notchModeChanged: 'notch:mode-changed',
   notchMailAlert: 'notch:mail-alert',
   notchReviewAlert: 'notch:review-alert',
+  notchRedmineAlert: 'notch:redmine-alert',
   settingsChanged: 'settings:changed',
   claudeStateChanged: 'claude:state-changed',
   claudeQuestions: 'claude:questions',
@@ -109,6 +124,9 @@ export const eventChannels = {
   codeReviewState: 'code-review:state',
   codeReviewAlert: 'code-review:alert',
   codeReviewContributionsChanged: 'code-review:contributions-changed',
+  redmineState: 'redmine:state',
+  redmineSummaryChanged: 'redmine:summary-changed',
+  redmineAlert: 'redmine:alert',
 } as const
 
 type ChannelGroups = typeof channels

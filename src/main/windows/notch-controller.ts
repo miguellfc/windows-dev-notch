@@ -7,6 +7,8 @@ import {
   notchMode,
   PANEL_MODES,
   reduceNotch,
+  REDMINE_ALERT_MS,
+  redmineAlertShown,
   REVIEW_ALERT_MS,
   reviewAlertShown,
   STICKY_COMPACT_MS,
@@ -14,7 +16,7 @@ import {
   type NotchMode,
 } from '../../shared/notch/state'
 
-export { MAIL_ALERT_MS, REVIEW_ALERT_MS, STICKY_COMPACT_MS }
+export { MAIL_ALERT_MS, REDMINE_ALERT_MS, REVIEW_ALERT_MS, STICKY_COMPACT_MS }
 import type { Logger } from '../services/logger'
 
 /** What the controller needs from the capsule window; the Electron adapter implements it. */
@@ -31,6 +33,8 @@ export interface NotchSurface {
   sendMailAlert(on: boolean): void
   /** Whether the alert capsule shows the first-review alert; sent before the mode that shows it. */
   sendReviewAlert(on: boolean): void
+  /** Whether the alert capsule shows the end-of-day Redmine alert; sent before the mode that shows it. */
+  sendRedmineAlert(on: boolean): void
 }
 
 export interface NotchControllerOptions {
@@ -75,6 +79,8 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   let mailShown = false
   /** Last value of {@link reviewAlertShown}, sent like `mailShown`. */
   let reviewShown = false
+  /** Last value of {@link redmineAlertShown}, sent like `mailShown`. */
+  let redmineShown = false
   /** Last value of {@link isCapsuleHidden}, reported through `onHiddenChange`. */
   let hidden = isCapsuleHidden(state)
   let workArea = options.workArea
@@ -83,6 +89,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   let pendingShrink: { target: VisibleMode; timer: ReturnType<typeof setTimeout> } | null = null
   let mailTimer: ReturnType<typeof setTimeout> | null = null
   let reviewTimer: ReturnType<typeof setTimeout> | null = null
+  let redmineTimer: ReturnType<typeof setTimeout> | null = null
   /** Ends the sticky compact after a click on the pill if the pointer never reaches compact. */
   let stickyTimer: ReturnType<typeof setTimeout> | null = null
   let started = false
@@ -98,6 +105,11 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
   const clearReviewTimer = () => {
     if (reviewTimer !== null) clearTimeout(reviewTimer)
     reviewTimer = null
+  }
+
+  const clearRedmineTimer = () => {
+    if (redmineTimer !== null) clearTimeout(redmineTimer)
+    redmineTimer = null
   }
 
   const clearStickyTimer = () => {
@@ -152,6 +164,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       surface.setIgnoreMouse(true)
       if (mailShown) surface.sendMailAlert(true)
       if (reviewShown) surface.sendReviewAlert(true)
+      if (redmineShown) surface.sendRedmineAlert(true)
       surface.sendMode(mode)
       if (mode === 'hidden') surface.hide()
       else surface.show()
@@ -176,6 +189,15 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
           controller.dispatch({ type: 'review', on: false })
         }, REVIEW_ALERT_MS)
       }
+      if (event.type === 'redmine' && event.on) {
+        // Same rules as mail: dropped with a panel open; each new alert restarts the 6 s.
+        if (PANEL_MODES.has(mode)) return
+        clearRedmineTimer()
+        redmineTimer = setTimeout(() => {
+          redmineTimer = null
+          controller.dispatch({ type: 'redmine', on: false })
+        }, REDMINE_ALERT_MS)
+      }
       const nextState = reduceNotch(state, event)
       if (nextState === state) return
       // The sticky compact (after a click on the pill) has a deadline; anything that ends it first clears it.
@@ -191,26 +213,21 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       state = nextState
       // The alert's kind can change while the mode stays `alert` (a permission over a mail alert, a
       // review replacing mail), and it reaches the renderer before a mode change that shows it. The
-      // one turning off goes first, so the renderer never sees both on.
-      const nextMailShown = mailAlertShown(state)
-      const nextReviewShown = reviewAlertShown(state)
-      const sendMail = () => {
-        if (nextMailShown === mailShown) return
-        mailShown = nextMailShown
-        if (started) surface.sendMailAlert(mailShown)
+      // ones turning off go first, so the renderer never sees two on.
+      const shown = { mail: mailAlertShown(state), review: reviewAlertShown(state), redmine: redmineAlertShown(state) }
+      const send = (kind: 'mail' | 'review' | 'redmine', on: boolean) => {
+        if (on === (kind === 'mail' ? mailShown : kind === 'review' ? reviewShown : redmineShown)) return
+        if (kind === 'mail') mailShown = on
+        else if (kind === 'review') reviewShown = on
+        else redmineShown = on
+        if (!started) return
+        if (kind === 'mail') surface.sendMailAlert(on)
+        else if (kind === 'review') surface.sendReviewAlert(on)
+        else surface.sendRedmineAlert(on)
       }
-      const sendReview = () => {
-        if (nextReviewShown === reviewShown) return
-        reviewShown = nextReviewShown
-        if (started) surface.sendReviewAlert(reviewShown)
-      }
-      if (nextMailShown) {
-        sendReview()
-        sendMail()
-      } else {
-        sendMail()
-        sendReview()
-      }
+      const kinds = ['mail', 'review', 'redmine'] as const
+      for (const kind of kinds) if (!shown[kind]) send(kind, false)
+      for (const kind of kinds) if (shown[kind]) send(kind, true)
       const nextMode = notchMode(state)
       if (nextMode !== mode) {
         const from = mode
@@ -241,6 +258,7 @@ export function createNotchController(options: NotchControllerOptions): NotchCon
       cancelPendingShrink()
       clearMailTimer()
       clearReviewTimer()
+      clearRedmineTimer()
       clearStickyTimer()
     },
   }

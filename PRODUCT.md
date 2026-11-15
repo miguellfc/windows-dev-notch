@@ -94,4 +94,4 @@ El notch es un punto de **integraciones vivas**: iconos que despliegan una mini 
 
 ## Nota (2026-11-13): terminal embebida retirada
 
-La terminal embebida se retira en favor de abrir **Windows Terminal** (con `pwsh` en la carpeta de usuario) desde la baldosa Terminal, y se añade la baldosa **Claude**, que abre **Claude Desktop** en un chat nuevo; el notch no embebe terminal ni chat con Claude. Se mantiene lo demás: la fila de integraciones pasa a 7 casillas y el ancho de la ventana a 694 px. Las líneas anteriores de este documento sobre la terminal embebida quedan como historia, marcadas arriba.
+La terminal embebida se retira en favor de abrir **Windows Terminal** (con `pwsh` en la carpeta de usuario) desde la baldosa Terminal, y se añade la baldosa **Claude**, que abre **Claude Desktop** en un chat nuevo; el notch no embebe terminal ni chat con Claude. Se mantiene lo demás: la fila de integraciones pasa a 7 casillas y el ancho de la ventana a 694 px (hoy 760 px: ver DESIGN.md). Las líneas anteriores de este documento sobre la terminal embebida quedan como historia, marcadas arriba.

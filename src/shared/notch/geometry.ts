@@ -12,7 +12,8 @@ export type VisibleMode = Exclude<NotchMode, 'hidden'>
 /**
  * Heights of the home panel (header with the clock and the two 28 px icon buttons, then the
  * integrations row; no footer), measured with Playwright in ES and EN (content 126 / 174 / 198 px
- * plus the capsule's 2 px of border, nothing clipped): Claude sessions get their own line under the
+ * plus the capsule's 2 px of border, nothing clipped; measured again at 520 px wide with nine tiles:
+ * no gap, no overflow): Claude sessions get their own line under the
  * tiles (12 px gap, 12 px heading and one 24 px row per session, two visible, the rest scroll). With
  * the panel this short, the window is shorter than the system, permission and reminders ones. The
  * window height follows the mode (the "Revisiones" panel, 520×560 in a 638 px window, is the
@@ -65,6 +66,13 @@ export const QUESTION_SIZE = { width: 520, height: 504 } as const
 export const REVIEWS_SIZE = { width: 520, height: 560 } as const
 
 /**
+ * The Redmine view, the same size as "Revisiones" (so moving between them never resizes the window):
+ * the 32 px header, the hours summary (the month chart beside Hoy · Semana · Mes), the search box,
+ * then the assigned issues (50 px rows) or one issue's detail in their own scroll.
+ */
+export const REDMINE_SIZE = { width: 520, height: 560 } as const
+
+/**
  * Size of the visible capsule per mode, in DIP. `peek` is the resting capsule (time and date): the
  * width of the compact capsule without metrics (`COMPACT_WIDTHS.plain`) and its height, so hovering
  * into compact only widens it and never resizes the window. `mini` is the pill the user pins with a
@@ -75,7 +83,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   compact: { width: 358, height: 36 },
   peek: { width: 168, height: 36 },
   alert: { width: 320, height: 44 },
-  expanded: { width: 480, height: EXPANDED_HEIGHTS.sessions },
+  expanded: { width: 520, height: EXPANDED_HEIGHTS.sessions },
   permission: { width: 480, height: 300 },
   question: QUESTION_SIZE,
   reminders: { width: 420, height: 320 },
@@ -83,6 +91,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   notes: { width: 420, height: 320 },
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
+  redmine: REDMINE_SIZE,
   mini: { width: 96, height: 4 },
 }
 
@@ -122,15 +131,30 @@ export const REVIEW_BLOCK_WIDTH = 48.3
 const FIRST_BLOCK_EXTRA = 4
 
 /**
+ * The Redmine block (mark + the hours logged today at its reserved width, "23,75h" / "23.75h") and the
+ * 10 px gap before it, measured with Playwright in ES and EN: the block is 56.7 px in both languages,
+ * so it adds 66.7 px, last of all after the code-review blocks (worst case, every block showing:
+ * 648 px, time and date still whole). With only time and date before it, it takes that layout's wider
+ * gaps (+4 px), like the other blocks.
+ */
+export const REDMINE_BLOCK_WIDTH = 66.7
+
+/**
  * Width of the compact capsule for what it shows: null is time and date only; `mail` adds the
- * unread-mail block and `reviews` one code-review block per platform. Alerts only change colours,
+ * unread-mail block, `reviews` one code-review block per platform and `redmine` the hours block. Alerts only change colours,
  * never the width; the low-disk block is the one alert that adds a slot.
  */
-export function compactWidthFor(content: { battery: object | null; disk: object | null } | null, mail = false, reviews = 0): number {
+export function compactWidthFor(
+  content: { battery: object | null; disk: object | null } | null,
+  mail = false,
+  reviews = 0,
+  redmine = false,
+): number {
   const base = baseCompactWidth(content, mail)
-  if (reviews <= 0) return base
+  const blocks = Math.max(0, reviews) + (redmine ? 1 : 0)
+  if (blocks === 0) return base
   const extra = !content && !mail ? FIRST_BLOCK_EXTRA : 0
-  return Math.ceil(base + extra + reviews * REVIEW_BLOCK_WIDTH)
+  return Math.ceil(base + extra + Math.max(0, reviews) * REVIEW_BLOCK_WIDTH + (redmine ? REDMINE_BLOCK_WIDTH : 0))
 }
 
 function baseCompactWidth(content: { battery: object | null; disk: object | null } | null, mail: boolean): number {
@@ -149,8 +173,8 @@ function baseCompactWidth(content: { battery: object | null; disk: object | null
  */
 export const SHADOW_MARGIN = { side: 56, top: 6, bottom: 72 } as const
 
-/** The widest the compact capsule gets: mail, battery, disk and both code-review blocks (581 px). */
-const WIDEST_COMPACT_WIDTH = compactWidthFor({ battery: {}, disk: {} }, true, 2)
+/** The widest the compact capsule gets: mail, battery, disk, both code-review blocks and the Redmine block. */
+const WIDEST_COMPACT_WIDTH = compactWidthFor({ battery: {}, disk: {} }, true, 2, true)
 
 /**
  * Constant window width: the widest capsule (a panel, or the compact capsule with every block

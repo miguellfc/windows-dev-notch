@@ -30,6 +30,8 @@ export function ContributionGraph({
   pulse = false,
   description,
   onShowDay,
+  dayLabel,
+  label,
 }: {
   weeks: readonly (readonly ContributionDay[])[]
   /** `YYYY-MM`. */
@@ -42,6 +44,10 @@ export function ContributionGraph({
   description?: string
   /** The hovered or focused square's text, or null when none is. */
   onShowDay?: (text: string | null) => void
+  /** What a square says (Redmine: "12 nov · 5,5 h"); contributions by default. */
+  dayLabel?: (day: ContributionDay) => string
+  /** The grid's accessible name (Redmine: "Horas de noviembre"); "Contribuciones de noviembre" by default. */
+  label?: string
 }) {
   const t = useT()
   const language = useLanguage()
@@ -56,7 +62,8 @@ export function ContributionGraph({
   const stop = (active !== null && days.some((d) => d.date === active) ? active : null) ?? days.find((d) => d.date === today)?.date ?? days[0]?.date ?? null
   const shown = hovered ?? focused
   const shownDay = shown === null ? undefined : days.find((d) => d.date === shown)
-  const shownText = shownDay ? dayCellLabel(shownDay, language) : null
+  const labelOf = dayLabel ?? ((day: ContributionDay) => dayCellLabel(day, language))
+  const shownText = shownDay ? labelOf(shownDay) : null
   useEffect(() => onShowDay?.(shownText), [onShowDay, shownText])
   const narrow = weekdayNames(language, 'narrow')
   const long = weekdayNames(language, 'long')
@@ -84,7 +91,7 @@ export function ContributionGraph({
         {...(interactive
           ? {
               role: 'grid',
-              'aria-label': t('codeReview.contrib.graph', { month: monthName(month, language) }),
+              'aria-label': label ?? t('codeReview.contrib.graph', { month: monthName(month, language) }),
               'aria-readonly': true,
               ...(description ? { 'aria-describedby': `${id}-summary` } : {}),
             }
@@ -126,7 +133,7 @@ export function ContributionGraph({
                     ? {
                         role: 'gridcell',
                         tabIndex: day.date === stop ? 0 : -1,
-                        'aria-label': dayCellLabel(day, language),
+                        'aria-label': labelOf(day),
                         ...(isToday ? { 'aria-current': 'date' as const } : {}),
                         onFocus: () => {
                           setFocused(day.date)

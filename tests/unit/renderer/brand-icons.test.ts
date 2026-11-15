@@ -2,12 +2,13 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { PLATFORM_ICONS } from '../../../src/renderer/notch/code-review/icons'
-import { ClaudeMark, GithubMark, GitlabMark, GmailMark } from '../../../src/renderer/shared/brand-icons'
+import { ClaudeMark, GithubMark, GitlabMark, GmailMark, RedmineMark } from '../../../src/renderer/shared/brand-icons'
 
 describe.each([
   ['GmailMark', GmailMark],
   ['GithubMark', GithubMark],
   ['ClaudeMark', ClaudeMark],
+  ['RedmineMark', RedmineMark],
 ])('%s', (_, Icon) => {
   const html = renderToStaticMarkup(createElement(Icon, { size: 13, strokeWidth: 1.8, 'aria-hidden': 'true' }))
   it('is a 24×24 svg at the requested size', () => {

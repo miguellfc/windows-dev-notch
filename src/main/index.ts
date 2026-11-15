@@ -1,8 +1,9 @@
 import { homedir } from 'node:os'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, nativeTheme, net, safeStorage, screen, session, shell, type Display } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, nativeTheme, net, powerMonitor, safeStorage, screen, session, shell, type Display } from 'electron'
 import type { ControlCenterPage } from '../shared/ipc/contract'
+import { PANEL_MODES } from '../shared/notch/state'
 import { DEV_CSP } from '../shared/security/csp'
 import { createDefaultSettings, type Settings } from '../shared/settings/schema'
 import { createAppLauncher, nodeTrySpawn, pathExists, type AppLauncherDeps } from './apps/app-launcher'
@@ -38,6 +39,10 @@ import { createTestClockTimers } from './services/test-clock-timers'
 import { createUsageLog } from './services/usage-log'
 import { createNotesIntegration } from './notes/notes-integration'
 import { notesChannelGuards } from './notes/notes-ipc'
+import { createEndOfDayScheduler } from './redmine/end-of-day'
+import { createRedmineClient } from './redmine/redmine-client'
+import { createRedmineIntegration, parseRedmineBaseOverride } from './redmine/redmine-integration'
+import { createRedmineIpcHandlers, redmineChannelGuards } from './redmine/redmine-ipc'
 import { createRemindersIntegration } from './reminders/reminders-integration'
 import { remindersChannelGuards } from './reminders/reminders-ipc'
 import { createSystemIntegration } from './system/system-integration'
@@ -72,6 +77,8 @@ const gmailBaseOverride = parseGmailBaseOverride(app.isPackaged ? undefined : pr
 // Fake GitHub/GitLab servers for E2E (`github=http://127.0.0.1:<port>,gitlab=http://127.0.0.1:<port>`).
 // Only exact loopback http origins with a port; anything malformed turns the whole switch off.
 const codeReviewBaseOverrides = parseCodeReviewBaseOverrides(app.isPackaged ? undefined : process.env['NOTCH_CODE_REVIEW_BASE_URLS'])
+// Fake Redmine server for E2E: only an exact http://127.0.0.1:<port> origin; anything else turns it off.
+const redmineBaseOverride = parseRedmineBaseOverride(app.isPackaged ? undefined : process.env['NOTCH_REDMINE_BASE_URL'])
 if (isolatedUserData) app.setPath('userData', isolatedUserData)
 
 if (!app.requestSingleInstanceLock()) {
@@ -328,12 +335,16 @@ function start(): void {
       const gmailTestTimers = testClockEnabled ? createTestClockTimers(testNow) : null
       // So does the 120 s GitHub/GitLab rhythm (and its backoff).
       const codeReviewTestTimers = testClockEnabled ? createTestClockTimers(testNow) : null
+      // And the 5 min Redmine rhythm (its backoff and the 15 min summary).
+      const redmineTestTimers = testClockEnabled ? createTestClockTimers(testNow) : null
       if (testClockEnabled) {
         globalThis.__notchTestClock = {
           advance: (ms) => {
             clockOffsetMs += ms
             gmailTestTimers?.fireDue()
             codeReviewTestTimers?.fireDue()
+            redmineTestTimers?.fireDue()
+            redmineEndOfDay.check()
             return reminders.check()
           },
         }
@@ -429,10 +440,73 @@ function start(): void {
         },
         logger,
       })
-      // A (re)loaded notch starts with every view closed: no contributions polling and no open Gmail
-      // message are left behind for a view that no longer exists.
+      // --- Redmine -----------------------------------------------------------------------
+      // Issues and hours with an API key kept in main, encrypted with safeStorage. Loading it is async
+      // and never blocks registerIpc; redmine:* calls wait for it.
+      const redmineFetch = (url: string, init?: RequestInit) => net.fetch(url, init)
+      const redmine = createRedmineIntegration({
+        settings: {
+          get: () => settings.get(),
+          onChange: (listener) => settings.onChange(listener),
+          // Through the updater, like every other settings change (validation, settings:changed).
+          update: (patch) => updateSettings(patch),
+        },
+        tokenStore: createSecureTokenStore({
+          file: join(app.getPath('userData'), 'redmine.bin'),
+          safeStorage,
+          logger,
+          logScope: 'redmine-token',
+        }),
+        // Settings only ever hold an https server; in dev/E2E the fake on 127.0.0.1 answers the API,
+        // while issue links keep pointing at the configured server (main checks their origin).
+        clientFactory: (baseUrl, apiKey) =>
+          redmineBaseOverride === undefined
+            ? createRedmineClient({ fetch: redmineFetch, apiKey, baseUrl })
+            : {
+                ...createRedmineClient({ fetch: redmineFetch, apiKey, baseUrl: redmineBaseOverride, allowLoopbackHttp: true }),
+                issueUrl: (id) => `${baseUrl}/issues/${id}`,
+              },
+        timers: redmineTestTimers ?? { setTimeout, clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) },
+        now: redmineTestTimers ? testNow : () => Date.now(),
+        emit: (state) => emitEvent(notchAndControlCenter(), 'redmine:state', state, logger),
+        // The month summary is shown only in the notch's Redmine view.
+        emitSummary: (change) => {
+          if (notchWindow.isDestroyed()) return
+          emitEvent([notchWindow.webContents], 'redmine:summary-changed', change, logger)
+        },
+        openExternal: (url) => shell.openExternal(url),
+        logger,
+      })
+      // The weekday end-of-day alert when today's hours are under the target. Memory only: an app that
+      // starts after the time does not alert that day. Like the reminders, it checks again as soon as
+      // the PC wakes or unlocks (timers stall while it sleeps); the dev-only test clock calls check() too.
+      const redmineEndOfDay = createEndOfDayScheduler({
+        settings: { get: () => settings.get(), onChange: (listener) => settings.onChange(listener) },
+        now: testClockEnabled ? () => new Date(testNow()) : () => new Date(),
+        timers: { setTimeout, clearTimeout, setInterval, clearInterval },
+        todayHours: () => redmine.todayHours(),
+        isConnected: () => {
+          const { status } = redmine.state()
+          return status === 'ok' || status === 'offline'
+        },
+        // Payload first, to the notch only, then the capsule alert (ended after 6 s), like the first-review
+        // alert. With a panel open the controller would drop it: refused instead, so neither the payload
+        // nor the chime go out and the scheduler offers it again on its next check.
+        onAlert: (alert) => {
+          if (notchWindow.isDestroyed() || PANEL_MODES.has(notch.mode())) return false
+          emitEvent([notchWindow.webContents], 'redmine:alert', alert, logger)
+          notch.dispatch({ type: 'redmine', on: true })
+          return true
+        },
+      })
+      const checkRedmineEndOfDay = () => redmineEndOfDay.check()
+      powerMonitor.on('resume', checkRedmineEndOfDay)
+      powerMonitor.on('unlock-screen', checkRedmineEndOfDay)
+      // A (re)loaded notch starts with every view closed: no contributions or summary polling and no
+      // open Gmail message are left behind for a view that no longer exists.
       notchWindow.webContents.on('did-finish-load', () => {
         codeReview.setViewOpen(false)
+        redmine.setViewOpen(false)
         gmail?.setViewOpen(false)
       })
       // --- Apps ----------------------------------------------------------------------
@@ -478,6 +552,7 @@ function start(): void {
           ...notesChannelGuards({ fromNotch: fromNotchWindow }),
           ...gmailChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...codeReviewChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
+          ...redmineChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -537,10 +612,13 @@ function start(): void {
             }),
           ),
           ...createCodeReviewIpcHandlers(codeReview),
+          ...createRedmineIpcHandlers(redmine),
         },
       })
       // Non-blocking: the rhythm starts now; the first queries run once the stored tokens are read.
       codeReview.start()
+      redmine.start()
+      redmineEndOfDay.start()
 
       // Started after registerIpc so the renderers never miss a handler; reminders:* calls wait
       // for this to finish, so the first list already reflects the file.
@@ -566,6 +644,10 @@ function start(): void {
             system.dispose()
             gmail?.dispose()
             codeReview.dispose()
+            redmine.dispose()
+            powerMonitor.off('resume', checkRedmineEndOfDay)
+            powerMonitor.off('unlock-screen', checkRedmineEndOfDay)
+            redmineEndOfDay.dispose()
             shortcut.dispose()
             tray?.destroy()
             screen.off('display-added', onDisplaysChanged)

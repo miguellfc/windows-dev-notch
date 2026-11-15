@@ -5,7 +5,7 @@ import type { IntegrationId } from '../integrations/registry'
  * reviews) the one under the pointer, `mini` the thin pill the user pins with a right click.
  * `hidden` means the window is not on screen at all.
  */
-export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'permission' | 'question' | 'reminders' | 'system' | 'notes' | 'gmail' | 'reviews' | 'mini' | 'hidden'
+export type NotchMode = 'compact' | 'peek' | 'alert' | 'expanded' | 'permission' | 'question' | 'reminders' | 'system' | 'notes' | 'gmail' | 'reviews' | 'redmine' | 'mini' | 'hidden'
 
 /** What the open panel shows: the integrations row, or one integration. */
 export type NotchView = 'home' | ClaudeItem | IntegrationId
@@ -14,7 +14,7 @@ export type NotchView = 'home' | ClaudeItem | IntegrationId
 export type ClaudeItem = 'permission' | 'question'
 
 /** Modes that show the panel and therefore own the keyboard focus. */
-export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews'])
+export const PANEL_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine'])
 
 /** How long the new-mail alert stays in the capsule before it goes away on its own (main owns the timer). */
 export const MAIL_ALERT_MS = 6_000
@@ -27,6 +27,9 @@ export const STICKY_COMPACT_MS = 3_000
 
 /** How long the first-review alert stays (main owns the timer), like the mail alert. */
 export const REVIEW_ALERT_MS = 6_000
+
+/** How long the end-of-day Redmine alert stays (main owns the timer), like the mail alert. */
+export const REDMINE_ALERT_MS = 6_000
 
 /**
  * How the capsule yields to the window in front: nothing, or disappear (fullscreen). Maximized windows
@@ -66,6 +69,11 @@ export interface NotchState {
    * replaces the older); main turns it off after 6 s.
    */
   readonly reviewAlert: boolean
+  /**
+   * Hours logged today are under the daily target at the end of the day: the same lowest priority as
+   * mail and reviews (the newest of the three replaces the others); main turns it off after 6 s.
+   */
+  readonly redmineAlert: boolean
   readonly view: NotchView
 }
 
@@ -91,6 +99,8 @@ export type NotchEvent =
   | { readonly type: 'mail'; readonly on: boolean }
   /** Own PR/MRs got their first review (on), or the alert's 6 s ended (off). */
   | { readonly type: 'review'; readonly on: boolean }
+  /** The end-of-day Redmine alert (on), or its 6 s ended (off). */
+  | { readonly type: 'redmine'; readonly on: boolean }
   /** At least one Claude question is (or no longer is) waiting for an answer. */
   | { readonly type: 'question'; readonly on: boolean }
   /** The earliest pending Claude item changed kind (main sends it with the permission and question lists). */
@@ -111,6 +121,7 @@ export const initialNotchState: NotchState = Object.freeze({
   reminderDue: false,
   mailAlert: false,
   reviewAlert: false,
+  redmineAlert: false,
   view: 'home',
 })
 
@@ -124,7 +135,7 @@ export function notchMode(state: NotchState): NotchMode {
   if (state.expanded) {
     return state.view === 'home' ? 'expanded' : state.view
   }
-  if (state.attention || state.question || state.reminderDue || state.mailAlert || state.reviewAlert) return 'alert'
+  if (state.attention || state.question || state.reminderDue || state.mailAlert || state.reviewAlert || state.redmineAlert) return 'alert'
   if (isCapsuleHidden(state)) return 'hidden'
   if (state.pinnedMini) return 'mini'
   return state.pointerInside || state.stickyCompact ? 'compact' : 'peek'
@@ -157,7 +168,12 @@ export function reviewAlertShown(state: NotchState): boolean {
   return state.reviewAlert && lowAlertOwnsCapsule(state)
 }
 
-/** The capsule is in `alert` and no permission, question or due reminder (all outrank mail and reviews) owns it. */
+/** Whether the alert capsule shows the end-of-day Redmine alert (same rule as {@link mailAlertShown}). */
+export function redmineAlertShown(state: NotchState): boolean {
+  return state.redmineAlert && lowAlertOwnsCapsule(state)
+}
+
+/** The capsule is in `alert` and no permission, question or due reminder (all outrank mail, reviews and Redmine) owns it. */
 const lowAlertOwnsCapsule = (state: NotchState): boolean =>
   notchMode(state) === 'alert' && !state.attention && !state.question && !state.reminderDue
 
@@ -170,7 +186,8 @@ export function firstClaudeItem(state: Pick<NotchState, 'attention' | 'question'
 
 /**
  * A panel opened while something is pending lands on it: the earliest Claude permission or question
- * (same level), a due reminder, then new mail or a first review (never both at once).
+ * (same level), a due reminder, then new mail, a first review or the end-of-day Redmine alert (only
+ * one of the three at a time).
  */
 function openingView(state: NotchState): NotchView {
   if (state.expanded) return state.view
@@ -178,11 +195,12 @@ function openingView(state: NotchState): NotchView {
   if (claude) return claude
   if (state.reminderDue) return 'reminders'
   if (state.mailAlert) return 'gmail'
-  return state.reviewAlert ? 'reviews' : 'home'
+  if (state.reviewAlert) return 'reviews'
+  return state.redmineAlert ? 'redmine' : 'home'
 }
 
 /** Opening a panel spends the low-priority alerts: they are never shown with a panel open. */
-const SPENT = { mailAlert: false, reviewAlert: false } as const
+const SPENT = { mailAlert: false, reviewAlert: false, redmineAlert: false } as const
 
 function next(state: NotchState, changes: Partial<NotchState>): NotchState {
   const keys = Object.keys(changes) as (keyof NotchState)[]
@@ -228,7 +246,7 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
     case 'unpin-mini':
       // The click came from the pill, above compact: compact sticks until the pointer has been on it.
       return state.pinnedMini ? next(state, { pinnedMini: false, stickyCompact: true }) : state
-    // Opening the panel spends the mail and review alerts: they are never shown with a panel open.
+    // Opening the panel spends the mail, review and Redmine alerts: they are never shown with a panel open.
     case 'expand':
       return next(state, { expanded: true, userHidden: userHiddenOnOpen(state), ...SPENT, view: openingView(state) })
     // Like expand, but it always clears the user's "hide", even from an alert over the hidden capsule.
@@ -259,12 +277,15 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
       return next(state, { reminderDue: event.due })
     case 'mail':
       // The lowest-priority alert: with a panel open it is dropped, not queued.
-      // The newer of mail and review replaces the older one: one low-priority alert at a time.
-      if (event.on) return state.expanded ? state : next(state, { mailAlert: true, reviewAlert: false })
+      // The newest of mail, review and Redmine replaces the others: one low-priority alert at a time.
+      if (event.on) return state.expanded ? state : next(state, { mailAlert: true, reviewAlert: false, redmineAlert: false })
       return next(state, { mailAlert: false })
     case 'review':
-      if (event.on) return state.expanded ? state : next(state, { reviewAlert: true, mailAlert: false })
+      if (event.on) return state.expanded ? state : next(state, { reviewAlert: true, mailAlert: false, redmineAlert: false })
       return next(state, { reviewAlert: false })
+    case 'redmine':
+      if (event.on) return state.expanded ? state : next(state, { redmineAlert: true, mailAlert: false, reviewAlert: false })
+      return next(state, { redmineAlert: false })
     case 'question':
       // Never opens or closes the panel. An open question card stays: it shows "sent" or "no longer
       // pending" and then asks for the next item itself (`next`).

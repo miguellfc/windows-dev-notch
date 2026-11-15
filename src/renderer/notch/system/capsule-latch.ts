@@ -1,5 +1,6 @@
 import type { CodeReviewState, Platform, PlatformState } from '../../../shared/code-review/schema'
 import type { GmailState } from '../../../shared/gmail/schema'
+import type { RedmineState } from '../../../shared/redmine/schema'
 import type { SystemMetrics } from '../../../shared/system/schema'
 
 /** What the compact capsule shows: percentages only, battery slot or not, low-disk block or not. */
@@ -143,4 +144,32 @@ export function nextReviewBlocks(previous: ReviewBlocks, state: CodeReviewState)
 /** How many code-review blocks the capsule shows (each adds its measured width). */
 export function reviewBlockCount(blocks: ReviewBlocks): number {
   return (blocks.github.count === null ? 0 : 1) + (blocks.gitlab.count === null ? 0 : 1)
+}
+
+/** The Redmine block of the compact capsule: the hours logged today it shows, or null when it takes no room. */
+export interface RedmineLatch {
+  /** Hours logged today, 0 included; null while there is no block. */
+  hours: number | null
+  /** Consecutive readings without today's hours while the block is shown. */
+  missRun: number
+}
+
+export const EMPTY_REDMINE: RedmineLatch = { hours: null, missRun: 0 }
+
+/**
+ * Folds one `redmine:state` reading into the Redmine block (pure; returns the same object when
+ * nothing changed). Shown with the first reading that has today's hours in a live session (`ok` or
+ * `offline`, which keeps the last data), a 0 included: "0h" is what tells the user nothing is logged
+ * yet. A reading without them keeps the last value until CAPSULE_MISSES in a row, since the block
+ * changes the capsule width. A session that ends (unconfigured, signed out) hides it at once, and so
+ * does `offline` without hours: main drops the last reading once its day is over, and yesterday's
+ * hours must never pass for today's.
+ */
+export function nextRedmineBlock(previous: RedmineLatch, state: RedmineState): RedmineLatch {
+  const live = state.status === 'ok' || state.status === 'offline'
+  if (!live) return EMPTY_REDMINE
+  if (state.todayHours !== null) return previous.hours === state.todayHours && previous.missRun === 0 ? previous : { hours: state.todayHours, missRun: 0 }
+  if (previous.hours === null || state.status === 'offline') return EMPTY_REDMINE
+  const missRun = previous.missRun + 1
+  return missRun >= CAPSULE_MISSES ? EMPTY_REDMINE : { hours: previous.hours, missRun }
 }
