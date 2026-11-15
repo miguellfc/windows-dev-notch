@@ -15,6 +15,7 @@ import {
 } from './fixtures/fake-gmail'
 import { settle } from './settle'
 import { present, whileHovered } from './pointer'
+import type { PageElement } from './dom'
 
 type NotchWindow = { notch: NotchApi }
 /** Where the replaced `shell.openExternal` keeps the URLs main asked to open. */
@@ -262,7 +263,7 @@ test('configure from Control Center, sign in, unread count in the capsule, 5 mos
 
   // Settings page, signed in (the window is Mica: give the capture the dark backdrop it has on screen).
   await cc.addStyleTag({ content: 'html, body { background: #0d0d0f !important }' })
-  await cc.locator('main').evaluate((el) => el.scrollTo(0, 0))
+  await cc.locator('main').evaluate((el) => (el as PageElement).scrollTo(0, 0))
   await settle(cc)
   await cc.screenshot({ path: 'test-results/gmail-settings.png' })
 

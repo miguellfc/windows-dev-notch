@@ -6,6 +6,7 @@ import { _electron as electron, expect, test, type ElectronApplication, type Loc
 import type { NotchApi } from '../../src/shared/ipc/api'
 import { settle } from './settle'
 import { showCompact } from './pointer'
+import type { PageElement } from './dom'
 
 type NotchWindow = { notch: NotchApi }
 type HookReply = { status: number; body: string }
@@ -328,7 +329,7 @@ test('Control Center installs with a diff, keeps foreign hooks, and uninstalls b
   await expect(diff).toContainText('••••••')
   // The window is Mica (transparent page): a page capture would composite it on white, so give it the dark backdrop Mica shows on screen.
   await cc.addStyleTag({ content: 'html, body { background: #0d0d0f !important }' })
-  await diff.evaluate((el) => el.scrollTo(0, el.scrollHeight))
+  await diff.evaluate((el) => (el as PageElement).scrollTo(0, (el as PageElement).scrollHeight))
   await cc.waitForTimeout(1000)
   await cc.screenshot({ path: 'test-results/m3-control-center.png' })
   // Nothing is written before confirming.

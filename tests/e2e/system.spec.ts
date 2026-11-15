@@ -8,6 +8,7 @@ import type { NotchApi } from '../../src/shared/ipc/api'
 import { PROCESS_LIMIT } from '../../src/shared/system/schema'
 import { settle } from './settle'
 import { leaveCapsule, showCompact } from './pointer'
+import type { PageElement } from './dom'
 
 type NotchWindow = { notch: NotchApi }
 
@@ -109,7 +110,7 @@ test('the System tile shows cards and processes in under 2 s', async () => {
   await expect(notch.getByTestId('process-row').first()).toBeVisible({ timeout: 2000 })
   // The list is the top 5 (PROCESS_LIMIT): never more rows, and the panel (280 px) shows them without scrolling.
   await expect.poll(() => notch.getByTestId('process-row').count()).toBe(PROCESS_LIMIT)
-  expect(await notch.getByTestId('process-list').evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true)
+  expect(await notch.getByTestId('process-list').evaluate((el) => (el as PageElement).scrollHeight <= (el as PageElement).clientHeight)).toBe(true)
   // Main warms up before the first emission: the very first list already has CPU values, and the
   // network card has rates, instead of "—".
   // Read once (no auto-retry): the first emission itself must carry the values.

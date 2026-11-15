@@ -31,6 +31,7 @@ import {
 } from './fixtures/fake-code-review'
 import { settle } from './settle'
 import { present, whileHovered } from './pointer'
+import type { PageElement } from './dom'
 
 type NotchWindow = { notch: NotchApi }
 /** Where the replaced `shell.openExternal` keeps the URLs main asked to open. */
@@ -202,7 +203,7 @@ const expectNoTabs = async (notch: Page, name: 'GitHub' | 'GitLab'): Promise<voi
 
 const rowsOf = (notch: Page, section: 'toReview' | 'mine'): Locator => notch.locator(`[data-section="${section}"] [data-testid="review-item"]`)
 const badgesOf = (row: Locator): Promise<(string | null)[]> =>
-  row.locator('[data-badge]').evaluateAll((els) => els.map((el) => el.getAttribute('data-badge')))
+  row.locator('[data-badge]').evaluateAll((els) => els.map((el) => (el as PageElement).getAttribute('data-badge')))
 
 /** The title sits on line 1, above the ref (line 2). */
 const expectTitleOnFirstLine = async (row: Locator): Promise<void> => {
@@ -274,7 +275,7 @@ const expectContributions = async (notch: Page, expected: ExpectedContributions,
   const cells = graph(notch).locator('[data-date]')
   await expect(cells).toHaveCount(daysInMonth)
   const shown = await cells.evaluateAll((els) =>
-    els.map((el) => ({ date: el.getAttribute('data-date') ?? '', level: Number(el.getAttribute('data-level')), future: el.hasAttribute('data-future') })),
+    els.map((el) => ({ date: (el as PageElement).getAttribute('data-date') ?? '', level: Number((el as PageElement).getAttribute('data-level')), future: (el as PageElement).hasAttribute('data-future') })),
   )
   const max = Math.max(...expected.counts.values())
   for (const cell of shown) {
@@ -368,7 +369,7 @@ test('save tokens in Control Center, counts in the capsule, the GitHub and GitLa
 
   // Settings page, both connected (the window is Mica: give the capture the dark backdrop it has on screen).
   await cc.addStyleTag({ content: 'html, body { background: #0d0d0f !important }' })
-  await cc.locator('main').evaluate((el) => el.scrollTo(0, 0))
+  await cc.locator('main').evaluate((el) => (el as PageElement).scrollTo(0, 0))
   await screenshot(cc, 'code-review-settings.png')
 
   // The capsule: one block per platform with its own unreviewed PR/MRs (drafts and reviewed ones left out).
