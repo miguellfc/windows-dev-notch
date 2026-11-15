@@ -659,4 +659,138 @@ describe('code review in the notch contract', () => {
   it('lets the notch open the code-review page of the Control Center', () => {
     expect(contract['app:open-control-center'].input.safeParse({ page: 'code-review' }).success).toBe(true)
   })
+
+  it('lets the notch open the redmine page of the Control Center', () => {
+    expect(contract['app:open-control-center'].input.safeParse({ page: 'redmine' }).success).toBe(true)
+  })
+})
+
+describe('redmine contract', () => {
+  const state = { status: 'ok', account: 'Alice Doe', todayHours: 5.5, updatedAt: 1_763_000_000_000, persistent: true }
+  const issue = {
+    id: 12,
+    subject: 'Fix login',
+    project: 'Web',
+    status: { id: 2, name: 'In progress' },
+    estimatedHours: 4,
+    spentHours: 1.5,
+    updatedOn: '2026-11-12T10:00:00Z',
+  }
+  const summary = { month: '2026-11', days: [{ date: '2026-11-14', hours: 5.5 }], today: 5.5, week: 20, monthTotal: 60 }
+
+  it('exposes the redmine channels and events', () => {
+    expect(channels.redmine).toEqual({
+      getState: 'redmine:get-state',
+      issues: 'redmine:issues',
+      issue: 'redmine:issue',
+      activities: 'redmine:activities',
+      updateIssue: 'redmine:update-issue',
+      logTime: 'redmine:log-time',
+      summary: 'redmine:summary',
+      view: 'redmine:view',
+      refresh: 'redmine:refresh',
+      open: 'redmine:open',
+      setKey: 'redmine:set-key',
+      clear: 'redmine:clear',
+    })
+    expect(eventChannels.redmineState).toBe('redmine:state')
+    expect(eventChannels.redmineSummaryChanged).toBe('redmine:summary-changed')
+  })
+
+  it('carries the end-of-day alert as strict hours and target, and a boolean flag for the capsule', () => {
+    expect(eventChannels.redmineAlert).toBe('redmine:alert')
+    expect(eventChannels.notchRedmineAlert).toBe('notch:redmine-alert')
+    const schema = eventContract['redmine:alert']
+    expect(schema.safeParse({ hours: 5.5, target: 8 }).success).toBe(true)
+    expect(schema.safeParse({ hours: 5.5, target: 8, subject: 'x' }).success).toBe(false)
+    expect(schema.safeParse({ hours: -1, target: 8 }).success).toBe(false)
+    expect(eventContract['notch:redmine-alert'].safeParse(true).success).toBe(true)
+    expect(eventContract['notch:redmine-alert'].safeParse('redmine').success).toBe(false)
+  })
+
+  it('keeps the state strict (no key can ride along) on the channel and the event', () => {
+    for (const schema of [contract['redmine:get-state'].output, eventContract['redmine:state']]) {
+      expect(schema.safeParse(state).success).toBe(true)
+      expect(schema.safeParse({ ...state, key: 'x' }).success).toBe(false)
+      expect(schema.safeParse({ ...state, status: 'connected' }).success).toBe(false)
+    }
+    expect(contract['redmine:get-state'].input.safeParse(undefined).success).toBe(true)
+    expect(contract['redmine:get-state'].input.safeParse({}).success).toBe(false)
+  })
+
+  it('lists strict issues without URLs', () => {
+    const issues = contract['redmine:issues']
+    expect(issues.input.safeParse(undefined).success).toBe(true)
+    expect(issues.output.safeParse({ issues: [issue], truncated: false }).success).toBe(true)
+    expect(issues.output.safeParse({ issues: [{ ...issue, url: 'https://redmine.example.test/issues/12' }], truncated: false }).success).toBe(false)
+  })
+
+  it('reads one issue by a positive integer id and returns its allowed statuses', () => {
+    const detail = contract['redmine:issue']
+    expect(detail.input.safeParse({ id: 12 }).success).toBe(true)
+    for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(detail.input.safeParse(bad).success).toBe(false)
+    expect(detail.output.safeParse({ ...issue, allowedStatuses: [{ id: 3, name: 'Done' }] }).success).toBe(true)
+    expect(detail.output.safeParse(issue).success).toBe(false)
+  })
+
+  it('lists activities', () => {
+    const activities = contract['redmine:activities']
+    expect(activities.input.safeParse(undefined).success).toBe(true)
+    expect(activities.output.safeParse([{ id: 9, name: 'Dev', isDefault: true }]).success).toBe(true)
+    expect(activities.output.safeParse([{ id: 9, name: 'Dev' }]).success).toBe(false)
+  })
+
+  it('validates writes and returns strict write results', () => {
+    const update = contract['redmine:update-issue']
+    expect(update.input.safeParse({ id: 12, statusId: 3 }).success).toBe(true)
+    expect(update.input.safeParse({ id: 12, estimatedHours: null }).success).toBe(true)
+    expect(update.input.safeParse({ id: 12 }).success).toBe(false)
+    const log = contract['redmine:log-time']
+    expect(log.input.safeParse({ issueId: 12, spentOn: '2026-11-01', hours: 1.5, activityId: 9, comments: '' }).success).toBe(true)
+    expect(log.input.safeParse({ issueId: 12, spentOn: '2026-11-01', hours: 0, activityId: 9, comments: '' }).success).toBe(false)
+    for (const channel of ['redmine:update-issue', 'redmine:log-time'] as const) {
+      const output = contract[channel].output
+      expect(output.safeParse({ ok: true }).success).toBe(true)
+      expect(output.safeParse({ ok: false, reason: 'forbidden' }).success).toBe(true)
+      expect(output.safeParse({ ok: false, reason: 'validation', messages: ['Status is invalid'] }).success).toBe(true)
+      expect(output.safeParse({ ok: false, reason: 'teapot' }).success).toBe(false)
+    }
+  })
+
+  it('returns the cached summary (or null) with the error flag, and announces changes by error flag only', () => {
+    const result = contract['redmine:summary']
+    expect(result.input.safeParse(undefined).success).toBe(true)
+    expect(result.output.safeParse({ summary, error: false }).success).toBe(true)
+    expect(result.output.safeParse({ summary: null, error: true }).success).toBe(true)
+    expect(result.output.safeParse({ summary: null }).success).toBe(false)
+    expect(result.output.safeParse(summary).success).toBe(false)
+    const changed = eventContract['redmine:summary-changed']
+    expect(changed.safeParse({ error: false }).success).toBe(true)
+    expect(changed.safeParse({}).success).toBe(false)
+    expect(changed.safeParse({ error: false, summary }).success).toBe(false)
+  })
+
+  it('opens the view with a strict boolean and an issue by id, never by URL', () => {
+    expect(contract['redmine:view'].input.safeParse({ open: true }).success).toBe(true)
+    expect(contract['redmine:view'].input.safeParse({}).success).toBe(false)
+    expect(contract['redmine:open'].input.safeParse({ id: 12 }).success).toBe(true)
+    expect(contract['redmine:open'].input.safeParse({ id: 12, url: 'https://evil.test' }).success).toBe(false)
+    for (const channel of ['redmine:view', 'redmine:open', 'redmine:refresh', 'redmine:clear'] as const) {
+      expect(contract[channel].output.safeParse(null).success).toBe(true)
+    }
+    expect(contract['redmine:refresh'].input.safeParse({}).success).toBe(false)
+  })
+
+  it('takes a bounded key with the URL and never returns it', () => {
+    const set = contract['redmine:set-key']
+    expect(set.input.safeParse({ url: 'https://redmine.example.test', key: 'k' }).success).toBe(true)
+    expect(set.input.safeParse({ url: 'https://redmine.example.test', key: '' }).success).toBe(false)
+    expect(set.input.safeParse({ url: 'https://redmine.example.test', key: 'x'.repeat(256) }).success).toBe(false)
+    expect(set.input.safeParse({ key: 'k' }).success).toBe(false)
+    expect(set.output.safeParse({ ok: true, account: 'Alice' }).success).toBe(true)
+    expect(set.output.safeParse({ ok: false, reason: 'url' }).success).toBe(true)
+    expect(set.output.safeParse({ ok: true, account: 'Alice', key: 'k' }).success).toBe(false)
+    expect(contract['redmine:clear'].input.safeParse(undefined).success).toBe(true)
+    expect(contract['redmine:clear'].input.safeParse({}).success).toBe(false)
+  })
 })

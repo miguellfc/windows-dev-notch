@@ -6,7 +6,7 @@ import { buildDueAt, nextQuarterHour, todayIsoDate, tomorrowIsoDate, type FormDa
 import { reminderErrorKey } from '../../shared/reminders/format'
 import { useT } from '../../shared/use-t'
 import { Segmented } from '../../ui/Segmented'
-import { headerIconButton } from './styles'
+import { fieldClass, headerIconButton, primaryButton, secondaryButton } from './styles'
 
 type RepeatValue = Reminder['repeat']
 
@@ -21,13 +21,6 @@ const REPEAT_OPTIONS: readonly { value: RepeatValue; label: MessageKey }[] = [
   { value: 'daily', label: 'reminders.repeat.optionDaily' },
   { value: 'weekdays', label: 'reminders.repeat.optionWeekdays' },
 ]
-
-const fieldClass =
-  'h-[34px] rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60 aria-invalid:border-fail/60'
-const secondaryButton =
-  'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40'
-const primaryButton =
-  'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
 
 interface Errors {
   text?: MessageKey | undefined

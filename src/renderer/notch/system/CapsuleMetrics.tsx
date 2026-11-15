@@ -1,8 +1,10 @@
 import { Battery, BatteryCharging, BatteryLow, Cpu, HardDrive, MemoryStick, type LucideIcon } from 'lucide-react'
-import { GmailMark } from '../../shared/brand-icons'
+import { GmailMark, RedmineMark } from '../../shared/brand-icons'
 import type { Platform } from '../../../shared/code-review/schema'
 import { reviewCountText, unreviewedLabel } from '../../shared/code-review/format'
+import { translate } from '../../../shared/i18n/messages'
 import { unreadLabel, unreadText } from '../../shared/gmail/format'
+import { hoursLong, hoursText } from '../../shared/redmine/format'
 import { PLATFORM_ICONS } from '../code-review/icons'
 import { useLanguage, useT } from '../../shared/use-t'
 import type { CapsuleView } from './capsule-latch'
@@ -117,6 +119,29 @@ export function CapsuleReview({ platform, count }: { platform: Platform; count: 
       align="left"
       label={unreviewedLabel(platform, count, language)}
       testId={`metric-review-${platform}`}
+    />
+  )
+}
+
+/** Widest value the Redmine block can show: today's hours at their longest, "23,75h" / "23.75h". */
+const WIDEST_HOURS = 23.75
+
+/**
+ * The hours logged in Redmine today (mark + "5,5h"), last in the compact capsule, in Grafito
+ * Cristal. Only rendered while the Redmine latch holds a value; like the other blocks it reserves
+ * its widest text (so REDMINE_BLOCK_WIDTH holds) and sits left, next to its icon.
+ */
+export function CapsuleRedmine({ hours }: { hours: number }) {
+  const language = useLanguage()
+  return (
+    <Metric
+      icon={RedmineMark}
+      text={hoursText(hours, language)}
+      reserve={hoursText(WIDEST_HOURS, language)}
+      alert={false}
+      align="left"
+      label={translate(language, 'redmine.capsule.today', { hours: hoursLong(hours, language) })}
+      testId="metric-redmine"
     />
   )
 }

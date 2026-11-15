@@ -7,6 +7,7 @@ import { bindCodeReview } from '../shared/code-review-store'
 import { bindGmail } from '../shared/gmail-store'
 import { bindNotes } from '../shared/notes-store'
 import { bindQuestions } from '../shared/questions-store'
+import { bindRedmine } from '../shared/redmine-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
 import { bindSystem } from '../shared/system-store'
@@ -24,6 +25,7 @@ bindNotes()
 bindSystem()
 bindGmail()
 bindCodeReview()
+bindRedmine()
 
 createRoot(root).render(
   <StrictMode>

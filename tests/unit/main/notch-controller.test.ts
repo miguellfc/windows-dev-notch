@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNotchController, MAIL_ALERT_MS, REVIEW_ALERT_MS, STICKY_COMPACT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
+import { createNotchController, MAIL_ALERT_MS, REDMINE_ALERT_MS, REVIEW_ALERT_MS, STICKY_COMPACT_MS, type NotchSurface } from '../../../src/main/windows/notch-controller'
 import { windowBoundsFor } from '../../../src/shared/notch/geometry'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
@@ -9,6 +9,7 @@ function setup() {
   const calls: string[] = []
   const mailAlerts: boolean[] = []
   const reviewAlerts: boolean[] = []
+  const redmineAlerts: boolean[] = []
   const surface: NotchSurface = {
     setBounds: (rect) => calls.push(`bounds:${rect.width}x${rect.height}`),
     show: () => calls.push('show'),
@@ -19,6 +20,7 @@ function setup() {
     sendMode: (mode) => calls.push(`mode:${mode}`),
     sendMailAlert: (on) => mailAlerts.push(on),
     sendReviewAlert: (on) => reviewAlerts.push(on),
+    sendRedmineAlert: (on) => redmineAlerts.push(on),
   }
   const onModeChange = vi.fn()
   const controller = createNotchController({ surface, workArea, settleTimeoutMs: 400, logger: createMemoryLogger(), onModeChange })
@@ -26,7 +28,8 @@ function setup() {
   calls.length = 0
   mailAlerts.length = 0
   reviewAlerts.length = 0
-  return { controller, calls, mailAlerts, reviewAlerts, onModeChange }
+  redmineAlerts.length = 0
+  return { controller, calls, mailAlerts, reviewAlerts, redmineAlerts, onModeChange }
 }
 
 const size = (mode: Parameters<typeof windowBoundsFor>[0]) => {
@@ -50,6 +53,7 @@ describe('notch controller', () => {
       sendMode: (m: string) => calls.push(`mode:${m}`),
       sendMailAlert: () => {},
       sendReviewAlert: () => {},
+      sendRedmineAlert: () => {},
     }
     createNotchController({ surface, workArea, logger: createMemoryLogger() }).start()
     expect(calls).toEqual([size('peek'), 'ignore:true', 'mode:peek', 'show'])
@@ -67,6 +71,7 @@ describe('notch controller', () => {
       sendMode: (m) => calls.push(`mode:${m}`),
       sendMailAlert: () => {},
       sendReviewAlert: () => {},
+      sendRedmineAlert: () => {},
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger() })
     controller.dispatch({ type: 'foreground', verdict: 'hidden' })
@@ -375,6 +380,7 @@ describe('notch controller: new mail', () => {
       sendMode: (m) => order.push(`mode:${m}`),
       sendMailAlert: (on) => order.push(`mail:${on}`),
       sendReviewAlert: (on) => order.push(`review:${on}`),
+      sendRedmineAlert: (on) => order.push(`redmine:${on}`),
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger() })
     controller.start()
@@ -486,6 +492,7 @@ describe('notch controller: alerts over a hidden capsule', () => {
       sendMode: () => {},
       sendMailAlert: () => {},
       sendReviewAlert: () => {},
+      sendRedmineAlert: () => {},
     }
     const controller = createNotchController({ surface, workArea, logger: createMemoryLogger(), onHiddenChange })
     controller.start()
@@ -607,6 +614,75 @@ describe('notch controller: first-review alert', () => {
   })
 })
 
+describe('notch controller: end-of-day Redmine alert', () => {
+  it('shows the alert for 6 s and tells the renderer before the mode', () => {
+    const { controller, redmineAlerts, mailAlerts, reviewAlerts } = setup()
+    expect(REDMINE_ALERT_MS).toBe(6000)
+    controller.dispatch({ type: 'redmine', on: true })
+    expect(controller.mode()).toBe('alert')
+    expect(redmineAlerts).toEqual([true])
+    expect(mailAlerts).toEqual([])
+    expect(reviewAlerts).toEqual([])
+    vi.advanceTimersByTime(5999)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(1)
+    expect(controller.mode()).toBe('peek')
+    expect(redmineAlerts).toEqual([true, false])
+  })
+
+  it('is ignored with a panel open', () => {
+    const { controller, redmineAlerts } = setup()
+    controller.dispatch({ type: 'expand' })
+    controller.dispatch({ type: 'redmine', on: true })
+    expect(controller.mode()).toBe('expanded')
+    expect(redmineAlerts).toEqual([])
+  })
+
+  it('the newest of mail, review and Redmine shows, each with its own full 6 s', () => {
+    const { controller, redmineAlerts, mailAlerts, reviewAlerts } = setup()
+    controller.dispatch({ type: 'mail', on: true })
+    vi.advanceTimersByTime(2000)
+    controller.dispatch({ type: 'review', on: true })
+    vi.advanceTimersByTime(2000)
+    controller.dispatch({ type: 'redmine', on: true })
+    expect(mailAlerts).toEqual([true, false])
+    expect(reviewAlerts).toEqual([true, false])
+    expect(redmineAlerts).toEqual([true])
+    // The older timers ending do not cut the Redmine alert short.
+    vi.advanceTimersByTime(4000)
+    expect(controller.mode()).toBe('alert')
+    vi.advanceTimersByTime(2000)
+    expect(controller.mode()).toBe('peek')
+    expect(redmineAlerts).toEqual([true, false])
+    // And a mail arriving over it replaces it.
+    controller.dispatch({ type: 'redmine', on: true })
+    controller.dispatch({ type: 'mail', on: true })
+    expect(redmineAlerts).toEqual([true, false, true, false])
+    expect(mailAlerts).toEqual([true, false, true])
+  })
+
+  it('never covers a permission or a due reminder', () => {
+    const { controller, redmineAlerts } = setup()
+    controller.dispatch({ type: 'reminders', due: true })
+    controller.dispatch({ type: 'redmine', on: true })
+    expect(redmineAlerts).toEqual([])
+    controller.dispatch({ type: 'reminders', due: false })
+    expect(redmineAlerts).toEqual([true])
+    controller.dispatch({ type: 'attention', on: true })
+    expect(redmineAlerts).toEqual([true, false])
+  })
+
+  it('shows over a hidden capsule and hides again', () => {
+    const { controller, calls } = setup()
+    controller.dispatch({ type: 'user-visibility', hidden: true })
+    calls.length = 0
+    controller.dispatch({ type: 'redmine', on: true })
+    expect(calls).toEqual([size('alert'), 'mode:alert', 'show'])
+    vi.advanceTimersByTime(6000)
+    expect(controller.mode()).toBe('hidden')
+  })
+})
+
 describe('notch controller: capsule modes (peek, compact, pinned mini)', () => {
   const at = (mode: Parameters<typeof windowBoundsFor>[0]) => windowBoundsFor(mode, workArea)
 
@@ -624,6 +700,7 @@ describe('notch controller: capsule modes (peek, compact, pinned mini)', () => {
       sendMode: (mode) => modes.push(mode),
       sendMailAlert: () => {},
       sendReviewAlert: () => {},
+      sendRedmineAlert: () => {},
     }
     const controller = createNotchController({ surface, workArea, settleTimeoutMs: 400, logger: createMemoryLogger() })
     controller.start()

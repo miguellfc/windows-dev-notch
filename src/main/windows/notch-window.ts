@@ -74,6 +74,7 @@ export function createNotchWindow(options: NotchWindowOptions): { window: Browse
     ),
     sendMailAlert: live((on: boolean) => emitEvent([window.webContents], 'notch:mail-alert', on, options.logger)),
     sendReviewAlert: live((on: boolean) => emitEvent([window.webContents], 'notch:review-alert', on, options.logger)),
+    sendRedmineAlert: live((on: boolean) => emitEvent([window.webContents], 'notch:redmine-alert', on, options.logger)),
   }
 
   return { window, surface }

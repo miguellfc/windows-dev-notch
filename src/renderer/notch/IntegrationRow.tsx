@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Activity, AlarmClock, SquareTerminal, StickyNote, type LucideIcon } from 'lucide-react'
-import { ClaudeMark, GithubMark, GitlabMark, GmailMark } from '../shared/brand-icons'
+import { ClaudeMark, GithubMark, GitlabMark, GmailMark, RedmineMark } from '../shared/brand-icons'
 import { tiles, type AppTileId, type ReviewTileId } from '../../shared/integrations/registry'
 import type { MessageKey } from '../../shared/i18n/messages'
 import { setReviewsTarget } from '../shared/code-review-store'
@@ -17,6 +17,7 @@ const icons: Readonly<Record<(typeof tiles)[number]['id'], LucideIcon>> = {
   gmail: GmailMark,
   github: GithubMark,
   gitlab: GitlabMark,
+  redmine: RedmineMark,
 }
 
 const FAILURE_VISIBLE_MS = 4_000
@@ -44,16 +45,17 @@ export function IntegrationRow() {
     timer.current = setTimeout(() => setFailed(null), FAILURE_VISIBLE_MS)
   }
 
-  // Eight tiles share the 454 px row (480 px panel, px-1): flex-1 over each tile's own content, px-1 inside
+  // Nine tiles share the 494 px row (the 520 px panel less its 1 px border and 12 px padding per side; the
+  // row has no padding of its own since the ninth tile): flex-1 over each tile's own content, px-1 inside
   // each tile (4 px + 1 px border per side) and 4 px gaps. A tile never shrinks below its label, so the
-  // row only fits when the natural widths add up: measured with the 11 px label font, the labels are
-  // 323 px in ES (Terminal 44, Recordatorios 72, Sistema 42, Notas 31, Gmail 29, GitHub 35, GitLab 34,
-  // Claude 36) and 303 px in EN (Reminders 55, System 39) plus 10 px per tile and 28 px of gaps =
-  // 431 px ES / 411 px EN of the 454 px. Tiles stay 60 px tall and at least 43 px wide. app.spec checks that no
-  // label is cut in either language. The failure line is absolutely positioned above the row so it never
+  // row only fits when the natural widths add up: measured with Playwright at the 11 px label font, the
+  // labels are 369 px in ES (Terminal 44, Recordatorios 72, Sistema 42, Notas 31, Gmail 29, GitHub 35,
+  // GitLab 34, Redmine 46, Claude 36) and 349 px in EN (Reminders 55, System 39) plus 10 px per tile and
+  // 32 px of gaps = 491 px ES / 471 px EN of the 494 px. Tiles stay 60 px tall. app.spec checks that no
+  // label is cut and no tile overflows the row in either language. The failure line is absolutely positioned above the row so it never
   // changes the panel's height (fixed per session count in EXPANDED_HEIGHTS).
   return (
-    <section aria-label={t('notch.integrations.label')} className="relative flex w-full shrink-0 gap-1 px-1">
+    <section aria-label={t('notch.integrations.label')} className="relative flex w-full shrink-0 gap-1">
       {tiles.map((tile) => {
         const Icon = icons[tile.id]
         const badge = tile.id === 'reminders' && remindersDue > 0 ? remindersDue : 0

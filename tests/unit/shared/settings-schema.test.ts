@@ -3,6 +3,7 @@ import {
   DEFAULT_CODE_REVIEW_SETTINGS,
   DEFAULT_GMAIL_ALERTS,
   DEFAULT_GMAIL_SETTINGS,
+  DEFAULT_REDMINE_SETTINGS,
   DEFAULT_SYSTEM_ALERTS,
   SETTINGS_VERSION,
   createDefaultSettings,
@@ -193,8 +194,8 @@ describe('code review settings', () => {
   const alerts = { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } }
   const withCodeReview = (codeReview: unknown) => settingsSchema.safeParse({ ...valid, codeReview }).success
 
-  it('is at version 6 with an empty GitLab URL and every alert on', () => {
-    expect(SETTINGS_VERSION).toBe(6)
+  it('is at version 7 with an empty GitLab URL and every alert on', () => {
+    expect(SETTINGS_VERSION).toBe(7)
     expect(DEFAULT_CODE_REVIEW_SETTINGS).toEqual({ gitlabUrl: '', alerts })
     expect(valid.codeReview).toEqual({ gitlabUrl: '', alerts })
   })
@@ -226,5 +227,41 @@ describe('code review settings', () => {
   it('accepts a codeReview patch', () => {
     const patch = { codeReview: { gitlabUrl: 'https://gitlab.x.com', alerts } }
     expect(settingsPatchSchema.parse(patch)).toEqual(patch)
+  })
+})
+
+describe('redmine settings', () => {
+  const valid = createDefaultSettings('en-US')
+  const endOfDay = { enabled: true, time: '18:00', sound: true }
+  const withRedmine = (redmine: unknown) => settingsSchema.safeParse({ ...valid, redmine }).success
+
+  it('has the documented defaults', () => {
+    const expected = { url: '', dailyTargetHours: 8, endOfDay }
+    expect(DEFAULT_REDMINE_SETTINGS).toEqual(expected)
+    expect(valid.redmine).toEqual(expected)
+    expect(valid.redmine.endOfDay).not.toBe(DEFAULT_REDMINE_SETTINGS.endOfDay)
+  })
+
+  it('accepts an empty or normalized https URL only', () => {
+    expect(withRedmine({ url: 'https://r.x.com/base', dailyTargetHours: 8, endOfDay })).toBe(true)
+    for (const url of ['http://r.x.com', 'https://r.x.com/', 'https://u@r.x.com', 'nope']) {
+      expect(withRedmine({ url, dailyTargetHours: 8, endOfDay }), url).toBe(false)
+    }
+  })
+
+  it('limits the target to 1-24 in half-hour steps', () => {
+    for (const dailyTargetHours of [1, 7.5, 24]) expect(withRedmine({ url: '', dailyTargetHours, endOfDay }), String(dailyTargetHours)).toBe(true)
+    for (const dailyTargetHours of [0, 0.5, 24.5, 7.25, 25]) expect(withRedmine({ url: '', dailyTargetHours, endOfDay }), String(dailyTargetHours)).toBe(false)
+  })
+
+  it('needs an HH:mm end-of-day time', () => {
+    for (const time of ['00:00', '17:30', '23:59']) expect(withRedmine({ url: '', dailyTargetHours: 8, endOfDay: { ...endOfDay, time } }), time).toBe(true)
+    for (const time of ['24:00', '9:00', '18:60', '1800', '']) expect(withRedmine({ url: '', dailyTargetHours: 8, endOfDay: { ...endOfDay, time } }), time).toBe(false)
+  })
+
+  it('accepts partial patches one level and two levels deep', () => {
+    expect(settingsPatchSchema.parse({ redmine: { dailyTargetHours: 6 } })).toEqual({ redmine: { dailyTargetHours: 6 } })
+    expect(settingsPatchSchema.parse({ redmine: { endOfDay: { time: '17:30' } } })).toEqual({ redmine: { endOfDay: { time: '17:30' } } })
+    expect(settingsPatchSchema.safeParse({ redmine: { endOfDay: { time: '99:99' } } }).success).toBe(false)
   })
 })

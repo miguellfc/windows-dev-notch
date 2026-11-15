@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialNotchState, isCapsuleHidden, mailAlertShown, notchMode, reviewAlertShown, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
+import { initialNotchState, isCapsuleHidden, mailAlertShown, notchMode, redmineAlertShown, reviewAlertShown, PANEL_MODES, reduceNotch, type NotchEvent, type NotchState } from '../../../src/shared/notch/state'
 
 const run = (...events: NotchEvent[]): NotchState => events.reduce(reduceNotch, initialNotchState)
 
@@ -609,5 +609,69 @@ describe('reviewAlert (first review of own PR/MRs, same priority as mail)', () =
 
   it('mailAlertShown is false for a review alert alone', () => {
     expect(mailAlertShown(run(review(true)))).toBe(false)
+  })
+})
+
+describe('redmineAlert (end-of-day hours, same priority as mail and reviews)', () => {
+  const redmine = (on: boolean): NotchEvent => ({ type: 'redmine', on })
+  const mail = (on: boolean): NotchEvent => ({ type: 'mail', on })
+  const review = (on: boolean): NotchEvent => ({ type: 'review', on })
+
+  it('starts off and shows the alert over peek, mini and hidden, going back when it ends', () => {
+    expect(initialNotchState.redmineAlert).toBe(false)
+    expect(notchMode(run(redmine(true)))).toBe('alert')
+    expect(notchMode(run(redmine(true), redmine(false)))).toBe('peek')
+    expect(notchMode(run({ type: 'pin-mini' }, redmine(true), redmine(false)))).toBe('mini')
+    expect(notchMode(run({ type: 'user-visibility', hidden: true }, redmine(true), redmine(false)))).toBe('hidden')
+  })
+
+  it('redmine is a panel mode that opens from the tile and goes back to the row', () => {
+    expect(PANEL_MODES.has('redmine')).toBe(true)
+    const open = run({ type: 'open-integration', id: 'redmine' })
+    expect(notchMode(open)).toBe('redmine')
+    expect(notchMode(reduceNotch(open, { type: 'back' }))).toBe('expanded')
+  })
+
+  it('is dropped while a panel is open and spent by opening one; expanding opens the Redmine view', () => {
+    const expanded = run({ type: 'expand' })
+    expect(reduceNotch(expanded, redmine(true))).toBe(expanded)
+    expect(run(redmine(true), { type: 'expand' })).toMatchObject({ view: 'redmine', redmineAlert: false })
+    expect(run(redmine(true), { type: 'show' }).view).toBe('redmine')
+    expect(run(redmine(true), { type: 'toggle' }).view).toBe('redmine')
+    // A due reminder outranks it: the panel opens on the reminders.
+    expect(run(redmine(true), { type: 'reminders', due: true }, { type: 'expand' }).view).toBe('reminders')
+    expect(run(redmine(true), { type: 'expand' }).redmineAlert).toBe(false)
+    expect(run(redmine(true), { type: 'open-integration', id: 'notes' }).redmineAlert).toBe(false)
+    expect(run(redmine(true), { type: 'show' }).redmineAlert).toBe(false)
+    expect(run(redmine(true), { type: 'toggle' }).redmineAlert).toBe(false)
+  })
+
+  it('shares the lowest priority with mail and reviews: the newest replaces the others', () => {
+    const afterMail = run(mail(true), redmine(true))
+    expect(afterMail).toMatchObject({ redmineAlert: true, mailAlert: false, reviewAlert: false })
+    expect(redmineAlertShown(afterMail)).toBe(true)
+    const afterReview = run(review(true), redmine(true))
+    expect(afterReview).toMatchObject({ redmineAlert: true, reviewAlert: false })
+    const mailAfter = run(redmine(true), mail(true))
+    expect(mailAfter).toMatchObject({ redmineAlert: false, mailAlert: true })
+    expect(redmineAlertShown(mailAfter)).toBe(false)
+    const reviewAfter = run(redmine(true), review(true))
+    expect(reviewAfter).toMatchObject({ redmineAlert: false, reviewAlert: true })
+    // The older one's timer ending later changes nothing.
+    expect(reduceNotch(afterMail, mail(false))).toBe(afterMail)
+    expect(reduceNotch(afterReview, review(false))).toBe(afterReview)
+  })
+
+  it('yields to a permission, a question and a due reminder', () => {
+    expect(redmineAlertShown(run(redmine(true)))).toBe(true)
+    expect(redmineAlertShown(run(redmine(true), { type: 'attention', on: true }))).toBe(false)
+    expect(redmineAlertShown(run(redmine(true), { type: 'question', on: true }))).toBe(false)
+    expect(redmineAlertShown(run(redmine(true), { type: 'reminders', due: true }))).toBe(false)
+    expect(notchMode(run(redmine(true), { type: 'reminders', due: true }))).toBe('alert')
+  })
+
+  it('the other alerts are not shown for a Redmine alert alone', () => {
+    expect(mailAlertShown(run(redmine(true)))).toBe(false)
+    expect(reviewAlertShown(run(redmine(true)))).toBe(false)
   })
 })

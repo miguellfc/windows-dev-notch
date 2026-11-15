@@ -1,7 +1,7 @@
 import type { MessageKey } from '../i18n/messages'
 
 /** Integrations that open as a mini tool inside the notch. */
-export const viewIntegrationIds = ['reminders', 'system', 'notes', 'gmail', 'reviews'] as const
+export const viewIntegrationIds = ['reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine'] as const
 
 /** The mini tools `notch:open-integration` opens. `reviews` has no tile of its own: the GitHub and GitLab tiles open it. */
 export type IntegrationId = (typeof viewIntegrationIds)[number]
@@ -30,5 +30,6 @@ export const tiles: readonly Tile[] = [
   { kind: 'view', id: 'gmail', labelKey: 'integration.gmail' },
   { kind: 'review', id: 'github', labelKey: 'integration.github' },
   { kind: 'review', id: 'gitlab', labelKey: 'integration.gitlab' },
+  { kind: 'view', id: 'redmine', labelKey: 'integration.redmine' },
   { kind: 'app', id: 'claude', labelKey: 'integration.claude' },
 ]

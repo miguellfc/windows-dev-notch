@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SettingsReadOnlyError, SettingsStore } from '../../../src/main/services/settings-store'
-import { createDefaultSettings, type Settings } from '../../../src/shared/settings/schema'
+import { createDefaultSettings, settingsSchema, type Settings } from '../../../src/shared/settings/schema'
 import { createMemoryLogger } from '../helpers/memory-logger'
 
 let dir: string
@@ -50,6 +50,35 @@ describe('SettingsStore.load', () => {
     expect(files.some((f) => f.startsWith('settings.corrupt-'))).toBe(true)
     await expect(readSaved()).resolves.toEqual(defaults)
     expect(logger.entries.some((e) => e.level === 'warn')).toBe(true)
+  })
+
+  it('migrates a full v6 settings.json to v7 with the default redmine block, keeping every user value', async () => {
+    // What v6 wrote, with non-default user values everywhere.
+    const v6 = {
+      version: 6,
+      language: 'en',
+      shortcut: 'Control+Shift+K',
+      launchAtLogin: true,
+      reminders: { snoozeMinutes: 15, sound: false },
+      systemAlerts: {
+        cpu: { enabled: false, percent: 80, sustainSeconds: 60 },
+        ram: { enabled: true, percent: 85 },
+        battery: { enabled: true, percent: 20 },
+        disk: { enabled: false, freePercent: 5 },
+      },
+      gmail: { clientId: 'client-id.apps.googleusercontent.com', clientSecret: 'client-secret', alerts: { enabled: true, hideContent: true, sound: false } },
+      codeReview: { gitlabUrl: 'https://gitlab.example.com', alerts: { github: { enabled: false, sound: true }, gitlab: { enabled: true, sound: false } } },
+    }
+    await mkdir(join(dir, 'nested'), { recursive: true })
+    await writeFile(filePath, JSON.stringify(v6, null, 2))
+
+    const loaded = await createStore().load()
+    const expected = { ...v6, version: 7, redmine: { url: '', dailyTargetHours: 8, endOfDay: { enabled: true, time: '18:00', sound: true } } }
+    expect(loaded).toEqual(expected)
+    expect(settingsSchema.parse(loaded)).toEqual(expected)
+    await expect(readSaved()).resolves.toEqual(expected)
+    const files = await readdir(join(dir, 'nested'))
+    expect(files.some((f) => f.startsWith('settings.corrupt-'))).toBe(false)
   })
 
   it('quarantines files that fail the schema', async () => {
@@ -186,5 +215,17 @@ describe('SettingsStore.update codeReview', () => {
     await store.update({ codeReview: { alerts } })
     expect(store.get().codeReview).toEqual({ gitlabUrl: 'https://gitlab.example.com', alerts })
     await expect(readSaved()).resolves.toMatchObject({ codeReview: { gitlabUrl: 'https://gitlab.example.com', alerts } })
+  })
+})
+
+describe('SettingsStore.update redmine', () => {
+  it('merges a redmine patch one level deep and endOfDay one level further', async () => {
+    const store = createStore()
+    await store.load()
+    await store.update({ redmine: { url: 'https://redmine.example.com', dailyTargetHours: 6 } })
+    await store.update({ redmine: { endOfDay: { time: '17:30' } } })
+    const expected = { url: 'https://redmine.example.com', dailyTargetHours: 6, endOfDay: { enabled: true, time: '17:30', sound: true } }
+    expect(store.get().redmine).toEqual(expected)
+    await expect(readSaved()).resolves.toMatchObject({ redmine: expected })
   })
 })

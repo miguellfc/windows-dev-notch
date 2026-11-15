@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { GITLAB_URL_MAX, isStoredGitlabUrl } from '../code-review/schema'
+import { REDMINE_URL_MAX, isStoredRedmineUrl } from '../redmine/url'
 import { isSafeAccelerator } from './accelerator'
 
-export const SETTINGS_VERSION = 6
+export const SETTINGS_VERSION = 7
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
@@ -15,6 +16,13 @@ export const DEFAULT_GMAIL_ALERTS = { enabled: true, hideContent: false, sound: 
 export const DEFAULT_CODE_REVIEW_SETTINGS = {
   gitlabUrl: '',
   alerts: { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } },
+} as const
+
+/** v7: no Redmine server yet, 8 h daily target and the weekday end-of-day alert at 18:00 with sound. */
+export const DEFAULT_REDMINE_SETTINGS = {
+  url: '',
+  dailyTargetHours: 8,
+  endOfDay: { enabled: true, time: '18:00', sound: true },
 } as const
 
 export const DEFAULT_SYSTEM_ALERTS = {
@@ -84,6 +92,26 @@ export const codeReviewSettingsSchema = z.strictObject({
 })
 export type CodeReviewSettings = z.infer<typeof codeReviewSettingsSchema>
 
+/** End-of-day alert: weekdays at `time` (local `HH:mm`), once a day, when today's hours are under the target. */
+export const redmineEndOfDaySettingsSchema = z.strictObject({
+  enabled: z.boolean(),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be HH:mm'),
+  sound: z.boolean(),
+})
+export type RedmineEndOfDaySettings = z.infer<typeof redmineEndOfDaySettingsSchema>
+
+/** Redmine: the server (`''` = not configured; stored normalized, https only), the daily target (1-24 in 0.5 steps) and the alert. */
+export const redmineSettingsSchema = z.strictObject({
+  url: z.string().max(REDMINE_URL_MAX).refine(isStoredRedmineUrl, 'Redmine URL must be empty or a normalized https URL'),
+  dailyTargetHours: z
+    .number()
+    .min(1)
+    .max(24)
+    .refine((value) => Number.isInteger(value * 2), 'Target must be in steps of 0.5'),
+  endOfDay: redmineEndOfDaySettingsSchema,
+})
+export type RedmineSettings = z.infer<typeof redmineSettingsSchema>
+
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
   language: languageSchema,
@@ -93,6 +121,7 @@ export const settingsSchema = z.strictObject({
   systemAlerts: systemAlertSettingsSchema,
   gmail: gmailSettingsSchema,
   codeReview: codeReviewSettingsSchema,
+  redmine: redmineSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -100,7 +129,11 @@ export type Settings = z.infer<typeof settingsSchema>
 export const settingsPatchSchema = settingsSchema
   .omit({ version: true })
   // The store merges codeReview one level deep: a patch of its alerts never restores a stale gitlabUrl.
-  .extend({ codeReview: codeReviewSettingsSchema.partial() })
+  // Same for redmine, and its endOfDay one level further down.
+  .extend({
+    codeReview: codeReviewSettingsSchema.partial(),
+    redmine: redmineSettingsSchema.extend({ endOfDay: redmineEndOfDaySettingsSchema.partial() }).partial(),
+  })
   .partial()
   .refine((patch) => Object.values(patch).some((value) => value !== undefined), 'Empty settings patch')
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
@@ -126,6 +159,15 @@ export function cloneDefaultCodeReviewSettings(): CodeReviewSettings {
   }
 }
 
+/** A fresh, mutable copy of the Redmine defaults. */
+export function cloneDefaultRedmineSettings(): RedmineSettings {
+  return {
+    url: DEFAULT_REDMINE_SETTINGS.url,
+    dailyTargetHours: DEFAULT_REDMINE_SETTINGS.dailyTargetHours,
+    endOfDay: { ...DEFAULT_REDMINE_SETTINGS.endOfDay },
+  }
+}
+
 export function languageFromLocale(locale: string): Language {
   return locale.toLowerCase().startsWith('es') ? 'es' : 'en'
 }
@@ -140,5 +182,6 @@ export function createDefaultSettings(locale: string): Settings {
     systemAlerts: cloneDefaultSystemAlerts(),
     gmail: { ...DEFAULT_GMAIL_SETTINGS, alerts: { ...DEFAULT_GMAIL_ALERTS } },
     codeReview: cloneDefaultCodeReviewSettings(),
+    redmine: cloneDefaultRedmineSettings(),
   }
 }

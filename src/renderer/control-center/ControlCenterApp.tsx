@@ -1,5 +1,5 @@
 import { Activity, AlarmClock, GitPullRequest, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
-import { ClaudeMark, GmailMark } from '../shared/brand-icons'
+import { ClaudeMark, GmailMark, RedmineMark } from '../shared/brand-icons'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import { useSettings } from '../shared/settings-store'
@@ -9,11 +9,12 @@ import { ClaudePage } from './ClaudePage'
 import { CodeReviewPage } from './CodeReviewPage'
 import { GeneralPage } from './GeneralPage'
 import { GmailPage } from './GmailPage'
+import { RedminePage } from './RedminePage'
 import { RemindersPage } from './RemindersPage'
 import { ShortcutPage } from './ShortcutPage'
 import { SystemPage } from './SystemPage'
 
-type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmail' | 'code-review' | 'about'
+type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmail' | 'code-review' | 'redmine' | 'about'
 
 const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'general', label: 'cc.nav.general', icon: Settings2 },
@@ -23,6 +24,7 @@ const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'system', label: 'cc.nav.system', icon: Activity },
   { id: 'gmail', label: 'cc.nav.gmail', icon: GmailMark },
   { id: 'code-review', label: 'cc.nav.codeReview', icon: GitPullRequest },
+  { id: 'redmine', label: 'cc.nav.redmine', icon: RedmineMark },
   { id: 'about', label: 'cc.nav.about', icon: Info },
 ]
 
@@ -70,6 +72,7 @@ export function ControlCenterApp() {
     else if (page === 'system') content = <SystemPage settings={settings} />
     else if (page === 'gmail') content = <GmailPage settings={settings} />
     else if (page === 'code-review') content = <CodeReviewPage settings={settings} />
+    else if (page === 'redmine') content = <RedminePage settings={settings} />
     else content = <AboutPage />
   }
 

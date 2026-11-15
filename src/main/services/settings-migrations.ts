@@ -4,6 +4,7 @@ import {
   DEFAULT_REMINDERS_SETTINGS,
   SETTINGS_VERSION,
   cloneDefaultCodeReviewSettings,
+  cloneDefaultRedmineSettings,
   cloneDefaultSystemAlerts,
 } from '../../shared/settings/schema'
 
@@ -28,6 +29,8 @@ export const settingsMigrations: Readonly<Record<number, Migration>> = {
   }),
   // v6 adds the GitHub/GitLab settings (no GitLab server, first-review alerts on).
   5: (raw) => ({ ...raw, version: 6, codeReview: cloneDefaultCodeReviewSettings() }),
+  // v7 adds the Redmine settings (no server, 8 h target, end-of-day alert on).
+  6: (raw) => ({ ...raw, version: 7, redmine: cloneDefaultRedmineSettings() }),
 }
 
 export type MigrationResult =

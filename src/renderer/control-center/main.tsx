@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'
 import { bindCodeReview } from '../shared/code-review-store'
 import { bindGmail } from '../shared/gmail-store'
+import { bindRedmine } from '../shared/redmine-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
 import '../styles/global.css'
@@ -18,6 +19,7 @@ bindClaude()
 bindReminders()
 bindGmail()
 bindCodeReview()
+bindRedmine()
 
 createRoot(root).render(
   <StrictMode>

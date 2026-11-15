@@ -2,8 +2,9 @@ import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import { useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
-import { MAIL_ALERT_MS, PANEL_MODES, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
+import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
 import { useClaude } from '../shared/claude-store'
+import { setRedmineAlert, setRedmineAlertPayload, useRedmine } from '../shared/redmine-store'
 import { setReviewAlert, setReviewAlertPayload, setReviewsTarget, useCodeReview } from '../shared/code-review-store'
 import { setMailAlert, setNewMail, setReading, useGmail } from '../shared/gmail-store'
 import { keepsReader } from '../shared/gmail/format'
@@ -15,6 +16,8 @@ import { AlertCapsule } from './claude/AlertCapsule'
 import { PermissionCard } from './claude/PermissionCard'
 import { ReviewAlert } from './code-review/ReviewAlert'
 import { ReviewsView } from './code-review/ReviewsView'
+import { RedmineAlert } from './redmine/RedmineAlert'
+import { RedmineView } from './redmine/RedmineView'
 import { QuestionCard } from './claude/QuestionCard'
 import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots } from './claude/StatusDots'
@@ -37,7 +40,7 @@ import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
 import { reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
-import { CapsuleMail, CapsuleMetrics, CapsuleReview } from './system/CapsuleMetrics'
+import { CapsuleMail, CapsuleMetrics, CapsuleRedmine, CapsuleReview } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
 
 interface ModeState {
@@ -52,6 +55,7 @@ function useNotchMode(): ModeState {
   // Main sends the alert's kind before the mode that shows it; subscribe to it first as well.
   useEffect(() => window.notch.events.on('notch:mail-alert', setMailAlert), [])
   useEffect(() => window.notch.events.on('notch:review-alert', setReviewAlert), [])
+  useEffect(() => window.notch.events.on('notch:redmine-alert', setRedmineAlert), [])
   useEffect(() => {
     const apply = (mode: NotchMode) =>
       setState((previous) =>
@@ -158,17 +162,47 @@ function useReviewAlert(mode: NotchMode): void {
   }, [])
 }
 
+/**
+ * Keeps the end-of-day alert's payload for the alert capsule and plays the chime when its sound is
+ * on (also with the capsule hidden, as the alert shows over it). Like the mail alert, the payload is
+ * spent once the capsule leaves the alert, and after the alert's 6 s.
+ */
+function useRedmineAlert(mode: NotchMode): void {
+  useEffect(() => {
+    if (mode !== 'alert' && mode !== 'hidden') setRedmineAlertPayload(null)
+  }, [mode])
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const unsubscribe = window.notch.events.on('redmine:alert', (alert) => {
+      setRedmineAlertPayload(alert)
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        if (useRedmine.getState().alert === alert) setRedmineAlertPayload(null)
+      }, REDMINE_ALERT_MS)
+      const sound = useSettings.getState().settings?.redmine.endOfDay.sound ?? false
+      if (sound) playChime()
+    })
+    return () => {
+      unsubscribe()
+      if (timer !== null) clearTimeout(timer)
+    }
+  }, [])
+}
+
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
   const hasMail = useGmail((state) => state.mail.unread !== null)
   const reviewBlocks = useCodeReview((state) => reviewBlockCount(state.blocks))
-  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail, reviewBlocks))
+  const hasRedmine = useRedmine((state) => state.block.hours !== null)
+  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail, reviewBlocks, hasRedmine))
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
   useMailAlert(mode)
   useReviewAlert(mode)
+  useRedmineAlert(mode)
   const gmailReading = useGmail((state) => state.reading !== null)
 
   useEffect(() => {
@@ -279,11 +313,13 @@ function PresenceLayer({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<H
   return <motion.div ref={ref} {...props} aria-hidden={isPresent ? undefined : true} inert={!isPresent} />
 }
 
-/** What the compact capsule shows besides time and date: system metrics, unread mail and code reviews. */
+/** What the compact capsule shows besides time and date: system metrics, unread mail, code reviews and Redmine hours. */
 interface CompactContent {
   view: CapsuleView | null
   unread: number | null
   reviews: ReviewBlocks
+  /** Hours logged in Redmine today; null while there is no block. */
+  hours: number | null
 }
 
 /**
@@ -295,10 +331,13 @@ function useCompactContent(compactWidth: number): CompactContent {
   const view = useSystem((state) => state.capsule.view)
   const unread = useGmail((state) => state.mail.unread)
   const reviews = useCodeReview((state) => state.blocks)
-  const matches = compactWidthFor(view, unread !== null, reviewBlockCount(reviews)) === compactWidth
-  const [kept, setKept] = useState<CompactContent>({ view, unread, reviews })
-  if (matches && (kept.view !== view || kept.unread !== unread || kept.reviews !== reviews)) setKept({ view, unread, reviews })
-  return matches ? { view, unread, reviews } : kept
+  const hours = useRedmine((state) => state.block.hours)
+  const matches = compactWidthFor(view, unread !== null, reviewBlockCount(reviews), hours !== null) === compactWidth
+  const [kept, setKept] = useState<CompactContent>({ view, unread, reviews, hours })
+  if (matches && (kept.view !== view || kept.unread !== unread || kept.reviews !== reviews || kept.hours !== hours)) {
+    setKept({ view, unread, reviews, hours })
+  }
+  return matches ? { view, unread, reviews, hours } : kept
 }
 
 function CapsuleContent({
@@ -312,7 +351,7 @@ function CapsuleContent({
   const language = useLanguage()
   const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
-  const { view, unread, reviews } = useCompactContent(compactWidth)
+  const { view, unread, reviews, hours } = useCompactContent(compactWidth)
   const hasReviews = reviewBlockCount(reviews) > 0
 
   if (mode === 'mini') return null
@@ -324,6 +363,7 @@ function CapsuleContent({
   if (mode === 'notes') return <NotesView />
   if (mode === 'gmail') return <GmailView />
   if (mode === 'reviews') return <ReviewsView />
+  if (mode === 'redmine') return <RedmineView />
   if (mode === 'expanded') return <Panel time={time} date={date} />
 
   const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
@@ -340,25 +380,26 @@ function CapsuleContent({
 
   const dateOrDots = <StatusDots fallback={dateText} />
 
-  if (mode === 'compact' && (view || unread !== null || hasReviews))
+  if (mode === 'compact' && (view || unread !== null || hasReviews || hours !== null))
     return (
       <div className="flex h-full items-center justify-between gap-3 px-3.5">
         <span className="flex min-w-0 items-center gap-2.5">
           {timeText}
           {dateOrDots}
         </span>
-        {/* Metrics, the unread-mail block, then one block per code-review platform; each slot exists
-            only while its latch holds it. */}
+        {/* Metrics, the unread-mail block, one block per code-review platform, then the Redmine hours;
+            each slot exists only while its latch holds it. */}
         <span className="flex shrink-0 items-center gap-2.5">
           {view && <CapsuleMetrics view={view} />}
           {unread !== null && <CapsuleMail unread={unread} />}
           {reviews.github.count !== null && <CapsuleReview platform="github" count={reviews.github.count} />}
           {reviews.gitlab.count !== null && <CapsuleReview platform="gitlab" count={reviews.gitlab.count} />}
+          {hours !== null && <CapsuleRedmine hours={hours} />}
         </span>
       </div>
     )
 
-  // Compact with nothing besides time and date yet (no sample, no mail, no reviews).
+  // Compact with nothing besides time and date yet (no sample, no mail, no reviews, no Redmine hours).
   return (
     <div className="flex h-full items-center justify-between gap-2 px-3.5">
       {timeText}
@@ -368,7 +409,7 @@ function CapsuleContent({
 }
 
 /**
- * The alert capsule: the new-mail or first-review alert only when main says it is the pending alert
+ * The alert capsule: the new-mail, first-review or end-of-day Redmine alert only when main says it is the pending alert
  * ("Correo nuevo" / "Revisado" when its payload is already spent, so the capsule is never empty); otherwise a Claude
  * permission or due reminders (AlertCapsule picks between them). Main decides, so a renderer store
  * that has not caught up yet never shows a mail alert in place of a permission or a reminder.
@@ -378,8 +419,11 @@ function Alert() {
   const newMail = useGmail((store) => store.newMail)
   const reviewAlert = useCodeReview((store) => store.reviewAlert)
   const review = useCodeReview((store) => store.alert)
+  const redmineAlert = useRedmine((store) => store.redmineAlert)
+  const redmine = useRedmine((store) => store.alert)
   if (mailAlert) return <MailAlert mail={newMail} />
-  return reviewAlert ? <ReviewAlert alert={review} /> : <AlertCapsule />
+  if (reviewAlert) return <ReviewAlert alert={review} />
+  return redmineAlert ? <RedmineAlert alert={redmine} /> : <AlertCapsule />
 }
 
 /** How many Claude sessions the home panel lists (its height follows). */
