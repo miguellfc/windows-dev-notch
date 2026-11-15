@@ -1,0 +1,2087 @@
+{
+  "windowWidth": 760,
+  "capsuleSizes": {
+    "compact": {
+      "width": 358,
+      "height": 36
+    },
+    "peek": {
+      "width": 168,
+      "height": 36
+    },
+    "alert": {
+      "width": 320,
+      "height": 44
+    },
+    "expanded": {
+      "width": 520,
+      "height": 200
+    },
+    "permission": {
+      "width": 480,
+      "height": 300
+    },
+    "question": {
+      "width": 520,
+      "height": 504
+    },
+    "reminders": {
+      "width": 420,
+      "height": 320
+    },
+    "system": {
+      "width": 520,
+      "height": 280
+    },
+    "notes": {
+      "width": 420,
+      "height": 320
+    },
+    "gmail": {
+      "width": 520,
+      "height": 440
+    },
+    "reviews": {
+      "width": 520,
+      "height": 560
+    },
+    "redmine": {
+      "width": 520,
+      "height": 560
+    },
+    "mini": {
+      "width": 96,
+      "height": 4
+    }
+  },
+  "capsuleTop": {
+    "compact": 6,
+    "peek": 6,
+    "alert": 6,
+    "expanded": 6,
+    "permission": 6,
+    "question": 6,
+    "reminders": 6,
+    "system": 6,
+    "notes": 6,
+    "gmail": 6,
+    "reviews": 6,
+    "redmine": 6,
+    "mini": 0
+  },
+  "windowHeight": {
+    "compact": 114,
+    "peek": 114,
+    "alert": 122,
+    "expanded": 278,
+    "permission": 378,
+    "question": 582,
+    "reminders": 398,
+    "system": 358,
+    "notes": 398,
+    "gmail": 518,
+    "reviews": 638,
+    "redmine": 638,
+    "mini": 76
+  },
+  "windowBounds": [
+    {
+      "mode": "compact",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 114
+      }
+    },
+    {
+      "mode": "compact",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 114
+      }
+    },
+    {
+      "mode": "compact",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 114
+      }
+    },
+    {
+      "mode": "peek",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 114
+      }
+    },
+    {
+      "mode": "peek",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 114
+      }
+    },
+    {
+      "mode": "peek",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 114
+      }
+    },
+    {
+      "mode": "alert",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 122
+      }
+    },
+    {
+      "mode": "alert",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 122
+      }
+    },
+    {
+      "mode": "alert",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 122
+      }
+    },
+    {
+      "mode": "expanded",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 278
+      }
+    },
+    {
+      "mode": "expanded",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 278
+      }
+    },
+    {
+      "mode": "expanded",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 278
+      }
+    },
+    {
+      "mode": "permission",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 378
+      }
+    },
+    {
+      "mode": "permission",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 378
+      }
+    },
+    {
+      "mode": "permission",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 378
+      }
+    },
+    {
+      "mode": "question",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 582
+      }
+    },
+    {
+      "mode": "question",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 582
+      }
+    },
+    {
+      "mode": "question",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 582
+      }
+    },
+    {
+      "mode": "reminders",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 398
+      }
+    },
+    {
+      "mode": "reminders",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 398
+      }
+    },
+    {
+      "mode": "reminders",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 398
+      }
+    },
+    {
+      "mode": "system",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 358
+      }
+    },
+    {
+      "mode": "system",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 358
+      }
+    },
+    {
+      "mode": "system",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 358
+      }
+    },
+    {
+      "mode": "notes",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 398
+      }
+    },
+    {
+      "mode": "notes",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 398
+      }
+    },
+    {
+      "mode": "notes",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 398
+      }
+    },
+    {
+      "mode": "gmail",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 518
+      }
+    },
+    {
+      "mode": "gmail",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 518
+      }
+    },
+    {
+      "mode": "gmail",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 518
+      }
+    },
+    {
+      "mode": "reviews",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 638
+      }
+    },
+    {
+      "mode": "reviews",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 638
+      }
+    },
+    {
+      "mode": "reviews",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 638
+      }
+    },
+    {
+      "mode": "redmine",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 638
+      }
+    },
+    {
+      "mode": "redmine",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 638
+      }
+    },
+    {
+      "mode": "redmine",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 638
+      }
+    },
+    {
+      "mode": "mini",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 580,
+        "y": 0,
+        "width": 760,
+        "height": 76
+      }
+    },
+    {
+      "mode": "mini",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1020,
+        "y": 0,
+        "width": 760,
+        "height": 76
+      }
+    },
+    {
+      "mode": "mini",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2820,
+        "y": 0,
+        "width": 760,
+        "height": 76
+      }
+    }
+  ],
+  "resizeOrder": [
+    {
+      "from": "compact",
+      "to": "compact",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "peek",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "alert",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "expanded",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "system",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "peek",
+      "to": "compact",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "peek",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "alert",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "expanded",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "system",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "alert",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "alert",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "alert",
+      "to": "alert",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "expanded",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "system",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "expanded",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "expanded",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "expanded",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "expanded",
+      "to": "expanded",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "system",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "permission",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "permission",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "permission",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "permission",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "permission",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "permission",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "question",
+      "to": "reminders",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "notes",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "gmail",
+      "order": "animate-first"
+    },
+    {
+      "from": "question",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "question",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "question",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "reminders",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "system",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "system",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "system",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "system",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "system",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "system",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "system",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "notes",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "gmail",
+      "to": "reminders",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "notes",
+      "order": "animate-first"
+    },
+    {
+      "from": "gmail",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "gmail",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "gmail",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "gmail",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "question",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "reminders",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "notes",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "gmail",
+      "order": "animate-first"
+    },
+    {
+      "from": "reviews",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "reviews",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "reviews",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "question",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "reminders",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "system",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "notes",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "gmail",
+      "order": "animate-first"
+    },
+    {
+      "from": "redmine",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "redmine",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "redmine",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "mini",
+      "to": "compact",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "peek",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "alert",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "expanded",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "permission",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "question",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "reminders",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "system",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "notes",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "gmail",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "reviews",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "mini",
+      "order": "resize-first"
+    }
+  ],
+  "compactWidths": [
+    {
+      "content": null,
+      "mail": false,
+      "reviews": 0,
+      "redmine": false,
+      "width": 168
+    },
+    {
+      "content": null,
+      "mail": false,
+      "reviews": 0,
+      "redmine": true,
+      "width": 239
+    },
+    {
+      "content": null,
+      "mail": false,
+      "reviews": 1,
+      "redmine": false,
+      "width": 221
+    },
+    {
+      "content": null,
+      "mail": false,
+      "reviews": 1,
+      "redmine": true,
+      "width": 287
+    },
+    {
+      "content": null,
+      "mail": false,
+      "reviews": 2,
+      "redmine": false,
+      "width": 269
+    },
+    {
+      "content": null,
+      "mail": false,
+      "reviews": 2,
+      "redmine": true,
+      "width": 336
+    },
+    {
+      "content": null,
+      "mail": true,
+      "reviews": 0,
+      "redmine": false,
+      "width": 221
+    },
+    {
+      "content": null,
+      "mail": true,
+      "reviews": 0,
+      "redmine": true,
+      "width": 288
+    },
+    {
+      "content": null,
+      "mail": true,
+      "reviews": 1,
+      "redmine": false,
+      "width": 270
+    },
+    {
+      "content": null,
+      "mail": true,
+      "reviews": 1,
+      "redmine": true,
+      "width": 336
+    },
+    {
+      "content": null,
+      "mail": true,
+      "reviews": 2,
+      "redmine": false,
+      "width": 318
+    },
+    {
+      "content": null,
+      "mail": true,
+      "reviews": 2,
+      "redmine": true,
+      "width": 385
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": false,
+      "width": 299
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": true,
+      "width": 366
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": false,
+      "width": 348
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": true,
+      "width": 414
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": false,
+      "width": 396
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": true,
+      "width": 463
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": false,
+      "width": 348
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": true,
+      "width": 415
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": false,
+      "width": 397
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": true,
+      "width": 463
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": false,
+      "width": 445
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": true,
+      "width": 512
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": false,
+      "width": 376
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": true,
+      "width": 443
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": false,
+      "width": 425
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": true,
+      "width": 491
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": false,
+      "width": 473
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": true,
+      "width": 540
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": false,
+      "width": 425
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": true,
+      "width": 492
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": false,
+      "width": 474
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": true,
+      "width": 540
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": false,
+      "width": 522
+    },
+    {
+      "content": {
+        "battery": false,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": true,
+      "width": 589
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": false,
+      "width": 358
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": true,
+      "width": 425
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": false,
+      "width": 407
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": true,
+      "width": 473
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": false,
+      "width": 455
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": true,
+      "width": 522
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": false,
+      "width": 407
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": true,
+      "width": 474
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": false,
+      "width": 456
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": true,
+      "width": 522
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": false,
+      "width": 504
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": false
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": true,
+      "width": 571
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": false,
+      "width": 435
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 0,
+      "redmine": true,
+      "width": 502
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": false,
+      "width": 484
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 1,
+      "redmine": true,
+      "width": 550
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": false,
+      "width": 532
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": false,
+      "reviews": 2,
+      "redmine": true,
+      "width": 599
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": false,
+      "width": 484
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 0,
+      "redmine": true,
+      "width": 551
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": false,
+      "width": 533
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 1,
+      "redmine": true,
+      "width": 599
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": false,
+      "width": 581
+    },
+    {
+      "content": {
+        "battery": true,
+        "disk": true
+      },
+      "mail": true,
+      "reviews": 2,
+      "redmine": true,
+      "width": 648
+    }
+  ]
+}

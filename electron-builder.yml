@@ -7,6 +7,8 @@ directories:
 files:
   - out/**
   - '!**/*.map'
+  # The Tauri frontend (vite.tauri.config.mts) also builds into out/; it is not part of this app.
+  - '!out/tauri-renderer/**'
   - package.json
 asar: true
 # koffi ships N-API prebuilds that work in Electron as is (M2 spike);

@@ -1,21 +1,8 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'electron-vite'
-import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { PRODUCTION_CSP, injectCspMeta } from './src/shared/security/csp'
-
-/** Adds the strict CSP meta tag to built HTML only; dev gets a relaxed header from the main process. */
-function productionCsp(): Plugin {
-  return {
-    name: 'notch:production-csp',
-    apply: 'build',
-    transformIndexHtml: {
-      order: 'pre',
-      handler: (html) => injectCspMeta(html, PRODUCTION_CSP),
-    },
-  }
-}
+import { productionCsp } from './src/shared/security/vite-csp'
 
 export default defineConfig({
   main: {},

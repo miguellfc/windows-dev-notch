@@ -176,6 +176,11 @@ export const contract = {
   /** Launches the real Claude / terminal app; `ok` is false only when nothing could be launched. */
   'apps:open': { input: z.strictObject({ app: z.enum(appIds) }), output: z.strictObject({ ok: z.boolean() }) },
   'notch:back': { input: none, output: ack },
+  /** The painted capsule's box in the window (DIP): Tauri lets clicks through outside it. Electron ignores it. */
+  'notch:capsule-rect': {
+    input: z.strictObject({ x: z.number().min(0), y: z.number().min(0), width: z.number().positive(), height: z.number().positive() }),
+    output: ack,
+  },
   'claude:get-state': { input: none, output: claudeStateSchema },
   'claude:decide': {
     input: z.strictObject({ requestId: z.uuid(), decision: z.enum(['allow', 'deny']) }),

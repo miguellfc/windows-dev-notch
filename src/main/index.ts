@@ -553,6 +553,7 @@ function start(): void {
           ...gmailChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...codeReviewChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
           ...redmineChannelGuards({ fromNotch: fromNotchWindow, fromControlCenter }),
+          'notch:capsule-rect': fromNotchWindow,
         },
         handlers: {
           'app:get-info': () => ({ name: app.getName(), version: app.getVersion(), platform: process.platform }),
@@ -595,6 +596,8 @@ function start(): void {
             notch.dispatch({ type: 'back' })
             return null
           },
+          // Tauri polls the cursor against this box; Electron forwards mouse moves to the renderer instead.
+          'notch:capsule-rect': () => null,
           ...claude.handlers,
           ...reminders.handlers,
           ...notes.handlers,
