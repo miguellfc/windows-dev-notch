@@ -59,3 +59,21 @@ Lectura:
 - CPU: ahora el monitor del sistema sigue muestreando en peek (ritmo ligero, cada 3 s), y aun así la medida sale más baja que en la parte 1 (0,9 %): 0,10 % de un núcleo en la ventana de 15 s y 0,22 % en la de 60 s. Con tan poco consumo, la medida depende mucho de qué hagan los procesos de WebView2 durante la ventana; la diferencia con la parte 1 entra en ese ruido, no se debe a ningún cambio que la reduzca.
 - La prueba de extremo a extremo de coste en reposo mide sobre la compilación de depuración con WebDriver conectado y da entre 0,54 y 1,07 % de un núcleo. Con 16 procesadores lógicos eso es entre 0,034 y 0,067 % de la máquina, la unidad de `percentCPUUsage` de Electron (comprobado: un núcleo ocupado durante 2 s marca 6,26 %), muy por debajo del umbral de 0,5 % de la prueba de Electron.
 - El ejecutable de `release` sigue sin ningún canal `__e2e:`.
+
+## Parte 3: Claude Code (2026-11-15)
+
+La parte 2 más la integración con Claude Code: el puente HTTP local de los hooks (solo `127.0.0.1`), el instalador de hooks del `settings.json` de Claude, los permisos y las preguntas retenidos hasta que se responden, las sesiones, las notificaciones y traer Claude al frente. GitHub, GitLab, Redmine y Gmail siguen respondiendo `UNAVAILABLE`. Compilado con `npm run tauri:build` (perfil `release`, NSIS) y medido igual que la parte 2: el ejecutable de `release` con la carpeta de datos real, 15 s después de arrancar, en reposo en peek, sin abrir el Control Center. El puente arranca en su puerto aleatorio, pero los hooks no están instalados (instalarlos necesita la confirmación del usuario), así que no llega ningún evento: es el coste del puente escuchando sin trabajo.
+
+| | Memoria privada | Conjunto de trabajo | CPU en reposo (15 s / 60 s) | Instalador | En disco |
+|---|---|---|---|---|---|
+| Developer Notch 0.2.0-dev (Tauri, parte 3) | 175–189 MB | 388–398 MB | 0,40 % / 0,28 % | 2,60 MB | 8,95 MB exe + WebView2 del sistema |
+
+Desglose de la memoria privada por proceso: principal (Rust) 7, navegador WebView2 35, GPU 84, renderer 32, red 11, almacenamiento 7, crashpad 3.
+
+Lectura:
+
+- Siguen siendo 7 procesos y la memoria queda donde estaba en la parte 2 (180–187 MB). El proceso de Rust con el puente, los intermediarios y el registro de sesiones sigue en 7 MB.
+- El instalador pasa de 2,37 a 2,60 MB y el ejecutable de 8,2 a 8,95 MB, por el servidor HTTP (`hyper`, `hyper-util`), el cifrado del token con DPAPI, `base64`, `getrandom` y el módulo de Claude.
+- CPU: la primera ventana de 15 s, justo a los 15 s del arranque, marcó 1,50 % de un núcleo; repetida un minuto después, 0,40 %, y la de 60 s, 0,28 %. La primera aún recoge el final del arranque de WebView2. Con el puente sin tráfico no hay trabajo propio de Claude salvo la comprobación de los hooks cada 60 s, así que la diferencia con la parte 2 (0,10 % / 0,22 %) entra en el ruido de los procesos de WebView2.
+- Las pruebas de extremo a extremo pasan de 28 a 44 (`claude.spec.ts` y `claude-questions.spec.ts`, 8 cada una) y completan la prueba de `apps.spec.ts` que quedó a medias en la parte 2 (la línea de fallo con sesiones de Claude en el panel). De la petición de permiso al aviso en la cápsula pasan entre 19 y 30 ms en las dos ejecuciones completas (la prueba exige menos de 1 s).
+- El ejecutable de `release` sigue sin ningún canal `__e2e:`.

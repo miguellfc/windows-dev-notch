@@ -37,6 +37,12 @@ function appEnv(dataDir: string): Record<string, string> {
     // Defence in depth: launches are recorded, never executed, in every session, so no spec can
     // open Claude Desktop, a browser or a terminal for real (apps.spec also sets it per launch).
     NOTCH_APP_LAUNCH_LOG: '1',
+    // Claude Code: never the user's ~/.claude/settings.json, never a fixed port an installed notch
+    // may hold, never the user's real Claude window brought forward. The Claude specs pass the same
+    // switches per launch too (helpers.ts `claudeEnv`).
+    NOTCH_CLAUDE_SETTINGS: join(dataDir, 'claude-settings.json'),
+    NOTCH_CLAUDE_PORT: '0',
+    NOTCH_DISABLE_CLAUDE_FOCUS: '1',
   }
 }
 
@@ -83,7 +89,7 @@ type TauriCapabilities = Capabilities.RequestedStandaloneCapabilities & { 'tauri
 
 export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } = {
   runner: 'local',
-  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts'],
+  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts'],
   maxInstances: 1,
   hostname: '127.0.0.1',
   port: DRIVER_PORT,

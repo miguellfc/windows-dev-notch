@@ -384,8 +384,8 @@ mod tests {
             "Boom",
             Some(&json!({ "error": error_meta(&TypeError) })),
         );
-        // serde_json sorts object keys.
-        assert!(read(&dir, "main.log").contains(r#""error":{"message":"bad","name":"TypeError"}"#));
+        // `preserve_order`: keys in insertion order, like Electron's `{ name, message }`.
+        assert!(read(&dir, "main.log").contains(r#""error":{"name":"TypeError","message":"bad"}"#));
     }
 
     #[test]

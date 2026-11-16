@@ -2,7 +2,7 @@
 //! of notes and reminders, `hasVisibleText` (`src/shared/text.ts`), `z.uuid()` and
 //! `z.iso.datetime()`.
 //!
-//! The code point tables are the classes of the JS regex engine (`\s`, `\p{Cc}`/`\p{Cf}`,
+//! The code point tables are the classes of the JS regex engine (`\s`, `\p{Cc}`/`\p{Cf}`, `\p{Cf}`,
 //! `\p{Default_Ignorable_Code_Point}`); `tests/parity/unicode-classes.json` is generated from it
 //! and `src-tauri/tests/parity.rs` checks the tables still equal it. Rust's own `str::trim` and
 //! `char::is_whitespace` differ from JS (U+0085 vs U+FEFF), so they are not used here.
@@ -25,6 +25,31 @@ pub const WHITESPACE: &[(u32, u32)] = &[
 pub const CONTROL_OR_FORMAT: &[(u32, u32)] = &[
     (0x0, 0x1F),
     (0x7F, 0x9F),
+    (0xAD, 0xAD),
+    (0x600, 0x605),
+    (0x61C, 0x61C),
+    (0x6DD, 0x6DD),
+    (0x70F, 0x70F),
+    (0x890, 0x891),
+    (0x8E2, 0x8E2),
+    (0x180E, 0x180E),
+    (0x200B, 0x200F),
+    (0x202A, 0x202E),
+    (0x2060, 0x2064),
+    (0x2066, 0x206F),
+    (0xFEFF, 0xFEFF),
+    (0xFFF9, 0xFFFB),
+    (0x110BD, 0x110BD),
+    (0x110CD, 0x110CD),
+    (0x13430, 0x1343F),
+    (0x1BCA0, 0x1BCA3),
+    (0x1D173, 0x1D17A),
+    (0xE0001, 0xE0001),
+    (0xE0020, 0xE007F),
+];
+
+/// `\p{Cf}` alone: format characters (bidi overrides and isolates, zero-width, BOM, soft hyphen...).
+pub const FORMAT: &[(u32, u32)] = &[
     (0xAD, 0xAD),
     (0x600, 0x605),
     (0x61C, 0x61C),
@@ -95,6 +120,29 @@ pub fn is_js_whitespace(character: char) -> bool {
 /// `String.prototype.trim`.
 pub fn js_trim(text: &str) -> &str {
     text.trim_matches(is_js_whitespace)
+}
+
+/// JS `/\p{Cf}/u`: a format character.
+pub fn is_format(character: char) -> bool {
+    in_table(character, FORMAT)
+}
+
+/// JS `text.length`: UTF-16 code units.
+pub fn utf16_len(text: &str) -> usize {
+    text.chars().map(char::len_utf16).sum()
+}
+
+/// JS `text.slice(0, max)` in UTF-16 code units, except that a surrogate pair the cut would split
+/// is left out whole (a Rust string cannot hold the lone high surrogate JS would keep).
+pub fn utf16_prefix(text: &str, max: usize) -> &str {
+    let mut units = 0;
+    for (index, character) in text.char_indices() {
+        units += character.len_utf16();
+        if units > max {
+            return &text[..index];
+        }
+    }
+    text
 }
 
 /// `hasVisibleText`: some character is neither whitespace nor default-ignorable.

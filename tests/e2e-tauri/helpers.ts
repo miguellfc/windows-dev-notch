@@ -6,9 +6,12 @@
 // Callbacks passed to `browser.execute` are serialized into the page: they cannot use anything
 // from this module, only their arguments. The node tsconfig has no DOM lib, hence the casts.
 import { kill } from 'node:process'
-import { readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { browser } from '@wdio/globals'
+import { randomUUID } from 'node:crypto'
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
+import { tmpdir } from 'node:os'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { $, browser } from '@wdio/globals'
 import { createDefaultSettings, type Settings } from '../../src/shared/settings/schema'
 
 /**
@@ -162,7 +165,10 @@ export interface LaunchOptions {
    * before anything reads the environment (`e2e::apply_cli_env`).
    */
   env?: Record<string, string>
-  /** Files written into the profile before the app starts (`settings.json`, `reminders.json`...). */
+  /**
+   * Files written into the profile before the app starts (`settings.json`, `reminders.json`...):
+   * objects as JSON, strings as they are.
+   */
   files?: Record<string, unknown>
 }
 
@@ -190,7 +196,8 @@ export async function launch({ fresh, env = {}, files = {} }: LaunchOptions): Pr
     }
   }
   for (const [name, value] of Object.entries(files)) {
-    writeFileSync(join(dataDir(), name), JSON.stringify(value), 'utf8')
+    // A string is the file's exact text (Claude's settings.json seeded byte for byte).
+    writeFileSync(join(dataDir(), name), typeof value === 'string' ? value : JSON.stringify(value), 'utf8')
   }
   sessionAppUnknown = true
   const application = process.env['NOTCH_E2E_APP']
@@ -387,3 +394,163 @@ export const clockBottom = (): Promise<number | null> =>
     const el = Array.from(doc.querySelectorAll('span, time, div, p')).find((node) => /^[0-9]{2}:[0-9]{2}$/.test(node.textContent ?? ''))
     return el ? el.getBoundingClientRect().bottom : null
   })
+
+// --- Claude Code (part 3) -----------------------------------------------------------------
+//
+// Claude's settings.json is always a file of this run's temporary profile, passed per launch as
+// `--e2e-env-NOTCH_CLAUDE_SETTINGS` (wdio.conf.mts also sets it in the base environment): never the
+// user's `~/.claude/settings.json`. The bridge listens on an ephemeral port (`NOTCH_CLAUDE_PORT=0`),
+// so it never collides with an installed notch; the specs read URL and token back from the
+// installed settings.json and POST the hooks themselves with Node's `http`, like Claude Code does.
+
+export type HookReply = { status: number; body: string }
+export type HookEndpoint = { url: URL; token: string }
+/** Claude's two hook URLs: `/hook` (every event, answered at once) and `/hook/question` (held AskUserQuestion). */
+export type ClaudeBridge = { hook: HookEndpoint; question: HookEndpoint }
+
+export const CLAUDE_SETTINGS = 'claude-settings.json'
+
+const isInside = (child: string, parent: string): boolean => {
+  const rel = relative(parent, child)
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
+}
+
+/**
+ * The path of Claude's settings.json for this run. Fails fast unless it sits in this run's profile,
+ * itself inside the system temp folder (never `~/.claude`).
+ */
+export function claudeSettingsFile(): string {
+  const data = resolve(dataDir())
+  const file = resolve(join(data, CLAUDE_SETTINGS))
+  if (!isInside(data, resolve(tmpdir())) || !isInside(file, data) || /[\\/]\.claude[\\/]/i.test(file)) {
+    throw new Error(`Refusing to run: Claude's settings.json would be ${file}, outside this run's temp profile`)
+  }
+  return file
+}
+
+/** Per-launch switches of every Claude test: temp settings.json, ephemeral port, no real focus, no real launches. */
+export const claudeEnv = (): Record<string, string> => ({
+  NOTCH_CLAUDE_SETTINGS: claudeSettingsFile(),
+  NOTCH_CLAUDE_PORT: '0',
+  NOTCH_DISABLE_CLAUDE_FOCUS: '1',
+  NOTCH_APP_LAUNCH_LOG: '1',
+})
+
+/** Text the install preview must show before anything is written: proof the app reads the temp file. */
+let claudeProof = ''
+
+/**
+ * Starts a fresh app for a Claude test. Claude's settings.json is seeded first: with `seed` (exact
+ * text) or with a one-key file carrying a random marker. Either way the install preview must show
+ * `proof` (the marker by default) before the install is confirmed, so a wrong path fails before
+ * any write.
+ */
+export async function launchClaude(options: { seed?: string; proof?: string; env?: Record<string, string> } = {}): Promise<void> {
+  const marker = `notch-e2e-${randomUUID()}`
+  const seed = options.seed ?? `${JSON.stringify({ notchE2eMarker: marker }, null, 2)}\n`
+  claudeProof = options.proof ?? marker
+  await launch({ fresh: true, env: { ...claudeEnv(), ...options.env }, files: { [CLAUDE_SETTINGS]: seed } })
+}
+
+const ccButton = (...names: string[]) => $(`//button[${names.map((name) => `normalize-space()="${name}"`).join(' or ')}]`)
+export const ccInstall = () => ccButton('Instalar hooks', 'Install hooks')
+export const ccConfirmInstall = () => ccButton('Confirmar instalación', 'Confirm installation')
+export const ccUninstall = () => ccButton('Desinstalar hooks', 'Uninstall hooks')
+export const ccConfirmUninstall = () => ccButton('Confirmar desinstalación', 'Confirm uninstall')
+export const ccDiff = () => $('pre')
+
+/** Opens the Control Center on its Claude Code page (WebDriver stays on it). */
+export async function openClaudePage(): Promise<void> {
+  await openControlCenter()
+  await $('//nav//button[normalize-space()="Claude Code"]').click()
+  await ccInstall().waitForDisplayed()
+}
+
+/** The install preview is on screen and shows the proof text: the app reads this run's file. */
+export async function expectPreviewOfTempFile(): Promise<void> {
+  await ccDiff().waitForDisplayed()
+  const text = await ccDiff().getText()
+  if (!text.includes(claudeProof)) {
+    throw new Error('Refusing to install: the preview does not show the settings.json of this run')
+  }
+}
+
+export const readClaudeSettings = (): string => readFileSync(claudeSettingsFile(), 'utf8')
+
+/**
+ * Installs the hooks through the Control Center, like a user would, and reads the URLs Claude
+ * would use. GAP: Electron closes the Control Center afterwards (`cc.close()`); here it stays open
+ * (no close channel, and WebDriver's closeWindow would tear down a WebView2 target) and WebDriver
+ * switches back to the notch.
+ */
+export async function installClaudeHooks(): Promise<ClaudeBridge> {
+  await openClaudePage()
+  await ccInstall().click()
+  await expectPreviewOfTempFile()
+  await ccConfirmInstall().click()
+  await eventually(async () => readClaudeSettings(), (text) => text.includes('x-notch-hook'), 'the hooks in the temp settings.json')
+  await useWindow('notch')
+  return readClaudeBridge()
+}
+
+/** URL and token exactly as Claude Code would read them: from the installed settings.json. */
+export function readClaudeBridge(): ClaudeBridge {
+  type Hook = { type: string; url?: string; headers?: Record<string, string> }
+  const settings = JSON.parse(readClaudeSettings()) as { hooks: Record<string, { matcher?: string; hooks: Hook[] }[]> }
+  const endpoint = (hook: Hook | undefined, path: string): HookEndpoint => {
+    if (!hook?.url || !hook.headers?.['x-notch-token']) throw new Error('Hooks are not installed')
+    const url = new URL(hook.url)
+    // Loopback only: the specs never post anywhere else.
+    if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.pathname !== path) throw new Error(`Unexpected hook URL ${url.href}`)
+    return { url, token: hook.headers['x-notch-token'] }
+  }
+  return {
+    hook: endpoint(settings.hooks['PermissionRequest']?.[0]?.hooks[0], '/hook'),
+    question: endpoint(settings.hooks['PreToolUse']?.find((group) => group.matcher === 'AskUserQuestion')?.hooks[0], '/hook/question'),
+  }
+}
+
+/** POSTs a hook payload like Claude Code does. The promise settles when the bridge replies. */
+export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown>): Promise<HookReply> =>
+  new Promise((done, fail) => {
+    const body = JSON.stringify(payload)
+    const req = request(
+      endpoint.url,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(body),
+          'x-notch-token': endpoint.token,
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk: Buffer) => chunks.push(chunk))
+        res.on('end', () => done({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') }))
+      },
+    )
+    req.on('error', fail)
+    req.end(body)
+  })
+
+/** A hook payload of `session` (its cwd names the project). */
+export const hookEvent = (session: string, name: string, extra: Record<string, unknown> = {}) => ({
+  session_id: session,
+  hook_event_name: name,
+  cwd: `C:\\work\\${session}`,
+  ...extra,
+})
+
+/** Resolves with the reply, or 'pending' if none arrived within `ms`. */
+export const settledWithin = (reply: Promise<HookReply>, ms: number): Promise<HookReply | 'pending'> =>
+  Promise.race([reply, new Promise<'pending'>((done) => setTimeout(() => done('pending'), ms))])
+
+/** Every log file of the profile (`logs/main.log` and its rotations), joined. */
+export const readLogs = (): string => {
+  const dir = join(dataDir(), 'logs')
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.log'))
+    .map((name) => readFileSync(join(dir, name), 'utf8'))
+    .join('\n')
+}

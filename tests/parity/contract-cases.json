@@ -7339,5 +7339,2550 @@
     "direction": "output",
     "value": null,
     "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:focus-app",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:focus-app",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:rotate-token",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:rotate-token",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:rotate-port",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:rotate-port",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "error",
+      "reason": "port-in-use",
+      "hooks": "unknown",
+      "sessions": [],
+      "pending": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "waiting-for-events",
+      "hooks": "outdated",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "not-installed",
+      "hooks": "missing",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "idle",
+          "updatedAt": -1.5
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ],
+      "reason": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ],
+      "reason": "busy"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "offline",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "partial",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ],
+      "token": "secret"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "busy",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": "1763200000000"
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000,
+          "cwd": "C:\\repo"
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": "no",
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123,
+          "toolInput": {
+            "command": "ls"
+          }
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:get-state",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "claude:state-changed",
+    "direction": "event",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:state-changed",
+    "direction": "event",
+    "value": {
+      "connection": "error",
+      "hooks": "installed",
+      "sessions": [],
+      "pending": [],
+      "reason": "port-in-use"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:state-changed",
+    "direction": "event",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": [
+        {
+          "id": "s-1",
+          "name": "notch",
+          "status": "working",
+          "updatedAt": 1763200000000
+        }
+      ],
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ],
+      "reason": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:state-changed",
+    "direction": "event",
+    "value": {
+      "connection": "connected",
+      "hooks": "installed",
+      "sessions": null,
+      "pending": [
+        {
+          "id": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+          "sessionId": "s-1",
+          "sessionName": "notch",
+          "toolName": "Bash",
+          "preview": "npm test",
+          "previewTruncated": false,
+          "previewLength": 8,
+          "receivedAt": 1763200000123
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:state-changed",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+      "decision": "allow"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+      "decision": "deny"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3F2C8A1E-5B7D-4C9E-8F10-2A3B4C5D6E71",
+      "decision": "deny"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "not-a-uuid",
+      "decision": "allow"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3f2c8a1e-5b7d-0c9e-8f10-2a3b4c5d6e71",
+      "decision": "allow"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+      "decision": "ask"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": "3f2c8a1e-5b7d-4c9e-8f10-2a3b4c5d6e71",
+      "decision": "allow",
+      "reason": "ok"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": {
+      "requestId": null,
+      "decision": "allow"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:decide",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "claude:focus-app",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "claude:focus-app",
+    "direction": "output",
+    "value": true,
+    "accept": false
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": "s-1"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {
+      "sessionId": "s-1",
+      "force": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "claude:dismiss-session",
+    "direction": "output",
+    "value": "ok",
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "diff": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "diff": [
+        {
+          "kind": "same",
+          "text": "{"
+        },
+        {
+          "kind": "add",
+          "text": "  \"hooks\": {"
+        },
+        {
+          "kind": "remove",
+          "text": ""
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "invalid-json"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "missing"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "reason": "invalid-json"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "invalid-json",
+      "diff": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "diff": [],
+      "changed": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "diff": [
+        {
+          "kind": "changed",
+          "text": "x"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "diff": [
+        {
+          "kind": "add",
+          "text": "x",
+          "line": 1
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": {
+      "ok": "true",
+      "diff": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "output",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "changed": true,
+      "diff": [
+        {
+          "kind": "same",
+          "text": "{"
+        },
+        {
+          "kind": "add",
+          "text": "  \"hooks\": {"
+        },
+        {
+          "kind": "remove",
+          "text": ""
+        }
+      ],
+      "backupFile": "C:\\Users\\ana\\.claude\\settings.json.notch-backup-20261115-101500"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "changed": false,
+      "diff": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "invalid-json"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "changed": true,
+      "diff": [],
+      "backupFile": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "diff": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "changed": "yes",
+      "diff": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "invalid-json",
+      "changed": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "changed": true,
+      "diff": [
+        {
+          "kind": "same",
+          "text": "{"
+        },
+        {
+          "kind": "add",
+          "text": "  \"hooks\": {"
+        },
+        {
+          "kind": "remove",
+          "text": ""
+        }
+      ],
+      "backupFile": "b"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "invalid-json"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "unreadable"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "changed": false,
+      "diff": [],
+      "backupFile": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "output",
+    "value": {
+      "ok": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "output",
+    "value": {
+      "ok": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "output",
+    "value": {
+      "ok": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:test-connection",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "latencyMs": 3
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:rotate-token",
+    "direction": "output",
+    "value": {
+      "hooks": "reinstalled"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:rotate-token",
+    "direction": "output",
+    "value": {
+      "hooks": "not-installed"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:rotate-token",
+    "direction": "output",
+    "value": {
+      "hooks": "failed"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:rotate-token",
+    "direction": "output",
+    "value": {
+      "hooks": "reinstalled",
+      "token": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:rotate-port",
+    "direction": "output",
+    "value": {
+      "hooks": "reinstall-failed"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:rotate-port",
+    "direction": "output",
+    "value": {
+      "hooks": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:rotate-port",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 0.5
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "",
+            "header": "",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "",
+                "description": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo",
+                "preview": "x"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": "false",
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": null,
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          },
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456,
+        "sessionId": "s-1"
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:get-questions",
+    "direction": "output",
+    "value": {
+      "questions": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:questions",
+    "direction": "event",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "claude:questions",
+    "direction": "event",
+    "value": [],
+    "accept": true
+  },
+  {
+    "channel": "claude:questions",
+    "direction": "event",
+    "value": [
+      {
+        "id": "q-1",
+        "project": "notch",
+        "questions": [
+          {
+            "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:questions",
+    "direction": "event",
+    "value": [
+      {
+        "id": "q-1",
+        "project": null,
+        "questions": [
+          {
+            "question": "¿Seguimos?",
+            "header": "Plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sí",
+                "description": "Hazlo"
+              },
+              {
+                "label": "No",
+                "description": ""
+              }
+            ]
+          }
+        ],
+        "arrivedAt": 1763200000456
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "claude:questions",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [],
+          "other": "Otra cosa"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        },
+        {
+          "selected": [
+            0
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            -1
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            1.5
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            "0"
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            9007199254740991
+          ]
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            9007199254740992
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [],
+          "other": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [],
+          "other": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [],
+          "other": "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [],
+          "other": null
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "other": "x"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0
+          ],
+          "labels": [
+            "Sí"
+          ]
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": [
+        {
+          "selected": [
+            0
+          ]
+        }
+      ],
+      "sessionId": "s-1"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "answers": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "output",
+    "value": "sent",
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "output",
+    "value": "gone",
+    "accept": true
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "output",
+    "value": "lost",
+    "accept": false
+  },
+  {
+    "channel": "claude:answer",
+    "direction": "output",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "input",
+    "value": {
+      "id": "q-1"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "input",
+    "value": {
+      "id": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "input",
+    "value": {
+      "id": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "input",
+    "value": {
+      "id": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "input",
+    "value": {
+      "id": "q-1",
+      "focus": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "claude:release-question",
+    "direction": "output",
+    "value": false,
+    "accept": false
   }
 ]

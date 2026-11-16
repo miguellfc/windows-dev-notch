@@ -1,5 +1,5 @@
-//! Windows toasts with a click handler (Electron's `Notification` in the reminders
-//! integration), through `tauri-winrt-notification`: Tauri's notification plugin delivers no
+//! Windows toasts with a click handler (Electron's `Notification` in the reminders and Claude
+//! integrations), through `tauri-winrt-notification`: Tauri's notification plugin delivers no
 //! clicks on Windows.
 //!
 //! Attribution: the process takes the AppUserModelID `dev.developernotch.app` at startup
@@ -19,7 +19,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, OnceLock};
 
-use tauri_winrt_notification::{Error, Toast};
+use tauri_winrt_notification::{Error, Sound, Toast};
 
 /// `app.setAppUserModelId(...)` in Electron; the same as the Tauri identifier.
 pub const APP_USER_MODEL_ID: &str = "dev.developernotch.app";
@@ -48,10 +48,27 @@ fn toast_app_id() -> &'static str {
     }
 }
 
+/// Whether a toast plays a sound: reminders are silent (the notch plays its own chime); Claude's
+/// toasts play the default Windows sound, as Electron's `new Notification({title, body})` does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToastSound {
+    Silent,
+    Default,
+}
+
+/// The `audio` element of the toast for `sound`.
+fn winrt_sound(sound: ToastSound) -> Option<Sound> {
+    match sound {
+        ToastSound::Silent => None,
+        ToastSound::Default => Some(Sound::Default),
+    }
+}
+
 enum Command {
     Show {
         title: String,
         body: String,
+        sound: ToastSound,
         on_click: Arc<dyn Fn() + Send + Sync>,
     },
     /// Clicked or dismissed: its handlers may go.
@@ -79,20 +96,21 @@ fn queue() -> Option<&'static Sender<Command>> {
         .as_ref()
 }
 
-/// Shows a silent toast without buttons; `on_click` runs (on a Windows thread) when its body is
-/// clicked. Returns at once.
-pub fn show(title: String, body: String, on_click: Arc<dyn Fn() + Send + Sync>) {
+/// Shows a toast without buttons, with or without `sound`; `on_click` runs (on a Windows thread)
+/// when its body is clicked. Returns at once.
+pub fn show(title: String, body: String, sound: ToastSound, on_click: Arc<dyn Fn() + Send + Sync>) {
     let queued = queue().is_some_and(|queue| {
         queue
             .send(Command::Show {
                 title,
                 body,
+                sound,
                 on_click,
             })
             .is_ok()
     });
     if !queued {
-        log::warn!("Reminder toast failed: NoThread");
+        log::warn!("Toast failed: NoThread");
     }
 }
 
@@ -116,20 +134,21 @@ fn run(queue: &Sender<Command>, commands: &Receiver<Command>) {
             Command::Show {
                 title,
                 body,
+                sound,
                 on_click,
             } => {
                 let id = next_id;
                 next_id += 1;
                 let shown = catch_unwind(AssertUnwindSafe(|| {
-                    let toast = build(id, queue, &title, &body, on_click);
+                    let toast = build(id, queue, &title, &body, sound, on_click);
                     toast.show().map(|()| toast)
                 }));
                 match shown {
                     Ok(Ok(toast)) => {
                         live.insert(id, toast);
                     }
-                    Ok(Err(error)) => log::warn!("Reminder toast failed: {}", error_name(&error)),
-                    Err(_) => log::error!("Reminder toast failed: Panic"),
+                    Ok(Err(error)) => log::warn!("Toast failed: {}", error_name(&error)),
+                    Err(_) => log::error!("Toast failed: Panic"),
                 }
             }
         }
@@ -141,17 +160,18 @@ fn build(
     queue: &Sender<Command>,
     title: &str,
     body: &str,
+    sound: ToastSound,
     on_click: Arc<dyn Fn() + Send + Sync>,
 ) -> Toast {
     let (clicked, dismissed) = (queue.clone(), queue.clone());
     Toast::new(toast_app_id())
         .title(title)
         .text1(body)
-        .sound(None)
+        .sound(winrt_sound(sound))
         .on_activated(move |_action| {
             // Never unwind into Windows: that would abort the process.
             if catch_unwind(AssertUnwindSafe(|| on_click())).is_err() {
-                log::error!("Reminder toast click failed");
+                log::error!("Toast click failed");
             }
             // Released on the toast thread, never inside its own handler.
             let _ = clicked.send(Command::Forget(id));
@@ -161,4 +181,22 @@ fn build(
             let _ = dismissed.send(Command::Forget(id));
             Ok(())
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use tauri_winrt_notification::Sound;
+
+    use super::*;
+
+    #[test]
+    fn claude_toast_uses_default_sound() {
+        // Electron's `new Notification({title, body})` plays the default Windows sound.
+        assert_eq!(winrt_sound(ToastSound::Default), Some(Sound::Default));
+    }
+
+    #[test]
+    fn silent_toasts_play_no_sound() {
+        assert_eq!(winrt_sound(ToastSound::Silent), None);
+    }
 }

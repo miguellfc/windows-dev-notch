@@ -1,5 +1,6 @@
 pub mod app_ipc;
 pub mod apps;
+pub mod claude;
 pub mod contract;
 pub mod control_center;
 #[cfg(feature = "e2e")]
@@ -22,6 +23,7 @@ use tauri::webview::{PageLoadEvent, PermissionResponse};
 use tauri::{AppHandle, Manager, RunEvent};
 
 use apps::{AppsHandles, AppsSlot};
+use claude::ipc::ClaudeSlot;
 use contract::settings::Settings;
 use control_center::ControlCenterState;
 use notch::ipc::NotchSlot;
@@ -71,6 +73,7 @@ pub fn run() {
         apps: apps_slot,
         reminders: reminders_slot,
         system: system_slot,
+        claude: claude_slot,
     } = slots;
 
     let app = tauri::Builder::default()
@@ -186,6 +189,11 @@ pub fn run() {
                     .on_hidden_change(move |_hidden| tray::refresh(&handle));
             }
 
+            // Claude Code: after the notch (it drives the alerts), before the reminders, as in
+            // Electron. The bridge starts in the background; the channels reach it through the slot.
+            let claude =
+                claude::integration::install(app.handle(), &claude_slot, &notch, &usage, &data_dir);
+
             let reminders = install_reminders(
                 app.handle(),
                 &reminders_slot,
@@ -217,7 +225,14 @@ pub fn run() {
                     let notes = Arc::clone(&notes);
                     Box::pin(async move { notes.flush().await })
                 });
-            // After the notch's cleanup (registered by `install`), as in Electron.
+            // After the notch's cleanup (registered by `install`) and before the reminders', as in
+            // Electron: every held permission and question is answered (Claude falls back to its
+            // own prompt) and the bridge is stopped, waited for within the cleanup budget.
+            if let Some(claude) = claude {
+                app.state::<Arc<services::quit::QuitTasks>>()
+                    .add_cleanup(move |thread| claude.dispose(thread));
+            }
+            // Then the reminders, as in Electron.
             app.state::<Arc<services::quit::QuitTasks>>()
                 .add_cleanup(move |_thread| {
                     power.stop();
@@ -294,6 +309,7 @@ pub struct Slots {
     pub apps: Arc<AppsSlot>,
     pub reminders: Arc<RemindersSlot>,
     pub system: Arc<SystemSlot>,
+    pub claude: Arc<ClaudeSlot>,
 }
 
 /// Every channel of `window.notch` with its handler, plus the `__e2e:*` test channels in the
@@ -307,6 +323,7 @@ pub fn build_registry(slots: &Slots) -> ipc::Registry {
     apps::register(&mut registry, &slots.apps);
     reminders::ipc::register(&mut registry, &slots.reminders);
     system::ipc::register(&mut registry, &slots.system);
+    claude::ipc::register(&mut registry, &slots.claude);
     #[cfg(feature = "e2e")]
     e2e::register(&mut registry);
     registry
@@ -370,7 +387,7 @@ fn install_reminders(
         let controller = Arc::clone(&controller);
         ReminderToast::new(
             Box::new(|request| {
-                platform::toast::show(request.title, request.body, request.on_click)
+                platform::toast::show(request.title, request.body, request.sound, request.on_click)
             }),
             Box::new(move |key, params| i18n::t_with(settings().language, key, params)),
             Arc::new(move || {

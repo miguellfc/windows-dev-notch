@@ -64,8 +64,12 @@ macro_rules! input_entry {
     };
 }
 
+/// [`string_enum!`] for the modules outside `contract` (path-based, so declaration order is free).
+pub(crate) use string_enum;
+
 pub mod app;
 pub mod apps;
+pub mod claude;
 pub mod notch;
 pub mod notes;
 pub mod reminders;
@@ -179,6 +183,40 @@ pub fn check(
         ("usage:summary", Output) => required::<usage::UsageSummary>(value),
         ("apps:open", Input) => required::<apps::OpenAppInput>(value),
         ("apps:open", Output) => required::<apps::OpenAppResult>(value),
+        (
+            "claude:get-state"
+            | "claude:focus-app"
+            | "claude:hooks-preview"
+            | "claude:hooks-install"
+            | "claude:hooks-uninstall"
+            | "claude:test-connection"
+            | "claude:rotate-token"
+            | "claude:rotate-port"
+            | "claude:get-questions",
+            Input,
+        ) => none(value),
+        ("claude:get-state", Output) => required::<claude::ClaudeState>(value),
+        ("claude:decide", Input) => required::<claude::DecideInput>(value),
+        ("claude:dismiss-session", Input) => required::<claude::DismissSessionInput>(value),
+        ("claude:answer", Input) => required::<claude::AnswerInput>(value),
+        ("claude:answer", Output) => required::<claude::AnswerOutcome>(value),
+        ("claude:release-question", Input) => required::<claude::ReleaseQuestionInput>(value),
+        (
+            "claude:decide"
+            | "claude:focus-app"
+            | "claude:dismiss-session"
+            | "claude:release-question",
+            Output,
+        ) => required::<Ack>(value),
+        ("claude:hooks-preview", Output) => required::<claude::HooksPreview>(value),
+        ("claude:hooks-install" | "claude:hooks-uninstall", Output) => {
+            required::<claude::HooksWrite>(value)
+        }
+        ("claude:test-connection", Output) => required::<claude::TestConnectionResult>(value),
+        ("claude:rotate-token" | "claude:rotate-port", Output) => {
+            required::<claude::RotateOutcome>(value)
+        }
+        ("claude:get-questions", Output) => required::<claude::PendingQuestions>(value),
         ("system:view", Input) => required::<system::ViewInput>(value),
         ("system:view", Output) => required::<Ack>(value),
         ("system:kill-process", Input) => required::<system::KillInput>(value),
@@ -217,6 +255,8 @@ pub fn check(
         ("notes:changed", Event) => required::<notes::NotesSnapshot>(value),
         ("reminders:changed", Event) => required::<reminders::RemindersSnapshot>(value),
         ("reminders:fired", Event) => required::<reminders::ReminderFired>(value),
+        ("claude:state-changed", Event) => required::<claude::ClaudeState>(value),
+        ("claude:questions", Event) => required::<claude::PendingQuestions>(value),
         _ => return None,
     };
     Some(verdict)
