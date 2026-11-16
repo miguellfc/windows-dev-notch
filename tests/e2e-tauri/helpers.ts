@@ -5,6 +5,7 @@
 //
 // Callbacks passed to `browser.execute` are serialized into the page: they cannot use anything
 // from this module, only their arguments. The node tsconfig has no DOM lib, hence the casts.
+import { spawnSync } from 'node:child_process'
 import { kill } from 'node:process'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -255,9 +256,18 @@ export const requestIntent = (intent: 'expand' | 'toggle' | 'dismiss'): Promise<
     intent,
   )
 
-/** Opens the Control Center from the notch and switches WebDriver to it. */
-export async function openControlCenter(): Promise<void> {
-  await inPage(() => (globalThis as unknown as { notch: { app: { openControlCenter(): Promise<unknown> } } }).notch.app.openControlCenter())
+/**
+ * Opens the Control Center from the notch (on `page` when given, as `openControlCenter({ page })`
+ * does in the app) and switches WebDriver to it.
+ */
+export async function openControlCenter(page?: string): Promise<void> {
+  await inPage(
+    (target: string | null) =>
+      (globalThis as unknown as { notch: { app: { openControlCenter(input?: unknown): Promise<unknown> } } }).notch.app.openControlCenter(
+        target === null ? undefined : { page: target },
+      ),
+    page ?? null,
+  )
   await useWindow('control-center')
   await browser.$('h1').waitForDisplayed()
 }
@@ -553,4 +563,113 @@ export const readLogs = (): string => {
     .filter((name) => name.endsWith('.log'))
     .map((name) => readFileSync(join(dir, name), 'utf8'))
     .join('\n')
+}
+
+// --- Hover and capsule blocks (parts 2–4) ---------------------------------------------------
+
+/**
+ * A capsule block by test id, in the present copy only: a compact width change cross-fades two
+ * copies of the content (the outgoing one is aria-hidden and can linger while another window has
+ * focus). The Tauri twin of `present` in tests/e2e/pointer.ts, as a selector.
+ */
+export const present = (testId: string): string => `[data-testid="${testId}"]:not([aria-hidden="true"] *)`
+
+/**
+ * Runs checks on the compact capsule (`pointer(true)` from peek), then lets the capsule rest in
+ * peek again: `whileHovered` of tests/e2e/pointer.ts.
+ */
+export async function whileHovered(check: () => Promise<void>): Promise<void> {
+  const capsule = $('[data-testid="notch-capsule"]')
+  await pointer(true)
+  await expectAttribute(capsule, 'data-mode', 'compact')
+  await check()
+  await pointer(false)
+  await expectAttribute(capsule, 'data-mode', 'peek')
+}
+
+const expectAttribute = async (element: ChainablePromiseElement, name: string, value: string): Promise<void> => {
+  await eventually(() => element.getAttribute(name), (current) => current === value, `${name}=${value}`)
+}
+
+type ChainablePromiseElement = ReturnType<typeof $>
+
+// --- Code review (part 4) -------------------------------------------------------------------
+//
+// GitHub's API and the GitLab server are the fake of tests/e2e/fixtures/fake-code-review.ts, run in
+// the spec's own process on 127.0.0.1 and passed per launch as
+// `--e2e-env-NOTCH_CODE_REVIEW_BASE_URLS` (wdio.conf.mts also points both platforms at a closed
+// loopback port in the base environment, so no app of the run can reach the real hosts). URLs main
+// would open in the browser are recorded (`NOTCH_OPEN_URL_LOG=1`) and read with `__e2e:opened-urls`.
+
+/** The URLs main asked to open, in order (never opened for real). */
+export const openedUrls = (): Promise<string[]> => e2e<string[]>('opened-urls')
+
+/** Moves the test clock: the wall clock and every timer due by then (the code-review queries run after it answers). */
+export const advanceClock = (ms: number): Promise<unknown> => e2e('advance-clock', { ms })
+
+/**
+ * The input a `<label>` with exactly `text` names, inside the element `scope` matches: a selector
+ * by id (React's ids hold characters CSS ids cannot).
+ */
+export const labelledField = async (scope: string, text: string): Promise<string> => {
+  const id = await inPage(
+    (sel: string, label: string) => {
+      type Label = { textContent: string | null; htmlFor: string }
+      const root = (globalThis as unknown as { document: { querySelector(s: string): { querySelectorAll(s: string): ArrayLike<Label> } | null } })
+        .document.querySelector(sel)
+      return Array.from(root?.querySelectorAll('label') ?? []).find((el) => el.textContent?.trim() === label)?.htmlFor ?? null
+    },
+    scope,
+    text,
+  )
+  if (!id) throw new Error(`No field labelled "${text}" in ${scope}`)
+  return `[id="${id}"]`
+}
+
+/** The current page's markup and every field value (a token must not linger in either). */
+export const pageTextAndValues = async (): Promise<{ html: string; values: string[] }> => ({
+  html: await browser.getPageSource(),
+  values: await inPage(() =>
+    Array.from(
+      (globalThis as unknown as { document: { querySelectorAll(s: string): ArrayLike<{ value: string }> } }).document.querySelectorAll('input, textarea'),
+    ).map((el) => el.value),
+  ),
+})
+
+/**
+ * Harness measure for a known parity divergence (a follow-up, not fixed in part 4): the app's Rust
+ * side (`chrono::Local`) takes local midnights from Windows' time zone rules, while Node, the
+ * WebView2 renderer and Electron take them from ICU's tz data, and the two can disagree for some
+ * zones and years. Inside the Tauri app that means main and renderer disagree on the local day for
+ * an hour a day. The fake code-review server checks the contributions ranges against Node's local
+ * midnights, so when Windows has one fixed offset over the days the ranges can cover and Node
+ * disagrees, this worker switches to that fixed offset (`Etc/GMT±H`). It changes nothing when they
+ * already agree, nor anything in the app or its webviews. Returns the zone set, if any; logs why
+ * when it cannot align.
+ */
+export function alignZoneWithWindows(): string | null {
+  const now = Date.now()
+  const day = 86_400_000
+  // 47 days back to 2 days ahead: the ranges need at most about 37 days back (the earlier of the
+  // 1st and Monday, and GitLab's "after" a day before that) and GitLab's "before" two days ahead.
+  const instants = Array.from({ length: 50 }, (_, i) => now - (47 - i) * day)
+  const script = `${instants.map((ms) => `[int][TimeZoneInfo]::Local.GetUtcOffset([DateTimeOffset]::FromUnixTimeMilliseconds(${ms})).TotalMinutes`).join(';')}`
+  const out = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' })
+  const windows = out.stdout.trim().split(/\s+/).map(Number)
+  if (out.status !== 0 || windows.length !== instants.length || windows.some(Number.isNaN)) {
+    console.log(`alignZoneWithWindows: could not read Windows' UTC offsets (PowerShell status ${String(out.status)}${out.error ? `, ${out.error.message}` : ''}); the worker keeps its zone`)
+    return null
+  }
+  const node = instants.map((ms) => -new Date(ms).getTimezoneOffset())
+  if (windows.every((offset, i) => offset === node[i])) return null
+  const offset = windows[0]!
+  if (windows.some((value) => value !== offset) || offset % 60 !== 0) {
+    console.log("alignZoneWithWindows: Node's tz data disagrees with Windows', but Windows has no single whole-hour offset over the checked days; the worker keeps its zone")
+    return null
+  }
+  const hours = -offset / 60
+  // Etc/GMT signs are inverted: Etc/GMT+4 is UTC-4.
+  const zone = hours === 0 ? 'Etc/GMT' : `Etc/GMT${hours > 0 ? '+' : '-'}${Math.abs(hours)}`
+  process.env['TZ'] = zone
+  return zone
 }

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-use crate::apps::LaunchLog;
+use crate::apps::{LaunchLog, OpenedUrls};
 use crate::contract::notch::PointerInput;
 use crate::contract::{parse_input, Validate};
 use crate::ipc::{
@@ -274,6 +274,17 @@ fn app_launches(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
     json(serde_json::json!({ "launches": log.records(), "home": log.home }))
 }
 
+/// The URLs main asked the browser to open under `NOTCH_OPEN_URL_LOG=1` (`__notchOpened` in
+/// Electron), in order: `string[]`. UNAVAILABLE without the switch.
+fn opened_urls(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
+    no_input(&input)?;
+    let log = app
+        .try_state::<Arc<OpenedUrls>>()
+        .map(|state| Arc::clone(&state))
+        .ok_or_else(unavailable)?;
+    json(log.urls())
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ClipboardInput {
@@ -421,6 +432,7 @@ pub const CHANNELS: &[(&str, Handler)] = &[
     ("__e2e:pid", Handler::Inline(pid)),
     ("__e2e:quit", Handler::Inline(quit)),
     ("__e2e:app-launches", Handler::Inline(app_launches)),
+    ("__e2e:opened-urls", Handler::Inline(opened_urls)),
     ("__e2e:clipboard", Handler::Blocking(clipboard)),
     ("__e2e:process-cpu", Handler::Blocking(process_cpu)),
 ];

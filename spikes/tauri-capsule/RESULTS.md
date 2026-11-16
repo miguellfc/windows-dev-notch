@@ -77,3 +77,29 @@ Lectura:
 - CPU: la primera ventana de 15 s, justo a los 15 s del arranque, marcó 1,50 % de un núcleo; repetida un minuto después, 0,40 %, y la de 60 s, 0,28 %. La primera aún recoge el final del arranque de WebView2. Con el puente sin tráfico no hay trabajo propio de Claude salvo la comprobación de los hooks cada 60 s, así que la diferencia con la parte 2 (0,10 % / 0,22 %) entra en el ruido de los procesos de WebView2.
 - Las pruebas de extremo a extremo pasan de 28 a 44 (`claude.spec.ts` y `claude-questions.spec.ts`, 8 cada una) y completan la prueba de `apps.spec.ts` que quedó a medias en la parte 2 (la línea de fallo con sesiones de Claude en el panel). De la petición de permiso al aviso en la cápsula pasan entre 19 y 30 ms en las dos ejecuciones completas (la prueba exige menos de 1 s).
 - El ejecutable de `release` sigue sin ningún canal `__e2e:`.
+
+## Parte 4: revisiones de código de GitHub y GitLab (2026-11-16)
+
+La parte 3 más las revisiones de código: los clientes HTTP de GitHub (GraphQL) y GitLab (REST) con TLS del almacén de Windows y sin redirecciones, el sondeo cada 120 s con esperas progresivas, el aviso de primera revisión, las contribuciones (solo con la vista abierta), los tokens cifrados con DPAPI y los 8 canales `code-review:*`. Redmine y Gmail siguen respondiendo `UNAVAILABLE`. Compilado con `npm run tauri:build` (perfil `release`, NSIS).
+
+La medición cambia en un punto respecto a la parte 3: no se usa la carpeta de datos real. El ejecutable de `release` normal no respeta `NOTCH_USER_DATA_DIR`, y con la parte 4 la carpeta real puede guardar tokens de verdad, con los que la app consultaría GitHub y GitLab. Por eso se midió una compilación de `release` con la feature `e2e` (`tauri build --no-bundle --features e2e`, en otra carpeta de destino), con una carpeta de datos temporal y vacía, el `settings.json` de Claude temporal, el puerto del puente efímero y las dos plataformas apuntando a un puerto cerrado de `127.0.0.1`. Así, las revisiones están sin configurar, igual que en la medición de la parte 3. Por lo demás, el método es el mismo: árbol de procesos completo, 15 s después de arrancar, en reposo en peek y sin abrir el Control Center, con una ventana de CPU de 15 s y otra de 60 s. Se midió dos veces; los procesos se cerraron al acabar.
+
+Dos salvedades al comparar con la parte 3:
+
+- El perfil está vacío, con los ajustes por defecto; la parte 3 se midió con los ajustes reales del usuario.
+- El binario medido lleva la feature `e2e`, así que no es exactamente el ejecutable que se distribuye (incluye los canales `__e2e:*` y respeta los interruptores de prueba). El tamaño del instalador y del ejecutable sí son los de `npm run tauri:build`.
+
+| | Memoria privada | Conjunto de trabajo | CPU en reposo (15 s / 60 s) | Instalador | En disco |
+|---|---|---|---|---|---|
+| Developer Notch 0.2.0-dev (Tauri, parte 4) | 174–179 MB | 374–389 MB | 0,31–0,42 % / 0,31–0,62 % | 2,89 MB | 9,99 MB exe + WebView2 del sistema |
+
+Desglose de la memoria privada por proceso: principal (Rust) 7, navegador WebView2 33–34, GPU 79–83, renderer 33, red 12, almacenamiento 7, crashpad 3.
+
+Lectura:
+
+- Siguen siendo 7 procesos y la memoria queda donde estaba en las partes 2 y 3 (175–189 MB). El proceso de Rust con el cliente HTTP, el almacén de tokens y el sondeo sigue en 7 MB.
+- El instalador pasa de 2,60 a 2,89 MB y el ejecutable de 8,95 a 9,99 MB, por el cliente HTTP (`reqwest` con TLS del almacén de certificados de Windows), `url` y el módulo de revisiones de código.
+- CPU: entre 0,31 y 0,62 % de un núcleo, en el mismo ruido de los procesos de WebView2 que en las partes 2 y 3. Sin tokens no hay sondeo; con tokens, el trabajo propio es una consulta por plataforma cada 120 s.
+- Las pruebas de extremo a extremo pasan de 44 a 49 (`code-review.spec.ts`, 5) y tardan unos 3 min y 40 s. Corren contra el servidor falso de Electron en `127.0.0.1`, sin tokens reales y sin abrir el navegador.
+- El ejecutable de `release` sigue sin ningún canal `__e2e:` (comprobado buscando el texto en el binario).
+

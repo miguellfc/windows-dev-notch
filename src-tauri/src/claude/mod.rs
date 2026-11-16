@@ -4,7 +4,6 @@ pub mod alerts;
 pub mod bridge;
 pub mod bridge_config;
 pub mod diff;
-pub mod dpapi;
 pub mod focus;
 pub mod hook_events;
 pub mod hook_installer;

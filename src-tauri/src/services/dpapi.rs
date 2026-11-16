@@ -1,6 +1,7 @@
-//! Windows DPAPI for the bridge token (`CryptProtectData`/`CryptUnprotectData`, current user,
-//! no UI). Electron's `safeStorage` wraps the same per-user secret in an AES-GCM layer; its blobs
-//! are not readable here, which the bridge config treats like any undecryptable file (start over).
+//! Windows DPAPI for the stored secrets (`CryptProtectData`/`CryptUnprotectData`, current user,
+//! no UI): the Claude bridge token and the [`super::secure_token_store`] files. Electron's
+//! `safeStorage` wraps the same per-user secret in an AES-GCM layer; its blobs are not readable
+//! here, which both callers treat like any undecryptable file (start over / discard).
 
 use std::io;
 use std::ptr;

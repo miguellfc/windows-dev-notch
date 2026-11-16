@@ -87,6 +87,35 @@ impl LaunchLog {
     }
 }
 
+/// The URLs main asked the browser to open in a `NOTCH_OPEN_URL_LOG=1` session, recorded instead
+/// of opened (managed state; `__e2e:opened-urls` reads it). The Tauri twin of the Electron specs
+/// replacing `shell.openExternal` with a recorder (`__notchOpened`).
+#[derive(Default)]
+pub struct OpenedUrls(Mutex<Vec<String>>);
+
+impl OpenedUrls {
+    pub fn record(&self, url: String) {
+        self.0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(url);
+    }
+
+    /// Every recorded URL, in the order they were asked for.
+    pub fn urls(&self) -> Vec<String> {
+        self.0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+/// `NOTCH_OPEN_URL_LOG=1`, read only when dev overrides are allowed: record the URLs to open in
+/// the browser instead of opening them. False in a normal session.
+pub fn open_url_log_switch() -> bool {
+    crate::ipc::dev_overrides_enabled() && std::env::var("NOTCH_OPEN_URL_LOG").as_deref() == Ok("1")
+}
+
 /// The test switches, read only when dev overrides are allowed: `NOTCH_APP_LAUNCH_LOG=1`
 /// records launches instead of performing them, and `NOTCH_APP_LAUNCH_FAIL=claude|terminal`
 /// makes that app fail. `None` in a normal session.
@@ -165,7 +194,7 @@ fn wide(text: &str) -> Vec<u16> {
 
 /// `shell.openExternal`: `ShellExecuteW(open)` on this (blocking-pool) thread, with COM
 /// initialized as the Shell asks. A result of 32 or less is a failure (no handler, etc.).
-fn shell_open(url: &str) -> bool {
+pub(crate) fn shell_open(url: &str) -> bool {
     use windows_sys::Win32::System::Com::{
         CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
     };

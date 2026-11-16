@@ -2,8 +2,10 @@
 //! logger per process: every test module shares this capture.
 
 use std::sync::{Mutex, OnceLock, PoisonError};
+use std::thread::ThreadId;
 
-pub struct Capture(Mutex<Vec<String>>);
+/// Each line with the thread that logged it.
+pub struct Capture(Mutex<Vec<(ThreadId, String)>>);
 
 impl Capture {
     /// The lines logged so far, as `"<LEVEL> <target> <message>"`.
@@ -11,7 +13,22 @@ impl Capture {
         self.0
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+            .iter()
+            .map(|(_, line)| line.clone())
+            .collect()
+    }
+
+    /// Only the lines this thread logged: a test whose work all runs on its own thread (a
+    /// current-thread `#[tokio::test]`) sees its lines and no other test's.
+    pub fn lines_of_this_thread(&self) -> Vec<String> {
+        let me = std::thread::current().id();
+        self.0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .filter(|(thread, _)| *thread == me)
+            .map(|(_, line)| line.clone())
+            .collect()
     }
 }
 
@@ -21,15 +38,10 @@ impl log::Log for Capture {
     }
 
     fn log(&self, record: &log::Record) {
-        self.0
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(format!(
-                "{} {} {}",
-                record.level(),
-                record.target(),
-                record.args()
-            ));
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).push((
+            std::thread::current().id(),
+            format!("{} {} {}", record.level(), record.target(), record.args()),
+        ));
     }
 
     fn flush(&self) {}

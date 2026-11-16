@@ -1,6 +1,7 @@
 pub mod app_ipc;
 pub mod apps;
 pub mod claude;
+pub mod code_review;
 pub mod contract;
 pub mod control_center;
 #[cfg(feature = "e2e")]
@@ -24,6 +25,8 @@ use tauri::{AppHandle, Manager, RunEvent};
 
 use apps::{AppsHandles, AppsSlot};
 use claude::ipc::ClaudeSlot;
+use code_review::integration::CodeReviewIntegration;
+use code_review::ipc::CodeReviewSlot;
 use contract::settings::Settings;
 use control_center::ControlCenterState;
 use notch::ipc::NotchSlot;
@@ -74,6 +77,7 @@ pub fn run() {
         reminders: reminders_slot,
         system: system_slot,
         claude: claude_slot,
+        code_review: code_review_slot,
     } = slots;
 
     let app = tauri::Builder::default()
@@ -194,6 +198,23 @@ pub fn run() {
             let claude =
                 claude::integration::install(app.handle(), &claude_slot, &notch, &usage, &data_dir);
 
+            // GitHub and GitLab code review: after Claude, as in Electron. The stored tokens load
+            // in the background (the channels wait for them); the rhythm starts at once, on the
+            // notch's timers and the shared wall clock (both follow the E2E test clock). With
+            // `NOTCH_OPEN_URL_LOG=1` (dev/E2E only) items are recorded instead of opened.
+            if apps::open_url_log_switch() {
+                app.manage(Arc::new(apps::OpenedUrls::default()));
+            }
+            let code_review = code_review::integration::install(
+                app.handle(),
+                &code_review_slot,
+                &notch,
+                &data_dir,
+            );
+            if let Some(code_review) = &code_review {
+                app.manage(Arc::clone(code_review));
+            }
+
             let reminders = install_reminders(
                 app.handle(),
                 &reminders_slot,
@@ -244,6 +265,13 @@ pub fn run() {
                 app.state::<Arc<services::quit::QuitTasks>>()
                     .add_cleanup(move |_thread| system.dispose());
             }
+            // Then code review, as in Electron (after reminders, system and Gmail, not ported
+            // yet): its timers stop and later results and events are dropped; nothing to flush
+            // (tokens are written when saved).
+            if let Some(code_review) = code_review {
+                app.state::<Arc<services::quit::QuitTasks>>()
+                    .add_cleanup(move |_thread| code_review.dispose());
+            }
             // The channels are live (the registry predates `setup`): start sampling off the
             // startup path, for the mode the notch is in by then.
             start_system(app.handle(), system, &notch);
@@ -267,6 +295,11 @@ pub fn run() {
                     // Every (re)load: the page never waits for the next tick for its data.
                     if let Some(system) = webview.try_state::<Arc<SystemIntegration>>() {
                         system.resync();
+                    }
+                    // A (re)loaded notch starts with every view closed: no contributions polling
+                    // is left behind for a view that no longer exists.
+                    if let Some(code_review) = webview.try_state::<Arc<CodeReviewIntegration>>() {
+                        code_review.set_view_open(false);
                     }
                 }
                 (ipc::CONTROL_CENTER, PageLoadEvent::Started) => {
@@ -310,6 +343,7 @@ pub struct Slots {
     pub reminders: Arc<RemindersSlot>,
     pub system: Arc<SystemSlot>,
     pub claude: Arc<ClaudeSlot>,
+    pub code_review: Arc<CodeReviewSlot>,
 }
 
 /// Every channel of `window.notch` with its handler, plus the `__e2e:*` test channels in the
@@ -324,6 +358,7 @@ pub fn build_registry(slots: &Slots) -> ipc::Registry {
     reminders::ipc::register(&mut registry, &slots.reminders);
     system::ipc::register(&mut registry, &slots.system);
     claude::ipc::register(&mut registry, &slots.claude);
+    code_review::ipc::register(&mut registry, &slots.code_review);
     #[cfg(feature = "e2e")]
     e2e::register(&mut registry);
     registry

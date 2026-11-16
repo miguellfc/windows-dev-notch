@@ -259,6 +259,14 @@ const portedChannels = [
   'claude:get-questions',
   'claude:answer',
   'claude:release-question',
+  'code-review:get-state',
+  'code-review:list',
+  'code-review:refresh',
+  'code-review:open',
+  'code-review:set-token',
+  'code-review:clear',
+  'code-review:view',
+  'code-review:contributions',
 ] as const satisfies readonly ChannelName[]
 const portedEvents = [
   'notch:mode-changed',
@@ -273,6 +281,9 @@ const portedEvents = [
   'reminders:fired',
   'claude:state-changed',
   'claude:questions',
+  'code-review:state',
+  'code-review:alert',
+  'code-review:contributions-changed',
 ] as const satisfies readonly EventName[]
 
 const contractCases = JSON.parse(readFileSync(resolve(parityDir, 'contract-cases.json'), 'utf8')) as ContractCase[]
