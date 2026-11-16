@@ -60,11 +60,11 @@ const fixtures: readonly ParityFixture[] = [
   { file: 'notch-traces.json', source: 'notch/state.ts', build: buildNotchTraces, compact: true },
   { file: 'geometry.json', source: 'notch/geometry.ts', build: buildGeometry },
   { file: 'i18n-main.json', source: 'i18n/messages.ts', build: buildMainMessages },
-  { file: 'unicode-classes.json', source: 'text.ts, notes/schema.ts, reminders/schema.ts', build: buildUnicodeClasses, compact: true },
+  { file: 'unicode-classes.json', source: 'text.ts, notes/schema.ts, reminders/schema.ts, claude/hook-events.ts, claude/questions.ts', build: buildUnicodeClasses, compact: true },
 ]
 
 /**
- * The code point classes the text rules use (`.trim()` and `\s`, `\p{Cc}`/`\p{Cf}`,
+ * The code point classes the text rules use (`.trim()` and `\s`, `\p{Cc}`/`\p{Cf}`, `\p{Cf}` alone,
  * `\p{Default_Ignorable_Code_Point}`), as inclusive ranges from this runtime's regex engine; the
  * Rust tables must equal them.
  */
@@ -83,12 +83,13 @@ function buildUnicodeClasses(): unknown {
   return {
     whitespace: ranges((char) => char.trim() === '' && /^\s$/u.test(char)),
     controlOrFormat: ranges((char) => /^[\p{Cc}\p{Cf}]$/u.test(char)),
+    format: ranges((char) => /^\p{Cf}$/u.test(char)),
     defaultIgnorable: ranges((char) => /^\p{Default_Ignorable_Code_Point}$/u.test(char)),
   }
 }
 
-/** Prefixes of the message keys the Rust crate shows itself (the tray menu). */
-const rustMessagePrefixes = ['reminders.toast.', 'tray.'] as const
+/** Prefixes of the message keys the Rust crate shows itself (the tray menu and the toasts). */
+const rustMessagePrefixes = ['claude.toast.', 'reminders.toast.', 'tray.'] as const
 
 /** The texts the Rust crate needs, per language, loaded there with `include_str!`. */
 function buildMainMessages(): unknown {
@@ -245,6 +246,19 @@ const portedChannels = [
   'reminders:complete',
   'reminders:delete',
   'apps:open',
+  'claude:get-state',
+  'claude:decide',
+  'claude:focus-app',
+  'claude:dismiss-session',
+  'claude:hooks-preview',
+  'claude:hooks-install',
+  'claude:hooks-uninstall',
+  'claude:test-connection',
+  'claude:rotate-token',
+  'claude:rotate-port',
+  'claude:get-questions',
+  'claude:answer',
+  'claude:release-question',
 ] as const satisfies readonly ChannelName[]
 const portedEvents = [
   'notch:mode-changed',
@@ -257,6 +271,8 @@ const portedEvents = [
   'notes:changed',
   'reminders:changed',
   'reminders:fired',
+  'claude:state-changed',
+  'claude:questions',
 ] as const satisfies readonly EventName[]
 
 const contractCases = JSON.parse(readFileSync(resolve(parityDir, 'contract-cases.json'), 'utf8')) as ContractCase[]

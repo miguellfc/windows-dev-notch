@@ -6,13 +6,14 @@
 use std::sync::Arc;
 
 use crate::contract::reminders::Reminder;
+use crate::platform::toast::ToastSound;
 
 /// What the platform adapter turns into a Windows toast.
 pub struct ToastRequest {
     pub title: String,
     pub body: String,
-    /// Always `true`.
-    pub silent: bool,
+    /// Always [`ToastSound::Silent`].
+    pub sound: ToastSound,
     /// Clicking the toast body.
     pub on_click: Arc<dyn Fn() + Send + Sync>,
 }
@@ -54,7 +55,7 @@ impl ReminderToast {
         (self.notify)(ToastRequest {
             title,
             body,
-            silent: true,
+            sound: ToastSound::Silent,
             on_click: Arc::clone(&self.on_click),
         });
     }
@@ -156,11 +157,11 @@ mod tests {
             self.shown.lock().unwrap().len()
         }
 
-        /// The last request's title, body and silent flag.
-        fn last(&self) -> (String, String, bool) {
+        /// The last request's title, body and sound.
+        fn last(&self) -> (String, String, ToastSound) {
             let shown = self.shown.lock().unwrap();
             let last = shown.last().expect("a toast");
-            (last.title.clone(), last.body.clone(), last.silent)
+            (last.title.clone(), last.body.clone(), last.sound)
         }
 
         fn click_last(&self) {
@@ -173,8 +174,8 @@ mod tests {
         }
     }
 
-    fn texts(title: &str, body: &str) -> (String, String, bool) {
-        (title.into(), body.into(), true)
+    fn texts(title: &str, body: &str) -> (String, String, ToastSound) {
+        (title.into(), body.into(), ToastSound::Silent)
     }
 
     #[test]
@@ -231,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn has_no_buttons_the_toast_only_carries_title_body_silent_and_the_click() {
+    fn has_no_buttons_the_toast_only_carries_title_body_sound_and_the_click() {
         let fx = Fx::new(Language::Es);
         fx.toast.fired(&[reminder(1, "Revisar PR")]);
         // Exhaustive destructuring: a new field (e.g. buttons) would not compile here.
@@ -239,13 +240,27 @@ mod tests {
         let ToastRequest {
             title,
             body,
-            silent,
+            sound,
             on_click: _,
         } = shown.last().unwrap();
         assert_eq!(
-            (title.as_str(), body.as_str(), *silent),
-            ("Recordatorio", "Revisar PR", true)
+            (title.as_str(), body.as_str(), *sound),
+            ("Recordatorio", "Revisar PR", ToastSound::Silent)
         );
+    }
+
+    #[test]
+    fn reminder_toast_stays_silent() {
+        let fx = Fx::new(Language::Es);
+        fx.toast.fired(&[reminder(1, "Revisar PR")]);
+        fx.toast
+            .fired(&[reminder(1, "Revisar PR"), reminder(2, "Llamar a Ana")]);
+        fx.toast.missed(3);
+        let shown = fx.shown.lock().unwrap();
+        assert_eq!(shown.len(), 3);
+        assert!(shown
+            .iter()
+            .all(|request| request.sound == ToastSound::Silent));
     }
 
     #[test]

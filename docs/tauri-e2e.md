@@ -1,6 +1,6 @@
 # Pruebas de extremo a extremo de la versión Tauri
 
-`tests/e2e-tauri/` prueba la app de Tauri entera con WebdriverIO: arranca el ejecutable, maneja sus dos webviews (la cápsula y el Control Center) y comprueba ventanas, modos, ajustes, el registro de uso, el monitor del sistema, las notas, los recordatorios y las baldosas de Claude y Terminal. Son las mismas situaciones que los archivos del mismo nombre en `tests/e2e/` prueban en Electron:
+`tests/e2e-tauri/` prueba la app de Tauri entera con WebdriverIO: arranca el ejecutable, maneja sus dos webviews (la cápsula y el Control Center) y comprueba ventanas, modos, ajustes, el registro de uso, el monitor del sistema, las notas, los recordatorios, las baldosas de Claude y Terminal y la integración con Claude Code (sesiones, permisos, preguntas e instalación de hooks). Son las mismas situaciones que los archivos del mismo nombre en `tests/e2e/` prueban en Electron:
 
 | Archivo | Pruebas |
 |---|---|
@@ -10,6 +10,8 @@
 | `notes.spec.ts` | 1 |
 | `reminders.spec.ts` | 5 |
 | `apps.spec.ts` | 5 |
+| `claude.spec.ts` | 8 (parte 3) |
+| `claude-questions.spec.ts` | 8 (parte 3) |
 
 Lo que no se puede portar tal cual lleva un comentario `GAP:` en la prueba.
 
@@ -72,12 +74,20 @@ Para probar otro ejecutable compilado con la feature `e2e` (por ejemplo uno de `
 `tauri-driver` pasa a todas las apps que arranca el mismo entorno, el de su arranque. Una prueba que necesita sus propios interruptores los pasa al arrancar la app con `launch({ fresh, env, files })` (`helpers.ts`):
 
 - `env`: variables `NOTCH_*` solo para esa app. Viajan como argumentos `--e2e-env-NOMBRE=valor` en `tauri:options.args`, y la compilación `e2e` los aplica al entorno antes de leer nada (`e2e::apply_cli_env`). Va un argumento por variable porque `msedgedriver` los trata como opciones de Chromium: guarda un solo valor por nombre y puede pasar el nombre a minúsculas, así que la app lo vuelve a poner en mayúsculas.
-- `files`: archivos JSON que se escriben en la carpeta de datos antes de arrancar (`settings.json`, `reminders.json`), como los `writeSettings` y `writeReminders` de Electron. Los ajustes se escriben en la versión actual: el almacén de Rust no migra versiones antiguas (las pone en cuarentena), así que la versión 3 que escribe Electron no serviría.
+- `files`: archivos (un objeto se escribe como JSON; un texto, tal cual) que se escriben en la carpeta de datos antes de arrancar (`settings.json`, `reminders.json`), como los `writeSettings` y `writeReminders` de Electron. Los ajustes se escriben en la versión actual: el almacén de Rust no migra versiones antiguas (las pone en cuarentena), así que la versión 3 que escribe Electron no serviría.
 
 Interruptores que usan las pruebas de la parte 2:
 
 - `NOTCH_APP_LAUNCH_LOG=1` (`apps.spec.ts`): las baldosas de Claude y Terminal anotan lo que lanzarían en lugar de lanzarlo. Ninguna prueba abre Claude Desktop, el navegador ni una terminal; `apps.spec.ts` comprueba que la anotación está activa antes de hacer clic.
 - `NOTCH_APP_LAUNCH_FAIL=claude` o `terminal`: con el anterior, el lanzamiento de esa app falla.
+
+Interruptores de la parte 3 (Claude Code). `wdio.conf.mts` los pone también en el entorno base, así que ninguna app de la ejecución toca el `~/.claude/settings.json` real ni ocupa un puerto fijo:
+
+- `NOTCH_CLAUDE_SETTINGS`: el `settings.json` de Claude. Siempre es `claude-settings.json` dentro de la carpeta temporal de la ejecución. `claude.spec.ts`, `claude-questions.spec.ts` y la prueba de sesiones de `apps.spec.ts` lo pasan en cada arranque (`claudeEnv()` de `helpers.ts`) y fallan antes de arrancar si la ruta queda fuera de esa carpeta temporal. Además, siembran el archivo con una marca aleatoria (o con su propio contenido) y comprueban que la vista previa de la instalación la muestra antes de confirmar: así se sabe que la app lee ese archivo antes de que escriba nada.
+- `NOTCH_CLAUDE_PORT=0`: el puente HTTP escucha en un puerto efímero de `127.0.0.1`.
+- `NOTCH_DISABLE_CLAUDE_FOCUS=1`: «Responder en Claude» no trae al frente la ventana real de Claude (solo anota `disabled` en el registro).
+
+Las pruebas de Claude instalan los hooks desde el Control Center, como lo haría el usuario, leen la URL y el token del `settings.json` temporal y envían los hooks desde el proceso de la prueba con `http` de Node (solo a `127.0.0.1`). Los registros se leen de `<datos>/logs/main.log` y sus rotaciones (`readLogs()`). Ninguna prueba arranca Claude Code ni Claude Desktop.
 
 ### Canales de prueba
 
@@ -90,4 +100,4 @@ Además de los de la parte 1 (`window-bounds`, `foreground-is-ours`, `advance-cl
 
 Las variables de entorno solo se respetan en compilaciones de depuración o con la feature `e2e`. Los canales `__e2e:*` (`src-tauri/src/e2e.rs`) solo existen con la feature `e2e`. No forman parte del contrato de la interfaz (`tests/parity/channels.json`), y una compilación de `release` no los contiene, como comprueba `test_channels_exist_only_in_the_e2e_build`. Las pruebas los llaman desde cualquiera de las dos ventanas con `window.__TAURI_INTERNALS__.invoke('notch_ipc', { channel: '__e2e:…', input })`.
 
-Mientras corren las pruebas, la cápsula aparece y desaparece en lo alto de la pantalla. Es mejor no usar el ordenador mientras tanto (unos 2 min y medio con las 28 pruebas). La prueba de cerrar un proceso lanza un `node -e "for(;;){}"` propio que ocupa un núcleo y lo cierra desde la interfaz; si la prueba falla antes, lo cierra ella misma.
+Mientras corren las pruebas, la cápsula aparece y desaparece en lo alto de la pantalla. Es mejor no usar el ordenador mientras tanto (unos 3 min y medio con las 44 pruebas). La prueba de cerrar un proceso lanza un `node -e "for(;;){}"` propio que ocupa un núcleo y lo cierra desde la interfaz; si la prueba falla antes, lo cierra ella misma.

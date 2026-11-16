@@ -1,5 +1,7 @@
 {
   "en": {
+    "claude.toast.question": "Claude asks",
+    "claude.toast.title": "Claude needs permission",
     "reminders.toast.missedMany": "You have {count} missed reminders",
     "reminders.toast.missedOne": "You have 1 missed reminder",
     "reminders.toast.missedTitle": "Missed reminders",
@@ -12,6 +14,8 @@
     "tray.show": "Show"
   },
   "es": {
+    "claude.toast.question": "Claude te pregunta",
+    "claude.toast.title": "Claude espera permiso",
     "reminders.toast.missedMany": "Tienes {count} recordatorios perdidos",
     "reminders.toast.missedOne": "Tienes 1 recordatorio perdido",
     "reminders.toast.missedTitle": "Recordatorios perdidos",

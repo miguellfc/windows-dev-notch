@@ -5,7 +5,23 @@
 // browser or a terminal. `__e2e:app-launches` reads the record (`__notchAppLaunches` in Electron)
 // and the user folder (`app.getPath('home')`).
 import { $, $$, browser, expect } from '@wdio/globals'
-import { clockBottom, e2e, eventually, inPage, launch, quitApp, rectOf, requestIntent, setLanguage, settle } from './helpers'
+import {
+  claudeSettingsFile,
+  clockBottom,
+  e2e,
+  eventually,
+  hookEvent,
+  inPage,
+  installClaudeHooks,
+  launch,
+  launchClaude,
+  postHook,
+  quitApp,
+  rectOf,
+  requestIntent,
+  setLanguage,
+  settle,
+} from './helpers'
 
 interface Launch {
   kind: 'external' | 'spawn'
@@ -104,11 +120,19 @@ describe('Apps (Tauri)', () => {
   })
 
   it('la línea de fallo se ve completa también con sesiones de Claude en el panel', async () => {
-    await start({ NOTCH_APP_LAUNCH_FAIL: 'claude' })
-    // GAP: Electron installs the Claude Code hooks from the Control Center and posts two sessions
-    // to the hook server, so the panel lists them above the tiles. Claude is part 3 (its channels
-    // answer UNAVAILABLE): the panel has no sessions here, and only the failure line's layout in
-    // the panel part 2 draws is checked.
+    // Claude's settings.json is a temp file of this run (checked before anything runs), the bridge
+    // port is ephemeral; the hooks are installed from the Control Center and two sessions posted.
+    claudeSettingsFile()
+    await launchClaude({ env: { NOTCH_APP_LAUNCH_FAIL: 'claude' } })
+    expect(await launches()).toEqual([])
+    await setLanguage('es')
+    const bridge = await installClaudeHooks()
+    for (const session of ['api-server', 'web-client']) {
+      expect((await postHook(bridge.hook, hookEvent(session, 'UserPromptSubmit'))).status).toBe(200)
+    }
+    await requestIntent('expand')
+    await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
+    await expect($('[data-testid="claude-sessions"]')).toHaveText(expect.stringContaining('web-client'))
     await $('[data-testid="integration-claude"]').click()
     await eventually(lineText, (text) => text === 'No se pudo abrir Claude', 'the failure line')
     await expectLineClear()

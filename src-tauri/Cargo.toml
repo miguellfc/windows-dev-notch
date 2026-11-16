@@ -14,17 +14,29 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# `preserve_order`: objects keep their insertion order, so the bodies the Claude bridge writes match
+# Electron's `JSON.stringify` byte for byte and Claude's settings.json keeps its key order.
+# `float_roundtrip`: a hook payload number parses to the same double `JSON.parse` would give.
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 log = "0.4"
 url = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 sys-locale = "0.3"
-tokio = { version = "1", features = ["fs", "sync", "macros", "time"] }
+tokio = { version = "1", features = ["fs", "sync", "macros", "time", "net", "io-util", "rt"] }
+# The Claude Code hooks bridge: a loopback-only HTTP/1.1 server (same majors as in tauri's tree).
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+# The DPAPI-protected bridge token in `claude-bridge.json`.
+base64 = "0.23"
+# The bridge's random port and token from the OS RNG (same version uuid already uses).
+getrandom = "0.4"
 # Cursor, monitors and focus hand-back for the capsule window (same major as tauri's own).
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
   "Win32_Security",
+  "Win32_Security_Cryptography",
   "Win32_Storage_FileSystem",
   "Win32_System_Com",
   "Win32_System_DataExchange",

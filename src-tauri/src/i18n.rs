@@ -120,6 +120,26 @@ mod tests {
     }
 
     #[test]
+    fn t_with_reads_the_claude_toast_texts_in_es_and_en() {
+        assert_eq!(
+            t_with(Language::Es, "claude.toast.title", &[]),
+            "Claude espera permiso"
+        );
+        assert_eq!(
+            t_with(Language::En, "claude.toast.title", &[]),
+            "Claude needs permission"
+        );
+        assert_eq!(
+            t_with(Language::Es, "claude.toast.question", &[]),
+            "Claude te pregunta"
+        );
+        assert_eq!(
+            t_with(Language::En, "claude.toast.question", &[]),
+            "Claude asks"
+        );
+    }
+
+    #[test]
     fn substitute_follows_the_translate_regex() {
         let params = [("a", "1".to_owned()), ("b_2", "x".to_owned())];
         assert_eq!(substitute("{a}-{b_2}-{c}", &params), "1-x-{c}");

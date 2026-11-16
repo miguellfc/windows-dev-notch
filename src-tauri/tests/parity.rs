@@ -3,7 +3,9 @@
 
 use std::collections::BTreeSet;
 
-use developer_notch_lib::contract::text::{CONTROL_OR_FORMAT, DEFAULT_IGNORABLE, WHITESPACE};
+use developer_notch_lib::contract::text::{
+    CONTROL_OR_FORMAT, DEFAULT_IGNORABLE, FORMAT, WHITESPACE,
+};
 use developer_notch_lib::contract::{check, Direction};
 use developer_notch_lib::ipc::Registry;
 use serde_json::Value;
@@ -77,5 +79,6 @@ fn text_rule_tables_match_the_js_regex_engine() {
     };
     assert_eq!(ranges("whitespace"), WHITESPACE);
     assert_eq!(ranges("controlOrFormat"), CONTROL_OR_FORMAT);
+    assert_eq!(ranges("format"), FORMAT);
     assert_eq!(ranges("defaultIgnorable"), DEFAULT_IGNORABLE);
 }
