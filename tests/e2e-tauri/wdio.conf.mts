@@ -43,6 +43,11 @@ function appEnv(dataDir: string): Record<string, string> {
     NOTCH_CLAUDE_SETTINGS: join(dataDir, 'claude-settings.json'),
     NOTCH_CLAUDE_PORT: '0',
     NOTCH_DISABLE_CLAUDE_FOCUS: '1',
+    // Code review: no app of the run may reach the real GitHub or GitLab, nor open a browser. Both
+    // platforms point at a closed loopback port (the discard port, nothing listens there) unless a
+    // spec passes its fake server per launch; URLs to open are recorded, never opened.
+    NOTCH_CODE_REVIEW_BASE_URLS: 'github=http://127.0.0.1:9,gitlab=http://127.0.0.1:9',
+    NOTCH_OPEN_URL_LOG: '1',
   }
 }
 
@@ -89,7 +94,7 @@ type TauriCapabilities = Capabilities.RequestedStandaloneCapabilities & { 'tauri
 
 export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } = {
   runner: 'local',
-  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts'],
+  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts'],
   maxInstances: 1,
   hostname: '127.0.0.1',
   port: DRIVER_PORT,

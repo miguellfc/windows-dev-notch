@@ -1,10 +1,12 @@
 //! Services shared by the main-process modules.
 
 pub mod clock;
+pub mod dpapi;
 pub mod fs_atomic;
 pub mod json_store;
 pub mod logger;
 pub mod quit;
+pub mod secure_token_store;
 #[cfg(test)]
 pub(crate) mod test_dir;
 #[cfg(test)]

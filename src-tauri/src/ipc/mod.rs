@@ -22,7 +22,7 @@ use tauri::{AppHandle, Manager, State, WebviewWindow};
 use crate::services::logger::url_for_log;
 use crate::App;
 
-pub use events::{emit_event, is_known_event};
+pub use events::{emit_event, existing_windows, is_known_event};
 pub use guard::{
     dev_overrides_enabled, guard_for, is_trusted_sender, is_trusted_url, Guard, Sender,
     CONTROL_CENTER, DEV_ORIGIN, GUARDS, NOTCH,

@@ -70,6 +70,7 @@ pub(crate) use string_enum;
 pub mod app;
 pub mod apps;
 pub mod claude;
+pub mod code_review;
 pub mod notch;
 pub mod notes;
 pub mod reminders;
@@ -217,6 +218,23 @@ pub fn check(
             required::<claude::RotateOutcome>(value)
         }
         ("claude:get-questions", Output) => required::<claude::PendingQuestions>(value),
+        ("code-review:get-state" | "code-review:refresh", Input) => none(value),
+        ("code-review:get-state", Output) => required::<code_review::CodeReviewState>(value),
+        ("code-review:list", Input) => required::<code_review::ListInput>(value),
+        ("code-review:list", Output) => required::<code_review::CodeReviewList>(value),
+        ("code-review:open", Input) => required::<code_review::OpenInput>(value),
+        ("code-review:set-token", Input) => required::<code_review::SetTokenInput>(value),
+        ("code-review:set-token", Output) => required::<code_review::SetTokenResult>(value),
+        ("code-review:clear", Input) => required::<code_review::ClearInput>(value),
+        ("code-review:view", Input) => required::<code_review::CodeReviewViewInput>(value),
+        ("code-review:contributions", Input) => required::<code_review::ContributionsInput>(value),
+        ("code-review:contributions", Output) => {
+            required::<code_review::ContributionsResult>(value)
+        }
+        (
+            "code-review:refresh" | "code-review:open" | "code-review:clear" | "code-review:view",
+            Output,
+        ) => required::<Ack>(value),
         ("system:view", Input) => required::<system::ViewInput>(value),
         ("system:view", Output) => required::<Ack>(value),
         ("system:kill-process", Input) => required::<system::KillInput>(value),
@@ -257,6 +275,11 @@ pub fn check(
         ("reminders:fired", Event) => required::<reminders::ReminderFired>(value),
         ("claude:state-changed", Event) => required::<claude::ClaudeState>(value),
         ("claude:questions", Event) => required::<claude::PendingQuestions>(value),
+        ("code-review:state", Event) => required::<code_review::CodeReviewState>(value),
+        ("code-review:alert", Event) => required::<code_review::CodeReviewAlert>(value),
+        ("code-review:contributions-changed", Event) => {
+            required::<code_review::ContributionsChanged>(value)
+        }
         _ => return None,
     };
     Some(verdict)

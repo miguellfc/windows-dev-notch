@@ -9,6 +9,7 @@ use crate::contract::settings::{
     RemindersSettings, Settings, SettingsPatch, SystemAlertSettings, SETTINGS_VERSION,
     SNOOZE_MINUTES_OPTIONS,
 };
+use crate::contract::text::js_trim;
 use crate::contract::{int_in, length};
 
 /// The GitLab server URL is never longer than this (`GITLAB_URL_MAX`).
@@ -66,7 +67,7 @@ fn validate_shortcut(shortcut: &str) -> Result<(), String> {
 /// Origin + base path without a trailing `/`, or `None` when not acceptable: only `https`, no
 /// credentials, no query or hash (`normalizeGitlabUrl` / `normalizeRedmineUrl`).
 fn normalize_https_url(raw: &str, max: usize) -> Option<String> {
-    let trimmed = raw.trim();
+    let trimmed = js_trim(raw);
     // `trimmed.length` in JS counts UTF-16 units.
     if trimmed.is_empty() || trimmed.encode_utf16().count() > max {
         return None;
@@ -85,6 +86,11 @@ fn normalize_https_url(raw: &str, max: usize) -> Option<String> {
     }
     let path = url.path().trim_end_matches('/');
     Some(format!("{}{path}", url.origin().ascii_serialization()))
+}
+
+/// `normalizeGitlabUrl`: the GitLab server URL in its stored form, or `None` when not acceptable.
+pub fn normalize_gitlab_url(raw: &str) -> Option<String> {
+    normalize_https_url(raw, GITLAB_URL_MAX)
 }
 
 fn is_stored_url(value: &str, max: usize) -> bool {
@@ -255,6 +261,59 @@ pub fn validate_patch(patch: &SettingsPatch) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // `gitlabUrlSchema` cases of tests/unit/shared/code-review-schema.test.ts.
+    #[test]
+    fn gitlab_urls_normalize_to_origin_plus_base_path_without_a_trailing_slash() {
+        for (raw, normalized) in [
+            ("https://gitlab.x.com/", "https://gitlab.x.com"),
+            ("https://gitlab.x.com", "https://gitlab.x.com"),
+            (
+                "  https://GitLab.X.com/gitlab/  ",
+                "https://gitlab.x.com/gitlab",
+            ),
+            (
+                "https://gitlab.x.com:8443/a/b//",
+                "https://gitlab.x.com:8443/a/b",
+            ),
+            ("https://gitlab.x.com:443/", "https://gitlab.x.com"),
+            // JS `trim()` also removes a byte order mark.
+            (
+                "\u{FEFF}https://gitlab.x.com\u{FEFF}",
+                "https://gitlab.x.com",
+            ),
+        ] {
+            assert_eq!(
+                normalize_gitlab_url(raw).as_deref(),
+                Some(normalized),
+                "{raw}"
+            );
+        }
+        let long = format!("https://gitlab.x.com/{}", "a".repeat(600));
+        for raw in [
+            "http://gitlab.x.com",
+            "https://user@gitlab.x.com",
+            "https://user:pass@gitlab.x.com",
+            "https://gitlab.x.com/?a=1",
+            "https://gitlab.x.com/#top",
+            "https://gitlab.x.com/?",
+            "gitlab.x.com",
+            "ftp://gitlab.x.com",
+            "javascript:alert(1)",
+            "",
+            "   ",
+            long.as_str(),
+        ] {
+            assert_eq!(normalize_gitlab_url(raw), None, "{raw}");
+        }
+        // 512 UTF-16 units after the trim is the limit.
+        let fits = format!("https://g.x/{}", "a".repeat(512 - 12));
+        assert_eq!(
+            normalize_gitlab_url(&format!(" {fits} ")),
+            Some(fits.clone())
+        );
+        assert_eq!(normalize_gitlab_url(&format!("{fits}a")), None);
+    }
 
     #[test]
     fn accelerators_need_a_required_modifier_and_a_real_key() {

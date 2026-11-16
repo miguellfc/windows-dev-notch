@@ -166,6 +166,19 @@ impl TestTimers {
             (entry.callback)();
         }
     }
+
+    /// Time left until the earliest armed timer, if any: unit tests step through the timers in
+    /// due order, like `vi.advanceTimersByTimeAsync`.
+    #[cfg(test)]
+    pub(crate) fn next_due_in(&self) -> Option<u64> {
+        let state = lock(&self.inner);
+        let now = self.now(&state);
+        state
+            .pending
+            .values()
+            .map(|entry| entry.due.saturating_sub(now))
+            .min()
+    }
 }
 
 impl Default for TestTimers {

@@ -25,12 +25,13 @@ use super::service::{
     ConfigFn, QUIT_STOP_WAIT,
 };
 use super::toast::ClaudeToasts;
-use super::{bridge_config, dpapi, focus};
+use super::{bridge_config, focus};
 use crate::contract::claude::{ClaudeState, PendingPermission};
 use crate::notch::controller::NotchController;
 use crate::notch::runtime::NotchRuntime;
 use crate::notch::state::{NotchEvent, NotchMode, PANEL_MODES};
 use crate::platform::toast::ToastSound;
+use crate::services::dpapi;
 use crate::services::quit::CleanupThread;
 use crate::services::timers::Interval;
 use crate::services::usage::{UsageEvent, UsageLog};
@@ -142,15 +143,6 @@ impl ClaudeIntegration {
     }
 }
 
-/// Only the windows that exist (the Control Center is created on demand; at quit a window may
-/// already be gone).
-fn existing_windows(app: &AppHandle) -> Vec<&'static str> {
-    [ipc::NOTCH, ipc::CONTROL_CENTER]
-        .into_iter()
-        .filter(|label| app.get_webview_window(label).is_some())
-        .collect()
-}
-
 /// Creates the service, fills `slot`, starts it in the background and then its 60 s tick on the
 /// notch's timers. Call on the main thread, after the notch and before the reminders. `None`
 /// (channels stay UNAVAILABLE) only when there is no user folder for Claude's settings.
@@ -241,7 +233,7 @@ pub fn install(
                 controller.dispatch(NotchEvent::Attention {
                     on: !state.pending.is_empty(),
                 });
-                let targets = existing_windows(&app);
+                let targets = ipc::existing_windows(&app);
                 if !targets.is_empty() {
                     ipc::emit_event(&app, &targets, "claude:state-changed", state);
                 }

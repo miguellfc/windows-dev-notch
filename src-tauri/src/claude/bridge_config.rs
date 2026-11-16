@@ -12,7 +12,7 @@ use std::sync::Arc;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-use super::dpapi;
+use crate::services::dpapi;
 
 const BASE64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 

@@ -20,3 +20,13 @@ pub fn emit_event(app: &AppHandle, targets: &[&str], event: &str, payload: &impl
         }
     }
 }
+
+/// The notch and the Control Center, only those that exist (the Control Center is created on
+/// demand; at quit a window may already be gone).
+pub fn existing_windows(app: &AppHandle) -> Vec<&'static str> {
+    use tauri::Manager;
+    [super::NOTCH, super::CONTROL_CENTER]
+        .into_iter()
+        .filter(|label| app.get_webview_window(label).is_some())
+        .collect()
+}
