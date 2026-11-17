@@ -70,7 +70,7 @@ export function ShortcutPage({
               setStatus(null)
               setRecording(!recording)
             }}
-            className="h-8 cursor-pointer rounded-control border border-line bg-veil px-3 text-small text-chalk transition-colors duration-150 hover:bg-veil-tile"
+            className="btn h-8"
           >
             {recording ? t('cc.shortcut.cancel') : t('cc.shortcut.change')}
           </button>

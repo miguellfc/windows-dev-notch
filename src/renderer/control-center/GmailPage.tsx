@@ -17,15 +17,15 @@ const updateGmail = createGmailUpdater(
 )
 
 const input =
-  'h-8 w-full min-w-0 rounded-control border border-line bg-veil px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60'
+  'field h-8 w-full min-w-0 px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60'
 const button =
-  'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-veil-tile'
+  'btn h-8 shrink-0'
 const primary =
-  'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-select/40 bg-select/25 px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-select/35 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-select/25'
+  'btn btn-primary h-8 shrink-0'
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mb-6">
+    <section className="card mb-6 p-4">
       <h2 className="mb-3 text-caps font-medium uppercase text-graphite">{title}</h2>
       {children}
     </section>

@@ -41,9 +41,9 @@ type Step = 'idle' | 'confirm-install' | 'confirm-uninstall'
 type Notice = { tone: 'info' | 'error'; key: MessageKey; params?: Record<string, string> } | null
 
 const buttonClass =
-  'h-8 cursor-pointer rounded-control border border-line bg-veil px-3 text-small text-chalk transition-colors duration-150 hover:bg-veil-tile disabled:cursor-default disabled:opacity-50'
+  'btn h-8'
 const primaryClass =
-  'h-8 cursor-pointer rounded-control bg-select px-3 text-small font-medium text-on-select transition-opacity duration-150 hover:opacity-90 disabled:cursor-default disabled:opacity-50'
+  'btn btn-primary h-8'
 
 function StatusValue({ view }: { view: StatusView }) {
   const t = useT()

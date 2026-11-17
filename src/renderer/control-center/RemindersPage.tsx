@@ -30,9 +30,9 @@ const REPEAT_OPTIONS: readonly { value: RepeatValue; label: MessageKey }[] = [
 const iconButton =
   'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk disabled:cursor-default disabled:opacity-40'
 const textButton =
-  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40'
+  'btn h-7 shrink-0 text-label'
 const fieldBase =
-  'h-9 rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-select/60 aria-invalid:border-fail/60'
+  'field h-9 px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-select/60 aria-invalid:border-fail/60'
 const fieldClass = `${fieldBase} w-full`
 
 function RepeatMark({ repeat }: { repeat: RepeatValue }) {
@@ -145,7 +145,7 @@ function EditForm({ draft, editor }: { draft: Draft; editor: Editor }) {
           close()
         }
       }}
-      className="flex flex-col gap-3 rounded-tile border border-line bg-veil p-3"
+      className="flex flex-col gap-3 card p-3"
     >
       <div>
         <label htmlFor={`${ids}-text`} className={labelClass}>
@@ -243,7 +243,7 @@ function EditForm({ draft, editor }: { draft: Draft; editor: Editor }) {
         <button type="button" className={textButton} onClick={close}>
           {t('cc.reminders.cancel')}
         </button>
-        <button type="submit" disabled={draft.busy} className={textButton}>
+        <button type="submit" disabled={draft.busy} className={`${textButton} btn-primary`}>
           {t('cc.reminders.save')}
         </button>
       </div>
