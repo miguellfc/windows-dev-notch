@@ -27,7 +27,7 @@ const NOTICES: Readonly<Record<Notice, { icon: LucideIcon; title: MessageKey; ac
 }
 
 const button =
-  'flex h-8 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover'
+  'btn h-8 px-3'
 
 /** Everything the view shows instead of the list, with a way to Control Center when it helps. */
 function RedmineStatus({ notice, onRetry }: { notice: Notice; onRetry: () => void }) {
@@ -290,7 +290,7 @@ export function RedmineView() {
                     placeholder={t('redmine.view.searchPlaceholder')}
                     spellCheck={false}
                     autoComplete="off"
-                    className="h-7 w-full rounded-control border border-line bg-veil pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
+                    className="field h-7 w-full pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
                   />
                 </label>
                 <RedmineIssueList ref={scroller} issues={issues} truncated={list.truncated} dimmed={offline} onOpen={openDetail} />

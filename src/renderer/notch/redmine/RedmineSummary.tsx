@@ -63,7 +63,7 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
       data-testid="redmine-summary"
       data-phase={phase}
       aria-busy={loading || undefined}
-      className="flex shrink-0 flex-wrap gap-x-5 gap-y-2 border-b border-line px-1.5 pb-2.5 pt-1"
+      className="card flex shrink-0 flex-wrap gap-x-5 gap-y-2 px-3 py-2"
     >
       <ContributionGraph
         weeks={summary ? summaryGrid(summary, today, target) : placeholderGrid(now)}

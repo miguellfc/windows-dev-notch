@@ -8,7 +8,7 @@ import { shownStatus, statusChoices, writeRefusal, type WriteRefusal } from '../
 import { hoursLong, parseHours } from '../../shared/redmine/format'
 import { locale } from '../../shared/locale'
 import { useLanguage, useT } from '../../shared/use-t'
-import { fieldClass, primaryButton, secondaryButton } from '../reminders/styles'
+import { fieldClass, primaryButton } from '../reminders/styles'
 
 /** The write a task-section refusal answers, so Retry repeats it. */
 type TaskWrite = { readonly kind: 'status'; readonly statusId: number } | { readonly kind: 'estimate' }
@@ -55,7 +55,7 @@ function WriteFeedback<Write>({ feedback, onRetry, testId }: { feedback: Feedbac
   if (feedback === null) return null
   if (feedback.kind === 'done')
     return (
-      <p role="status" data-testid={`${testId}-done`} className="mr-auto min-w-0 truncate text-label text-graphite">
+      <p role="status" data-testid={`${testId}-done`} className="mr-auto min-w-0 truncate text-label text-ok">
         {feedback.text}
       </p>
     )
@@ -246,7 +246,7 @@ export function RedmineIssueDetail({
       data-issue-id={id}
       data-dimmed={dimmed || undefined}
       tabIndex={-1}
-      className={`-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1 outline-none transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
+      className={`-mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1 outline-none transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
     >
       <div className="flex shrink-0 flex-col gap-1 px-1.5 pb-2.5">
         <div className="flex h-6 items-center gap-1.5 text-label text-graphite">
@@ -311,7 +311,7 @@ export function RedmineIssueDetail({
         )
       ) : (
         <>
-          <div className="grid shrink-0 grid-cols-[84px_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 px-1.5">
+          <div data-testid="redmine-card-status" className="card grid shrink-0 grid-cols-[84px_minmax(0,1fr)] items-start gap-x-3 px-3 py-1.5">
             <Row label={t('redmine.detail.status')} htmlFor={`${ids}-status`}>
               <select
                 id={`${ids}-status`}
@@ -330,6 +330,8 @@ export function RedmineIssueDetail({
                 ))}
               </select>
             </Row>
+          </div>
+          <div data-testid="redmine-card-estimate" className="card grid shrink-0 grid-cols-[84px_minmax(0,1fr)] items-start gap-x-3 px-3 py-1.5">
             <Row label={t('redmine.detail.estimate')} htmlFor={`${ids}-estimate`}>
               <input
                 id={`${ids}-estimate`}
@@ -359,18 +361,20 @@ export function RedmineIssueDetail({
                 data-testid="redmine-detail-estimate-save"
                 aria-disabled={taskBusy}
                 onClick={saveEstimate}
-                className={secondaryButton}
+                className={primaryButton}
               >
                 {t('redmine.detail.save')}
               </button>
               <FieldError id={`${ids}-estimate-error`} messageKey={errors.estimate} />
             </Row>
           </div>
-          <div className="flex min-h-6 shrink-0 items-center px-1.5 pl-[102px]">
-            <WriteFeedback feedback={taskFeedback} onRetry={retryTask} testId="redmine-detail-task" />
-          </div>
+          {taskFeedback && (
+            <div className="flex min-h-6 shrink-0 items-center px-1.5">
+              <WriteFeedback feedback={taskFeedback} onRetry={retryTask} testId="redmine-detail-task" />
+            </div>
+          )}
 
-          <div onKeyDown={onLogKeyDown} data-testid="redmine-log" className="mt-1 flex shrink-0 flex-col border-t border-line px-1.5 pt-1">
+          <div onKeyDown={onLogKeyDown} data-testid="redmine-log" className="card flex shrink-0 flex-col px-3 pb-2 pt-1">
             <h4 className={caps}>{t('redmine.detail.logTime')}</h4>
             <div className="grid grid-cols-[84px_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5">
               <Row label={t('redmine.detail.date')} htmlFor={`${ids}-date`}>

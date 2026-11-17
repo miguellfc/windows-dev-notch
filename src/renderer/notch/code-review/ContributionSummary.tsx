@@ -85,7 +85,7 @@ export function ContributionSummary({
                 {t(label)}
               </th>
               {COLUMNS.map(({ key: column }) => (
-                <td key={column} data-column={column} className="digits text-digits p-0 text-right text-chalk">
+                <td key={column} data-column={column} className="digits text-digits whitespace-nowrap p-0 text-right text-chalk">
                   {totalText(summary?.[column][key])}
                 </td>
               ))}

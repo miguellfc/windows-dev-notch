@@ -37,7 +37,7 @@ function Row({ issue, onOpen }: { issue: RedmineIssue; onOpen: () => void }) {
         type="button"
         data-testid="redmine-issue"
         onClick={onOpen}
-        className="focus-inset flex h-[50px] w-full min-w-0 cursor-pointer flex-col justify-center gap-0.5 rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil focus-visible:bg-veil"
+        className="focus-inset flex h-[50px] w-full min-w-0 cursor-pointer flex-col justify-center gap-0.5 rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil-tile focus-visible:bg-veil-tile"
       >
         {/* Line 1: the number stays whole, the subject takes the room. Subjects, statuses and
             projects are always plain text: React escapes them. */}
@@ -109,7 +109,7 @@ export function RedmineIssueList({
       data-testid="redmine-list"
       data-dimmed={dimmed || undefined}
       onKeyDown={onListKeyDown}
-      className={`-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
+      className={`card flex min-h-0 flex-1 flex-col overflow-y-auto p-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
     >
       {issues.length === 0 ? (
         <p data-testid="redmine-no-match" className="flex h-10 shrink-0 items-center px-2.5 text-small text-graphite">

@@ -4,6 +4,7 @@ import { QUESTION_LIMITS } from '../../../shared/claude/questions'
 import type { ClaudeQuestion, PendingQuestionView } from '../../../shared/claude/types'
 import { useQuestions } from '../../shared/questions-store'
 import { useT } from '../../shared/use-t'
+import { Kbd } from '../../ui/Kbd'
 import { radioKeyTarget } from '../../ui/roving'
 import { emptyDraft, formAnswers, toggleOption, toggleOther, withOtherText, type QuestionDraft } from './question-form'
 
@@ -163,7 +164,7 @@ function QuestionForm({ question, busy, failed, onSend, onAnswerInClaude }: Ques
     setDrafts((current) => current.map((existing, i) => (i === index ? draft : existing)))
 
   const button =
-    'h-9 flex-1 cursor-pointer rounded-control px-4 text-body font-medium transition-colors duration-150 disabled:cursor-default disabled:opacity-50'
+    'btn h-9 flex-1 px-4 text-body'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
@@ -184,13 +185,20 @@ function QuestionForm({ question, busy, failed, onSend, onAnswerInClaude }: Ques
           {t('claude.question.error')}
         </p>
       )}
-      <div className="mt-3 flex shrink-0 gap-2">
+      <div className="mt-3 flex shrink-0 items-center gap-2">
+        <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5 text-label text-graphite">
+          <Kbd accelerator="Ctrl+Enter" size="sm" />
+          {t('hint.send')}
+          <span>·</span>
+          <Kbd accelerator="Esc" size="sm" />
+          {t('hint.close')}
+        </span>
         <button
           type="button"
           data-testid="claude-question-reply"
           disabled={busy}
           onClick={onAnswerInClaude}
-          className={`${button} border border-line bg-veil-tile text-chalk hover:bg-veil-hover`}
+          className={button}
         >
           {t('claude.question.reply')}
         </button>
@@ -203,7 +211,7 @@ function QuestionForm({ question, busy, failed, onSend, onAnswerInClaude }: Ques
           onClick={() => {
             if (canSend) onSend(answers)
           }}
-          className={`${button} bg-select text-on-select hover:brightness-110`}
+          className={`${button} btn-primary`}
         >
           {t('claude.question.send')}
         </button>
@@ -294,7 +302,7 @@ function QuestionBlock({ question, draft, first, disabled, onChange }: QuestionB
             tabIndex={index === active ? 0 : -1}
             data-testid="claude-question-option"
             onClick={() => pick(index)}
-            className="focus-inset flex w-full cursor-pointer items-start gap-2.5 rounded-control px-2.5 py-1 text-left transition-colors duration-150 hover:bg-veil-tile aria-checked:bg-veil"
+            className="focus-inset flex w-full cursor-pointer items-start gap-2.5 rounded-tile px-2.5 py-1 text-left transition-colors duration-150 hover:bg-veil-tile aria-checked:bg-veil-hover"
           >
             <Indicator multi={multi} checked={checked(index)} />
             <span className="min-w-0 flex-1">
@@ -322,7 +330,7 @@ function QuestionBlock({ question, draft, first, disabled, onChange }: QuestionB
           value={draft.other}
           disabled={disabled}
           onChange={(event) => onChange(withOtherText(draft, event.target.value))}
-          className="mt-1.5 ml-9 h-8 w-[calc(100%-2.25rem)] rounded-control border border-line bg-veil px-3 text-body text-chalk placeholder:text-graphite"
+          className="field mt-1.5 ml-9 h-8 w-[calc(100%-2.25rem)] px-3 text-body text-chalk placeholder:text-graphite"
         />
       )}
     </section>
