@@ -1,4 +1,4 @@
-//! GitHub and self-hosted GitLab code review (port of `src/main/code-review` and
+//! GitHub and self-hosted GitLab code review (port of 0.1.0's `code-review` module and
 //! `src/shared/code-review`).
 
 pub mod client;

@@ -1,4 +1,4 @@
-//! Win32 reads for the system monitor, ported call by call from `src/main/system/win32-system.ts`.
+//! Win32 reads for the system monitor, ported call by call from 0.1.0's `win32-system.ts`.
 //!
 //! Every method runs inside `Guard::run`: an unexpected failure (a panic, the Rust analogue of a
 //! koffi throw) yields that method's fallback and is logged once per method, by name only.

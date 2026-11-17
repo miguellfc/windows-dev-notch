@@ -1,4 +1,4 @@
-//! What the GitHub and GitLab clients share (`src/main/code-review/client-common.ts`): the
+//! What the GitHub and GitLab clients share (0.1.0's `client-common.ts`): the
 //! snapshot built from the mapped lists and the code review texts. The generic half (error codes,
 //! status mapping, requests, JSON bodies, `clip`, the pool) lives in [`crate::http::common`] and
 //! is re-exported here under its part 4 names.

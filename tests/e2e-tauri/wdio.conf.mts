@@ -1,4 +1,4 @@
-// WebdriverIO runner for the Tauri app (docs/tauri-e2e.md). `npm run test:e2e:tauri` builds the
+// WebdriverIO runner for the Tauri app (docs/e2e.md). `npm run test:e2e` builds the
 // debug binary with the `e2e` feature first; this file starts tauri-driver (over msedgedriver),
 // which launches that binary for every WebDriver session.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -140,7 +140,7 @@ async function startDriver(): Promise<void> {
     ['tauri-driver', tauriDriverPath],
     ['msedgedriver', nativeDriverPath],
   ] as const) {
-    if (!existsSync(path)) throw new Error(`Missing ${what}: ${path} (see docs/tauri-e2e.md)`)
+    if (!existsSync(path)) throw new Error(`Missing ${what}: ${path} (see docs/e2e.md)`)
   }
   if (await portOpen(DRIVER_PORT)) {
     throw new Error(`Port ${DRIVER_PORT} is already in use: stop whatever listens there (an earlier tauri-driver?)`)

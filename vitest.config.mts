@@ -8,9 +8,8 @@ export default defineConfig({
     setupFiles: ['tests/unit/setup-tz.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/main/**/*.ts', 'src/shared/**/*.ts'],
-      // Electron wiring is exercised by the E2E suite, not unit tests.
-      exclude: ['src/main/index.ts', 'src/main/windows/notch-window.ts', '**/*.d.ts'],
+      include: ['src/shared/**/*.ts'],
+      exclude: ['**/*.d.ts'],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },
   },

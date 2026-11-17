@@ -1,4 +1,4 @@
-//! Port of `src/main/system/metrics-sampler.ts`: turns raw `SystemApi` readings into the samples
+//! Port of 0.1.0's `metrics-sampler.ts`: turns raw `SystemApi` readings into the samples
 //! sent to the renderer (the monitor adds `alerts` before a sample leaves the backend).
 
 use std::panic::{catch_unwind, AssertUnwindSafe};

@@ -1,4 +1,4 @@
-//! Gmail REST client (`src/main/gmail/gmail-client.ts`): every request carries a bearer access
+//! Gmail REST client (0.1.0's `gmail-client.ts`): every request carries a bearer access
 //! token from [`TokenAccess`], goes straight to the API (no proxy), never follows a redirect and
 //! times out after 30 s (the shared [`crate::http`] transport). A 401 asks the token access for a
 //! new token once and repeats the request once.

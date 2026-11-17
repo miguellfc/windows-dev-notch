@@ -1,4 +1,4 @@
-//! `tests/unit/main/reminders-runtime.test.ts` (11 cases, the `it.each` one as a table) plus
+//! 0.1.0's `reminders-runtime.test.ts` (11 cases, the `it.each` one as a table) plus
 //! `missed_on_start_fires_one_missed_toast_only`. Timers that never fire record their delays,
 //! like the TS fakes; the wall clock is frozen and moved by hand.
 

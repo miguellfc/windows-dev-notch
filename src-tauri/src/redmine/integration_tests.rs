@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/redmine-integration.test.ts` (51 cases, every `it.each` row as its
+//! Port of 0.1.0's `redmine-integration.test.ts` (51 cases, every `it.each` row as its
 //! own test): a fake client, token store and settings; virtual timers stepped in due order; a
 //! fixed wall clock in Europe/Madrid moved with them (Saturday 14 Nov 2026, 10:00). Plus the
 //! Rust-only cases of the part-5 plan.

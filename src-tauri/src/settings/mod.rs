@@ -32,7 +32,7 @@ pub fn data_dir(app: &AppHandle) -> PathBuf {
         .expect("the platform has an app data directory");
     resolve_data_dir(
         default,
-        std::env::var_os(DATA_DIR_ENV),
+        crate::ipc::dev_env_var_os(DATA_DIR_ENV),
         cfg!(debug_assertions) || cfg!(feature = "e2e"),
     )
 }

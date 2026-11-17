@@ -1,6 +1,6 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// Reminders, ported from tests/e2e/reminders.spec.ts (Electron). The test clock is
+// Reminders, ported from 0.1.0's Electron e2e reminders.spec.ts. The test clock is
 // `__e2e:advance-clock` (Electron's `__notchTestClock.advance`): it moves the wall clock and the
 // timers and answers once the reminders check it forces has finished.
 import { randomUUID } from 'node:crypto'

@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/gmail-client.test.ts` (28 cases), plus `iso_date` against JS `Date`,
+//! Port of 0.1.0's `gmail-client.test.ts` (28 cases), plus `iso_date` against JS `Date`,
 //! `encodeURIComponent`, token-access errors passing through, the body cap, masked `Debug`, and a
 //! DELETE and a redirect against a loopback server. A fake [`Transport`] or loopback only: never
 //! Google.

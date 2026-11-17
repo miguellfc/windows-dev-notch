@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/claude-bridge.test.ts`, against a real loopback socket.
+//! Port of 0.1.0's `claude-bridge.test.ts`, against a real loopback socket.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

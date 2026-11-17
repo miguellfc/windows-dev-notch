@@ -1,5 +1,5 @@
 //! The informational toasts of new Claude permissions and questions (port of
-//! `src/main/claude/toast.ts`). They carry only a translated title and the session's project name:
+//! 0.1.0's `toast.ts`). They carry only a translated title and the session's project name:
 //! never the command, the tool input, the question or its options, and no buttons.
 
 use std::sync::Arc;

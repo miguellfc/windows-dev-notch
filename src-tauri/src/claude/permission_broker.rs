@@ -1,4 +1,4 @@
-//! Held Claude Code permission requests (port of `src/main/claude/permission-broker.ts`).
+//! Held Claude Code permission requests (port of 0.1.0's `permission-broker.ts`).
 //!
 //! Concurrency: the broker locks itself. Its state sits behind one internal `Mutex`, so a
 //! `PendingReply::on_close` callback arriving on a tokio worker can drop its entry at any time.

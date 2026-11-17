@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/system-ipc.test.ts` (every case), plus the integration's start
+//! Port of 0.1.0's `system-ipc.test.ts` (every case), plus the integration's start
 //! behaviour (`system-integration.ts`: pending order, current mode, unavailable).
 
 use std::sync::atomic::AtomicU64;

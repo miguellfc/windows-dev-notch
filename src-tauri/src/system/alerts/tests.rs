@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/system-alerts.test.ts` (every case).
+//! Port of 0.1.0's `system-alerts.test.ts` (every case).
 
 use super::*;
 use crate::settings::default_settings;

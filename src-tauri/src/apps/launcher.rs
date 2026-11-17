@@ -1,4 +1,4 @@
-//! Opens Claude Desktop and Windows Terminal from the notch tiles (`src/main/apps/app-launcher.ts`).
+//! Opens Claude Desktop and Windows Terminal from the notch tiles (0.1.0's `app-launcher.ts`).
 //!
 //! Claude: the `claude://` link, else the web app. Terminal: Windows Terminal running PowerShell
 //! 7 (or 5) in the user folder, else PowerShell alone. Only absolute executables are launched

@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/system-monitor.test.ts` (every case). The vitest fake timers become
+//! Port of 0.1.0's `system-monitor.test.ts` (every case). The vitest fake timers become
 //! [`TestTimers`] moved one millisecond at a time (so an interval fires as often as in vitest),
 //! wrapped to count the armed timers (`vi.getTimerCount()`); the executor runs jobs inline, so
 //! every sample happens synchronously as in the single-threaded TS. "Throws" is a panicking spy.

@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// Gmail, ported from tests/e2e/gmail.spec.ts (Electron). Google (the consent screen, `/token`,
-// `/revoke` and the Gmail API) is the strict fake of tests/e2e/fixtures/fake-gmail.ts, started in this
+// Gmail, ported from 0.1.0's Electron e2e gmail.spec.ts. Google (the consent screen, `/token`,
+// `/revoke` and the Gmail API) is the strict fake of tests/e2e-tauri/fixtures/fake-gmail.ts, started in this
 // process on 127.0.0.1 for every test and passed per launch as `--e2e-env-NOTCH_GMAIL_BASE_URL`. Every
 // test asserts the fake saw no protocol violation. URLs main would open (the consent screen, Gmail
 // threads, links of a mail) are recorded (`NOTCH_OPEN_URL_LOG=1`, read with `__e2e:opened-urls`),
@@ -28,7 +28,7 @@
 // GAP: screenshots (test-results/gmail-*.png) are not assertions and are left out, as in the other
 // Tauri specs; so are the `hover()` / `mouse.move` calls that only placed the pointer for them.
 // GAP: `expandPanel` retries a panel opening lost to a focus-loss dismiss (the known follow-up of
-// code-review.spec.ts and docs/tauri-e2e.md, with the Control Center left open); every other failure
+// code-review.spec.ts and docs/e2e.md, with the Control Center left open); every other failure
 // to open fails at once.
 // GAP: text checks read `textContent` with whitespace collapsed (Playwright's `toHaveText`); WebDriver's
 // visible text would apply CSS text transforms.
@@ -51,7 +51,7 @@ import {
   startFakeGmail,
   type FakeGmail,
   type FakeMessage,
-} from '../e2e/fixtures/fake-gmail'
+} from './fixtures/fake-gmail'
 import {
   DEFAULT_ALERTS,
   advanceClock,

@@ -1,4 +1,4 @@
-//! The `notch:*` channels (handlers in `src/main/index.ts`).
+//! The `notch:*` channels (handlers in 0.1.0's `index.ts`).
 //!
 //! The registry is built before the window and its controller exist, so the handlers read them
 //! from a [`NotchSlot`] filled in `setup`; until then they answer UNAVAILABLE.

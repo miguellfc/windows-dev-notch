@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/redmine-client.test.ts` (49 cases, every `it.each` row counted), plus
+//! Port of 0.1.0's `redmine-client.test.ts` (49 cases, every `it.each` row counted), plus
 //! the exact write bodies, the zod tolerances of the parser, the key never shown, and a PUT and a
 //! redirect against a loopback server. A fake [`Transport`] or loopback only: no network.
 

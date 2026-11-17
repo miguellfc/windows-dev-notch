@@ -46,15 +46,15 @@ describe('Tauri production policy', () => {
 })
 
 describe('productionCsp plugin', () => {
-  const transform = (policy?: string) => {
+  const transform = (policy: string) => {
     const hook = productionCsp(policy).transformIndexHtml as { handler: (html: string) => string }
     return (html: string) => hook.handler(html)
   }
 
-  it('injects the Electron policy by default and the given one otherwise', () => {
+  it('injects the given policy', () => {
     const page = '<html><head></head><body></body></html>'
-    expect(transform()(page)).toContain(`content="${PRODUCTION_CSP}"`)
     expect(transform(TAURI_PRODUCTION_CSP)(page)).toContain(`content="${TAURI_PRODUCTION_CSP}"`)
+    expect(transform(PRODUCTION_CSP)(page)).toContain(`content="${PRODUCTION_CSP}"`)
   })
 
   it('still fails the build for a page without <head>', () => {

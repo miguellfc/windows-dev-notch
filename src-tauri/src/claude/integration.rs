@@ -1,5 +1,5 @@
-//! The Tauri adapter around [`ClaudeService`] (port of `src/main/claude/claude-integration.ts`
-//! and its wiring in `src/main/index.ts`): real files, DPAPI, toasts, the notch, the 60 s tick
+//! The Tauri adapter around [`ClaudeService`] (port of 0.1.0's `claude-integration.ts`
+//! and its wiring in 0.1.0's `index.ts`): real files, DPAPI, toasts, the notch, the 60 s tick
 //! and the quit cleanup.
 //!
 //! Dev/E2E switches (ignored unless `ipc::dev_overrides_enabled()`): `NOTCH_CLAUDE_SETTINGS`

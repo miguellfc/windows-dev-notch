@@ -1,4 +1,4 @@
-//! Port of `src/main/system/process-sampler.ts`: builds the System view's process list and
+//! Port of 0.1.0's `process-sampler.ts`: builds the System view's process list and
 //! validates every close request against it.
 
 use std::cmp::Ordering;

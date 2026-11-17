@@ -1,4 +1,4 @@
-//! The eight `code-review:*` channels (port of `src/main/code-review/code-review-ipc.ts`).
+//! The eight `code-review:*` channels (port of 0.1.0's `code-review-ipc.ts`).
 //! Guards live in `ipc::GUARDS`: lists, contributions, the view signal and the browser opener
 //! belong to the notch; tokens to the Control Center; the state to both. Every handler waits for
 //! the stored tokens to load, so the first state is never a guess; `list`, `set-token`, `clear`

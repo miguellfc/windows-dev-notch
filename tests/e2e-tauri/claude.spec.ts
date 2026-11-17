@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// Claude Code permissions, sessions and hook install, ported from tests/e2e/claude.spec.ts
-// (Electron). Each test starts a fresh app whose Claude settings.json is a file of this run's temp
+// Claude Code permissions, sessions and hook install, ported from 0.1.0's
+// Electron e2e claude.spec.ts. Each test starts a fresh app whose Claude settings.json is a file of this run's temp
 // profile (`--e2e-env-NOTCH_CLAUDE_SETTINGS`, checked before anything runs) and whose bridge listens
 // on an ephemeral port. The hooks are installed through the Control Center, like a user would; the
 // spec reads URL and token back from that settings.json and POSTs the hooks with Node's `http`.

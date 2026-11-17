@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/code-review-ipc.test.ts`: guards, pass-through, input and output
+//! Port of 0.1.0's `code-review-ipc.test.ts`: guards, pass-through, input and output
 //! validation of the eight `code-review:*` channels, against a fake integration.
 
 use std::sync::{Arc, Mutex};

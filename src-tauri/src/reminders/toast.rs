@@ -1,4 +1,4 @@
-//! Port of `src/main/reminders/reminder-toast.ts`: what the Windows toast says for a batch that
+//! Port of 0.1.0's `reminder-toast.ts`: what the Windows toast says for a batch that
 //! just came due or for the reminders missed while the app was closed. Silent (the notch plays
 //! its own chime) and without buttons (Task 0 verdict B: Windows did not reliably deliver button
 //! clicks, so Snooze and Complete live in the notch view the click opens).

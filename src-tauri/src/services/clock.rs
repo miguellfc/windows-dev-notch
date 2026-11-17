@@ -1,5 +1,5 @@
 //! The wall clock (`now: () => Date` in the Electron modules): real time plus an offset that the
-//! E2E test clock moves (`clockOffsetMs` in `src/main/index.ts`, `__e2e:advance-clock` here).
+//! E2E test clock moves (`clockOffsetMs` in 0.1.0's `index.ts`, `__e2e:advance-clock` here).
 //! Shared as `Arc<WallClock>` (managed Tauri state), so every module that follows the test clock
 //! sees the same offset.
 

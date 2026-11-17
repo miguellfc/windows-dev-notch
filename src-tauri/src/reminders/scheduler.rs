@@ -1,4 +1,4 @@
-//! Port of `src/main/reminders/reminder-scheduler.ts`: one timer aimed at the next due reminder,
+//! Port of 0.1.0's `reminder-scheduler.ts`: one timer aimed at the next due reminder,
 //! plus a periodic safety check that catches clock jumps and suspended timers. Every timer goes
 //! through the shared [`Timers`] (so the E2E test clock drives them) and every check runs on the
 //! async runtime. Logs carry counts and error codes only, never reminder text.

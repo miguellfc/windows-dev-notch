@@ -1,4 +1,4 @@
-//! Reminders rules (`src/main/reminders/reminders-service.ts`): create (free text, preset or the
+//! Reminders rules (0.1.0's `reminders-service.ts`): create (free text, preset or the
 //! notch form), edit, snooze, complete (repeating ones roll to their next occurrence), delete,
 //! the due/missed sweeps and the 7-day retention of done reminders. Every mutation runs as one
 //! exclusive turn (snapshot, compute, validate, write), so concurrent calls never build on a

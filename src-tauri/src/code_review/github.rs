@@ -1,4 +1,4 @@
-//! GitHub GraphQL client (`src/main/code-review/github-client.ts`): one query per refresh, every
+//! GitHub GraphQL client (0.1.0's `github-client.ts`): one query per refresh, every
 //! response validated as the zod schemas do.
 //!
 //! Responses are parsed to a [`serde_json::Value`] first and then checked by hand, field by

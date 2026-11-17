@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/process-sampler.test.ts` (every case) plus
+//! Port of 0.1.0's `process-sampler.test.ts` (every case) plus
 //! `kill_refuses_every_unsafe_target`. "Throws" is a panicking fake.
 
 use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};

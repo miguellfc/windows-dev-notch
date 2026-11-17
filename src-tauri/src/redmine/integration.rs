@@ -1,5 +1,5 @@
 //! The Redmine state machine of the main process (port of
-//! `src/main/redmine/redmine-integration.ts`) and its Tauri wiring pieces (`src/main/index.ts`).
+//! 0.1.0's `redmine-integration.ts`) and its Tauri wiring pieces (0.1.0's `index.ts`).
 //!
 //! One runtime: key, client, generation, 300 s rhythm with backoff (issues and today's hours),
 //! and the month summary every 900 s while the Redmine view is open. Everything lives under one
@@ -1139,7 +1139,7 @@ where
 }
 
 // ---------------------------------------------------------------------------------------------
-// Tauri wiring pieces (`src/main/index.ts`). Task 5 owns `lib.rs`, the channels and `e2e.rs`:
+// Tauri wiring pieces (0.1.0's `index.ts`). Task 5 owns `lib.rs`, the channels and `e2e.rs`:
 // it fills the `redmine` slot with the returned integration, manages it and calls `start()`
 // once the channels are registered.
 
@@ -1214,7 +1214,7 @@ pub fn install(
 
     let overridden = base_override_from(
         ipc::dev_overrides_enabled(),
-        std::env::var(BASE_URL_ENV).ok().as_deref(),
+        ipc::dev_env_var(BASE_URL_ENV).as_deref(),
     );
     let transport: Arc<dyn Transport> = match ReqwestTransport::new() {
         Ok(transport) => Arc::new(transport),

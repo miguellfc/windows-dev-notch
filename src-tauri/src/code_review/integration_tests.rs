@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/code-review-integration.test.ts` (fake clients, token stores and
+//! Port of 0.1.0's `code-review-integration.test.ts` (fake clients, token stores and
 //! settings; virtual timers stepped in due order; a fixed wall clock moved with them), plus the
 //! Rust-only cases of the part-4 plan.
 

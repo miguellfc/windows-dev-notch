@@ -1,4 +1,4 @@
-//! `tests/unit/main/reminders-service.test.ts`, in Europe/Madrid like the TS suite.
+//! 0.1.0's `reminders-service.test.ts`, in Europe/Madrid like the TS suite.
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};

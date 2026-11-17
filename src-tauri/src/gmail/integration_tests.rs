@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/gmail-integration.test.ts` (67 cases: 64 `it`s plus the 3 generated
+//! Port of 0.1.0's `gmail-integration.test.ts` (67 cases: 64 `it`s plus the 3 generated
 //! notch-state cases, which run against the real `NotchController`): a fake client, auth, token
 //! store and settings; virtual timers stepped in due order; a fixed wall clock moved with them
 //! (2026-11-11T10:00:00Z, UTC instants only). Plus the Rust-only cases of the part-6 plan.

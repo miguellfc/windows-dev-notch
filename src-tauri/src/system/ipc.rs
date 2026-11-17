@@ -1,4 +1,4 @@
-//! Port of `src/main/system/system-ipc.ts` and `system-integration.ts`: the two notch-only
+//! Port of 0.1.0's `system-ipc.ts` and `system-integration.ts`: the two notch-only
 //! `system:*` channels (guards in `ipc::GUARDS`) and the adapter that owns the monitor. The
 //! integration exists from `setup` (the channels reach it through [`SystemSlot`]); the Win32 API
 //! and the monitor are only built by [`SystemIntegration::start`], off the startup path, which then

@@ -1,4 +1,4 @@
-//! The Claude Code hooks bridge (port of `src/main/claude/claude-bridge.ts`): a loopback-only
+//! The Claude Code hooks bridge (port of 0.1.0's `claude-bridge.ts`): a loopback-only
 //! HTTP/1.1 server Claude Code's `http` hooks POST to.
 //!
 //! Every request is checked on its head, in this order, before any of its body is read: Host,

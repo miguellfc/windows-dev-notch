@@ -1,4 +1,4 @@
-//! `tests/unit/main/redmine-end-of-day.test.ts` (20 cases, the 3 `it.each` rows as their own
+//! 0.1.0's `redmine-end-of-day.test.ts` (20 cases, the 3 `it.each` rows as their own
 //! tests) plus the Rust additions: a time in a DST gap, the power listener, an alert that
 //! changes the settings from inside `on_alert`, concurrent checks and settings changes after
 //! dispose, and a check that sees a settings change before its listener runs.

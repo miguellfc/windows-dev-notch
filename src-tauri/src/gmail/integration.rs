@@ -1,5 +1,5 @@
-//! The Gmail state machine of the main process (port of `src/main/gmail/gmail-integration.ts`)
-//! and its Tauri wiring pieces (the Gmail part of `src/main/index.ts`).
+//! The Gmail state machine of the main process (port of 0.1.0's `gmail-integration.ts`)
+//! and its Tauri wiring pieces (the Gmail part of 0.1.0's `index.ts`).
 //!
 //! One runtime: the client credentials, the stored refresh token, the access token (refreshed
 //! once per session generation, 60 s before it expires), the unread count every 60 s in every
@@ -1409,7 +1409,7 @@ impl GmailIntegration {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Tauri wiring pieces (`src/main/index.ts` 360-393). `lib.rs` manages the returned
+// Tauri wiring pieces (0.1.0's `index.ts` 360-393). `lib.rs` manages the returned
 // integration, fills the `gmail` slot and calls `start()`; `ipc.rs` and `e2e.rs` hold the channels.
 
 /// The settings store as the integration sees it: the `gmail` block.
@@ -1444,7 +1444,7 @@ pub fn install(
 
     let overridden = base_override_from(
         ipc::dev_overrides_enabled(),
-        std::env::var(BASE_URL_ENV).ok().as_deref(),
+        ipc::dev_env_var(BASE_URL_ENV).as_deref(),
     );
     let transport: Arc<dyn Transport> = match ReqwestTransport::new() {
         Ok(transport) => Arc::new(transport),

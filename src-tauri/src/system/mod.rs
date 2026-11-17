@@ -1,4 +1,4 @@
-//! System monitor: the Windows reads behind `SystemApi` (port of `src/main/system/win32-system.ts`).
+//! System monitor: the Windows reads behind `SystemApi` (port of 0.1.0's `win32-system.ts`).
 //!
 //! The samplers and the monitor (Task 7) only see the `SystemApi` trait, so tests can swap in a
 //! fake. Every method is synchronous and cheap (well under 20 ms): callers run them off the

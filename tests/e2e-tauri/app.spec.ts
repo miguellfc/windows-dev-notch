@@ -1,8 +1,8 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// End-to-end tests of the Tauri app, ported from tests/e2e/app.spec.ts (Electron). Each test starts
+// End-to-end tests of the Tauri app, ported from 0.1.0's Electron e2e app.spec.ts. Each test starts
 // its own app (fresh profile, no foreground watcher, no cursor poller, test clock) through
-// tauri-driver; `npm run test:e2e:tauri` builds it with the `e2e` feature first.
+// tauri-driver; `npm run test:e2e` builds it with the `e2e` feature first.
 //
 // Hover is what the cursor poller reports in the real app; here `pointer()` (`__e2e:pointer`) stands
 // in for it, so the user's real cursor never matters. The global shortcut is `__e2e:shortcut`.

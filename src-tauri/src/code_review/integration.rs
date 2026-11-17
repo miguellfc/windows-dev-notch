@@ -1,5 +1,5 @@
 //! The GitHub and GitLab state machine of the main process (port of
-//! `src/main/code-review/code-review-integration.ts`) and its Tauri wiring (`src/main/index.ts`).
+//! 0.1.0's `code-review-integration.ts`) and its Tauri wiring (0.1.0's `index.ts`).
 //!
 //! One independent runtime per platform: token, client, generation, 120 s rhythm, backoff,
 //! first-review detector and contributions. Everything lives under one `Mutex`, never held across
@@ -1152,7 +1152,7 @@ impl CodeReviewApi for CodeReviewIntegration {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Tauri wiring (`src/main/index.ts`)
+// Tauri wiring (0.1.0's `index.ts`)
 
 /// The settings store as the integration sees it: the `codeReview` block, saved through
 /// `SettingsStore::update` like every other change (validation, `settings:changed`, listeners).
@@ -1207,7 +1207,7 @@ pub fn install(
 
     let overrides = base_overrides_from(
         ipc::dev_overrides_enabled(),
-        std::env::var("NOTCH_CODE_REVIEW_BASE_URLS").ok().as_deref(),
+        ipc::dev_env_var("NOTCH_CODE_REVIEW_BASE_URLS").as_deref(),
     );
     let transport: Arc<dyn Transport> = match ReqwestTransport::new() {
         Ok(transport) => Arc::new(transport),

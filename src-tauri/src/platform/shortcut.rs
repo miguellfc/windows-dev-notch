@@ -1,4 +1,4 @@
-//! The global shortcut (`src/main/platform/shortcut.ts`).
+//! The global shortcut (0.1.0's `shortcut.ts`).
 //!
 //! Settings keep Electron accelerators (`Control+Alt+Space`); [`to_tauri_accelerator`] turns
 //! them into what `tauri-plugin-global-shortcut` parses (`ctrl+alt+Space`).
@@ -218,7 +218,7 @@ impl ShortcutRegistrar for PluginRegistrar {
     }
 }
 
-/// What the shortcut does (`onTrigger` in `src/main/index.ts`): unless the panel is open, the
+/// What the shortcut does (`onTrigger` in 0.1.0's `index.ts`): unless the panel is open, the
 /// capsule first moves to the monitor under the cursor; then it toggles. Runs on the main thread.
 pub fn trigger(app: &AppHandle) {
     let Some(notch) = app.try_state::<Arc<NotchRuntime>>() else {

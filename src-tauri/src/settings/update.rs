@@ -1,4 +1,4 @@
-//! A settings change with its side effects (`src/main/services/settings-update.ts`).
+//! A settings change with its side effects (0.1.0's `settings-update.ts`).
 //!
 //! The shortcut is registered first (so a taken combination is never saved) and rolled back if
 //! saving fails, keeping the registered shortcut and the saved one in sync. Start with Windows

@@ -1,4 +1,4 @@
-//! The OAuth redirect listener (`src/main/gmail/loopback.ts`): a one-shot HTTP/1.1 server on
+//! The OAuth redirect listener (0.1.0's `loopback.ts`): a one-shot HTTP/1.1 server on
 //! `127.0.0.1` (IPv4 only, a port the OS picks) that waits for Google's redirect to
 //! `/callback` with the expected `state`.
 //!

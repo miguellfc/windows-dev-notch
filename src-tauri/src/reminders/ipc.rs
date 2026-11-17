@@ -1,4 +1,4 @@
-//! Port of `src/main/reminders/reminders-ipc.ts`: the six `reminders:*` channels. Every handler
+//! Port of 0.1.0's `reminders-ipc.ts`: the six `reminders:*` channels. Every handler
 //! checks its input first (like the Electron dispatcher), then waits for the runtime to finish
 //! starting, so a renderer that asks early gets the loaded list (never an empty one) and
 //! mutations never run against an unloaded store. Guards live in `ipc::GUARDS` (`update` is

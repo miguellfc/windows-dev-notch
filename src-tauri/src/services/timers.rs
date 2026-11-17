@@ -1,5 +1,5 @@
 //! One-shot timers the main-process modules schedule work with: [`RealTimers`] on the Tauri async
-//! runtime, and [`TestTimers`], the port of `src/main/services/test-clock-timers.ts` (timers that
+//! runtime, and [`TestTimers`], the port of 0.1.0's `test-clock-timers.ts` (timers that
 //! also fire when a test clock is moved past their due time).
 
 use std::collections::{BTreeMap, HashMap};

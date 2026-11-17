@@ -1,4 +1,4 @@
-//! Claude Code integration (port of `src/main/claude` and `src/shared/claude`).
+//! Claude Code integration (port of 0.1.0's `claude` module and `src/shared/claude`).
 
 pub mod alerts;
 pub mod bridge;

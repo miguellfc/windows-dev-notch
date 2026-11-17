@@ -1,5 +1,5 @@
-//! Ordered quit (`src/main/services/quit-flush.ts` and the `will-quit` block of
-//! `src/main/index.ts`): the first exit request is prevented, the registered flushers run (in
+//! Ordered quit (0.1.0's `quit-flush.ts` and the `will-quit` block of
+//! 0.1.0's `index.ts`): the first exit request is prevented, the registered flushers run (in
 //! parallel, at most [`QUIT_FLUSH_MS`]), the registered cleanups run in order, and the app exits
 //! again with the same code.
 
@@ -133,7 +133,7 @@ pub type Flusher = Box<dyn Fn() -> FlushFuture + Send + Sync>;
 pub type Cleanup = Box<dyn Fn(CleanupThread) + Send + Sync>;
 
 /// What each module registers for the quit (`Promise.all([usage.flush(), notes.flush()])` and
-/// the `will-quit` cleanup list of `src/main/index.ts`). Managed as `Arc<QuitTasks>` by
+/// the `will-quit` cleanup list of 0.1.0's `index.ts`). Managed as `Arc<QuitTasks>` by
 /// [`install`]: the usage flush and the notch cleanup come first; modules add theirs after.
 #[derive(Default)]
 pub struct QuitTasks {
@@ -205,7 +205,7 @@ pub fn tasks_hooks(
     }
 }
 
-/// Wires the ordered quit of the app (the `will-quit` block of `src/main/index.ts`): stop the
+/// Wires the ordered quit of the app (the `will-quit` block of 0.1.0's `index.ts`): stop the
 /// usage ticker, run every registered flusher (the usage log first), then every registered
 /// cleanup (the notch one first) and the exit. Manages the [`QuitTasks`] so modules installed
 /// later can add theirs (`app.state::<Arc<QuitTasks>>()`).

@@ -1,4 +1,4 @@
-//! What every REST client shares (`src/main/code-review/client-common.ts`, which the Redmine
+//! What every REST client shares (0.1.0's `client-common.ts`, which the Redmine
 //! client reuses as is): the error codes, the status mapping, requests that never follow a
 //! redirect, JSON bodies, UTF-16 clipping and the per-item pool.
 

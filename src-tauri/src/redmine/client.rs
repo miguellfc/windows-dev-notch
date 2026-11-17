@@ -1,4 +1,4 @@
-//! Redmine REST client (`src/main/redmine/redmine-client.ts`): every request carries
+//! Redmine REST client (0.1.0's `redmine-client.ts`): every request carries
 //! `x-redmine-api-key` (never `authorization`, never the key in the URL), never follows a redirect
 //! and times out (the shared [`crate::http`] pieces). Reads fail with [`ApiError`]; writes never
 //! fail and return a [`RedmineWriteResult`].
