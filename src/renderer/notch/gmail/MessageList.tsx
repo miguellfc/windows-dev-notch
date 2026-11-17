@@ -291,7 +291,7 @@ export function MessageList({
       onKeyDown={onListKeyDown}
       onFocus={onListFocus}
       onBlur={onListBlur}
-      className={`card flex min-h-0 flex-1 flex-col overflow-hidden p-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
+      className={`card flex min-h-0 flex-1 flex-col overflow-hidden px-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
     >
       {messages.map((message) => {
         const busy = inFlight.has(message.id)

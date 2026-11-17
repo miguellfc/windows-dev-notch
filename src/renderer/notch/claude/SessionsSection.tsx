@@ -46,7 +46,7 @@ export function SessionsSection() {
   const dismissable = ordered.some((session) => session.status === 'idle')
 
   return (
-    <section aria-label={t('claude.section.title')} data-testid="claude-sessions" className="card min-w-0 flex-1 px-1.5 pb-1.5 pt-2">
+    <section aria-label={t('claude.section.title')} data-testid="claude-sessions" className="card min-w-0 flex-1 px-1.5 pb-0.5 pt-1">
       <h2 className="flex h-3 items-center justify-between px-2 text-label font-semibold leading-3 text-graphite">
         <span>{t('claude.section.title')}</span>
         {hiddenBelow > 0 && (

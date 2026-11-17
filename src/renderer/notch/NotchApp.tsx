@@ -457,7 +457,15 @@ function Panel({ time, date }: { time: string; date: string }) {
   const t = useT()
   const hasSessions = useSessionCount() > 0
   return (
-    <motion.div initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-3 pt-3.5">
+    // Heights are exact (EXPANDED_HEIGHTS, 1 px capsule border): plain 14 + 28 + 12 + 60 + 12 = 126.
+    // With sessions the card's own border and padding (1 + 4 top, 2 + 1 bottom) are absorbed by an
+    // 8 px section gap and an 8 px bottom pad: 14 + 28 + 12 + 60 + 8 + (1 + 4 + 12 + 48 + 2 + 1) + 8 = 198.
+    <motion.div
+      initial="hidden"
+      animate="shown"
+      variants={PANEL_STAGGER}
+      className={`flex h-full flex-col px-3 pt-3.5 ${hasSessions ? 'pb-2' : 'pb-3'}`}
+    >
       <motion.header variants={PANEL_ITEM} className="flex items-center justify-between pl-2">
         <span className="digits text-[20px]">{time}</span>
         <span className="flex items-center gap-1">
@@ -486,7 +494,7 @@ function Panel({ time, date }: { time: string; date: string }) {
         <IntegrationRow />
       </motion.div>
       {hasSessions && (
-        <motion.div variants={PANEL_ITEM} className="mt-3 flex">
+        <motion.div variants={PANEL_ITEM} className="mt-2 flex">
           <SessionsSection />
         </motion.div>
       )}
