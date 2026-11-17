@@ -55,6 +55,11 @@ export function pendingReminders(reminders: readonly Reminder[]): Reminder[] {
   return reminders.filter((r) => r.state === 'pending').sort(byDue)
 }
 
+/** The next reminder to fire: the soonest pending one, or null when none is pending. */
+export function nextReminder(reminders: readonly Reminder[]): Reminder | null {
+  return pendingReminders(reminders)[0] ?? null
+}
+
 const ERROR_KEYS: Readonly<Record<string, MessageKey>> = {
   'empty-text': 'reminders.error.emptyText',
   'no-time': 'reminders.error.noTime',

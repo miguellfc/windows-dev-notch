@@ -36,7 +36,7 @@ function NotesNotice() {
     <p
       role="status"
       data-testid="notes-notice"
-      className="flex shrink-0 items-center gap-2 rounded-tile border border-line bg-veil px-2.5 py-1.5 text-small text-graphite"
+      className="card flex shrink-0 items-center gap-2 px-2.5 py-1.5 text-small text-graphite"
     >
       <TriangleAlert size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
       <span className="min-w-0">{t(notice === 'quarantined' ? 'notes.notice.quarantined' : 'notes.notice.readOnly')}</span>
@@ -151,7 +151,7 @@ export function NotesView() {
                 placeholder={t('notes.search.placeholder')}
                 spellCheck={false}
                 autoComplete="off"
-                className="h-7 w-full rounded-control border border-line bg-veil pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
+                className="field h-7 w-full pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
               />
             </label>
           </header>

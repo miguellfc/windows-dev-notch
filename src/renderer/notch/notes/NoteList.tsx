@@ -42,7 +42,7 @@ function NoteRow({ note, now, run, busy, copied, onCopied, onEdit, onDeleted }: 
       data-testid="note-item"
       data-note-id={note.id}
       data-pinned={note.pinned}
-      className="group flex shrink-0 flex-col gap-0.5 rounded-tile px-2.5 pb-1 pt-1.5 transition-colors duration-150 hover:bg-veil has-[:focus-visible]:bg-veil"
+      className="group flex shrink-0 flex-col gap-0.5 rounded-tile px-2.5 pb-1 pt-1.5 transition-colors duration-150 hover:bg-veil-tile has-[:focus-visible]:bg-veil-tile"
     >
       <p className="line-clamp-2 whitespace-pre-wrap break-words text-body text-chalk">{note.text}</p>
       <div className="flex h-6 items-center gap-1.5">
@@ -230,7 +230,7 @@ export function NoteList({ query, onEdit, onDeleted, onFocusLost }: NoteListProp
           data-testid="note-list"
           onFocus={onListFocus}
           onBlur={onListBlur}
-          className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1"
+          className="card flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1"
         >
           {visible.map((note) => (
             <NoteRow

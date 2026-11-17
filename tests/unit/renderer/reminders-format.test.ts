@@ -7,6 +7,7 @@ import {
   parseErrorKey,
   remindersBadgeLabel,
   reminderErrorKey,
+  nextReminder,
   pendingReminders,
 } from '../../../src/renderer/shared/reminders/format'
 
@@ -102,5 +103,19 @@ describe('error keys', () => {
     expect(reminderErrorKey({ code: 'NOT_FOUND', message: 'Reminder not found' })).toBe('reminders.error.notFound')
     expect(reminderErrorKey({ code: 'INVALID_INPUT', message: REMINDER_DONE_MESSAGE })).toBe('reminders.error.notFound')
     expect(reminderErrorKey({ code: 'INTERNAL', message: REMINDER_DONE_MESSAGE })).toBe('error.generic')
+  })
+})
+
+describe('nextReminder', () => {
+  it('is the soonest pending reminder, ignoring due, missed and done ones', () => {
+    const soon = reminder('pending', local(2026, 11, 10, 18), 'soon')
+    const later = reminder('pending', local(2026, 11, 12, 9))
+    const list = [later, reminder('due', local(2026, 11, 10, 9)), reminder('missed', local(2026, 11, 9)), reminder('done', local(2026, 11, 10, 13)), soon]
+    expect(nextReminder(list)?.id).toBe(soon.id)
+  })
+
+  it('is null when nothing is pending', () => {
+    expect(nextReminder([])).toBeNull()
+    expect(nextReminder([reminder('due', local(2026, 11, 10, 9)), reminder('done', local(2026, 11, 10, 13))])).toBeNull()
   })
 })
