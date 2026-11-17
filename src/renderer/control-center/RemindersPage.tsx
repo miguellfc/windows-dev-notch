@@ -32,7 +32,7 @@ const iconButton =
 const textButton =
   'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40'
 const fieldBase =
-  'h-9 rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-ice/60 aria-invalid:border-fail/60'
+  'h-9 rounded-control border border-line bg-veil px-3 text-body text-chalk outline-none transition-colors duration-150 focus:border-select/60 aria-invalid:border-fail/60'
 const fieldClass = `${fieldBase} w-full`
 
 function RepeatMark({ repeat }: { repeat: RepeatValue }) {

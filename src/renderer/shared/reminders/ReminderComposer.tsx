@@ -125,7 +125,7 @@ export function ReminderComposer({
           setErrorKey(null)
         }}
         onKeyDown={onKeyDown}
-        className="h-9 w-full rounded-control border border-line bg-veil px-3 text-body text-chalk transition-colors duration-150 placeholder:text-graphite focus:border-ice/60"
+        className="h-9 w-full rounded-control border border-line bg-veil px-3 text-body text-chalk transition-colors duration-150 placeholder:text-graphite focus:border-select/60"
       />
       {/* One line under the field: the error from the last attempt, else the live reading. */}
       {errorKey ? (

@@ -203,7 +203,7 @@ function QuestionForm({ question, busy, failed, onSend, onAnswerInClaude }: Ques
           onClick={() => {
             if (canSend) onSend(answers)
           }}
-          className={`${button} bg-ice text-abyss hover:brightness-110`}
+          className={`${button} bg-select text-on-select hover:brightness-110`}
         >
           {t('claude.question.send')}
         </button>
@@ -336,10 +336,10 @@ function Indicator({ multi, checked }: { multi: boolean; checked: boolean }) {
     <span
       aria-hidden="true"
       className={`mt-0.5 flex size-4 shrink-0 items-center justify-center border ${shape} ${
-        checked ? 'border-ice bg-ice' : 'border-graphite bg-transparent'
+        checked ? 'border-select bg-select' : 'border-graphite bg-transparent'
       }`}
     >
-      {checked && (multi ? <Check size={11} strokeWidth={3} className="text-abyss" /> : <span className="size-1.5 rounded-full bg-abyss" />)}
+      {checked && (multi ? <Check size={11} strokeWidth={3} className="text-on-select" /> : <span className="size-1.5 rounded-full bg-on-select" />)}
     </span>
   )
 }

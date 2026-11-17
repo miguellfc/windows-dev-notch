@@ -36,7 +36,7 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
       onClick={open}
       className="flex h-full items-center gap-2 px-3.5"
     >
-      <Icon size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-ice" />
+      <Icon size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-select" />
       {/* Titles and refs are always plain text: React escapes them. */}
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         {content === null ? (

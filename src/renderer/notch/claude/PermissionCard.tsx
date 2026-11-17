@@ -117,7 +117,7 @@ export function PermissionCard() {
           onKeyUp={blockKey}
           onPointerDown={onPointerDown}
           onClick={decide('allow', enabled.allow)}
-          className={`${button} bg-ice text-abyss hover:brightness-110`}
+          className={`${button} bg-select text-on-select hover:brightness-110`}
         >
           {t('claude.permission.allow')}
         </button>

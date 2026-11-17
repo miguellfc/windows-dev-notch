@@ -60,7 +60,7 @@ export function ShortcutPage({
       <SettingRow label={t('cc.shortcut.title')} hint={t('cc.shortcut.description')}>
         <div className="flex items-center gap-3">
           {recording ? (
-            <span className="text-small text-ice">{t('cc.shortcut.recording')}</span>
+            <span className="text-small text-select">{t('cc.shortcut.recording')}</span>
           ) : (
             <Kbd accelerator={settings.shortcut} />
           )}

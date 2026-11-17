@@ -27,13 +27,13 @@ const updateRedmine = createRedmineUpdater(
 const requests = createLatestRequests<'redmine'>()
 
 const input =
-  'h-8 w-full min-w-0 rounded-control border border-line bg-veil px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60'
+  'h-8 w-full min-w-0 rounded-control border border-line bg-veil px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60'
 const field =
-  'h-8 rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 focus:border-ice/60 aria-invalid:border-fail/60 disabled:cursor-not-allowed disabled:opacity-40'
+  'h-8 rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 focus:border-select/60 aria-invalid:border-fail/60 disabled:cursor-not-allowed disabled:opacity-40'
 const button =
   'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-veil-tile'
 const primary =
-  'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-ice/40 bg-ice/25 px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-ice/35 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ice/25'
+  'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-select/40 bg-select/25 px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-select/35 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-select/25'
 
 type SaveError = 'auth' | 'network' | 'url' | 'save'
 const ERRORS: Record<SaveError, MessageKey> = {

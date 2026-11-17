@@ -9,7 +9,7 @@ import { headerIconButton } from '../reminders/styles'
 const secondaryButton =
   'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover'
 const primaryButton =
-  'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
+  'h-7 cursor-pointer rounded-control bg-select px-3 text-label font-medium text-on-select transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
 
 /**
  * New note (`note` null) or edit an existing one. Enter is a newline; Ctrl+Enter (or Cmd+Enter)

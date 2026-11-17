@@ -94,7 +94,7 @@ function MessageRow({
       >
         <span className="flex w-full min-w-0 items-center gap-1.5">
           {/* The dot keeps its slot on read rows too, so every sender starts at the same x. */}
-          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${message.unread ? 'bg-ice' : ''}`} />
+          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${message.unread ? 'bg-select' : ''}`} />
           {message.unread && <span className="sr-only">{t('gmail.view.unreadMark')}, </span>}
           {/* Mail text is always plain text: React escapes it, nothing is parsed as HTML. */}
           <span className={`min-w-0 flex-1 truncate text-body leading-[18px] text-chalk ${message.unread ? 'font-semibold' : ''}`}>
@@ -178,7 +178,7 @@ function MessageRow({
 }
 
 /**
- * The 5 most recent messages in Primary; unread ones in bold with an ice-blue dot. A click or Enter
+ * The 5 most recent messages in Primary; unread ones in bold with a dot. A click or Enter
  * opens the reader; per-row Mark as read and Delete (behind an inline confirmation) appear on hover
  * or focus. `onFocusLost` is called when the focused row went away and no row is left.
  */

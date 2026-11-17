@@ -4,7 +4,7 @@ import { useClaude } from '../../shared/claude-store'
 import { useT } from '../../shared/use-t'
 
 export const DOT_COLOR: Readonly<Record<DotStatus | 'idle', string>> = {
-  working: 'var(--color-ice)',
+  working: 'var(--color-select)',
   waiting: 'var(--color-wait)',
   done: 'var(--color-ok)',
   error: 'var(--color-fail)',

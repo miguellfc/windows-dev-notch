@@ -131,8 +131,8 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
                 data-testid="redmine-summary-retry"
                 onClick={onRetry}
                 aria-disabled={retryResting}
-                // 24 px tall target (the line stays 16 px); the global ice focus ring shows on keyboard focus.
-                className="-my-1 inline-flex min-h-6 cursor-pointer items-center rounded-control-sm px-1 font-medium text-ice underline-offset-2 hover:underline aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:no-underline"
+                // 24 px tall target (the line stays 16 px); the global focus ring shows on keyboard focus.
+                className="-my-1 inline-flex min-h-6 cursor-pointer items-center rounded-control-sm px-1 font-medium text-select underline-offset-2 hover:underline aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:no-underline"
               >
                 {t('redmine.summary.retry')}
               </button>

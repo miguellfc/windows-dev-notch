@@ -35,7 +35,7 @@ const TONES: Readonly<Record<BadgeTone, string>> = {
   ok: 'text-ok',
   wait: 'text-wait',
   fail: 'text-fail',
-  ice: 'text-ice',
+  ice: 'text-select',
 }
 
 function Row({ item, section, now, onOpen }: { item: ReviewItem; section: ReviewSection; now: Date; onOpen: () => void }) {

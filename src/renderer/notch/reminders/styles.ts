@@ -4,7 +4,7 @@ export const headerIconButton =
 
 /** A 34 px text field of the notch's forms (reminders, Redmine's detail). */
 export const fieldClass =
-  'h-[34px] rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60 aria-invalid:border-fail/60'
+  'h-[34px] rounded-control border border-line bg-veil px-2.5 text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60 aria-invalid:border-fail/60'
 
 /** The quiet form button (Cancel). */
 export const secondaryButton =
@@ -12,4 +12,4 @@ export const secondaryButton =
 
 /** The form's one primary action (Save), in Azul Hielo. */
 export const primaryButton =
-  'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
+  'h-7 cursor-pointer rounded-control bg-select px-3 text-label font-medium text-on-select transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
