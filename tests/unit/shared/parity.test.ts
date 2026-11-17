@@ -267,6 +267,18 @@ const portedChannels = [
   'code-review:clear',
   'code-review:view',
   'code-review:contributions',
+  'redmine:get-state',
+  'redmine:issues',
+  'redmine:issue',
+  'redmine:activities',
+  'redmine:update-issue',
+  'redmine:log-time',
+  'redmine:summary',
+  'redmine:view',
+  'redmine:refresh',
+  'redmine:open',
+  'redmine:set-key',
+  'redmine:clear',
 ] as const satisfies readonly ChannelName[]
 const portedEvents = [
   'notch:mode-changed',
@@ -284,6 +296,9 @@ const portedEvents = [
   'code-review:state',
   'code-review:alert',
   'code-review:contributions-changed',
+  'redmine:state',
+  'redmine:summary-changed',
+  'redmine:alert',
 ] as const satisfies readonly EventName[]
 
 const contractCases = JSON.parse(readFileSync(resolve(parityDir, 'contract-cases.json'), 'utf8')) as ContractCase[]

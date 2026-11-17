@@ -93,6 +93,12 @@ pub fn normalize_gitlab_url(raw: &str) -> Option<String> {
     normalize_https_url(raw, GITLAB_URL_MAX)
 }
 
+/// `normalizeRedmineUrl`: the Redmine server URL in its stored form, or `None` when not
+/// acceptable (only `https`, no credentials, no query or hash).
+pub fn normalize_redmine_url(raw: &str) -> Option<String> {
+    normalize_https_url(raw, REDMINE_URL_MAX)
+}
+
 fn is_stored_url(value: &str, max: usize) -> bool {
     value.is_empty() || normalize_https_url(value, max).as_deref() == Some(value)
 }
@@ -313,6 +319,54 @@ mod tests {
             Some(fits.clone())
         );
         assert_eq!(normalize_gitlab_url(&format!("{fits}a")), None);
+    }
+
+    // tests/unit/shared/redmine-schema.test.ts, normalizeRedmineUrl: keeps origin plus base path
+    // without trailing slash.
+    #[test]
+    fn redmine_urls_keep_origin_plus_base_path_without_trailing_slash() {
+        assert_eq!(
+            normalize_redmine_url("https://r.x.com/").as_deref(),
+            Some("https://r.x.com")
+        );
+        assert_eq!(
+            normalize_redmine_url("  https://r.x.com/redmine/ ").as_deref(),
+            Some("https://r.x.com/redmine")
+        );
+    }
+
+    // normalizeRedmineUrl: rejects http, credentials, query, hash and over-long input.
+    #[test]
+    fn redmine_urls_reject_http_credentials_query_hash_and_over_long_input() {
+        for raw in [
+            "http://r.x.com",
+            "https://u:p@r.x.com",
+            "https://r.x.com?a=1",
+            "https://r.x.com/#x",
+            "https://r.x.com?",
+            "",
+            "nope",
+        ] {
+            assert_eq!(normalize_redmine_url(raw), None, "{raw}");
+        }
+        assert_eq!(
+            normalize_redmine_url(&format!("https://r.x.com/{}", "a".repeat(512))),
+            None
+        );
+    }
+
+    // normalizeRedmineUrl: has a schema and a stored-form check. `redmineUrlSchema` is
+    // `z.string().max(512)` plus this normalization.
+    #[test]
+    fn redmine_urls_have_a_schema_and_a_stored_form_check() {
+        assert_eq!(
+            normalize_redmine_url("https://r.x.com/b/").as_deref(),
+            Some("https://r.x.com/b")
+        );
+        assert_eq!(normalize_redmine_url("http://r.x.com"), None);
+        assert!(is_stored_redmine_url(""));
+        assert!(is_stored_redmine_url("https://r.x.com/b"));
+        assert!(!is_stored_redmine_url("https://r.x.com/b/"));
     }
 
     #[test]

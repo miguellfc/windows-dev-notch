@@ -645,14 +645,16 @@ export const pageTextAndValues = async (): Promise<{ html: string; values: strin
  * midnights, so when Windows has one fixed offset over the days the ranges can cover and Node
  * disagrees, this worker switches to that fixed offset (`Etc/GMT±H`). It changes nothing when they
  * already agree, nor anything in the app or its webviews. Returns the zone set, if any; logs why
- * when it cannot align.
+ * when it cannot align. `daysAhead` widens the checked span forward (the Redmine spec jumps the
+ * test clock to the next Monday, up to a week ahead).
  */
-export function alignZoneWithWindows(): string | null {
+export function alignZoneWithWindows(daysAhead = 2): string | null {
   const now = Date.now()
   const day = 86_400_000
-  // 47 days back to 2 days ahead: the ranges need at most about 37 days back (the earlier of the
-  // 1st and Monday, and GitLab's "after" a day before that) and GitLab's "before" two days ahead.
-  const instants = Array.from({ length: 50 }, (_, i) => now - (47 - i) * day)
+  // 47 days back to 2 days ahead by default: the ranges need at most about 37 days back (the
+  // earlier of the 1st and Monday, and GitLab's "after" a day before that) and GitLab's "before"
+  // two days ahead.
+  const instants = Array.from({ length: 48 + daysAhead }, (_, i) => now - (47 - i) * day)
   const script = `${instants.map((ms) => `[int][TimeZoneInfo]::Local.GetUtcOffset([DateTimeOffset]::FromUnixTimeMilliseconds(${ms})).TotalMinutes`).join(';')}`
   const out = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' })
   const windows = out.stdout.trim().split(/\s+/).map(Number)

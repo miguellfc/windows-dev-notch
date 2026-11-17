@@ -1,4 +1,4 @@
-//! The HTTP transport of the code review clients (Electron: `net.fetch` with `redirect: 'manual'`
+//! The HTTP transport of the REST clients (Electron: `net.fetch` with `redirect: 'manual'`
 //! and `AbortSignal.timeout(30000)`).
 //!
 //! [`Transport`] is what the clients see, so unit tests inject fakes (as the TS tests inject
@@ -24,6 +24,7 @@ pub const USER_AGENT: &str = concat!("DeveloperNotch/", env!("CARGO_PKG_VERSION"
 pub enum Method {
     Get,
     Post,
+    Put,
 }
 
 /// One request. Header values may hold tokens: `Debug` prints only the method and header names.
@@ -48,6 +49,15 @@ impl HttpRequest {
     pub fn post(url: impl Into<String>, body: Vec<u8>) -> Self {
         Self {
             method: Method::Post,
+            url: url.into(),
+            headers: Vec::new(),
+            body: Some(body),
+        }
+    }
+
+    pub fn put(url: impl Into<String>, body: Vec<u8>) -> Self {
+        Self {
+            method: Method::Put,
             url: url.into(),
             headers: Vec::new(),
             body: Some(body),
@@ -174,6 +184,7 @@ impl ReqwestTransport {
         let method = match request.method {
             Method::Get => reqwest::Method::GET,
             Method::Post => reqwest::Method::POST,
+            Method::Put => reqwest::Method::PUT,
         };
         let mut builder = self.client.request(method, &request.url);
         for (name, value) in &request.headers {
@@ -342,6 +353,34 @@ mod tests {
             USER_AGENT,
             format!("DeveloperNotch/{}", env!("CARGO_PKG_VERSION"))
         );
+    }
+
+    #[tokio::test]
+    async fn put_request_carries_method_and_body() {
+        let (base, mut requests) =
+            serve(|_| b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".to_vec()).await;
+        let request = HttpRequest::put(
+            format!("{base}/issues/7.json"),
+            b"{\"issue\":{\"status_id\":3}}".to_vec(),
+        )
+        .header("x-redmine-api-key", "k3y")
+        .header("content-type", "application/json");
+        assert_eq!(request.method, Method::Put);
+        let response = transport().send(request).await.unwrap();
+        assert_eq!(response.status, 204);
+        assert!(response.is_ok());
+        assert!(response.body.is_empty());
+
+        let seen = requests.recv().await.unwrap();
+        let lower = seen.to_ascii_lowercase();
+        assert!(
+            lower.starts_with("put /issues/7.json http/1.1\r\n"),
+            "{seen}"
+        );
+        assert!(lower.contains("\r\nx-redmine-api-key: k3y\r\n"));
+        assert!(lower.contains("\r\ncontent-type: application/json\r\n"));
+        assert!(lower.contains("\r\ncontent-length: 25\r\n"));
+        assert!(seen.ends_with("\r\n\r\n{\"issue\":{\"status_id\":3}}"));
     }
 
     #[tokio::test]
