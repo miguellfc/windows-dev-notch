@@ -18893,5 +18893,1861 @@
       "summary": null
     },
     "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "unconfigured",
+      "account": null,
+      "todayHours": null,
+      "updatedAt": null,
+      "persistent": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "auth-error",
+      "account": "Ana García",
+      "todayHours": 0,
+      "updatedAt": 1763287200000.5,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": "2026-11-16T10:00:00.000Z",
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true,
+      "key": "abcdef0123456789"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true,
+      "url": "https://redmine.example.test"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": -0.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "error",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        },
+        {
+          "id": 7,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": null,
+          "spentHours": null,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [],
+      "truncated": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": -1,
+            "name": ""
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z",
+          "url": "https://redmine.example.test/issues/42"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 0,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 9007199254740992,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": -1,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "In progress"
+          },
+          "estimatedHours": 8,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": [
+        {
+          "id": 42,
+          "subject": "Fix the login",
+          "project": "Portal",
+          "status": {
+            "id": 2,
+            "name": "New",
+            "isClosed": false
+          },
+          "estimatedHours": 8,
+          "spentHours": 3.25,
+          "updatedOn": "2026-11-14T10:00:00Z"
+        }
+      ],
+      "truncated": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issues",
+    "direction": "output",
+    "value": {
+      "issues": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": 1
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": 9007199254740991
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": 9007199254740992
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": 0
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": "42"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": 1.5
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "value": {
+      "id": 42,
+      "url": "https://redmine.example.test/issues/42"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "subject": "Fix the login",
+      "project": "Portal",
+      "status": {
+        "id": 2,
+        "name": "In progress"
+      },
+      "estimatedHours": 8,
+      "spentHours": 3.25,
+      "updatedOn": "2026-11-14T10:00:00Z",
+      "allowedStatuses": [
+        {
+          "id": 2,
+          "name": "In progress"
+        },
+        {
+          "id": 5,
+          "name": "Closed"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "subject": "Fix the login",
+      "project": "Portal",
+      "status": {
+        "id": 2,
+        "name": "In progress"
+      },
+      "estimatedHours": 8,
+      "spentHours": 3.25,
+      "updatedOn": "2026-11-14T10:00:00Z",
+      "allowedStatuses": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "subject": "Fix the login",
+      "project": "Portal",
+      "status": {
+        "id": 2,
+        "name": "In progress"
+      },
+      "estimatedHours": 8,
+      "spentHours": 3.25,
+      "updatedOn": "2026-11-14T10:00:00Z"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "subject": "Fix the login",
+      "project": "Portal",
+      "status": {
+        "id": 2,
+        "name": "In progress"
+      },
+      "estimatedHours": 8,
+      "spentHours": 3.25,
+      "updatedOn": "2026-11-14T10:00:00Z",
+      "allowedStatuses": [
+        {
+          "id": 2,
+          "name": "In progress"
+        },
+        {
+          "id": 5,
+          "name": "Closed"
+        }
+      ],
+      "url": "https://redmine.example.test/issues/42"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "subject": "Fix the login",
+      "project": "Portal",
+      "status": {
+        "id": 2,
+        "name": "In progress"
+      },
+      "estimatedHours": 8,
+      "spentHours": 3.25,
+      "updatedOn": "2026-11-14T10:00:00Z",
+      "allowedStatuses": [
+        {
+          "id": 5,
+          "name": "Closed",
+          "is_closed": true
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:issue",
+    "direction": "output",
+    "value": {
+      "id": 42,
+      "subject": "Fix the login",
+      "project": "Portal",
+      "status": {
+        "id": 2,
+        "name": "In progress"
+      },
+      "estimatedHours": 8,
+      "spentHours": 3.25,
+      "updatedOn": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "allowedStatuses": [
+        {
+          "id": 2,
+          "name": "In progress"
+        },
+        {
+          "id": 5,
+          "name": "Closed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "output",
+    "value": [],
+    "accept": true
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "output",
+    "value": [
+      {
+        "id": 9,
+        "name": "Development",
+        "isDefault": true
+      },
+      {
+        "id": -3,
+        "name": "Design",
+        "isDefault": false
+      }
+    ],
+    "accept": true
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "output",
+    "value": [
+      {
+        "id": 9,
+        "name": "Development"
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "output",
+    "value": [
+      {
+        "id": 9,
+        "name": "Development",
+        "isDefault": null
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "output",
+    "value": [
+      {
+        "id": 9,
+        "name": "Development",
+        "isDefault": true,
+        "active": true
+      }
+    ],
+    "accept": false
+  },
+  {
+    "channel": "redmine:activities",
+    "direction": "output",
+    "value": {
+      "activities": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "statusId": 3
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": null
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 2.25
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 0
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 999
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 1.1
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 0.29
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "statusId": 3,
+      "estimatedHours": 4
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "statusId": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "statusId": 0
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 999.01
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": 1.234
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "estimatedHours": -0.5
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 0,
+      "statusId": 3
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "input",
+    "value": {
+      "id": 1,
+      "statusId": 3,
+      "notes": "x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "forbidden"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": [
+        "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": [
+        "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "messages": []
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "rate-limited"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:update-issue",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "auth",
+      "url": "https://redmine.example.test/issues/1"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-02-31",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 24,
+      "activityId": 9,
+      "comments": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 0.01,
+      "activityId": 9,
+      "comments": ""
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 0.29,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2999-01-01",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-13-01",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-1-1",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10T00:00:00",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 0,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 24.01,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 1.234,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": "1.5",
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 1.5,
+      "activityId": 0,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": -42,
+      "spentOn": "2026-11-10",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 1.5,
+      "activityId": 9,
+      "comments": "Review",
+      "userId": 3
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "input",
+    "value": {
+      "issueId": 42,
+      "spentOn": "2026-11-10",
+      "hours": 1.5,
+      "activityId": 9
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "output",
+    "value": {
+      "ok": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "validation",
+      "messages": [
+        "Hours is invalid"
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "network"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "output",
+    "value": {
+      "ok": "false",
+      "reason": "network"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:log-time",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "server",
+      "messages": [
+        1
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": null,
+      "error": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-11",
+        "days": [
+          {
+            "date": "2026-11-13",
+            "hours": 7.5
+          },
+          {
+            "date": "2026-11-14",
+            "hours": 2
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": 61.25
+      },
+      "error": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-11",
+        "days": [
+          {
+            "date": "2026-02-31",
+            "hours": 0
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": 61.25
+      },
+      "error": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-13",
+        "days": [
+          {
+            "date": "2026-11-13",
+            "hours": 7.5
+          },
+          {
+            "date": "2026-11-14",
+            "hours": 2
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": 61.25
+      },
+      "error": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-11",
+        "days": [
+          {
+            "date": "2026-02-32",
+            "hours": 1
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": 61.25
+      },
+      "error": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-11",
+        "days": [
+          {
+            "date": "2026-11-14",
+            "hours": -1
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": 61.25
+      },
+      "error": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-11",
+        "days": [
+          {
+            "date": "2026-11-13",
+            "hours": 7.5
+          },
+          {
+            "date": "2026-11-14",
+            "hours": 2
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": -0.01
+      },
+      "error": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": {
+        "month": "2026-11",
+        "days": [
+          {
+            "date": "2026-11-13",
+            "hours": 7.5
+          },
+          {
+            "date": "2026-11-14",
+            "hours": 2
+          }
+        ],
+        "today": 2,
+        "week": 9.5,
+        "monthTotal": 61.25,
+        "url": "https://redmine.example.test"
+      },
+      "error": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "summary": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary",
+    "direction": "output",
+    "value": {
+      "error": false
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:view",
+    "direction": "input",
+    "value": {
+      "open": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:view",
+    "direction": "input",
+    "value": {
+      "open": "yes"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:view",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:view",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "redmine:view",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "redmine:refresh",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "redmine:refresh",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:refresh",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "redmine:refresh",
+    "direction": "output",
+    "value": true,
+    "accept": false
+  },
+  {
+    "channel": "redmine:open",
+    "direction": "input",
+    "value": {
+      "id": 5
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:open",
+    "direction": "input",
+    "value": {
+      "id": 5,
+      "url": "https://evil.example/issues/5"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:open",
+    "direction": "input",
+    "value": {
+      "url": "https://redmine.example.test/issues/5"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:open",
+    "direction": "input",
+    "value": {
+      "id": -1
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:open",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "redmine:open",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": "https://r.x.com",
+      "key": "k"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": "",
+      "key": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": " http://r.x.com/ ",
+      "key": "abc"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": "https://r.x.com",
+      "key": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": "https://r.x.com",
+      "key": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+      "key": "k"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "key": "k"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "input",
+    "value": {
+      "url": "https://r.x.com",
+      "key": "k",
+      "remember": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "account": "Ana"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "url"
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": false,
+      "reason": "forbidden"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "account": "Ana",
+      "key": "abcdef0123456789"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "account": "Ana",
+      "url": "https://redmine.example.test"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": true,
+      "account": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:set-key",
+    "direction": "output",
+    "value": {
+      "ok": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:clear",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "redmine:clear",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:clear",
+    "direction": "output",
+    "value": null,
+    "accept": true
+  },
+  {
+    "channel": "redmine:clear",
+    "direction": "output",
+    "value": false,
+    "accept": false
+  },
+  {
+    "channel": "redmine:state",
+    "direction": "event",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:state",
+    "direction": "event",
+    "value": {
+      "status": "offline",
+      "account": "Ana García",
+      "todayHours": null,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:state",
+    "direction": "event",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true,
+      "key": "abcdef0123456789"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:state",
+    "direction": "event",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true,
+      "url": "https://redmine.example.test"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:state",
+    "direction": "event",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": "2026-11-16T10:00:00.000Z",
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary-changed",
+    "direction": "event",
+    "value": {
+      "error": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:summary-changed",
+    "direction": "event",
+    "value": {
+      "error": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:summary-changed",
+    "direction": "event",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary-changed",
+    "direction": "event",
+    "value": {
+      "error": true,
+      "summary": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:summary-changed",
+    "direction": "event",
+    "value": {
+      "error": "no"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 6.5,
+      "target": 8
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 0,
+      "target": 1
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 30,
+      "target": 24
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 6.5,
+      "target": 0.5
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 6.5,
+      "target": 24.5
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": -1,
+      "target": 8
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 6.5,
+      "target": 8,
+      "sound": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:alert",
+    "direction": "event",
+    "value": {
+      "hours": 6.5
+    },
+    "accept": false
   }
 ]

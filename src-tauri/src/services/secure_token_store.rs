@@ -19,6 +19,7 @@ use tokio::sync::Mutex;
 use super::dpapi;
 use super::fs_atomic::write_atomic;
 use crate::contract::text::js_trim;
+use crate::ipc::BoxFuture;
 
 const BASE64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -163,6 +164,42 @@ fn summary(error: &io::Error) -> String {
     match error.raw_os_error() {
         Some(code) => format!("{:?} code={code:#x}", error.kind()),
         None => format!("{:?}", error.kind()),
+    }
+}
+
+/// One integration's token file (`Pick<TokenStore, 'load' | 'save' | 'clear' | 'persistent'>`),
+/// as the integrations see it (fakes in their tests, [`SecureTokenStore`] in the app).
+/// Errors are a code or kind only, never a message.
+pub trait TokenStore: Send + Sync {
+    fn load(&self) -> BoxFuture<'_, Result<Option<String>, String>>;
+    fn save<'a>(&'a self, token: &'a str) -> BoxFuture<'a, Result<(), String>>;
+    fn clear(&self) -> BoxFuture<'_, Result<(), String>>;
+    /// True when a saved token survives a restart (asked on every `state()`).
+    fn persistent(&self) -> bool;
+}
+
+impl TokenStore for SecureTokenStore {
+    fn load(&self) -> BoxFuture<'_, Result<Option<String>, String>> {
+        Box::pin(async move { Ok(SecureTokenStore::load(self).await) })
+    }
+
+    fn save<'a>(&'a self, token: &'a str) -> BoxFuture<'a, Result<(), String>> {
+        Box::pin(async move {
+            SecureTokenStore::save(self, token)
+                .await
+                .map_err(|error| format!("{:?}", error.kind()))
+        })
+    }
+
+    fn clear(&self) -> BoxFuture<'_, Result<(), String>> {
+        Box::pin(async move {
+            SecureTokenStore::clear(self).await;
+            Ok(())
+        })
+    }
+
+    fn persistent(&self) -> bool {
+        SecureTokenStore::persistent(self)
     }
 }
 

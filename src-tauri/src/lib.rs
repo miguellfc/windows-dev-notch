@@ -6,11 +6,13 @@ pub mod contract;
 pub mod control_center;
 #[cfg(feature = "e2e")]
 pub mod e2e;
+pub mod http;
 pub mod i18n;
 pub mod ipc;
 pub mod notch;
 pub mod notes;
 pub mod platform;
+pub mod redmine;
 pub mod reminders;
 pub mod security;
 pub mod services;
@@ -36,6 +38,9 @@ use notes::ipc::{Notes, NotesSlot};
 use platform::power::PowerEvents;
 use platform::shortcut::{PluginRegistrar, ShortcutControl, ShortcutService};
 use platform::tray;
+use redmine::end_of_day::EndOfDay;
+use redmine::integration::RedmineIntegration;
+use redmine::ipc::RedmineSlot;
 use reminders::ipc::RemindersSlot;
 use reminders::Reminders;
 use services::quit::{ExitDecision, QuitFlush};
@@ -78,6 +83,7 @@ pub fn run() {
         system: system_slot,
         claude: claude_slot,
         code_review: code_review_slot,
+        redmine: redmine_slot,
     } = slots;
 
     let app = tauri::Builder::default()
@@ -227,6 +233,14 @@ pub fn run() {
             let power = PowerEvents::start(reminders.power_listener());
             app.manage(Arc::clone(&power));
 
+            // Redmine: after code review, once the power events exist (the end of day listens to
+            // them). The power events need the reminders' listener, so the reminders' load is
+            // spawned above, before Redmine; Electron calls `reminders.start()` after
+            // `redmineEndOfDay.start()`. The two are independent: no functional impact. The
+            // stored key loads in the background (the channels wait for it); the rhythm runs on
+            // the notch's timers and the shared wall clock (both follow the E2E test clock).
+            let redmine = install_redmine(app.handle(), &redmine_slot, &notch, &data_dir, &power);
+
             install_apps(app.handle(), &apps_slot, &notch);
             {
                 let notes = Arc::clone(&notes);
@@ -255,10 +269,7 @@ pub fn run() {
             }
             // Then the reminders, as in Electron.
             app.state::<Arc<services::quit::QuitTasks>>()
-                .add_cleanup(move |_thread| {
-                    power.stop();
-                    reminders.dispose();
-                });
+                .add_cleanup(move |_thread| reminders.dispose());
             // Then the system monitor and its PDH query (Electron: reminders, then system).
             {
                 let system = Arc::clone(&system);
@@ -271,6 +282,20 @@ pub fn run() {
             if let Some(code_review) = code_review {
                 app.state::<Arc<services::quit::QuitTasks>>()
                     .add_cleanup(move |_thread| code_review.dispose());
+            }
+            // Then Redmine, the power hooks and the end of day, in Electron's order
+            // (`redmine.dispose(); powerMonitor.off(...); redmineEndOfDay.dispose()`). Without an
+            // unsubscribe, a power event that still arrives finds both schedulers disposed.
+            let (redmine, end_of_day) = redmine.unzip();
+            if let Some(redmine) = redmine {
+                app.state::<Arc<services::quit::QuitTasks>>()
+                    .add_cleanup(move |_thread| redmine.dispose());
+            }
+            app.state::<Arc<services::quit::QuitTasks>>()
+                .add_cleanup(move |_thread| power.stop());
+            if let Some(end_of_day) = end_of_day {
+                app.state::<Arc<services::quit::QuitTasks>>()
+                    .add_cleanup(move |_thread| end_of_day.dispose());
             }
             // The channels are live (the registry predates `setup`): start sampling off the
             // startup path, for the mode the notch is in by then.
@@ -300,6 +325,10 @@ pub fn run() {
                     // is left behind for a view that no longer exists.
                     if let Some(code_review) = webview.try_state::<Arc<CodeReviewIntegration>>() {
                         code_review.set_view_open(false);
+                    }
+                    // Nor any summary polling for a Redmine view that no longer exists.
+                    if let Some(redmine) = webview.try_state::<Arc<RedmineIntegration>>() {
+                        redmine.set_view_open(false);
                     }
                 }
                 (ipc::CONTROL_CENTER, PageLoadEvent::Started) => {
@@ -344,6 +373,7 @@ pub struct Slots {
     pub system: Arc<SystemSlot>,
     pub claude: Arc<ClaudeSlot>,
     pub code_review: Arc<CodeReviewSlot>,
+    pub redmine: Arc<RedmineSlot>,
 }
 
 /// Every channel of `window.notch` with its handler, plus the `__e2e:*` test channels in the
@@ -359,6 +389,7 @@ pub fn build_registry(slots: &Slots) -> ipc::Registry {
     system::ipc::register(&mut registry, &slots.system);
     claude::ipc::register(&mut registry, &slots.claude);
     code_review::ipc::register(&mut registry, &slots.code_review);
+    redmine::ipc::register(&mut registry, &slots.redmine);
     #[cfg(feature = "e2e")]
     e2e::register(&mut registry);
     registry
@@ -394,6 +425,52 @@ fn install_apps(app: &AppHandle, slot: &AppsSlot, notch: &Arc<NotchRuntime>) {
     if slot.set(handles).is_err() {
         log::error!("apps: installed twice");
     }
+}
+
+/// Redmine (`redmine.bin` holds the key) and its end-of-day alert. The integration fills `slot`
+/// and is managed as `Arc<RedmineIntegration>` (the notch page-load hook); the scheduler is
+/// managed as `Arc<EndOfDay>` (`__e2e:advance-clock`) and listens to `power`. Both start here:
+/// the registry predates `setup`, so the channels already exist (Electron starts code review,
+/// then Redmine, then the end of day, right after `registerIpc`). `None` (channels stay
+/// UNAVAILABLE, no end of day) only when the HTTP client cannot be built.
+fn install_redmine(
+    app: &AppHandle,
+    slot: &RedmineSlot,
+    notch: &Arc<NotchRuntime>,
+    data_dir: &std::path::Path,
+    power: &PowerEvents,
+) -> Option<(Arc<RedmineIntegration>, Arc<EndOfDay>)> {
+    use redmine::alert::{install_end_of_day, AppAlertNotch, EndOfDayWiring, Readings};
+    use redmine::end_of_day::AppEndOfDaySettings;
+    use redmine::ipc::RedmineApi;
+
+    let redmine = redmine::integration::install(app, notch, data_dir)?;
+    app.manage(Arc::clone(&redmine));
+    if slot
+        .set(Arc::clone(&redmine) as Arc<dyn RedmineApi>)
+        .is_err()
+    {
+        log::error!(target: redmine::integration::LOG_TARGET, "Redmine installed twice");
+    }
+    let readings = Arc::clone(&redmine) as Arc<dyn Readings>;
+    let end_of_day = install_end_of_day(
+        EndOfDayWiring {
+            settings: Arc::new(AppEndOfDaySettings(app.clone())),
+            clock: Arc::clone(&app.state::<Arc<services::clock::WallClock>>()),
+            timers: notch.timers(),
+            redmine: Arc::downgrade(&readings),
+            notch: Arc::new(AppAlertNotch {
+                app: app.clone(),
+                controller: Arc::clone(&notch.controller),
+            }),
+        },
+        chrono::Local,
+        power,
+    );
+    app.manage(Arc::clone(&end_of_day));
+    redmine.start();
+    end_of_day.start();
+    Some((redmine, end_of_day))
 }
 
 /// The reminders (`reminders.json`) on the shared wall clock and timers (both follow the E2E

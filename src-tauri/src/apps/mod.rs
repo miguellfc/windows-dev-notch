@@ -349,6 +349,53 @@ fn spawn_process(request: &SpawnRequest) -> bool {
     true
 }
 
+/// `openExternal(url)`; the error is a code only.
+pub type OpenExternal = Arc<dyn Fn(String) -> BoxFuture<'static, Result<(), String>> + Send + Sync>;
+
+/// `^http:\/\/127\.0\.0\.1:(\d{1,5})$` with the port in 1..=65535 (`\d` is ASCII in a JS regex
+/// without `u`).
+pub fn is_loopback_origin(value: &str) -> bool {
+    let Some(port) = value.strip_prefix("http://127.0.0.1:") else {
+        return false;
+    };
+    (1..=5).contains(&port.len())
+        && port.bytes().all(|byte| byte.is_ascii_digit())
+        && port
+            .parse::<u32>()
+            .is_ok_and(|port| (1..=65_535).contains(&port))
+}
+
+/// The `https` origin of `url`, or `None` (not a URL, or not https).
+pub fn origin_of(url: &str) -> Option<String> {
+    let parsed = url::Url::parse(url).ok()?;
+    (parsed.scheme() == "https").then(|| parsed.origin().ascii_serialization())
+}
+
+/// `shell.openExternal`, or the test recorder under `NOTCH_OPEN_URL_LOG=1` (dev/E2E only):
+/// E2E never opens a real browser.
+pub fn opener(app: &tauri::AppHandle) -> OpenExternal {
+    use tauri::Manager;
+    if let Some(log) = app.try_state::<Arc<OpenedUrls>>() {
+        let log = Arc::clone(&log);
+        return Arc::new(move |url: String| {
+            log.record(url);
+            Box::pin(async { Ok(()) })
+        });
+    }
+    Arc::new(|url: String| {
+        Box::pin(async move {
+            let opened = tauri::async_runtime::spawn_blocking(move || shell_open(&url))
+                .await
+                .unwrap_or(false);
+            if opened {
+                Ok(())
+            } else {
+                Err("ShellExecute".to_owned())
+            }
+        })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::OsString;

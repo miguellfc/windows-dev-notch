@@ -73,6 +73,7 @@ pub mod claude;
 pub mod code_review;
 pub mod notch;
 pub mod notes;
+pub mod redmine;
 pub mod reminders;
 pub mod settings;
 pub mod system;
@@ -97,6 +98,13 @@ pub type Ack = ();
 
 impl Validate for () {}
 impl Validate for bool {}
+
+/// `z.array(schema)`: every item passes its schema.
+impl<T: Validate> Validate for Vec<T> {
+    fn validate(&self) -> Result<(), String> {
+        self.iter().try_for_each(Validate::validate)
+    }
+}
 
 string_enum! {
     /// Why a notes or reminders snapshot may be incomplete: the corrupt file was moved aside, or
@@ -235,6 +243,28 @@ pub fn check(
             "code-review:refresh" | "code-review:open" | "code-review:clear" | "code-review:view",
             Output,
         ) => required::<Ack>(value),
+        (
+            "redmine:get-state" | "redmine:issues" | "redmine:activities" | "redmine:summary"
+            | "redmine:refresh" | "redmine:clear",
+            Input,
+        ) => none(value),
+        ("redmine:get-state", Output) => required::<redmine::RedmineState>(value),
+        ("redmine:issues", Output) => required::<redmine::RedmineIssueList>(value),
+        ("redmine:issue" | "redmine:open", Input) => required::<redmine::RedmineIdInput>(value),
+        ("redmine:issue", Output) => required::<redmine::RedmineIssueDetail>(value),
+        ("redmine:activities", Output) => required::<Vec<redmine::RedmineActivity>>(value),
+        ("redmine:update-issue", Input) => required::<redmine::UpdateIssueInput>(value),
+        ("redmine:log-time", Input) => required::<redmine::LogTimeInput>(value),
+        ("redmine:update-issue" | "redmine:log-time", Output) => {
+            required::<redmine::RedmineWriteResult>(value)
+        }
+        ("redmine:summary", Output) => required::<redmine::RedmineSummaryResult>(value),
+        ("redmine:view", Input) => required::<redmine::RedmineViewInput>(value),
+        ("redmine:set-key", Input) => required::<redmine::SetKeyInput>(value),
+        ("redmine:set-key", Output) => required::<redmine::RedmineSetKeyResult>(value),
+        ("redmine:view" | "redmine:refresh" | "redmine:open" | "redmine:clear", Output) => {
+            required::<Ack>(value)
+        }
         ("system:view", Input) => required::<system::ViewInput>(value),
         ("system:view", Output) => required::<Ack>(value),
         ("system:kill-process", Input) => required::<system::KillInput>(value),
@@ -280,6 +310,9 @@ pub fn check(
         ("code-review:contributions-changed", Event) => {
             required::<code_review::ContributionsChanged>(value)
         }
+        ("redmine:state", Event) => required::<redmine::RedmineState>(value),
+        ("redmine:summary-changed", Event) => required::<redmine::RedmineSummaryChanged>(value),
+        ("redmine:alert", Event) => required::<redmine::RedmineAlert>(value),
         _ => return None,
     };
     Some(verdict)

@@ -47,6 +47,9 @@ function appEnv(dataDir: string): Record<string, string> {
     // platforms point at a closed loopback port (the discard port, nothing listens there) unless a
     // spec passes its fake server per launch; URLs to open are recorded, never opened.
     NOTCH_CODE_REVIEW_BASE_URLS: 'github=http://127.0.0.1:9,gitlab=http://127.0.0.1:9',
+    // Redmine: likewise, the API points at the closed loopback port unless redmine.spec passes its
+    // fake server per launch; no app of the run can reach a real Redmine.
+    NOTCH_REDMINE_BASE_URL: 'http://127.0.0.1:9',
     NOTCH_OPEN_URL_LOG: '1',
   }
 }
@@ -94,7 +97,7 @@ type TauriCapabilities = Capabilities.RequestedStandaloneCapabilities & { 'tauri
 
 export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } = {
   runner: 'local',
-  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts'],
+  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts', './redmine.spec.ts'],
   maxInstances: 1,
   hostname: '127.0.0.1',
   port: DRIVER_PORT,

@@ -23,6 +23,7 @@ use crate::ipc::{
 use crate::notch::display::work_area_dip;
 use crate::notch::runtime::NotchRuntime;
 use crate::notch::state::NotchEvent;
+use crate::redmine::end_of_day::EndOfDay;
 use crate::reminders::Reminders;
 use crate::services::clock::WallClock;
 
@@ -184,7 +185,8 @@ struct AdvanceClockInput {
 impl Validate for AdvanceClockInput {}
 
 /// Moves the test clock (`__notchTestClock.advance`): the wall clock, the timers due by then,
-/// and answers once the reminders check it forces has finished (Electron returns that promise).
+/// runs the end-of-day check, and answers once the reminders check it forces has finished
+/// (Electron returns that promise).
 fn advance_clock(app: AppHandle, input: Value) -> BoxFuture<'static, Result<Value, ExposedError>> {
     Box::pin(async move {
         let AdvanceClockInput { ms } = parse_input(input)?;
@@ -196,6 +198,14 @@ fn advance_clock(app: AppHandle, input: Value) -> BoxFuture<'static, Result<Valu
             wall.advance(i64::try_from(ms).unwrap_or(i64::MAX));
         }
         clock.advance(ms);
+        // Then the end-of-day check, before the reminders (Electron: `fireDue()`, then
+        // `redmineEndOfDay.check()`, then `reminders.check()`). Synchronous and quick.
+        let end_of_day = app
+            .try_state::<Arc<EndOfDay>>()
+            .map(|state| Arc::clone(&state));
+        if let Some(end_of_day) = end_of_day {
+            end_of_day.check();
+        }
         let reminders = app
             .try_state::<Arc<Reminders>>()
             .map(|state| Arc::clone(&state));

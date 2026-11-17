@@ -103,3 +103,28 @@ Lectura:
 - Las pruebas de extremo a extremo pasan de 44 a 49 (`code-review.spec.ts`, 5) y tardan unos 3 min y 40 s. Corren contra el servidor falso de Electron en `127.0.0.1`, sin tokens reales y sin abrir el navegador.
 - El ejecutable de `release` sigue sin ningún canal `__e2e:` (comprobado buscando el texto en el binario).
 
+## Parte 5: Redmine (2026-11-16)
+
+La parte 4 más Redmine: el cliente REST (solo `https`, sin proxy, sin redirecciones), las horas de hoy en la cápsula, las tareas asignadas con su detalle, los cambios de estado y estimación, la imputación de horas, el resumen de hoy, semana y mes (solo con la vista abierta), el aviso de fin de jornada, la clave cifrada con DPAPI en `redmine.bin` y los 12 canales `redmine:*`. Gmail sigue respondiendo `UNAVAILABLE`. Compilado con `npm run tauri:build` (perfil `release`, NSIS).
+
+Mismo método que la parte 4: una compilación de `release` con la feature `e2e` (`tauri build --no-bundle --features e2e`, en otra carpeta de destino), con una carpeta de datos temporal y vacía, el `settings.json` de Claude temporal, el puerto del puente efímero, las dos plataformas de revisiones y Redmine apuntando al puerto cerrado 9 de `127.0.0.1` y la anotación de URL activa. Así, revisiones y Redmine están sin configurar, igual que en la medición de la parte 4. Árbol de procesos completo, 15 s después de arrancar, en reposo en peek y sin abrir el Control Center, con una ventana de CPU de 15 s y otra de 60 s. Se midió dos veces; los procesos se cerraron al acabar.
+
+Las mismas salvedades que en la parte 4:
+
+- El perfil está vacío, con los ajustes por defecto (sin clave de Redmine, así que no hay sondeo ni comprobación de fin de jornada con sesión).
+- El binario medido lleva la feature `e2e`, así que no es exactamente el ejecutable que se distribuye. El tamaño del instalador y del ejecutable sí son los de `npm run tauri:build`.
+
+| | Memoria privada | Conjunto de trabajo | CPU en reposo (15 s / 60 s) | Instalador | En disco |
+|---|---|---|---|---|---|
+| Developer Notch 0.2.0-dev (Tauri, parte 5) | 179 MB | 377–382 MB | 0,62–0,73 % / 0,34 % | 2,98 MB | 10,33 MB exe + WebView2 del sistema |
+
+Desglose de la memoria privada por proceso: principal (Rust) 7, navegador WebView2 32, GPU 84–85, renderer 33–34, red 12, almacenamiento 7–8, crashpad 3.
+
+Lectura:
+
+- Siguen siendo 7 procesos y la memoria queda donde estaba en las partes 2 a 4 (174–189 MB). El proceso de Rust con Redmine sigue en 7 MB.
+- El instalador pasa de 2,89 a 2,98 MB (3 119 606 B) y el ejecutable de 9,99 a 10,33 MB (10 834 432 B), por el módulo de Redmine; no hay dependencias nuevas (reutiliza el cliente HTTP de la parte 4).
+- CPU: entre 0,34 y 0,73 % de un núcleo, en el mismo ruido de los procesos de WebView2 que en las partes 2 a 4. Sin clave no hay sondeo; con clave, el trabajo propio es una consulta cada 5 min, el resumen cada 15 min solo con la vista abierta y la comprobación de fin de jornada cada 60 s dentro de su hora.
+- Las pruebas de extremo a extremo pasan de 49 a 52 (`redmine.spec.ts`, 3). Corren contra el servidor falso de Electron en `127.0.0.1`, con su clave falsa, sin abrir el navegador.
+- El ejecutable de `release` sigue sin ningún canal `__e2e:` (comprobado buscando el texto en el binario).
+

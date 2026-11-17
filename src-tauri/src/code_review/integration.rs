@@ -23,6 +23,8 @@ use tokio::sync::watch;
 use super::client::{to_review_item, ClientItem, CodeReviewClient, CodeReviewError};
 use super::detector::{merge_uncertain, Alert, ReviewDetector};
 use super::ipc::{CodeReviewApi, CodeReviewSlot};
+pub use crate::apps::OpenExternal;
+use crate::apps::{is_loopback_origin, opener, origin_of};
 use crate::contract::code_review::{
     CodeReviewAlert, CodeReviewList, CodeReviewState, ContributionSummary, ContributionsChanged,
     ContributionsResult, Platform, PlatformState, PlatformStatus, ReviewState, SetTokenReason,
@@ -34,6 +36,7 @@ use crate::ipc::{BoxFuture, ExposedError, IpcErrorCode};
 use crate::notch::runtime::NotchRuntime;
 use crate::services::clock::WallClock;
 use crate::services::secure_token_store::SecureTokenStore;
+pub use crate::services::secure_token_store::TokenStore;
 use crate::services::timers::{TimerId, Timers};
 use crate::settings::validate::normalize_gitlab_url;
 
@@ -52,16 +55,6 @@ pub const LOG_TARGET: &str = concat!(env!("CARGO_CRATE_NAME"), "::code-review");
 
 const PLATFORMS: [Platform; 2] = [Platform::Github, Platform::Gitlab];
 
-/// One platform's token file (`Pick<TokenStore, 'load' | 'save' | 'clear' | 'persistent'>`).
-/// Errors are a code or kind only, never a message.
-pub trait TokenStore: Send + Sync {
-    fn load(&self) -> BoxFuture<'_, Result<Option<String>, String>>;
-    fn save<'a>(&'a self, token: &'a str) -> BoxFuture<'a, Result<(), String>>;
-    fn clear(&self) -> BoxFuture<'_, Result<(), String>>;
-    /// True when a saved token survives a restart (asked on every `state()`).
-    fn persistent(&self) -> bool;
-}
-
 /// `CodeReviewSettingsSource` without `onChange`: the wiring calls
 /// [`CodeReviewIntegration::on_settings_changed`] from the store's listener instead.
 pub trait SettingsSource: Send + Sync {
@@ -77,8 +70,6 @@ pub type GithubFactory = Arc<dyn Fn(&str) -> Arc<dyn CodeReviewClient> + Send + 
 pub type GitlabFactory = Arc<dyn Fn(&str, &str) -> Option<Arc<dyn CodeReviewClient>> + Send + Sync>;
 /// Runs a task in the background (`tauri::async_runtime::spawn`; `tokio::spawn` in tests).
 pub type Spawner = Arc<dyn Fn(BoxFuture<'static, ()>) + Send + Sync>;
-/// `openExternal(url)`; the error is a code only.
-pub type OpenExternal = Arc<dyn Fn(String) -> BoxFuture<'static, Result<(), String>> + Send + Sync>;
 
 /// `CodeReviewIntegrationOptions`.
 pub struct CodeReviewDeps {
@@ -106,19 +97,6 @@ pub struct CodeReviewDeps {
 pub struct BaseOverrides {
     pub github: Option<String>,
     pub gitlab: Option<String>,
-}
-
-/// `^http:\/\/127\.0\.0\.1:(\d{1,5})$` with the port in 1..=65535 (`\d` is ASCII in a JS regex
-/// without `u`).
-fn is_loopback_origin(value: &str) -> bool {
-    let Some(port) = value.strip_prefix("http://127.0.0.1:") else {
-        return false;
-    };
-    (1..=5).contains(&port.len())
-        && port.bytes().all(|byte| byte.is_ascii_digit())
-        && port
-            .parse::<u32>()
-            .is_ok_and(|port| (1..=65_535).contains(&port))
 }
 
 /// `NOTCH_CODE_REVIEW_BASE_URLS` (`github=http://127.0.0.1:1234,gitlab=http://127.0.0.1:1234`):
@@ -153,12 +131,6 @@ pub fn base_overrides_from(enabled: bool, raw: Option<&str>) -> BaseOverrides {
     } else {
         BaseOverrides::default()
     }
-}
-
-/// The `https` origin of `url`, or `None` (not a URL, or not https).
-fn origin_of(url: &str) -> Option<String> {
-    let parsed = url::Url::parse(url).ok()?;
-    (parsed.scheme() == "https").then(|| parsed.origin().ascii_serialization())
 }
 
 /// `errorCode`: only a code, never a message (messages could quote tokens or titles).
@@ -1186,31 +1158,6 @@ impl CodeReviewApi for CodeReviewIntegration {
     }
 }
 
-impl TokenStore for SecureTokenStore {
-    fn load(&self) -> BoxFuture<'_, Result<Option<String>, String>> {
-        Box::pin(async move { Ok(SecureTokenStore::load(self).await) })
-    }
-
-    fn save<'a>(&'a self, token: &'a str) -> BoxFuture<'a, Result<(), String>> {
-        Box::pin(async move {
-            SecureTokenStore::save(self, token)
-                .await
-                .map_err(|error| format!("{:?}", error.kind()))
-        })
-    }
-
-    fn clear(&self) -> BoxFuture<'_, Result<(), String>> {
-        Box::pin(async move {
-            SecureTokenStore::clear(self).await;
-            Ok(())
-        })
-    }
-
-    fn persistent(&self) -> bool {
-        SecureTokenStore::persistent(self)
-    }
-}
-
 // ---------------------------------------------------------------------------------------------
 // Tauri wiring (`src/main/index.ts`)
 
@@ -1246,32 +1193,6 @@ impl SettingsSource for AppSettings {
                 .map_err(|error| format!("{:?}", error.code()))
         })
     }
-}
-
-/// `shell.openExternal`, or the test recorder under `NOTCH_OPEN_URL_LOG=1` (dev/E2E only):
-/// E2E never opens a real browser.
-fn opener(app: &tauri::AppHandle) -> OpenExternal {
-    use tauri::Manager;
-    if let Some(log) = app.try_state::<Arc<crate::apps::OpenedUrls>>() {
-        let log = Arc::clone(&log);
-        return Arc::new(move |url: String| {
-            log.record(url);
-            Box::pin(async { Ok(()) })
-        });
-    }
-    Arc::new(|url: String| {
-        Box::pin(async move {
-            let opened =
-                tauri::async_runtime::spawn_blocking(move || crate::apps::shell_open(&url))
-                    .await
-                    .unwrap_or(false);
-            if opened {
-                Ok(())
-            } else {
-                Err("ShellExecute".to_owned())
-            }
-        })
-    })
 }
 
 /// Creates the integration on the notch's timers and the shared wall clock, fills `slot` and

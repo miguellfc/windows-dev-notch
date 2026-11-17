@@ -82,7 +82,7 @@ string_enum! {
 }
 
 /// `z.string().max(max)` on the field `name`.
-fn max_len(name: &str, value: &str, max: usize) -> Result<(), String> {
+pub(super) fn max_len(name: &str, value: &str, max: usize) -> Result<(), String> {
     if length(value) <= max {
         Ok(())
     } else {
@@ -91,7 +91,7 @@ fn max_len(name: &str, value: &str, max: usize) -> Result<(), String> {
 }
 
 /// `z.string().min(min).max(max)` on the field `name`.
-fn len_in(name: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
+pub(super) fn len_in(name: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
     if (min..=max).contains(&length(value)) {
         Ok(())
     } else {
@@ -100,7 +100,7 @@ fn len_in(name: &str, value: &str, min: usize, max: usize) -> Result<(), String>
 }
 
 /// `z.int().min(min)` on a field deserialized as an unsigned integer (also `<= MAX_SAFE_INTEGER`).
-fn safe_int_min(name: &str, value: u64, min: u64) -> Result<(), String> {
+pub(super) fn safe_int_min(name: &str, value: u64, min: u64) -> Result<(), String> {
     if (min..=MAX_SAFE_INTEGER).contains(&value) {
         Ok(())
     } else {
@@ -109,7 +109,7 @@ fn safe_int_min(name: &str, value: u64, min: u64) -> Result<(), String> {
 }
 
 /// `.max(max)` on the array `name`.
-fn at_most(name: &str, len: usize, max: usize) -> Result<(), String> {
+pub(super) fn at_most(name: &str, len: usize, max: usize) -> Result<(), String> {
     if len <= max {
         Ok(())
     } else {
