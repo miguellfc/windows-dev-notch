@@ -16,12 +16,12 @@ export function Switch({ checked, disabled = false, label, describedBy, onChange
       aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full border border-line bg-veil-tile transition-colors duration-200 aria-checked:border-select/40 aria-checked:bg-select/25 disabled:cursor-not-allowed disabled:opacity-40"
+      className="relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full bg-[#26262a] transition-colors duration-200 aria-checked:bg-select disabled:cursor-not-allowed disabled:opacity-40"
     >
       <span
         aria-hidden="true"
         className={`ml-[3px] h-4 w-4 rounded-full transition-transform duration-200 ease-out ${
-          checked ? 'translate-x-4 bg-select' : 'translate-x-0 bg-graphite'
+          checked ? 'translate-x-4 bg-on-select' : 'translate-x-0 bg-graphite'
         }`}
       />
     </button>

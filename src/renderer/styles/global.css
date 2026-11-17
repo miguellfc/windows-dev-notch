@@ -120,6 +120,59 @@ body {
   border-radius: 999px;
 }
 
+@layer components {
+  .card {
+    background-color: var(--color-veil);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+  .row-hover:hover,
+  .row-hover:focus-visible {
+    background-color: var(--color-veil-tile);
+    border-radius: var(--radius-tile);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 0 12px;
+    border-radius: var(--radius-control);
+    background-color: var(--color-veil-hover);
+    color: var(--color-chalk);
+    font-size: var(--text-small);
+    font-weight: 500;
+    cursor: pointer;
+    transition: filter 150ms;
+  }
+  .btn:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  .btn-primary {
+    background-color: var(--color-select);
+    color: var(--color-on-select);
+  }
+  /* Tiza ring beside a Tiza button: the 2 px Obsidiana Densa gap keeps the ring visible. */
+  .btn-primary:focus-visible {
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--color-obsidian-dense);
+  }
+  .btn-danger {
+    color: var(--color-fail);
+  }
+  .field {
+    border-radius: var(--radius-control);
+    background-color: var(--color-field);
+    border: 1px solid var(--color-line-strong);
+    caret-color: var(--color-select);
+  }
+}
+
 .tabular {
   font-variant-numeric: tabular-nums;
 }
