@@ -23,7 +23,7 @@ const RESULT_MESSAGES: Readonly<Record<Exclude<KillResult, 'killed'>, MessageKey
 const closeButton =
   'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite opacity-0 transition-[color,background-color,opacity] duration-150 hover:bg-veil-tile hover:text-chalk group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
 const confirmButton =
-  'h-6 shrink-0 cursor-pointer rounded-control-sm px-2.5 text-label font-medium transition-colors duration-150 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
+  'btn h-6 shrink-0 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:[filter:none]'
 
 const ROW = '[data-process-id]'
 /** The button a row hands focus to: its ✕, or Cancel while it asks to confirm (never Close). */
@@ -163,7 +163,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
         data-testid="process-list"
         onFocus={onListFocus}
         onBlur={onListBlur}
-        className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1"
+        className="card flex min-h-0 flex-1 flex-col overflow-y-auto"
       >
         {rows.map((row) => {
           const id = rowId(row)
@@ -189,7 +189,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
                 data-process-id={id}
                 data-testid="process-confirm"
                 onKeyDown={onKeyDown}
-                className="flex h-6 shrink-0 items-center gap-1.5 rounded-control-sm bg-veil pl-2"
+                className="flex h-6 shrink-0 items-center gap-1.5 border-t border-line bg-veil-tile pl-2 first:border-t-0"
               >
                 <span id={questionId} title={question} className="min-w-0 flex-1 truncate text-small text-chalk">
                   {question}
@@ -205,7 +205,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
                   onClick={() => {
                     if (!busy && confirmArmed(openedAt, performance.now())) kill(row)
                   }}
-                  className={`${confirmButton} bg-veil-tile text-fail hover:bg-veil-hover aria-disabled:hover:bg-veil-tile`}
+                  className={`${confirmButton} btn-danger`}
                 >
                   {t('system.process.confirmClose')}
                 </button>
@@ -225,7 +225,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
               data-process-id={id}
               data-testid="process-row"
               data-pid={row.pid}
-              className="group flex h-6 shrink-0 items-center gap-2 rounded-control-sm pl-2 hover:bg-veil"
+              className="row-hover group flex h-6 shrink-0 items-center gap-2 border-t border-line pl-2 first:border-t-0"
             >
               <span title={row.name} className="min-w-0 flex-1 truncate text-small text-chalk">
                 {row.name}
@@ -297,7 +297,7 @@ function CancelButton({
       onClick={() => {
         if (!busy) onCancel()
       }}
-      className={`${confirmButton} text-graphite hover:bg-veil-tile hover:text-chalk aria-disabled:hover:bg-transparent aria-disabled:hover:text-graphite`}
+      className={confirmButton}
     >
       {label}
     </button>

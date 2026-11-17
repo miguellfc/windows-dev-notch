@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { FullSample, LightSample } from '../../../shared/system/schema'
 import { useLanguage, useT } from '../../shared/use-t'
 import { formatBytes, formatDuration, formatPercent, formatRate } from './format'
+import { Ring } from './Ring'
 import { Sparkline } from './Sparkline'
 
 /** RAM in use as a percentage; null when it could not be read. */
@@ -20,7 +21,11 @@ interface MetricCardsProps {
   ramHistory: readonly number[]
 }
 
-const card = 'flex h-16 min-w-0 flex-col justify-between rounded-tile border border-line bg-veil px-2.5 py-2'
+const card = 'card flex h-16 min-w-0 items-center gap-2 px-2.5 py-2'
+/** The column beside a ring (or the whole card without one): head on top, line or detail below. */
+const column = 'flex h-full min-w-0 flex-1 flex-col justify-between'
+const lineColor = 'text-[color:var(--int,var(--color-int-default))]'
+const lineAlert = 'text-fail'
 const label = 'truncate text-label leading-3.5 font-medium text-graphite'
 const value = 'digits text-digits-lg shrink-0 whitespace-nowrap text-chalk'
 /** The same figure in Rojo Fallo, for a metric past its alert threshold. */
@@ -53,8 +58,11 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
         aria-label={t(cpuAlert ? 'system.capsule.cpuHigh' : 'system.capsule.cpu', { value: cpuText })}
         className={card}
       >
-        <CardHead label={t('system.card.cpu')} value={cpuText} alert={cpuAlert} />
-        <Sparkline values={cpuHistory} className="h-5 w-full text-graphite" />
+        <Ring percent={sample?.cpuPercent ?? null} alert={cpuAlert} />
+        <div className={column}>
+          <CardHead label={t('system.card.cpu')} value={cpuText} alert={cpuAlert} />
+          <Sparkline values={cpuHistory} className={`h-4 w-full ${cpuAlert ? lineAlert : lineColor}`} />
+        </div>
       </div>
       <div
         data-testid="system-card-ram"
@@ -72,22 +80,27 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
         }
         className={card}
       >
-        <CardHead
-          label={t('system.card.ram')}
-          detail={ram ? formatBytes(ram.usedBytes, language) : undefined}
-          value={ramText}
-          alert={ramAlert}
-        />
-        <Sparkline values={ramHistory} className="h-5 w-full text-graphite" />
+        <Ring percent={ramPercent(sample)} alert={ramAlert} />
+        <div className={column}>
+          <CardHead
+            label={t('system.card.ram')}
+            detail={ram ? formatBytes(ram.usedBytes, language) : undefined}
+            value={ramText}
+            alert={ramAlert}
+          />
+          <Sparkline values={ramHistory} className={`h-4 w-full ${ramAlert ? lineAlert : lineColor}`} />
+        </div>
       </div>
       <div data-testid="system-card-network" role="group" aria-label={t('system.card.network')} className={card}>
-        <span className={label} aria-hidden="true">
-          {t('system.card.network')}
-        </span>
-        <span className="flex flex-col">
-          <Rate icon={ArrowUp} text={upText} label={t('system.card.up', { value: upText })} />
-          <Rate icon={ArrowDown} text={downText} label={t('system.card.down', { value: downText })} />
-        </span>
+        <div className={column}>
+          <span className={label} aria-hidden="true">
+            {t('system.card.network')}
+          </span>
+          <span className="flex flex-col">
+            <Rate icon={ArrowUp} text={upText} label={t('system.card.up', { value: upText })} />
+            <Rate icon={ArrowDown} text={downText} label={t('system.card.down', { value: downText })} />
+          </span>
+        </div>
       </div>
       {battery && (
         <div
@@ -98,16 +111,19 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
           }
           className={card}
         >
-          <CardHead label={t('system.card.battery')} value={batteryText} alert={batteryAlert} />
-          <span className="truncate text-label leading-3.5 text-graphite">
-            {battery.charging
-              ? t('system.card.charging')
-              : battery.pluggedIn
-                ? t('system.card.pluggedIn')
-                : battery.secondsLeft !== null
-                  ? t('system.card.timeLeft', { time: formatDuration(battery.secondsLeft, language) })
-                  : t('system.card.onBattery')}
-          </span>
+          <Ring percent={battery.percent} alert={batteryAlert} />
+          <div className={column}>
+            <CardHead label={t('system.card.battery')} value={batteryText} alert={batteryAlert} />
+            <span className="truncate text-label leading-3.5 text-graphite">
+              {battery.charging
+                ? t('system.card.charging')
+                : battery.pluggedIn
+                  ? t('system.card.pluggedIn')
+                  : battery.secondsLeft !== null
+                    ? t('system.card.timeLeft', { time: formatDuration(battery.secondsLeft, language) })
+                    : t('system.card.onBattery')}
+            </span>
+          </div>
         </div>
       )}
     </div>

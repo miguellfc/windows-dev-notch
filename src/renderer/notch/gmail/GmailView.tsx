@@ -226,7 +226,7 @@ export function GmailView() {
             type="button"
             data-testid="gmail-open-inbox"
             onClick={() => void window.notch.gmail.open({})}
-            className="ml-auto flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-control-sm px-2 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-tile"
+            className="btn ml-auto h-6 shrink-0"
           >
             {t('gmail.view.openGmail')}
             <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" className="text-graphite" />

@@ -3,7 +3,7 @@ import { useT } from '../../shared/use-t'
 import { confirmArmed } from '../system/confirm-guard'
 
 const confirmButton =
-  'h-6 shrink-0 cursor-pointer rounded-control-sm px-2.5 text-label font-medium transition-colors duration-150 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
+  'btn h-6 shrink-0 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:[filter:none]'
 
 /**
  * "¿Borrar para siempre? Cancelar · Borrar", inline in a row or the reader's footer. Deleting is
@@ -51,7 +51,7 @@ export function DeleteConfirm({
         onClick={() => {
           if (!busy) onCancel()
         }}
-        className={`${confirmButton} text-graphite hover:bg-veil-tile hover:text-chalk aria-disabled:hover:bg-transparent aria-disabled:hover:text-graphite`}
+        className={confirmButton}
       >
         {t('gmail.confirm.cancel')}
       </button>
@@ -62,7 +62,7 @@ export function DeleteConfirm({
         onClick={() => {
           if (!busy && confirmArmed(openedAt, performance.now())) onConfirm()
         }}
-        className={`${confirmButton} bg-veil-tile text-fail hover:bg-veil-hover aria-disabled:hover:bg-veil-tile`}
+        className={`${confirmButton} btn-danger`}
       >
         {t('gmail.confirm.delete')}
       </button>

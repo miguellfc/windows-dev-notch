@@ -86,7 +86,7 @@ export function SystemView() {
       onKeyDown={onPanelKeyDown}
       className="flex h-full flex-col gap-2 px-3 pb-3 pt-2 outline-none"
     >
-      <header className="flex h-9 shrink-0 items-center gap-1">
+      <header className="flex h-8 shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={() => void window.notch.notch.back()}
