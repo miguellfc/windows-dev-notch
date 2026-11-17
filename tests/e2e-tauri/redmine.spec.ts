@@ -425,7 +425,7 @@ describe('Redmine (Tauri)', () => {
 
     // The panel with its nine tiles, EN then ES.
     await expandPanel()
-    await expectCount('[data-testid^="integration-"]:not([data-testid$="-badge"])', 9)
+    await expectCount('[data-testid^="integration-"]:not([data-testid$="-badge"]):not([data-testid$="-label"])', 9)
     await setLanguage('es')
     await eventually(pageLang, (lang) => lang === 'es', 'lang=es (the panel is mounted)')
 

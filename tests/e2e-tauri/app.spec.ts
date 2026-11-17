@@ -356,7 +356,7 @@ describe('Developer Notch (Tauri)', () => {
             dataset: Record<string, string | undefined>
           }
           const doc = (globalThis as unknown as { document: { querySelectorAll(selector: string): ArrayLike<El> } }).document
-          const tiles = Array.from(doc.querySelectorAll('[data-testid^="integration-"]:not([data-testid$="-badge"])'))
+          const tiles = Array.from(doc.querySelectorAll('[data-testid^="integration-"]:not([data-testid$="-badge"]):not([data-testid$="-label"])'))
           const row = tiles[0]?.parentElement
           return {
             count: tiles.length,
