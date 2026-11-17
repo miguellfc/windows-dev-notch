@@ -6,6 +6,7 @@ pub mod contract;
 pub mod control_center;
 #[cfg(feature = "e2e")]
 pub mod e2e;
+pub mod gmail;
 pub mod http;
 pub mod i18n;
 pub mod ipc;
@@ -31,6 +32,8 @@ use code_review::integration::CodeReviewIntegration;
 use code_review::ipc::CodeReviewSlot;
 use contract::settings::Settings;
 use control_center::ControlCenterState;
+use gmail::integration::GmailIntegration;
+use gmail::ipc::GmailSlot;
 use notch::ipc::NotchSlot;
 use notch::runtime::NotchRuntime;
 use notch::state::NotchEvent;
@@ -84,6 +87,7 @@ pub fn run() {
         claude: claude_slot,
         code_review: code_review_slot,
         redmine: redmine_slot,
+        gmail: gmail_slot,
     } = slots;
 
     let app = tauri::Builder::default()
@@ -204,13 +208,21 @@ pub fn run() {
             let claude =
                 claude::integration::install(app.handle(), &claude_slot, &notch, &usage, &data_dir);
 
-            // GitHub and GitLab code review: after Claude, as in Electron. The stored tokens load
-            // in the background (the channels wait for them); the rhythm starts at once, on the
-            // notch's timers and the shared wall clock (both follow the E2E test clock). With
-            // `NOTCH_OPEN_URL_LOG=1` (dev/E2E only) items are recorded instead of opened.
+            // With `NOTCH_OPEN_URL_LOG=1` (dev/E2E only) the URLs Gmail and code review would
+            // open are recorded instead; both openers check for the recorder when built.
             if apps::open_url_log_switch() {
                 app.manage(Arc::new(apps::OpenedUrls::default()));
             }
+
+            // Gmail: after Claude and before code review, as in Electron, once the settings
+            // store, the wall clock and `OpenedUrls` exist. The stored token loads in the
+            // background (the channels wait for it); the rhythm starts at once, on the notch's
+            // timers and the shared wall clock (both follow the E2E test clock).
+            let gmail = install_gmail(app.handle(), &gmail_slot, &notch, &data_dir);
+
+            // GitHub and GitLab code review: after Gmail, as in Electron. The stored tokens load
+            // in the background (the channels wait for them); the rhythm starts at once, on the
+            // notch's timers and the shared wall clock (both follow the E2E test clock).
             let code_review = code_review::integration::install(
                 app.handle(),
                 &code_review_slot,
@@ -276,9 +288,16 @@ pub fn run() {
                 app.state::<Arc<services::quit::QuitTasks>>()
                     .add_cleanup(move |_thread| system.dispose());
             }
-            // Then code review, as in Electron (after reminders, system and Gmail, not ported
-            // yet): its timers stop and later results and events are dropped; nothing to flush
-            // (tokens are written when saved).
+            // Then Gmail, as in Electron: its timers stop, a pending sign-in is cancelled (its
+            // loopback closes) and later results and events are dropped; nothing to flush (the
+            // refresh token is written when saved).
+            if let Some(gmail) = gmail {
+                app.state::<Arc<services::quit::QuitTasks>>()
+                    .add_cleanup(move |_thread| gmail.dispose());
+            }
+            // Then code review, as in Electron (after reminders, system and Gmail): its timers
+            // stop and later results and events are dropped; nothing to flush (tokens are
+            // written when saved).
             if let Some(code_review) = code_review {
                 app.state::<Arc<services::quit::QuitTasks>>()
                     .add_cleanup(move |_thread| code_review.dispose());
@@ -330,6 +349,10 @@ pub fn run() {
                     if let Some(redmine) = webview.try_state::<Arc<RedmineIntegration>>() {
                         redmine.set_view_open(false);
                     }
+                    // Nor a Gmail list or open message (this also forgets the message's links).
+                    if let Some(gmail) = webview.try_state::<Arc<GmailIntegration>>() {
+                        gmail.set_view_open(false);
+                    }
                 }
                 (ipc::CONTROL_CENTER, PageLoadEvent::Started) => {
                     control_center::page_started(app);
@@ -374,6 +397,7 @@ pub struct Slots {
     pub claude: Arc<ClaudeSlot>,
     pub code_review: Arc<CodeReviewSlot>,
     pub redmine: Arc<RedmineSlot>,
+    pub gmail: Arc<GmailSlot>,
 }
 
 /// Every channel of `window.notch` with its handler, plus the `__e2e:*` test channels in the
@@ -390,6 +414,7 @@ pub fn build_registry(slots: &Slots) -> ipc::Registry {
     claude::ipc::register(&mut registry, &slots.claude);
     code_review::ipc::register(&mut registry, &slots.code_review);
     redmine::ipc::register(&mut registry, &slots.redmine);
+    gmail::ipc::register(&mut registry, &slots.gmail);
     #[cfg(feature = "e2e")]
     e2e::register(&mut registry);
     registry
@@ -471,6 +496,44 @@ fn install_redmine(
     redmine.start();
     end_of_day.start();
     Some((redmine, end_of_day))
+}
+
+/// Gmail (`gmail-token.bin` holds the refresh token) and its client-file picker. The integration
+/// is managed as `Arc<GmailIntegration>` (the notch page-load hook) and fills `slot` with the
+/// picker, then starts: the registry predates `setup`, so the channels already exist (Electron
+/// calls `gmail.start()` at creation). New mail goes to the notch as `gmail:new-mail`, then as
+/// the capsule's mail alert. `None` (channels stay UNAVAILABLE) only when the HTTP client cannot
+/// be built.
+fn install_gmail(
+    app: &AppHandle,
+    slot: &GmailSlot,
+    notch: &Arc<NotchRuntime>,
+    data_dir: &std::path::Path,
+) -> Option<Arc<GmailIntegration>> {
+    use gmail::client_file::{app_file_picker, ClientFilePicker, DiskFiles};
+    use gmail::ipc::{new_mail_listener, AppMailNotch, GmailApi, GmailHandles};
+
+    let on_new_mail = new_mail_listener(Arc::new(AppMailNotch {
+        app: app.clone(),
+        controller: Arc::clone(&notch.controller),
+    }));
+    let gmail = gmail::integration::install(app, notch, data_dir, on_new_mail)?;
+    app.manage(Arc::clone(&gmail));
+    // The dialog's owner is the Control Center, read from the handle the main thread recorded.
+    let owner = {
+        let notch = Arc::clone(notch);
+        Arc::new(move || notch.control_center_hwnd().unwrap_or(0))
+    };
+    let picker = ClientFilePicker::new(app_file_picker(owner), Arc::new(DiskFiles));
+    let handles = GmailHandles {
+        api: Arc::clone(&gmail) as Arc<dyn GmailApi>,
+        client_file: Arc::new(picker),
+    };
+    if slot.set(handles).is_err() {
+        log::error!(target: gmail::integration::LOG_TARGET, "Gmail installed twice");
+    }
+    gmail.start();
+    Some(gmail)
 }
 
 /// The reminders (`reminders.json`) on the shared wall clock and timers (both follow the E2E

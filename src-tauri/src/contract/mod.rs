@@ -67,10 +67,33 @@ macro_rules! input_entry {
 /// [`string_enum!`] for the modules outside `contract` (path-based, so declaration order is free).
 pub(crate) use string_enum;
 
+/// A redacted `Debug` for a type that holds secrets or mail data: it prints only the listed
+/// fields, each an expression over the value (`|this| { "unread": this.unread }`), which must be
+/// a status, a count or a boolean. Everything else stays out (`Name { unread: true, .. }`).
+macro_rules! redacted_debug {
+    ($ty:ty $(, |$this:ident| { $($field:literal: $value:expr),* $(,)? })? $(,)?) => {
+        impl ::std::fmt::Debug for $ty {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                let name = ::std::any::type_name::<Self>();
+                let mut out = f.debug_struct(name.rsplit("::").next().unwrap_or(name));
+                $(
+                    let $this = self;
+                    $(out.field($field, &$value);)*
+                )?
+                out.finish_non_exhaustive()
+            }
+        }
+    };
+}
+
+/// [`redacted_debug!`] for the modules outside `contract`.
+pub(crate) use redacted_debug;
+
 pub mod app;
 pub mod apps;
 pub mod claude;
 pub mod code_review;
+pub mod gmail;
 pub mod notch;
 pub mod notes;
 pub mod redmine;
@@ -81,7 +104,7 @@ pub mod text;
 pub mod usage;
 
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use crate::ipc::{ExposedError, IpcErrorCode};
@@ -98,6 +121,13 @@ pub type Ack = ();
 
 impl Validate for () {}
 impl Validate for bool {}
+
+/// `schema.nullable()` at the top level (`gmail:pick-client-file`): `null`, or a valid value.
+impl<T: Validate> Validate for Option<T> {
+    fn validate(&self) -> Result<(), String> {
+        self.as_ref().map_or(Ok(()), Validate::validate)
+    }
+}
 
 /// `z.array(schema)`: every item passes its schema.
 impl<T: Validate> Validate for Vec<T> {
@@ -123,15 +153,41 @@ pub enum Direction {
     Event,
 }
 
-/// Deserializes and validates a value.
-pub fn parse<T: DeserializeOwned + Validate>(value: Value) -> Result<T, String> {
-    let parsed: T = serde_json::from_value(value).map_err(|error| error.to_string())?;
+/// Deserializes and validates a value, then checks its shape (see [`same_shape`]).
+pub fn parse<T: DeserializeOwned + Serialize + Validate>(value: Value) -> Result<T, String> {
+    let parsed: T = serde_json::from_value(value.clone()).map_err(|error| error.to_string())?;
+    let shape = serde_json::to_value(&parsed).map_err(|error| error.to_string())?;
+    if !same_shape(&shape, &value) {
+        return Err("expected an object or an array where the schema has one".into());
+    }
     parsed.validate()?;
     Ok(parsed)
 }
 
+/// serde reads a struct from a JSON array too (`["m1"]` as `{ "id": "m1" }`), which zod never
+/// accepts. So the parsed value is serialized again and walked together with the input: where
+/// the parsed shape has an object the input must have an object, and where it has an array the
+/// input must have an array. Only keys present in both are followed, since defaults and skipped
+/// `None`s add or drop keys. This covers nested and untagged types alike.
+fn same_shape(shape: &Value, input: &Value) -> bool {
+    match (shape, input) {
+        (Value::Object(shape), Value::Object(input)) => shape
+            .iter()
+            .all(|(key, shape)| input.get(key).is_none_or(|input| same_shape(shape, input))),
+        (Value::Object(_), _) => false,
+        (Value::Array(shape), Value::Array(input)) => shape
+            .iter()
+            .zip(input)
+            .all(|(shape, input)| same_shape(shape, input)),
+        (Value::Array(_), _) => false,
+        _ => true,
+    }
+}
+
 /// [`parse`] for a handler's input: a refusal is INVALID_INPUT, like the Electron dispatcher.
-pub fn parse_input<T: DeserializeOwned + Validate>(value: Value) -> Result<T, ExposedError> {
+pub fn parse_input<T: DeserializeOwned + Serialize + Validate>(
+    value: Value,
+) -> Result<T, ExposedError> {
     parse(value).map_err(|_| ExposedError::new(IpcErrorCode::InvalidInput, "Invalid input"))
 }
 
@@ -143,13 +199,17 @@ fn none(value: Option<&Value>) -> Result<(), String> {
     }
 }
 
-fn required<T: DeserializeOwned + Validate>(value: Option<&Value>) -> Result<(), String> {
+fn required<T: DeserializeOwned + Serialize + Validate>(
+    value: Option<&Value>,
+) -> Result<(), String> {
     let value = value.ok_or("a value is required")?;
     parse::<T>(value.clone()).map(drop)
 }
 
 /// `schema.optional()`: not sent, or a valid value (`null` is not "not sent").
-fn optional<T: DeserializeOwned + Validate>(value: Option<&Value>) -> Result<(), String> {
+fn optional<T: DeserializeOwned + Serialize + Validate>(
+    value: Option<&Value>,
+) -> Result<(), String> {
     value.map_or(Ok(()), |value| parse::<T>(value.clone()).map(drop))
 }
 
@@ -265,6 +325,40 @@ pub fn check(
         ("redmine:view" | "redmine:refresh" | "redmine:open" | "redmine:clear", Output) => {
             required::<Ack>(value)
         }
+        (
+            "gmail:get-state"
+            | "gmail:recent"
+            | "gmail:refresh"
+            | "gmail:close-message"
+            | "gmail:sign-in"
+            | "gmail:cancel-sign-in"
+            | "gmail:sign-out"
+            | "gmail:pick-client-file",
+            Input,
+        ) => none(value),
+        ("gmail:get-state", Output) => required::<gmail::GmailState>(value),
+        ("gmail:recent", Output) => required::<gmail::GmailRecent>(value),
+        ("gmail:view", Input) => required::<gmail::GmailViewInput>(value),
+        ("gmail:open", Input) => required::<gmail::GmailOpenInput>(value),
+        ("gmail:message" | "gmail:mark-read" | "gmail:delete", Input) => {
+            required::<gmail::GmailIdInput>(value)
+        }
+        ("gmail:message", Output) => required::<gmail::GmailMessageDetail>(value),
+        ("gmail:open-link", Input) => required::<gmail::GmailOpenLinkInput>(value),
+        ("gmail:sign-in", Output) => required::<gmail::GmailSignInResult>(value),
+        ("gmail:pick-client-file", Output) => required::<Option<gmail::GmailClientFile>>(value),
+        (
+            "gmail:view"
+            | "gmail:refresh"
+            | "gmail:open"
+            | "gmail:mark-read"
+            | "gmail:delete"
+            | "gmail:open-link"
+            | "gmail:close-message"
+            | "gmail:cancel-sign-in"
+            | "gmail:sign-out",
+            Output,
+        ) => required::<Ack>(value),
         ("system:view", Input) => required::<system::ViewInput>(value),
         ("system:view", Output) => required::<Ack>(value),
         ("system:kill-process", Input) => required::<system::KillInput>(value),
@@ -313,6 +407,8 @@ pub fn check(
         ("redmine:state", Event) => required::<redmine::RedmineState>(value),
         ("redmine:summary-changed", Event) => required::<redmine::RedmineSummaryChanged>(value),
         ("redmine:alert", Event) => required::<redmine::RedmineAlert>(value),
+        ("gmail:state", Event) => required::<gmail::GmailState>(value),
+        ("gmail:new-mail", Event) => required::<gmail::GmailNewMail>(value),
         _ => return None,
     };
     Some(verdict)
@@ -347,11 +443,90 @@ pub(crate) fn length(value: &str) -> usize {
 /// `Number.MAX_SAFE_INTEGER`: `z.int()` refuses anything larger.
 pub(crate) const MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
 
+/// `z.string().max(max)` on the field `name`.
+pub(crate) fn max_len(name: &str, value: &str, max: usize) -> Result<(), String> {
+    if length(value) <= max {
+        Ok(())
+    } else {
+        Err(format!("{name} must have at most {max} characters"))
+    }
+}
+
+/// `z.string().min(min).max(max)` on the field `name`.
+pub(crate) fn len_in(name: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
+    if (min..=max).contains(&length(value)) {
+        Ok(())
+    } else {
+        Err(format!("{name} must have {min} to {max} characters"))
+    }
+}
+
+/// `z.int().min(min)` on a field deserialized as an unsigned integer (also `<= MAX_SAFE_INTEGER`).
+pub(crate) fn safe_int_min(name: &str, value: u64, min: u64) -> Result<(), String> {
+    if (min..=MAX_SAFE_INTEGER).contains(&value) {
+        Ok(())
+    } else {
+        Err(format!("{name} must be an integer of at least {min}"))
+    }
+}
+
+/// `.max(max)` on the array `name`.
+pub(crate) fn at_most(name: &str, len: usize, max: usize) -> Result<(), String> {
+    if len <= max {
+        Ok(())
+    } else {
+        Err(format!("{name} must have at most {max} items"))
+    }
+}
+
 /// `z.int().min(min).max(max)` on a field already deserialized as an unsigned integer.
 pub(crate) fn int_in(name: &str, value: u32, min: u32, max: u32) -> Result<(), String> {
     if (min..=max).contains(&value) {
         Ok(())
     } else {
         Err(format!("{name} must be between {min} and {max}"))
+    }
+}
+
+#[cfg(test)]
+mod shape_tests {
+    use serde_json::{json, Value};
+
+    use super::claude::HooksWrite;
+    use super::gmail::{GmailIdInput, GmailMessageDetail};
+    use super::parse;
+
+    fn detail(links: Value) -> Value {
+        json!({
+            "id": "m1", "threadId": "t1", "from": "Ana", "fromAddress": "ana@example.com",
+            "subject": "Hola", "date": "2026-11-11T10:00:00.000Z", "unread": true,
+            "body": "texto", "truncated": false, "links": links, "attachments": 0
+        })
+    }
+
+    #[test]
+    fn an_array_in_place_of_an_object_is_refused_where_serde_alone_takes_it() {
+        assert!(serde_json::from_value::<GmailIdInput>(json!(["m1"])).is_ok());
+        assert!(parse::<GmailIdInput>(json!(["m1"])).is_err());
+        assert!(parse::<GmailIdInput>(json!({ "id": "m1" })).is_ok());
+    }
+
+    #[test]
+    fn the_shape_walk_reaches_nested_objects() {
+        let good = detail(json!([{ "text": "Docs", "url": "https://example.com/docs" }]));
+        assert!(parse::<GmailMessageDetail>(good).is_ok());
+        let nested = detail(json!([["Docs", "https://example.com/docs"]]));
+        assert!(serde_json::from_value::<GmailMessageDetail>(nested.clone()).is_ok());
+        assert!(parse::<GmailMessageDetail>(nested).is_err());
+    }
+
+    #[test]
+    fn the_shape_walk_reaches_untagged_variants() {
+        let good = json!({ "ok": true, "changed": true, "diff": [{ "kind": "add", "text": "x" }] });
+        assert!(parse::<HooksWrite>(good).is_ok());
+        let nested = json!({ "ok": true, "changed": true, "diff": [["add", "x"]] });
+        assert!(serde_json::from_value::<HooksWrite>(nested.clone()).is_ok());
+        assert!(parse::<HooksWrite>(nested).is_err());
+        assert!(parse::<HooksWrite>(json!([false, "invalid-json"])).is_err());
     }
 }

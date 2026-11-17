@@ -18,7 +18,7 @@ pub const GITLAB_URL_MAX: usize = 512;
 pub const REDMINE_URL_MAX: usize = 512;
 
 const SHORTCUT_MAX: usize = 64;
-const GMAIL_CLIENT_MAX: usize = 256;
+pub const GMAIL_CLIENT_MAX: usize = 256;
 
 const REQUIRED_MODIFIERS: [&str; 7] = [
     "Control",

@@ -38,7 +38,6 @@ use tokio::sync::watch;
 pub use crate::apps::OpenExternal;
 use crate::apps::{is_loopback_origin, origin_of};
 use crate::code_review::contributions::local_date;
-pub use crate::code_review::integration::Spawner;
 use crate::contract::redmine::{
     LogTimeInput, RedmineActivity, RedmineIssueDetail, RedmineIssueList, RedmineSetKeyResult,
     RedmineState, RedmineStatus, RedmineSummary, RedmineSummaryChanged, RedmineSummaryResult,
@@ -53,6 +52,8 @@ use crate::redmine::client::{IssuePatch, RedmineApiClient, TimeEntryInput};
 use crate::redmine::summary::{sum_hours, summarize_hours, summary_range};
 use crate::services::clock::WallClock;
 pub use crate::services::secure_token_store::TokenStore;
+use crate::services::tasks::finished;
+pub use crate::services::tasks::Spawner;
 use crate::services::timers::{TimerId, Timers};
 use crate::settings::validate::normalize_redmine_url;
 
@@ -141,13 +142,6 @@ fn write_result_code(result: &RedmineWriteResult) -> &'static str {
 
 fn unavailable(message: impl Into<String>) -> ExposedError {
     ExposedError::new(IpcErrorCode::Unavailable, message)
-}
-
-async fn finished(signal: Option<watch::Receiver<bool>>) {
-    if let Some(mut signal) = signal {
-        // A dropped sender (the task ended without signalling) counts as finished.
-        let _ = signal.wait_for(|done| *done).await;
-    }
 }
 
 /// The integration's handle: what the channels and the wiring use.

@@ -37,6 +37,8 @@ use crate::notch::runtime::NotchRuntime;
 use crate::services::clock::WallClock;
 use crate::services::secure_token_store::SecureTokenStore;
 pub use crate::services::secure_token_store::TokenStore;
+use crate::services::tasks::finished;
+pub use crate::services::tasks::Spawner;
 use crate::services::timers::{TimerId, Timers};
 use crate::settings::validate::normalize_gitlab_url;
 
@@ -68,8 +70,6 @@ pub trait SettingsSource: Send + Sync {
 pub type GithubFactory = Arc<dyn Fn(&str) -> Arc<dyn CodeReviewClient> + Send + Sync>;
 /// `clientFactories.gitlab(baseUrl, token)`; `None` where the TS factory throws.
 pub type GitlabFactory = Arc<dyn Fn(&str, &str) -> Option<Arc<dyn CodeReviewClient>> + Send + Sync>;
-/// Runs a task in the background (`tauri::async_runtime::spawn`; `tokio::spawn` in tests).
-pub type Spawner = Arc<dyn Fn(BoxFuture<'static, ()>) + Send + Sync>;
 
 /// `CodeReviewIntegrationOptions`.
 pub struct CodeReviewDeps {
@@ -157,13 +157,6 @@ fn index(platform: Platform) -> usize {
 
 fn usable(status: PlatformStatus) -> bool {
     matches!(status, PlatformStatus::Ok | PlatformStatus::Offline)
-}
-
-async fn finished(signal: Option<watch::Receiver<bool>>) {
-    if let Some(mut signal) = signal {
-        // A dropped sender (the task ended without signalling) counts as finished.
-        let _ = signal.wait_for(|done| *done).await;
-    }
 }
 
 /// The integration's handle: what the channels and the wiring use.

@@ -68,14 +68,21 @@ pub struct GmailAlertSettings {
     pub sound: bool,
 }
 
-/// OAuth desktop client (empty means Gmail is not configured) and the alerts.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+/// OAuth desktop client (empty means Gmail is not configured) and the alerts. `Debug` never
+/// prints the client.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct GmailSettings {
     pub client_id: String,
     pub client_secret: String,
     pub alerts: GmailAlertSettings,
 }
+
+redacted_debug!(GmailSettings, |this| {
+    "has_client_id": !this.client_id.is_empty(),
+    "has_client_secret": !this.client_secret.is_empty(),
+    "alerts": this.alerts,
+});
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

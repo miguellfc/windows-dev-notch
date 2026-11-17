@@ -279,6 +279,20 @@ const portedChannels = [
   'redmine:open',
   'redmine:set-key',
   'redmine:clear',
+  'gmail:get-state',
+  'gmail:recent',
+  'gmail:view',
+  'gmail:refresh',
+  'gmail:open',
+  'gmail:message',
+  'gmail:mark-read',
+  'gmail:delete',
+  'gmail:open-link',
+  'gmail:close-message',
+  'gmail:sign-in',
+  'gmail:cancel-sign-in',
+  'gmail:sign-out',
+  'gmail:pick-client-file',
 ] as const satisfies readonly ChannelName[]
 const portedEvents = [
   'notch:mode-changed',
@@ -299,6 +313,8 @@ const portedEvents = [
   'redmine:state',
   'redmine:summary-changed',
   'redmine:alert',
+  'gmail:state',
+  'gmail:new-mail',
 ] as const satisfies readonly EventName[]
 
 const contractCases = JSON.parse(readFileSync(resolve(parityDir, 'contract-cases.json'), 'utf8')) as ContractCase[]

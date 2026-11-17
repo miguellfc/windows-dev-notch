@@ -278,10 +278,29 @@ pub fn scope_for_target(target: &str) -> String {
     }
 }
 
+/// The crates that tokenize mail HTML (`gmail/html_text.rs`): their `debug`/`trace` records
+/// carry the text they read, i.e. mail bodies.
+const SILENCED_CRATES: [&str; 5] = [
+    "html5ever",
+    "markup5ever",
+    "tendril",
+    "string_cache",
+    "web_atoms",
+];
+
+/// A record of a crate that may carry mail content: never written, whatever the level (the app
+/// logger and the test capture both drop it).
+pub fn is_silenced_target(target: &str) -> bool {
+    let krate = target.split("::").next().unwrap_or(target);
+    SILENCED_CRATES.contains(&krate)
+}
+
 /// Every record of this crate from `debug` up is kept; other crates only reach the file from
-/// `warn` up.
+/// `warn` up, and the HTML crates of [`SILENCED_CRATES`] never do.
 pub fn target_enabled(target: &str, level: log::Level) -> bool {
-    if is_crate_target(target) {
+    if is_silenced_target(target) {
+        false
+    } else if is_crate_target(target) {
         level <= log::Level::Debug
     } else {
         level <= log::Level::Warn
@@ -524,5 +543,23 @@ mod tests {
         ));
         assert!(!target_enabled("tao::platform", log::Level::Info));
         assert!(target_enabled("tao::platform", log::Level::Warn));
+    }
+
+    #[test]
+    fn the_html_crates_never_reach_the_file() {
+        for target in [
+            "html5ever::tokenizer",
+            "html5ever",
+            "markup5ever::util::buffer_queue",
+            "tendril",
+            "string_cache::atom",
+            "web_atoms",
+        ] {
+            for level in [log::Level::Error, log::Level::Warn, log::Level::Trace] {
+                assert!(!target_enabled(target, level), "{target} {level}");
+            }
+        }
+        // Only the crate name counts, not a prefix of it.
+        assert!(target_enabled("html5everything", log::Level::Warn));
     }
 }
