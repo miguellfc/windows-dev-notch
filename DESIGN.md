@@ -3,8 +3,6 @@ name: Developer Notch
 description: Cápsula de atención para desarrolladores en Windows; estado de agentes y acción rápida sin salir del trabajo.
 ---
 
-<!-- SEED: established with the user before implementation; re-run /impeccable document once there's code to capture the actual tokens and components. -->
-
 # Design System: Developer Notch
 
 ## Overview
@@ -36,9 +34,9 @@ Estrategia Restrained: neutros negros sin tinte más un único color de selecci�
 ### Neutral
 - **Void** (#050506, `--color-obsidian-dense`, opaco): superficie del panel expandido. Sin desenfoque real, el texto de la ventana de detrás se lee a través del 86 % (spike M0) e incluso del 95 % (QA de M1), así que el panel es totalmente opaco.
 - **Cápsula** (rgba(5,5,6,.86), `--color-obsidian`): superficie de la cápsula compacta, la alerta y la píldora `mini`.
-- **Tarjeta** (#131315, `--color-veil`): superficies elevadas (tarjetas, buscador, secciones del Control Center).
-- **Hover** (#1A1A1D, `--color-veil-tile`): hover de filas y tiles.
-- **Control** (#1F1F23, `--color-veil-hover`): fondo de botones secundarios y controles.
+- **Tarjeta** (rgba(255,255,255,.056) ≈ #131315 sobre Void, `--color-veil`): superficies elevadas (tarjetas, buscador, secciones del Control Center).
+- **Hover** (rgba(255,255,255,.085) ≈ #1A1A1D sobre Void, `--color-veil-tile`): hover de filas y tiles.
+- **Control** (rgba(255,255,255,.105) ≈ #1F1F23 sobre Void, `--color-veil-hover`): fondo de botones secundarios y controles.
 - **Campo** (#0B0B0D, `--color-field`): fondo de los campos de texto.
 - **Filo** (rgba(255,255,255,.05), `--color-line`): bordes de 1 px y divisores. **Filo fuerte** (.08, `--color-line-strong`): borde de campos y controles.
 - **Grafito** (#8E8E96): texto secundario, etiquetas, tiempos, hints de teclado.
@@ -65,7 +63,7 @@ Las tres fuentes van empaquetadas en la app; nunca se cargan desde un CDN.
 **Character:** Una grotesca neutra y precisa para la UI y su mono hermana para lo que se lee como dato (hora, rutas, tiempos, atajos). Juntas suenan técnicas sin disfrazarse de terminal; Jersey 10 pone voz de instrumento al reloj y a las cifras.
 
 ### Hierarchy
-- **Title** (600, 15px): títulos de sección del Control Center; no se usa en la cápsula.
+- **Title** (600, 15px): título de página del Control Center (600) y nombre de sesión o proyecto en las tarjetas de permiso y pregunta (500); no se usa en la cápsula.
 - **Body** (400/500, 13px): nombres de favoritos y sesiones, texto del buscador, mensaje de alerta.
 - **Body Small** (400, 12.5px): descripción de sesión, fecha.
 - **Label** (500, 11px; 10.5px en mayúsculas con tracking 0.11em): etiquetas de sección ("FAVORITOS", "CLAUDE CODE"), nombres bajo iconos.

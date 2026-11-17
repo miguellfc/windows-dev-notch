@@ -35,7 +35,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 function Notice({ tone, children, testId }: { tone: 'warn' | 'fail' | 'info'; children: ReactNode; testId: string }) {
   const color = tone === 'fail' ? 'border-fail/40 text-fail' : tone === 'warn' ? 'border-wait/40 text-wait' : 'border-line text-graphite'
   return (
-    <p role="status" data-testid={testId} className={`mt-3 rounded-control border bg-veil px-3 py-2 text-small ${color}`}>
+    <p role="status" data-testid={testId} className={`mt-3 rounded-tile border bg-veil px-3 py-2 text-small ${color}`}>
       {children}
     </p>
   )

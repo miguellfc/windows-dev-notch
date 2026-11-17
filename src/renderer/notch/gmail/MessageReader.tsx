@@ -243,7 +243,7 @@ export function MessageReader({
                       data-testid="gmail-reader-link"
                       title={link.url}
                       onClick={() => void window.notch.gmail.openLink({ id: detail.id, index })}
-                      className="focus-inset flex min-h-6 w-full min-w-0 cursor-pointer flex-col rounded-control-sm px-1.5 py-1 text-left transition-colors duration-150 hover:bg-veil-tile"
+                      className="focus-inset flex min-h-6 w-full min-w-0 cursor-pointer flex-col rounded-tile px-1.5 py-1 text-left transition-colors duration-150 hover:bg-veil-tile"
                     >
                       {link.text.trim() !== '' && <span className="w-full truncate text-small text-chalk">{link.text}</span>}
                       <span className="w-full truncate font-mono text-label text-graphite">{link.url}</span>

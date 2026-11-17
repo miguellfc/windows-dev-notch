@@ -71,7 +71,7 @@ function DiffView({ diff }: { diff: readonly DiffLine[] }) {
         tabIndex={0}
         role="region"
         aria-labelledby="claude-diff-title"
-        className="max-h-64 overflow-auto rounded-control border border-line bg-veil p-3 font-mono text-small leading-5"
+        className="max-h-64 overflow-auto rounded-tile border border-line bg-veil p-3 font-mono text-small leading-5"
       >
         {diff.map((line, index) => (
           <div key={index} className={`whitespace-pre ${DIFF_CLASS[line.kind]}`}>
@@ -153,7 +153,7 @@ export function ClaudePage() {
         <div
           role="alert"
           data-testid="claude-port-in-use"
-          className="mb-2 flex items-start gap-3 rounded-control border border-fail/40 bg-veil p-3"
+          className="mb-2 flex items-start gap-3 rounded-tile border border-fail/40 bg-veil p-3"
         >
           <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0 text-fail" />
           <div className="min-w-0 flex-1">

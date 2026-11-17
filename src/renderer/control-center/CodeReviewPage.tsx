@@ -191,7 +191,7 @@ function PlatformCard({ platform, settings, state }: { platform: Platform; setti
       </form>
 
       {configured && state?.persistent === false && (
-        <p role="status" data-testid={`code-review-${platform}-not-persistent`} className="mt-3 rounded-control border border-wait/40 bg-veil px-3 py-2 text-small text-wait">
+        <p role="status" data-testid={`code-review-${platform}-not-persistent`} className="mt-3 rounded-tile border border-wait/40 bg-veil px-3 py-2 text-small text-wait">
           {t('cc.codeReview.notPersistent')}
         </p>
       )}
