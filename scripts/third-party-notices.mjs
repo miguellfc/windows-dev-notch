@@ -15,7 +15,7 @@ const TARGET = 'x86_64-pc-windows-msvc'
 // @tauri-apps/api, the renderer CSS is built from tailwindcss (`@import 'tailwindcss'`), and Vite
 // injects its modulepreload polyfill. Their own dependencies are build tools and are not walked.
 const BUNDLED_DEV_DEPENDENCIES = ['@tauri-apps/api', 'tailwindcss', 'vite']
-const FONT_PACKAGES = ['@fontsource-variable/geist', '@fontsource-variable/geist-mono']
+const FONT_PACKAGES = ['@fontsource-variable/geist', '@fontsource-variable/geist-mono', '@fontsource/jersey-10']
 
 // License alternatives covered by the standard texts at the end of the crate section.
 const STANDARD_IDS = new Set(['MIT', 'Apache-2.0'])

@@ -459,7 +459,7 @@ function Panel({ time, date }: { time: string; date: string }) {
   return (
     <motion.div initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-3 pt-3.5">
       <motion.header variants={PANEL_ITEM} className="flex items-center justify-between pl-2">
-        <span className="tabular font-mono text-title font-medium">{time}</span>
+        <span className="digits text-[20px]">{time}</span>
         <span className="flex items-center gap-1">
           <span className="mr-1 text-small text-graphite">{date}</span>
           <button

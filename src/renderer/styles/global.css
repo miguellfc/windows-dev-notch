@@ -124,6 +124,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.digits {
+  font-family: var(--font-pixel);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
 .drag {
   -webkit-app-region: drag;
 }

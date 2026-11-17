@@ -20,11 +20,11 @@ interface MetricCardsProps {
   ramHistory: readonly number[]
 }
 
-const card = 'flex h-[60px] min-w-0 flex-col justify-between rounded-tile border border-line bg-veil px-2.5 py-2'
+const card = 'flex h-16 min-w-0 flex-col justify-between rounded-tile border border-line bg-veil px-2.5 py-2'
 const label = 'truncate text-label leading-3.5 font-medium text-graphite'
-const value = 'tabular shrink-0 whitespace-nowrap text-body font-medium text-chalk'
+const value = 'digits text-digits-lg shrink-0 whitespace-nowrap text-chalk'
 /** The same figure in Rojo Fallo, for a metric past its alert threshold. */
-const alertValue = 'tabular shrink-0 whitespace-nowrap text-body font-medium text-fail'
+const alertValue = 'digits text-digits-lg shrink-0 whitespace-nowrap text-fail'
 
 /** CPU and RAM with their last minute, network up/down, and battery when the machine has one. */
 export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricCardsProps) {

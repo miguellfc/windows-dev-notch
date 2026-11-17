@@ -96,7 +96,7 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
                 {t('redmine.summary.hours')}
               </th>
               {COLUMNS.map(({ key }) => (
-                <td key={key} data-column={key} className="tabular whitespace-nowrap p-0 text-right text-body font-medium text-chalk">
+                <td key={key} data-column={key} className="digits text-digits whitespace-nowrap p-0 text-right text-chalk">
                   {summary ? hoursLong(summary[key], language) : NO_VALUE}
                 </td>
               ))}
