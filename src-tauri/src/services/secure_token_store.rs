@@ -1,4 +1,4 @@
-//! One secret token per file (`src/main/services/secure-token-store.ts`): the GitHub and GitLab
+//! One secret token per file (0.1.0's `secure-token-store.ts`): the GitHub and GitLab
 //! personal tokens now, the Gmail refresh token and the Redmine key later.
 //!
 //! On disk it is only ever `base64(DPAPI blob)` as text (no JSON, no version), written

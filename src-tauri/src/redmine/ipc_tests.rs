@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/redmine-ipc.test.ts` (20 cases: 8 `it` blocks plus the 12 rows of
+//! Port of 0.1.0's `redmine-ipc.test.ts` (20 cases: 8 `it` blocks plus the 12 rows of
 //! the guard `it.each`, each its own test): guards, pass-through, input and output validation of
 //! the twelve `redmine:*` channels, against a fake integration. Plus
 //! `no_redmine_output_carries_the_key`, over the real integration and client on a fake transport.

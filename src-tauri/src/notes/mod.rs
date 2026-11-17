@@ -5,7 +5,7 @@
 pub mod ipc;
 pub mod service;
 
-/// `tests/unit/main/notes-store.test.ts`, against the shared `JsonStore` with the notes document.
+/// 0.1.0's `notes-store.test.ts`, against the shared `JsonStore` with the notes document.
 #[cfg(test)]
 mod store_tests {
     use std::sync::Arc;

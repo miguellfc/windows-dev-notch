@@ -40,7 +40,7 @@ Lectura:
 
 - 7 procesos: el principal de Rust y 6 de WebView2. Son 17 MB de memoria privada más que la cápsula mínima, por React, las fuentes y la interfaz completa; todavía sin las integraciones, que sumarán su parte.
 - El instalador queda en 2,19 MB, por debajo de la estimación de 3–8 MB, frente a los 117 MB de la 0.1.0.
-- El ejecutable de `release` no contiene ningún canal `__e2e:`: solo existen con la feature `e2e`, que usan las pruebas de extremo a extremo (`docs/tauri-e2e.md`).
+- El ejecutable de `release` no contiene ningún canal `__e2e:`: solo existen con la feature `e2e`, que usan las pruebas de extremo a extremo (`docs/e2e.md`).
 
 ## Parte 2: sistema, notas, recordatorios y apps (2026-11-15)
 
@@ -155,3 +155,23 @@ Lectura:
 - CPU: entre 0,10 y 0,73 % de un núcleo, en el mismo ruido de los procesos de WebView2 que en las partes 2 a 5. Sin sesión no hay recuento; con sesión, el trabajo propio es una consulta cada 60 s (y la lista de recientes solo con la vista abierta).
 - Las pruebas de extremo a extremo pasan de 52 a 61 (`gmail.spec.ts`, 9) y tardan unos 4 min y 35 s. Corren contra el servidor falso de Google de Electron en `127.0.0.1`, con su cliente falso, sin abrir el navegador ni el diálogo de archivos.
 - El ejecutable de `release` sigue sin ningún canal `__e2e:` (comprobado buscando el texto en el binario).
+
+## Medición final de la 0.2.0 (2026-11-17)
+
+La 0.2.0 instalada con `Developer Notch_0.2.0_x64-setup.exe` en el equipo del usuario, con el perfil real y **todas las integraciones conectadas**: hooks de Claude Code instalados, GitHub y GitLab con sus tokens, Redmine con su clave (VPN conectada) y Gmail con sesión iniciada. Notch en reposo en peek, sin abrir el panel ni el Control Center, tras un par de minutos sin tocarlo. Medido por el usuario con `scripts/measure-idle.ps1`: árbol de procesos completo, dos mediciones separadas 60 s, con una ventana de CPU de 15 s y otra de 60 s en cada una. Es la medición que pide el spec; las de las partes 2 a 6 usaban un perfil vacío y una compilación con la feature `e2e`.
+
+| | Memoria privada | Conjunto de trabajo | CPU en reposo (15 s / 60 s) | Instalador | En disco |
+|---|---|---|---|---|---|
+| Developer Notch 0.1.0 (Electron) | 301 MB | — | — | 117 MB | 344 MB |
+| **Developer Notch 0.2.0 (Tauri)** | **197,5–197,7 MB** | 249–262 MB | 0,31–0,52 % / 0,18–0,23 % | **3,25 MB** (3 402 952 B) | 11,35 MB exe (11 898 368 B) + WebView2 del sistema |
+| Objetivo del spec | ≤ 230 MB | | | ≤ 10 MB | |
+
+Desglose de la memoria privada por proceso (medición 1 / medición 2), 7 procesos: proceso principal (Rust) 12,7 / 13,2 MB; procesos de WebView2 69,5 / 69,6, 55,4 / 55,1, 38,6 / 38,5, 11,2 / 11,2, 7,2 / 7,2 y 2,9 / 2,9 MB.
+
+Lectura:
+
+- **Los dos objetivos se cumplen.** La memoria privada en reposo queda unos 32 MB por debajo del objetivo de 230 MB y unos 103 MB por debajo de la 0.1.0 (−34 %). El instalador pesa un 97 % menos que el de la 0.1.0 y queda muy por debajo del objetivo de 10 MB.
+- Con todas las integraciones conectadas, el proceso de Rust pasa de 7 MB (perfil vacío) a unos 13 MB: los clientes, las cachés y los temporizadores de cada integración. El resto es WebView2.
+- El conjunto de trabajo (249–262 MB) es menor que el de las mediciones de perfil vacío (360–399 MB). Lo más probable es que Windows haya recortado las páginas de los procesos inactivos, porque aquí se esperó más en reposo antes de medir; la memoria privada, que es la del objetivo, no depende de ese recorte.
+- CPU: menos de 0,6 % de un núcleo en las dos ventanas, con las consultas periódicas de Gmail (60 s), revisiones (120 s) y Redmine (300 s) activas.
+- El ejecutable de `release` no contiene ningún canal `__e2e:` ni ningún interruptor `NOTCH_*` (comprobado buscando el texto en el binario).

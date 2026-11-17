@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/code-review-github-client.test.ts` (31 cases), plus the exact request
+//! Port of 0.1.0's `code-review-github-client.test.ts` (31 cases), plus the exact request
 //! bytes and the zod tolerances of the Rust parser. A fake [`Transport`] only: no network.
 
 use std::sync::Mutex;

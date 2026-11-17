@@ -1,4 +1,4 @@
-//! `settings.json` owner (`src/main/services/settings-store.ts`): validates on read and write,
+//! `settings.json` owner (0.1.0's `settings-store.ts`): validates on read and write,
 //! writes atomically, serializes updates and quarantines files it cannot understand.
 
 use std::io::ErrorKind;

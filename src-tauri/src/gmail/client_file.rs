@@ -1,5 +1,5 @@
-//! The Google client file picker (port of `src/main/gmail/client-file.ts` and its wiring in
-//! `src/main/index.ts`): the user picks the JSON Google gives for a "Desktop app" OAuth client;
+//! The Google client file picker (port of 0.1.0's `client-file.ts` and its wiring in
+//! 0.1.0's `index.ts`): the user picks the JSON Google gives for a "Desktop app" OAuth client;
 //! `gmail:pick-client-file` answers its id and secret, or `null` when the dialog is cancelled.
 //!
 //! The file is checked against [`CLIENT_FILE_MAX_BYTES`] **before** it is read, read once
@@ -177,7 +177,7 @@ impl FilePicker for FixedPicker {
 /// The app's dialog: the switch's [`FixedPicker`] when set (dev builds only), else
 /// [`Win32FilePicker`] owned by the window `owner` names (0: none).
 pub fn app_file_picker(owner: Arc<dyn Fn() -> isize + Send + Sync>) -> Arc<dyn FilePicker> {
-    let switch = std::env::var_os(CLIENT_FILE_ENV);
+    let switch = crate::ipc::dev_env_var_os(CLIENT_FILE_ENV);
     match picker_override_from(crate::ipc::dev_overrides_enabled(), switch.as_deref()) {
         Some(answer) => {
             log::info!(

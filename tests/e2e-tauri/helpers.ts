@@ -323,7 +323,7 @@ export const cssOf = (selector: string, property: string): Promise<string | null
 export const isAlive = alive
 
 /**
- * Stable replacement for fixed sleeps (tests/e2e/settle.ts): resolves once fonts are loaded and,
+ * Stable replacement for fixed sleeps (0.1.0's e2e `settle.ts`): resolves once fonts are loaded and,
  * for two painted frames in a row, no finite animation runs and the capsule has its mode's size.
  */
 export const settle = (): Promise<void> =>
@@ -570,13 +570,13 @@ export const readLogs = (): string => {
 /**
  * A capsule block by test id, in the present copy only: a compact width change cross-fades two
  * copies of the content (the outgoing one is aria-hidden and can linger while another window has
- * focus). The Tauri twin of `present` in tests/e2e/pointer.ts, as a selector.
+ * focus). The Tauri twin of `present` in 0.1.0's Electron e2e `pointer.ts`, as a selector.
  */
 export const present = (testId: string): string => `[data-testid="${testId}"]:not([aria-hidden="true"] *)`
 
 /**
  * Runs checks on the compact capsule (`pointer(true)` from peek), then lets the capsule rest in
- * peek again: `whileHovered` of tests/e2e/pointer.ts.
+ * peek again: `whileHovered` of 0.1.0's Electron e2e `pointer.ts`.
  */
 export async function whileHovered(check: () => Promise<void>): Promise<void> {
   const capsule = $('[data-testid="notch-capsule"]')
@@ -595,7 +595,7 @@ type ChainablePromiseElement = ReturnType<typeof $>
 
 // --- Code review (part 4) -------------------------------------------------------------------
 //
-// GitHub's API and the GitLab server are the fake of tests/e2e/fixtures/fake-code-review.ts, run in
+// GitHub's API and the GitLab server are the fake of tests/e2e-tauri/fixtures/fake-code-review.ts, run in
 // the spec's own process on 127.0.0.1 and passed per launch as
 // `--e2e-env-NOTCH_CODE_REVIEW_BASE_URLS` (wdio.conf.mts also points both platforms at a closed
 // loopback port in the base environment, so no app of the run can reach the real hosts). URLs main

@@ -1,4 +1,4 @@
-//! Gmail OAuth for a desktop client (`src/main/gmail/gmail-auth.ts` and `auth-error.ts`):
+//! Gmail OAuth for a desktop client (0.1.0's `gmail-auth.ts` and `auth-error.ts`):
 //! PKCE (S256) with an anti-CSRF state, the consent screen in the user's browser, the
 //! [`loopback`](super::loopback) redirect, and the `/token` and `/revoke` calls.
 //!

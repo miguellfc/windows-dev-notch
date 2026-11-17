@@ -1,4 +1,4 @@
-//! `tests/unit/main/gmail-auth.test.ts` (23 cases) plus Rust-only checks. A fake [`Transport`]
+//! 0.1.0's `gmail-auth.test.ts` (23 cases) plus Rust-only checks. A fake [`Transport`]
 //! plays Google and a recording opener stands in for the browser; the consent redirect is a real
 //! HTTP request to the loopback on 127.0.0.1. Nothing reaches Google or opens a browser.
 

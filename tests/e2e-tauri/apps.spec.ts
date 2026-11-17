@@ -1,6 +1,6 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// The Claude and Terminal tiles, ported from tests/e2e/apps.spec.ts (Electron). The app runs with
+// The Claude and Terminal tiles, ported from 0.1.0's Electron e2e apps.spec.ts. The app runs with
 // NOTCH_APP_LAUNCH_LOG=1: launches are recorded, never executed, so no test opens Claude Desktop, a
 // browser or a terminal. `__e2e:app-launches` reads the record (`__notchAppLaunches` in Electron)
 // and the user folder (`app.getPath('home')`).
@@ -50,6 +50,9 @@ const lineText = (): Promise<string | null> =>
       ).document.querySelector('[data-testid="apps-open-failed"]')?.textContent ?? null,
   )
 
+/** Float noise allowed between two edges that touch, well under one layout unit (1/64 px). */
+const SUBPIXEL_NOISE = 0.001
+
 /** The failure line sits inside the panel, below the clock and above the tiles. */
 async function expectLineClear(): Promise<void> {
   await settle()
@@ -62,7 +65,10 @@ async function expectLineClear(): Promise<void> {
   expect(bottom).not.toBeNull()
   expect(bottom!).toBeLessThanOrEqual(box.y)
   expect(box.y).toBeGreaterThanOrEqual(panel.y)
-  expect(box.y + box.height).toBeLessThanOrEqual(tile.y)
+  // Float noise only: the line's bottom and the tile's top come out of transformed layout as
+  // 61.0000114 vs 61 or 61 vs 60.999996 when they touch. Below Chromium's layout unit (1/64 px),
+  // so a real overlap still fails.
+  expect(box.y + box.height).toBeLessThanOrEqual(tile.y + SUBPIXEL_NOISE)
 }
 
 describe('Apps (Tauri)', () => {

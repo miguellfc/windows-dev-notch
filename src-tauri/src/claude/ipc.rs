@@ -1,4 +1,4 @@
-//! The thirteen `claude:*` channels (port of `src/main/claude/claude-ipc.ts`). Guards live in
+//! The thirteen `claude:*` channels (port of 0.1.0's `claude-ipc.ts`). Guards live in
 //! `ipc::GUARDS`: decisions, questions and session actions belong to the notch; hooks, token and
 //! port to the Control Center; `claude:get-state` to both. No response carries the bridge token
 //! (the state has no field for it and every diff is masked).

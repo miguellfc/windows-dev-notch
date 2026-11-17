@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/code-review-gitlab-client.test.ts` (37 cases), plus the exact request
+//! Port of 0.1.0's `code-review-gitlab-client.test.ts` (37 cases), plus the exact request
 //! URLs and headers and the zod tolerances of the Rust parser. A fake [`Transport`] only: no
 //! network.
 

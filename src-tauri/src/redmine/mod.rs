@@ -1,4 +1,4 @@
-//! Redmine (port of `src/main/redmine` and `src/shared/redmine`): the REST client, the hours
+//! Redmine (port of 0.1.0's `redmine` module and `src/shared/redmine`): the REST client, the hours
 //! summary, the end-of-day alert and the integration state machine, the twelve `redmine:*`
 //! channels and the end-of-day wiring to the capsule and the power events.
 

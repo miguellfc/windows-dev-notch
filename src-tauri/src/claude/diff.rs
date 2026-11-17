@@ -1,6 +1,6 @@
 //! The settings.json line diff shown before installing or removing the hooks (`diffLines` in
-//! `src/main/claude/hook-installer.ts`) and the token masking applied to it before it reaches a
-//! renderer (`mask` in `src/main/claude/claude-service.ts`).
+//! 0.1.0's `hook-installer.ts`) and the token masking applied to it before it reaches a
+//! renderer (`mask` in 0.1.0's `claude-service.ts`).
 
 use crate::contract::claude::{DiffKind, DiffLine};
 use crate::contract::text::is_js_whitespace;

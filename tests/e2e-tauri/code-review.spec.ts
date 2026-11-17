@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// GitHub and GitLab code review, ported from tests/e2e/code-review.spec.ts (Electron). GitHub's API
-// and the GitLab server are the strict fake of tests/e2e/fixtures/fake-code-review.ts, started in
+// GitHub and GitLab code review, ported from 0.1.0's Electron e2e code-review.spec.ts. GitHub's API
+// and the GitLab server are the strict fake of tests/e2e-tauri/fixtures/fake-code-review.ts, started in
 // this process on 127.0.0.1 and passed per launch as `--e2e-env-NOTCH_CODE_REVIEW_BASE_URLS` (the
 // settings still hold the https GitLab URL). Every test asserts the fake saw the requests and no
 // protocol violation. URLs main would open are recorded (`NOTCH_OPEN_URL_LOG=1`, read with
@@ -25,7 +25,7 @@
 // checks that depend on the renderer's today skipped, with a log line (`appDays`); any other
 // difference between the two days fails.
 // GAP: `expandPanel` retries a panel opening lost to a focus-loss dismiss (a known follow-up; see
-// its comment and docs/tauri-e2e.md); every other failure to open fails at once.
+// its comment and docs/e2e.md); every other failure to open fails at once.
 // GAP: screenshots (test-results/code-review-*.png, contributions-*.png) are not assertions and are
 // left out, as in the other Tauri specs; so are the `hover()` calls that only placed the pointer for them.
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -56,7 +56,7 @@ import {
   startFakeCodeReview,
   type ExpectedContributions,
   type FakeCodeReview,
-} from '../e2e/fixtures/fake-code-review'
+} from './fixtures/fake-code-review'
 import {
   DEFAULT_ALERTS,
   advanceClock,
@@ -172,8 +172,10 @@ const panelDismissesLogged = (): number => (readLogs().match(/notch: mode change
 /**
  * Opens the panel and checks it stays open. GAP / KNOWN FOLLOW-UP: with the Control Center left
  * open, the Tauri panel can lose the OS focus about 30 ms after expanding (seen in 2 of 4 runs under
- * WebDriver; not yet compared with Electron under real input; suspect: the
- * `set_focusable(true)` + `set_focus()` sequence in notch/window.rs). The panel closes on
+ * WebDriver). In the e2e runs every focus loss with the panel open went to another app's window
+ * (taskbar, terminal, popups), so closing the panel is correct; each one is the
+ * `notch: focus lost (...)` debug line in `%APPDATA%\dev.developernotch.app\logs\main.log`.
+ * Pending verification with real input. The panel closes on
  * `Focused(false)` → Dismiss. Only that case is retried (at most 3 times, each logged and counted):
  * the spec sends no dismiss here, so a new "from expanded … on Dismiss" line in the controller's log
  * is the window's focus loss. Anything else (never expanding, closing without that line) fails at once.
@@ -511,7 +513,7 @@ describe('Code review (Tauri)', () => {
     await expect(byTestId('reviews-status')).toHaveAttribute('data-notice', 'unconfigured')
     await expect(byTestId('reviews-status')).toHaveText(expect.stringContaining('Conecta GitHub o GitLab en Control Center'))
     await closeReviewsView()
-    // WebDriver's click on the tile left its virtual pointer over the capsule (docs/tauri-e2e.md).
+    // WebDriver's click on the tile left its virtual pointer over the capsule (docs/e2e.md).
     await pointer(false)
     await requestIntent('dismiss')
     await expectMode('peek')

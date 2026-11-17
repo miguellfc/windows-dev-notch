@@ -1,4 +1,4 @@
-//! Atomic file writes (`src/main/services/fs-atomic.ts`).
+//! Atomic file writes (0.1.0's `fs-atomic.ts`).
 
 use std::io;
 use std::path::{Path, PathBuf};

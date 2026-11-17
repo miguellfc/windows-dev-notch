@@ -1,4 +1,4 @@
-//! The tray icon and its menu (`src/main/platform/{tray,tray-menu}.ts`).
+//! The tray icon and its menu (0.1.0's `tray.ts` and `tray-menu.ts`).
 
 use std::sync::Arc;
 

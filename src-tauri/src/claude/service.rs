@@ -1,4 +1,4 @@
-//! The Claude Code service (port of `src/main/claude/claude-service.ts`): ties the hooks bridge,
+//! The Claude Code service (port of 0.1.0's `claude-service.ts`): ties the hooks bridge,
 //! the hook installer, the permission and question brokers and the session registry together,
 //! and publishes every change to the integration callbacks.
 //!

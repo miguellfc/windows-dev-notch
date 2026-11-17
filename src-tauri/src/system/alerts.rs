@@ -1,4 +1,4 @@
-//! Port of `src/main/system/alerts.ts`: the pure threshold evaluator behind the capsule's system
+//! Port of 0.1.0's `alerts.ts`: the pure threshold evaluator behind the capsule's system
 //! alerts (sustained CPU, RAM, battery and the worst fixed drive), each with a fixed 5-point
 //! hysteresis. Changing an alert's settings recomputes it without its previous state, so raising a
 //! threshold above the current value clears it on the next evaluation.

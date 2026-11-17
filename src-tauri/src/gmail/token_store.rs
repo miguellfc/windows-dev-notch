@@ -1,4 +1,4 @@
-//! The Gmail refresh token store (`src/main/gmail/token-store.ts`): the shared DPAPI
+//! The Gmail refresh token store (0.1.0's `token-store.ts`): the shared DPAPI
 //! [`SecureTokenStore`] on `<data>/gmail-token.bin`, logging under `main:gmail-token`. Only the
 //! refresh token is stored; the access token lives in memory.
 

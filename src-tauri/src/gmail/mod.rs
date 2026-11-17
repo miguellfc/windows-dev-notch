@@ -1,4 +1,4 @@
-//! Gmail (port of `src/main/gmail/*` and `src/shared/gmail/headers.ts`): the user's own Google
+//! Gmail (port of 0.1.0's `gmail` module and `src/shared/gmail/headers.ts`): the user's own Google
 //! client, OAuth, the unread count and recent list, message text, actions and the new-mail
 //! alert. The IPC types live in `contract::gmail`.
 

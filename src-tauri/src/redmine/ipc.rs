@@ -1,4 +1,4 @@
-//! The twelve `redmine:*` channels (port of `src/main/redmine/redmine-ipc.ts`).
+//! The twelve `redmine:*` channels (port of 0.1.0's `redmine-ipc.ts`).
 //! Guards live in `ipc::GUARDS`: issues, writes, the summary, the view signal and the browser
 //! opener belong to the notch; the server and the key to the Control Center; the state to both.
 //! `get-state`, `view`, `refresh` and `open` wait here for the stored key to load, so the first

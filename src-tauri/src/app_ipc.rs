@@ -1,4 +1,4 @@
-//! The `app:*` and `settings:*` channels (handlers in `src/main/index.ts`). They reach the
+//! The `app:*` and `settings:*` channels (handlers in 0.1.0's `index.ts`). They reach the
 //! services through the app handle's managed state; without it (unit tests) they answer
 //! UNAVAILABLE once the input has been validated.
 

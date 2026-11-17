@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/claude-service.test.ts` (every case, including the IPC handlers),
+//! Port of 0.1.0's `claude-service.test.ts` (every case, including the IPC handlers),
 //! plus the Rust-only quit and port-in-use checks.
 
 use std::collections::VecDeque;

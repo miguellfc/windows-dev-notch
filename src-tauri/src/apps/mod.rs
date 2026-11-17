@@ -1,4 +1,4 @@
-//! The Claude and Terminal tiles: `apps:open` (the inline handler of `src/main/index.ts`) and the
+//! The Claude and Terminal tiles: `apps:open` (the inline handler of 0.1.0's `index.ts`) and the
 //! system dependencies of the [`launcher`].
 
 pub mod launcher;

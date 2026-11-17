@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// Redmine, ported from tests/e2e/redmine.spec.ts (Electron). The Redmine REST API is the strict fake
-// of tests/e2e/fixtures/fake-redmine.ts, started in this process on 127.0.0.1 and passed per launch
+// Redmine, ported from 0.1.0's Electron e2e redmine.spec.ts. Redmine's REST API is the strict fake
+// of tests/e2e-tauri/fixtures/fake-redmine.ts, started in this process on 127.0.0.1 and passed per launch
 // as `--e2e-env-NOTCH_REDMINE_BASE_URL` (the settings still hold the https URL the user typed). Every
 // test asserts the fake saw no protocol violation. URLs main would open are recorded
 // (`NOTCH_OPEN_URL_LOG=1`, read with `__e2e:opened-urls`), never opened: the recorder is checked to
@@ -16,7 +16,7 @@
 // GAP: screenshots (test-results/redmine-*.png) are not assertions and are left out, as in the other
 // Tauri specs; so are the `hover()` / `mouse.move` calls that only placed the pointer for them.
 // GAP: `expandPanel` retries a panel opening lost to a focus-loss dismiss (the known follow-up of
-// code-review.spec.ts and docs/tauri-e2e.md, with the Control Center left open); every other
+// code-review.spec.ts and docs/e2e.md, with the Control Center left open); every other
 // failure to open fails at once.
 // GAP: text checks read `textContent` with whitespace collapsed (Playwright's `toHaveText`);
 // WebDriver's visible text would apply CSS text transforms.
@@ -50,7 +50,7 @@ import {
   localDay,
   startFakeRedmine,
   type FakeRedmine,
-} from '../e2e/fixtures/fake-redmine'
+} from './fixtures/fake-redmine'
 import type { RedmineState } from '../../src/shared/redmine/schema'
 import {
   DEFAULT_ALERTS,
@@ -565,7 +565,7 @@ describe('Redmine (Tauri)', () => {
     await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus on the row of #2875')
     await browser.keys('Escape')
     await panel().waitForExist({ reverse: true })
-    // WebDriver's clicks left its virtual pointer over the capsule (docs/tauri-e2e.md).
+    // WebDriver's clicks left its virtual pointer over the capsule (docs/e2e.md).
     await pointer(false)
     await requestIntent('dismiss')
     await expectMode('peek')

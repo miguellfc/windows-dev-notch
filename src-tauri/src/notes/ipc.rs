@@ -1,4 +1,4 @@
-//! The notes integration (`src/main/notes/notes-integration.ts` and `notes-ipc.ts`): the real
+//! The notes integration (0.1.0's `notes-integration.ts` and `notes-ipc.ts`): the real
 //! `notes.json`, the service, the seven `notes:*` channels (notch only, see `GUARDS`) and
 //! `notes:changed` to the notch window. Every handler waits for the file to finish loading, so
 //! an early renderer gets the loaded list and no mutation runs against an unloaded store.

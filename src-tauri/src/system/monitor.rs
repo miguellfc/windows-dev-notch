@@ -1,4 +1,4 @@
-//! Port of `src/main/system/system-monitor.ts`: decides when to sample. Light every 3 s while
+//! Port of 0.1.0's `system-monitor.ts`: decides when to sample. Light every 3 s while
 //! the capsule is visible (peek included), full + processes every 1 s in `system` mode (the System
 //! view), nothing in mini / hidden / alert. Exactly one of `light()` or `full()` runs per tick,
 //! because both share the CPU baseline. The view's open state follows the mode alone.

@@ -1,4 +1,4 @@
-//! Held Claude `AskUserQuestion` hook requests (port of `src/main/claude/question-broker.ts`):
+//! Held Claude `AskUserQuestion` hook requests (port of 0.1.0's `question-broker.ts`):
 //! held until the user answers them in the notch, releases them (`{}`: Claude asks in its own
 //! window) or they stop being pending. Never logs question or answer texts.
 //!

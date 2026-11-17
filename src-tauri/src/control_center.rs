@@ -1,5 +1,5 @@
-//! The Control Center window (`src/main/windows/control-center-window.ts` and `showControlCenter`
-//! in `src/main/index.ts`).
+//! The Control Center window (0.1.0's `control-center-window.ts` and `showControlCenter`
+//! in 0.1.0's `index.ts`).
 //!
 //! Unlike Electron (hidden title bar with an overlay), it keeps the native title bar with the
 //! dark theme over Mica; the renderer hides its title-bar spacer under Tauri.

@@ -1,4 +1,4 @@
-//! Brings Claude Desktop's window to the front (port of `src/main/claude/bring-claude-to-front.ts`):
+//! Brings Claude Desktop's window to the front (port of 0.1.0's `bring-claude-to-front.ts`):
 //! the sequence validated in the Electron M3 spike, behind [`Win32FocusApi`] so it is unit-tested
 //! with a fake. Used by `claude:focus-app` and `claude:release-question`.
 //!

@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/claude-hook-installer.test.ts` (every case), plus the Rust-only checks.
+//! Port of 0.1.0's `claude-hook-installer.test.ts` (every case), plus the Rust-only checks.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

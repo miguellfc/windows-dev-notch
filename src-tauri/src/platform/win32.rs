@@ -1,4 +1,4 @@
-//! Win32 reads for the foreground watcher (the koffi probe of `src/main/platform/win32.ts`).
+//! Win32 reads for the foreground watcher (the koffi probe of 0.1.0's `win32.ts`).
 
 use windows_sys::Win32::Foundation::RECT;
 use windows_sys::Win32::Graphics::Gdi::{

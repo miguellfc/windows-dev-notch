@@ -1,5 +1,5 @@
 //! New-mail detection by diffing the unread ids between queries (port of
-//! `src/main/gmail/new-mail.ts`): no extra requests. Pure, in memory.
+//! 0.1.0's `new-mail.ts`): no extra requests. Pure, in memory.
 //!
 //! The baseline is reset only with the session (sign-in, sign-out, client change, new token):
 //! never by the notch mode, mini, hidden or a long hidden stretch.
@@ -51,7 +51,7 @@ impl NewMailDetector {
 
 #[cfg(test)]
 mod tests {
-    //! Port of `tests/unit/main/gmail-new-mail.test.ts` (9 cases).
+    //! Port of 0.1.0's `gmail-new-mail.test.ts` (9 cases).
 
     use super::*;
 

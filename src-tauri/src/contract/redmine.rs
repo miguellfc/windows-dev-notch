@@ -94,7 +94,7 @@ pub fn has_max_2_decimals(value: f64) -> bool {
 /// Uses the REAL clock (`chrono::Local::now()`), not the test clock, as Electron uses
 /// `new Date()`. `chrono::Local` follows the Windows zone rules while the renderer (ICU) may
 /// differ by an offset for some zones and years: this is the part 4 ICU/Windows divergence
-/// follow-up (#1, `docs/tauri-e2e.md`), documented and not fixed here.
+/// follow-up (#1, `docs/e2e.md`), documented and not fixed here.
 pub fn today() -> String {
     crate::code_review::contributions::local_date(&chrono::Local::now())
 }

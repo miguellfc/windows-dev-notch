@@ -1,4 +1,4 @@
-//! Port of `src/main/gmail/message-text.ts`: the text, links and attachment count of a
+//! Port of 0.1.0's `message-text.ts`: the text, links and attachment count of a
 //! `format=full` message. Pure: no I/O, nothing logged.
 
 use crate::contract::gmail::google::MessagePart;

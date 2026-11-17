@@ -1,5 +1,5 @@
 //! The end-of-day alert wired to the app (port of the `createEndOfDayScheduler` call in
-//! `src/main/index.ts`): the readings it takes from the Redmine integration, how the alert
+//! 0.1.0's `index.ts`): the readings it takes from the Redmine integration, how the alert
 //! reaches the capsule, and the power hook (resume or unlock runs a check, like Electron's
 //! `powerMonitor.on('resume' | 'unlock-screen', check)`).
 

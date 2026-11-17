@@ -2,7 +2,7 @@
 //!
 //! Every call is checked in order: trusted sender (window label + page URL) → known channel →
 //! per-channel window guard → handler. Handlers always answer with a `Result` envelope, like
-//! the Electron main process (`src/main/ipc/register.ts`).
+//! the Electron main process (0.1.0's `register.ts`).
 
 mod events;
 mod guard;
@@ -24,8 +24,8 @@ use crate::App;
 
 pub use events::{emit_event, existing_windows, is_known_event};
 pub use guard::{
-    dev_overrides_enabled, guard_for, is_trusted_sender, is_trusted_url, Guard, Sender,
-    CONTROL_CENTER, DEV_ORIGIN, GUARDS, NOTCH,
+    dev_env_var, dev_env_var_os, dev_overrides_enabled, guard_for, is_trusted_sender,
+    is_trusted_url, Guard, Sender, CONTROL_CENTER, DEV_ORIGIN, GUARDS, NOTCH,
 };
 pub use result::{err, ok, ExposedError, IpcErrorCode, UNSPECIFIED_KIND};
 

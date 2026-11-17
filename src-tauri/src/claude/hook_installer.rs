@@ -1,5 +1,5 @@
 //! Installs and removes the bridge's HTTP hooks in Claude Code's `settings.json` (port of
-//! `src/main/claude/hook-installer.ts`): pure planning functions that work on the file's text,
+//! 0.1.0's `hook-installer.ts`): pure planning functions that work on the file's text,
 //! and [`HookInstaller`], the adapter that reads, backs up and atomically writes the file.
 //!
 //! A group of ours is one whose hooks are all `type: "http"` with the `x-notch-hook: 1` header;

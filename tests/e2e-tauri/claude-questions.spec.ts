@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// Claude Code questions (AskUserQuestion), ported from tests/e2e/claude-questions.spec.ts
-// (Electron). Same isolation as claude.spec.ts: a temp settings.json checked before anything runs,
+// Claude Code questions (AskUserQuestion), ported from 0.1.0's
+// Electron e2e claude-questions.spec.ts. Same isolation as claude.spec.ts: a temp settings.json checked before anything runs,
 // an ephemeral bridge port, hooks installed through the Control Center and POSTed with Node's
 // `http`; `NOTCH_DISABLE_CLAUDE_FOCUS=1` so "Responder en Claude" never brings the user's real
 // Claude window forward. The logs are `<profile>/logs/main.log` (and its rotations).

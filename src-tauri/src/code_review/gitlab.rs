@@ -1,4 +1,4 @@
-//! Self-hosted GitLab REST client (`src/main/code-review/gitlab-client.ts`): `/api/v4` with the
+//! Self-hosted GitLab REST client (0.1.0's `gitlab-client.ts`): `/api/v4` with the
 //! `private-token` header, 3 + 2N requests per refresh (N = own non-draft MRs), every response
 //! validated as the zod schemas do.
 //!

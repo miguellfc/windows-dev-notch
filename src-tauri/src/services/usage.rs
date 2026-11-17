@@ -1,5 +1,5 @@
-//! Local, counts-only usage log (`src/main/services/usage-log.ts`, `usage.json`) used to check
-//! the PRD success metrics, and its `usage:summary` channel (`src/main/services/usage-ipc.ts`).
+//! Local, counts-only usage log (0.1.0's `usage-log.ts`, `usage.json`) used to check
+//! the PRD success metrics, and its `usage:summary` channel (0.1.0's `usage-ipc.ts`).
 //! Daily aggregates by local calendar day; no reminder text, session names, paths or commands.
 
 use std::collections::BTreeMap;
@@ -22,7 +22,7 @@ pub const USAGE_RETENTION_DAYS: i64 = 90;
 pub const USAGE_LATENCY_CAP: usize = 200;
 /// `DEFAULT_USAGE_RANGE` in `src/shared/usage/schema.ts`.
 pub const DEFAULT_USAGE_RANGE: u32 = 14;
-/// `USAGE_TICK_MS` in `src/main/index.ts`: one running minute per tick.
+/// `USAGE_TICK_MS` in 0.1.0's `index.ts`: one running minute per tick.
 pub const USAGE_TICK_MS: u64 = 60_000;
 
 const CURRENT_VERSION: u64 = 1;

@@ -98,7 +98,6 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_autostart::Builder::new().build())
         // The app needs no browser permission (camera, mic, notifications, clipboard...).
         .on_permission_request(|_webview, _kind| PermissionResponse::Deny)
         .manage(App { ipc: registry })

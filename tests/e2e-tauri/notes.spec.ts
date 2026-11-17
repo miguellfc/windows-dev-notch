@@ -1,6 +1,6 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
-// Notes, ported from tests/e2e/notes.spec.ts (Electron). The system clipboard is read and written
+// Notes, ported from 0.1.0's Electron e2e notes.spec.ts. The system clipboard is read and written
 // through `__e2e:clipboard` (Electron's `clipboard` in main); the user's text is put back.
 import { $, $$, browser, expect } from '@wdio/globals'
 import { DEFAULT_ALERTS, e2e, eventually, fillValue, inPage, launch, quitApp, requestIntent, seededSettings, setLanguage, settle } from './helpers'

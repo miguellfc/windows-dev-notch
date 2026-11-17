@@ -1,6 +1,6 @@
-//! Hides the capsule while a fullscreen app is in front (ports `src/main/platform/foreground-
-//! classifier.ts` and `foreground-watcher.ts`). The classifier is pure; the probe lives in
-//! `win32.rs`; the watcher polls it on a thread of its own and reports only changes of verdict.
+//! Hides the capsule while a fullscreen app is in front (ports 0.1.0's `foreground-classifier.ts`
+//! and `foreground-watcher.ts`). The classifier is pure; the probe lives in `win32.rs`; the watcher
+//! polls it on a thread of its own and reports only changes of verdict.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, PoisonError};

@@ -1,4 +1,4 @@
-//! `claude-bridge.json` (port of `src/main/claude/bridge-config.ts`): the bridge's port and token.
+//! `claude-bridge.json` (port of 0.1.0's `bridge-config.ts`): the bridge's port and token.
 //!
 //! Format: `{ "version": 1, "port": <0..=65535>, "token": "<base64 of the DPAPI blob>" }`,
 //! pretty JSON (2 spaces) plus `\n`. A missing, corrupt or undecryptable file is silently replaced

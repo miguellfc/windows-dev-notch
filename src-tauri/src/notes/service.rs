@@ -1,4 +1,4 @@
-//! Notes rules (`src/main/notes/notes-service.ts` and `sortNotes` from
+//! Notes rules (0.1.0's `notes-service.ts` and `sortNotes` from
 //! `src/shared/notes/search.ts`): create, edit, pin, delete with a 10 s in-memory undo, and the
 //! list order. Every mutation runs as one exclusive turn (snapshot, compute, validate, write), so
 //! concurrent calls never build on a stale list. Never logs note text.

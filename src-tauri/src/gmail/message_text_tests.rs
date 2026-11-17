@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/gmail-message-text.test.ts` (28 cases), plus the Rust-only checks.
+//! Port of 0.1.0's `gmail-message-text.test.ts` (28 cases), plus the Rust-only checks.
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;

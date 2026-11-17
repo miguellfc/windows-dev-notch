@@ -1,5 +1,5 @@
-//! A versioned JSON document on disk (`src/main/notes/notes-store.ts` and
-//! `src/main/reminders/reminders-store.ts`, which share one policy): validated on read and write,
+//! A versioned JSON document on disk (0.1.0's `notes-store.ts` and
+//! 0.1.0's `reminders-store.ts`, which share one policy): validated on read and write,
 //! written atomically through a queue, quarantined when unreadable, and never overwritten when
 //! it comes from a newer app version.
 //!

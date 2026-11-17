@@ -1,6 +1,6 @@
 [package]
 name = "developer-notch"
-version = "0.2.0-dev"
+version = "0.2.0"
 edition = "2021"
 publish = false
 
@@ -67,7 +67,9 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
 ] }
 tauri-plugin-global-shortcut = "2"
-tauri-plugin-autostart = "2"
+# Start with Windows: our own quoted `HKCU\...\Run` value (`platform/autostart.rs`); already
+# in the lockfile (the crate the plugin's auto-launch used).
+windows-registry = "0.6"
 tauri-plugin-single-instance = "2"
 # Note and reminder ids (`randomUUID` in Electron): RFC 4122 v4, lowercase hyphenated.
 uuid = { version = "1", features = ["v4"] }

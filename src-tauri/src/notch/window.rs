@@ -1,5 +1,5 @@
 //! The capsule window and the [`NotchSurface`] the controller drives it through
-//! (`src/main/windows/notch-window.ts`).
+//! (0.1.0's `notch-window.ts`).
 //!
 //! Learned in `spikes/tauri-capsule`: the window is shown only through tao (`show()`), never a raw
 //! `ShowWindow`, or tao hides it again on its next style change (click-through); and it is created
@@ -147,6 +147,78 @@ impl NotchSurface for TauriNotchSurface {
     }
 }
 
+/// Where the foreground window is when the capsule reports `Focused(false)`. On Windows Tauri
+/// raises that event from the WebView2's own `LostFocus`, not from the window's deactivation like
+/// Electron's `blur`, so it also fires when the keyboard focus only bounces inside the capsule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FocusLoss {
+    /// The capsule is still the foreground window: only its webview lost the focus.
+    StillForeground,
+    /// The Control Center took the foreground.
+    ControlCenter,
+    /// Another window of this process (a WebView2 host window, say) is in the foreground.
+    OwnProcess,
+    /// A window of another process, or none, is in the foreground.
+    Elsewhere,
+}
+
+impl FocusLoss {
+    pub fn classify(foreground: &ForegroundWindow, own: isize, control_center: isize) -> Self {
+        let hwnd = foreground.hwnd;
+        if hwnd != 0 && hwnd == own {
+            Self::StillForeground
+        } else if hwnd != 0 && hwnd == control_center {
+            Self::ControlCenter
+        } else if hwnd != 0 && foreground.own_process {
+            Self::OwnProcess
+        } else {
+            Self::Elsewhere
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::StillForeground => "the capsule is still the foreground window",
+            Self::ControlCenter => "the Control Center is in the foreground",
+            Self::OwnProcess => "another window of the app is in the foreground",
+            Self::Elsewhere => "another app's window is in the foreground",
+        }
+    }
+}
+
+/// The foreground window: its `HWND` as an integer (0 when there is none), whether this process
+/// owns it, and its window class. The log records the class only, never the window's title
+/// (which could name a user's document) or its process's executable.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ForegroundWindow {
+    pub hwnd: isize,
+    pub own_process: bool,
+    pub class: String,
+}
+
+pub fn foreground_window() -> ForegroundWindow {
+    use windows_sys::Win32::System::Threading::GetCurrentProcessId;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetClassNameW, GetForegroundWindow, GetWindowThreadProcessId,
+    };
+    // SAFETY: plain Win32 queries; every buffer outlives its call and its length is passed.
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.is_null() {
+            return ForegroundWindow::default();
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        let mut class = [0u16; 128];
+        let len = GetClassNameW(hwnd, class.as_mut_ptr(), class.len() as i32);
+        ForegroundWindow {
+            hwnd: hwnd as isize,
+            own_process: pid != 0 && pid == GetCurrentProcessId(),
+            class: String::from_utf16_lossy(&class[..len.max(0) as usize]),
+        }
+    }
+}
+
 /// Electron's `BrowserWindow.blur()` on Windows: if the capsule is the foreground window, hand
 /// the foreground to the next visible window below it in z-order.
 fn give_focus_back(hwnd: isize) {
@@ -189,5 +261,22 @@ mod tests {
         let (position, size) = physical_bounds(rect, 1.0);
         assert_eq!(position, PhysicalPosition::new(1860, 0));
         assert_eq!(size, PhysicalSize::new(760, 114));
+    }
+
+    #[test]
+    fn focus_loss_is_classified_by_the_foreground_window() {
+        let fg = |hwnd: isize, own_process: bool| ForegroundWindow {
+            hwnd,
+            own_process,
+            ..ForegroundWindow::default()
+        };
+        let classify = FocusLoss::classify;
+        assert_eq!(classify(&fg(10, true), 10, 20), FocusLoss::StillForeground);
+        assert_eq!(classify(&fg(20, true), 10, 20), FocusLoss::ControlCenter);
+        assert_eq!(classify(&fg(30, true), 10, 20), FocusLoss::OwnProcess);
+        assert_eq!(classify(&fg(30, false), 10, 20), FocusLoss::Elsewhere);
+        // No foreground window, or no Control Center (0), never matches.
+        assert_eq!(classify(&fg(0, true), 10, 0), FocusLoss::Elsewhere);
+        assert_eq!(classify(&fg(0, false), 0, 0), FocusLoss::Elsewhere);
     }
 }

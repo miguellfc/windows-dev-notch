@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/gmail-client-file.test.ts` (8 cases: 4 `it` blocks plus the 4 rows
+//! Port of 0.1.0's `gmail-client-file.test.ts` (8 cases: 4 `it` blocks plus the 4 rows
 //! of the `it.each`, each its own test) against a fake dialog and fake files. Plus the Rust-only
 //! cases: the real file reader's cap, the dev/E2E override switch and the fixed picker.
 

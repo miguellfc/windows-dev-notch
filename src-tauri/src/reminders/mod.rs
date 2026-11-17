@@ -15,7 +15,7 @@ pub mod toast;
 /// The app's reminders: the runtime on the machine's local time zone.
 pub type Reminders = runtime::RemindersRuntime<chrono::Local>;
 
-/// `tests/unit/main/reminders-store.test.ts`, against the shared `JsonStore` with the reminders
+/// 0.1.0's `reminders-store.test.ts`, against the shared `JsonStore` with the reminders
 /// document.
 #[cfg(test)]
 mod store_tests {

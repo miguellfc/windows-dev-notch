@@ -1,4 +1,4 @@
-//! Pending Claude questions reaching the notch (port of `src/main/claude/question-alerts.ts`):
+//! Pending Claude questions reaching the notch (port of 0.1.0's `question-alerts.ts`):
 //! pushes the list, raises the question alert, toasts each new question once and tells the notch
 //! which pending item (permission or question) arrived first. Both carry a stamp from the
 //! bridge's one strictly increasing clock, so the earliest opens first.
@@ -25,7 +25,7 @@ pub trait NotchPort: Send + Sync {
 }
 
 /// The notch webview as far as pushing an event goes (`EventTarget` in
-/// `src/main/ipc/events.ts`; renamed so it never clashes with `tauri::EventTarget`).
+/// 0.1.0's `events.ts`; renamed so it never clashes with `tauri::EventTarget`).
 pub trait NotchWebview: Send + Sync {
     fn is_destroyed(&self) -> bool;
     fn send(&self, event: &str, payload: &Value);

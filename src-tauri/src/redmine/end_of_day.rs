@@ -1,4 +1,4 @@
-//! Port of `src/main/redmine/end-of-day.ts`: the end-of-day alert. On weekdays at
+//! Port of 0.1.0's `end-of-day.ts`: the end-of-day alert. On weekdays at
 //! `redmine.endOfDay.time` (local), once a day, when there is a session and today's hours are
 //! under `redmine.dailyTargetHours`. One timer aims at the next due moment; a 60 s safety
 //! [`Interval`] and [`check`](EndOfDay::check) (power resume and unlock, the E2E test clock)

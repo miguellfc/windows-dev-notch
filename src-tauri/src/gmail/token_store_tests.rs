@@ -1,4 +1,4 @@
-//! `tests/unit/main/gmail-token-store.test.ts` (10 cases) under Gmail's file name and log scope.
+//! 0.1.0's `gmail-token-store.test.ts` (10 cases) under Gmail's file name and log scope.
 //! The generic behaviours are also covered by `services::secure_token_store` (map section 11);
 //! these pin them for `gmail-token.bin` / `main:gmail-token`.
 

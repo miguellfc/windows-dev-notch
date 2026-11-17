@@ -1,4 +1,4 @@
-//! `tests/unit/main/gmail-loopback.test.ts` (8 cases) plus Rust-only edges. Every request is a
+//! 0.1.0's `gmail-loopback.test.ts` (8 cases) plus Rust-only edges. Every request is a
 //! real HTTP request over 127.0.0.1 (the shared reqwest transport); nothing leaves the machine.
 
 use std::time::Duration;

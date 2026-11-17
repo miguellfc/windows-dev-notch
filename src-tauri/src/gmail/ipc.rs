@@ -1,5 +1,5 @@
-//! The fourteen `gmail:*` channels (port of `src/main/gmail/gmail-ipc.ts`) and the new-mail
-//! alert's wiring to the capsule (the `onNewMail` of `src/main/index.ts`).
+//! The fourteen `gmail:*` channels (port of 0.1.0's `gmail-ipc.ts`) and the new-mail
+//! alert's wiring to the capsule (the `onNewMail` of 0.1.0's `index.ts`).
 //!
 //! Guards live in `ipc::GUARDS`: mail data and the browser opener belong to the notch; the
 //! session (sign-in, sign-out, the client file) to the Control Center; the state to both.

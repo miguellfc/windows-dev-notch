@@ -4,7 +4,7 @@
 //! that monitor's scale. [`MonitorScale`] holds the scale the window surface multiplies back by,
 //! so every window call is in exact physical px whatever the window's current DPI.
 //!
-//! Like `src/main/index.ts`, the capsule stays on its monitor; it moves to the cursor's monitor
+//! Like 0.1.0's `index.ts`, the capsule stays on its monitor; it moves to the cursor's monitor
 //! only through [`NotchDisplay::move_to_monitor_at_cursor`] (the global shortcut, Task 9), and
 //! when the monitors change it keeps its monitor if it still exists, else goes to the primary.
 //! Monitor changes are noticed by polling every 2 s ([`NotchDisplay::watch`]): it also sees

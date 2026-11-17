@@ -1,4 +1,4 @@
-//! Port of `src/main/reminders/reminders-runtime.ts`, the Tauri-free core of the reminders
+//! Port of 0.1.0's `reminders-runtime.ts`, the Tauri-free core of the reminders
 //! integration: store + service + scheduler, and what happens after each change (alert flag,
 //! `reminders:changed`, timer moved to the new next due reminder). Never logs reminder text.
 

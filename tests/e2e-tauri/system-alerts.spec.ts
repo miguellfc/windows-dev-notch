@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
 // The RAM alert on the capsule metric and its threshold in the Control Center, ported from
-// tests/e2e/system-alerts.spec.ts (Electron).
+// 0.1.0's Electron e2e system-alerts.spec.ts.
 import { freemem, totalmem } from 'node:os'
 import { $, browser, expect } from '@wdio/globals'
 import { eventually, fillValue, launch, openControlCenter, pointer, quitApp, seededSettings, setLanguage, settle, useWindow } from './helpers'

@@ -1,4 +1,4 @@
-//! Local log file (`src/main/services/logger.ts`): `<data>/logs/main.log`, rotated by size and
+//! Local log file (0.1.0's `logger.ts`): `<data>/logs/main.log`, rotated by size and
 //! when the local day changes, as `main.1.log`, `main.2.log` (same names as the Electron build).
 //! The crate logs through the `log` macros; [`init_logger`] installs a `log::Log` that writes
 //! every record to that file.

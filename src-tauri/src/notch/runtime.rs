@@ -1,4 +1,4 @@
-//! Puts the capsule together (the "Capsule" block of `src/main/index.ts`): window, surface,
+//! Puts the capsule together (the "Capsule" block of 0.1.0's `index.ts`): window, surface,
 //! controller, cursor poller and monitor tracking.
 
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
@@ -14,7 +14,7 @@ use super::display::{
 };
 use super::ipc::{NotchHandles, NotchSlot};
 use super::state::NotchEvent;
-use super::window::{create_notch_window, TauriNotchSurface};
+use super::window::{create_notch_window, foreground_window, FocusLoss, TauriNotchSurface};
 use crate::ipc::dev_overrides_enabled;
 use crate::platform::foreground::{
     classify_foreground, ClassifyContext, ForegroundWatcher, Verdict,
@@ -107,16 +107,32 @@ impl NotchRuntime {
         ));
         let display = Arc::new(NotchDisplay::new(monitor, scale, Arc::clone(&controller)));
 
+        let control_center_hwnd = Arc::new(AtomicIsize::new(0));
         {
             let controller = Arc::clone(&controller);
             let placement = Arc::clone(&placement);
+            let control_center_hwnd = Arc::clone(&control_center_hwnd);
+            let own_hwnd = window.hwnd()?.0 as isize;
             window.on_window_event(move |event| match event {
                 WindowEvent::Moved(position) => placement.set_origin((position.x, position.y)),
                 WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                     placement.set_scale(*scale_factor);
                 }
                 // Like Electron's `blur`: leaving the panel closes it (focus only exists in panels).
-                WindowEvent::Focused(false) => controller.dispatch(NotchEvent::Dismiss),
+                WindowEvent::Focused(false) => {
+                    let foreground = foreground_window();
+                    let loss = FocusLoss::classify(
+                        &foreground,
+                        own_hwnd,
+                        control_center_hwnd.load(Ordering::SeqCst),
+                    );
+                    log::debug!(
+                        "notch: focus lost ({}, class {:?})",
+                        loss.as_str(),
+                        foreground.class
+                    );
+                    controller.dispatch(NotchEvent::Dismiss);
+                }
                 _ => {}
             });
         }
@@ -137,7 +153,7 @@ impl NotchRuntime {
             started: AtomicBool::new(false),
             pollers_stopped: Arc::new(AtomicBool::new(false)),
             foreground: Mutex::new(None),
-            control_center_hwnd: Arc::new(AtomicIsize::new(0)),
+            control_center_hwnd,
             timers,
             #[cfg(feature = "e2e")]
             test_clock,

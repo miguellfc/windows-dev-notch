@@ -1,4 +1,4 @@
-//! `tests/unit/main/reminder-scheduler.test.ts` (17 cases) plus `resume_runs_a_single_check`,
+//! 0.1.0's `reminder-scheduler.test.ts` (17 cases) plus `resume_runs_a_single_check`,
 //! with the real service over an in-memory store in Europe/Madrid, the virtual [`TestTimers`]
 //! and a frozen [`WallClock`] that `advance` moves together with the timers (`jump` moves only
 //! the wall clock, like a suspend/resume).

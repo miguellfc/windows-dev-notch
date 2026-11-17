@@ -1,4 +1,4 @@
-//! First-review detection (`src/main/code-review/review-detector.ts`) by diffing the review state
+//! First-review detection (0.1.0's `review-detector.ts`) by diffing the review state
 //! of the own open PR/MRs between queries (no extra requests; in memory only, so a restart is a
 //! new baseline), plus the integration's handling of uncertain items (`runPoll`): own items whose
 //! per-MR calls failed this round keep their last known state, for both the detector and the

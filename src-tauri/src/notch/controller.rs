@@ -1,4 +1,4 @@
-//! Port of `src/main/windows/notch-controller.ts`: owns the capsule's state and drives the window
+//! Port of 0.1.0's `notch-controller.ts`: owns the capsule's state and drives the window
 //! in the order M0 validated: grow the window then animate; animate then shrink the window. It
 //! compares against the size the window actually has, so a shrink still in progress is never cut
 //! short.

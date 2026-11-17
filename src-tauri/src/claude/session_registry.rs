@@ -1,4 +1,4 @@
-//! Claude Code sessions seen through the hooks (port of `src/main/claude/session-registry.ts`).
+//! Claude Code sessions seen through the hooks (port of 0.1.0's `session-registry.ts`).
 //!
 //! A plain struct (`&mut self`): no callback of its own and nothing reaches it from another
 //! thread, so the service keeps it behind its own lock. `now` is the real wall clock

@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/gmail-ipc.test.ts` (25 cases: 11 `it` blocks plus the 14 rows of the
+//! Port of 0.1.0's `gmail-ipc.test.ts` (25 cases: 11 `it` blocks plus the 14 rows of the
 //! guard `it.each`, each its own test): guards, pass-through, input and output validation of the
 //! fourteen `gmail:*` channels, against a fake integration and a fake client-file picker. Plus
 //! the Rust-only cases: the `ready` waits per channel, UNAVAILABLE before install, a dropped

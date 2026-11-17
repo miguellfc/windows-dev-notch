@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/code-review-detector.test.ts` (10 cases), plus the uncertain-item
+//! Port of 0.1.0's `code-review-detector.test.ts` (10 cases), plus the uncertain-item
 //! merge of `runPoll` (`code-review-integration.test.ts`, GitLab per-MR failure rounds) as pure
 //! functions.
 

@@ -27,10 +27,10 @@ impl Guard {
     }
 }
 
-/// Copied from the `*ChannelGuards` helpers in `src/main/**/*-ipc.ts`.
+/// Copied from the `*ChannelGuards` helpers in 0.1.0's `*-ipc.ts`.
 /// Channels missing here have no Electron guard and accept either window.
 pub const GUARDS: &[(&str, Guard)] = &[
-    // notch (src/main/index.ts)
+    // notch (0.1.0's `index.ts`)
     ("notch:capsule-rect", Guard::NotchOnly),
     // apps
     ("apps:open", Guard::NotchOnly),
@@ -140,4 +140,19 @@ pub fn is_trusted_sender(sender: &Sender, allow_dev_origin: bool) -> bool {
 /// Dev-only overrides (R5): debug builds and the `e2e` feature.
 pub fn dev_overrides_enabled() -> bool {
     cfg!(debug_assertions) || cfg!(feature = "e2e")
+}
+
+/// A dev/E2E switch from the environment: `None` in a release build without asking for it, so
+/// the release binary neither reads nor contains the switch's name.
+pub fn dev_env_var_os(name: &str) -> Option<std::ffi::OsString> {
+    if dev_overrides_enabled() {
+        std::env::var_os(name)
+    } else {
+        None
+    }
+}
+
+/// [`dev_env_var_os`] as UTF-8 text (`None` when it is not).
+pub fn dev_env_var(name: &str) -> Option<String> {
+    dev_env_var_os(name).and_then(|value| value.into_string().ok())
 }

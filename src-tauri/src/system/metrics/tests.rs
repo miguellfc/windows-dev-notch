@@ -1,4 +1,4 @@
-//! Port of `tests/unit/main/metrics-sampler.test.ts` (every case) plus
+//! Port of 0.1.0's `metrics-sampler.test.ts` (every case) plus
 //! `pdh_failure_only_nulls_disk_activity_and_network`. The Rust `SystemApi` reads integers for
 //! memory, disk space and the battery percent, so the TS cases that feed them NaN become the
 //! nearest reachable failure (the read returning `None`); "throws" is a panicking fake.

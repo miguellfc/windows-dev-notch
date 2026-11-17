@@ -1,4 +1,4 @@
-//! Hours and the month summary (the pure helpers of `src/main/redmine/redmine-integration.ts`:
+//! Hours and the month summary (the pure helpers of 0.1.0's `redmine-integration.ts`:
 //! `round2`, `sumHours`, `summarizeHours` and the range `runSummary` asks for).
 //!
 //! Local dates come from `now`'s own time zone, generic over [`TimeZone`] like

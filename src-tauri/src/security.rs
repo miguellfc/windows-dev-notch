@@ -1,4 +1,4 @@
-//! Locks down every webview (`src/main/windows/secure-window.ts`): a page can only stay on its
+//! Locks down every webview (0.1.0's `secure-window.ts`): a page can only stay on its
 //! own document, never open windows, and gets no browser permissions (the permission handler is
 //! set app-wide in `lib.rs`). Devtools exist only in debug builds.
 

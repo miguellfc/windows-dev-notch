@@ -1,7 +1,7 @@
 /// <reference types="@wdio/globals/types" />
 /// <reference types="@wdio/mocha-framework" />
 // The system monitor (capsule metrics, System view, process list), ported from
-// tests/e2e/system.spec.ts (Electron). Hover is `pointer()` (`__e2e:pointer`), as in app.spec.ts.
+// 0.1.0's Electron e2e system.spec.ts. Hover is `pointer()` (`__e2e:pointer`), as in app.spec.ts.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { availableParallelism } from 'node:os'
 import { $, $$, browser, expect } from '@wdio/globals'
