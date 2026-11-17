@@ -1,0 +1,30 @@
+{
+  "en": {
+    "claude.toast.question": "Claude asks",
+    "claude.toast.title": "Claude needs permission",
+    "reminders.toast.missedMany": "You have {count} missed reminders",
+    "reminders.toast.missedOne": "You have 1 missed reminder",
+    "reminders.toast.missedTitle": "Missed reminders",
+    "reminders.toast.title": "Reminder",
+    "reminders.toast.titleMany": "{count} reminders",
+    "tray.controlCenter": "Control Center",
+    "tray.hide": "Hide",
+    "tray.launchAtLogin": "Start with Windows",
+    "tray.quit": "Quit",
+    "tray.show": "Show"
+  },
+  "es": {
+    "claude.toast.question": "Claude te pregunta",
+    "claude.toast.title": "Claude espera permiso",
+    "reminders.toast.missedMany": "Tienes {count} recordatorios perdidos",
+    "reminders.toast.missedOne": "Tienes 1 recordatorio perdido",
+    "reminders.toast.missedTitle": "Recordatorios perdidos",
+    "reminders.toast.title": "Recordatorio",
+    "reminders.toast.titleMany": "{count} recordatorios",
+    "tray.controlCenter": "Control Center",
+    "tray.hide": "Ocultar",
+    "tray.launchAtLogin": "Iniciar con Windows",
+    "tray.quit": "Salir",
+    "tray.show": "Mostrar"
+  }
+}

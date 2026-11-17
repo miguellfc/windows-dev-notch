@@ -96,7 +96,7 @@ export function ControlCenterApp() {
         </nav>
       </aside>
       <main className="flex-1 overflow-y-auto">
-        <div className="drag h-10" />
+        <div className="titlebar-spacer drag h-10" />
         <section className="max-w-[560px] px-8 pb-8">
           <h1 className="mb-4 text-title font-semibold">{t(current.label)}</h1>
           {content}

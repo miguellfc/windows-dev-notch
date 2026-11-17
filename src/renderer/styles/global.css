@@ -123,6 +123,11 @@ body {
   -webkit-app-region: no-drag;
 }
 
+/* Electron draws the title bar over the page (titleBarOverlay); Tauri keeps the native one. */
+html[data-runtime='tauri'] .titlebar-spacer {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

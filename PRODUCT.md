@@ -6,11 +6,11 @@
 
 web
 
-App de escritorio solo para Windows 11: la UI es web (React) renderizada dentro de ventanas Electron. No es un sitio web, ni móvil, ni multiplataforma.
+App de escritorio solo para Windows 11: la UI es web (React) renderizada en ventanas de WebView2 con Tauri 2. No es un sitio web, ni móvil, ni multiplataforma.
 
 ## Stack
 
-Elegido por el usuario: Electron, React, TypeScript, Vite (electron-vite), Tailwind CSS, Motion, Zustand, Vitest, Playwright (`_electron`), empaquetado con electron-builder (NSIS). Añadidos aprobados: zod, lucide-react, koffi. SQLite entra en la Fase 2, no en el MVP.
+Desde la 0.2.0: Tauri 2 con el proceso principal en Rust, y la interfaz en React, TypeScript, Vite, Tailwind CSS, Motion y Zustand. Pruebas con Vitest, `cargo test` y WebdriverIO con `tauri-driver`; instalador NSIS del bundler de Tauri. Añadidos aprobados: zod, lucide-react. La 0.1.0 usaba Electron, electron-vite, Playwright y electron-builder. SQLite entra en la Fase 2, no en el MVP.
 
 ## Users
 
@@ -55,7 +55,7 @@ Fases posteriores: centro de notificaciones con historial, Developer Toolbox, Me
 Restricciones:
 - UI bilingüe desde el inicio: español e inglés, seleccionable por el usuario. Todo texto pasa por i18n; los layouts deben tolerar la más larga de las dos cadenas.
 - Sin ejecución arbitraria de comandos: la UI solo envía IDs de favoritos; el proceso main ejecuta lo que el usuario guardó.
-- Sin secretos en el renderer ni credenciales en texto plano; futuros tokens OAuth con `safeStorage` de Electron.
+- Sin secretos en el renderer ni credenciales en texto plano; los tokens y claves se cifran con DPAPI de Windows.
 - Sin APIs no documentadas de Claude Code; los transcripts no se leen como API. No existe forma documentada de abrir una sesión concreta de la app de escritorio por ID: "ir a la sesión" significa traer la app Claude al frente.
 - Debe seguir funcionando con proveedores externos desconectados; cada módulo muestra "no conectado" en lugar de fallar.
 - Coste en reposo casi nulo: CPU ≈ 0 % siempre; RAM total < 200 MB sin integraciones abiertas. Una integración abierta añade el coste de su herramienta (cuando existía la terminal embebida sumaba ~100 MB, casi todo el propio `pwsh`; retirada el 2026-11-13, ver más abajo); decisión del usuario del 2026-11-09.

@@ -30,7 +30,7 @@ Si no eres administrador y al guardar la clave ves "Clave no válida o API REST 
 
 ## Qué hace el notch con la clave
 
-- Se guarda **solo en este equipo**, cifrada con el cifrado de Windows (`safeStorage`). Si el equipo no puede cifrar, la clave vive solo en memoria y habrá que pegarla de nuevo tras reiniciar (Control Center lo avisa).
+- Se guarda **solo en este equipo**, cifrada con el cifrado de Windows (DPAPI). Si el equipo no puede cifrar, la clave vive solo en memoria y habrá que pegarla de nuevo tras reiniciar (Control Center lo avisa).
 - Solo se envía al servidor de Redmine que configuraste, en la cabecera `X-Redmine-API-Key` de cada petición.
 - **Nunca se escribe en el registro** ni en ningún archivo en claro. Tampoco se registran los asuntos, comentarios ni enlaces de tus tareas: solo estados y cifras.
 - Los títulos y comentarios de las tareas solo se tienen en memoria, mientras se muestran.

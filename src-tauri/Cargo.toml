@@ -1,0 +1,99 @@
+[package]
+name = "developer-notch"
+version = "0.2.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "developer_notch_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+# `preserve_order`: objects keep their insertion order, so the bodies the Claude bridge writes match
+# Electron's `JSON.stringify` byte for byte and Claude's settings.json keeps its key order.
+# `float_roundtrip`: a hook payload number parses to the same double `JSON.parse` would give.
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+log = "0.4"
+url = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sys-locale = "0.3"
+tokio = { version = "1", features = ["fs", "sync", "macros", "time", "net", "io-util", "rt"] }
+# The Claude Code hooks bridge: a loopback-only HTTP/1.1 server (same majors as in tauri's tree).
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+# GitHub and GitLab APIs (code review). `native-tls` is SChannel on Windows: the Windows certificate
+# store (corporate roots included, as Chromium's `net.fetch` in Electron) and no C toolchain. No
+# default features: no system proxy (direct connection by decision), no HTTP/2, no decompression;
+# bodies are read as bytes and parsed by the clients.
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+# The DPAPI-protected bridge token in `claude-bridge.json`.
+base64 = "0.23"
+# The bridge's random port and token from the OS RNG (same version uuid already uses).
+getrandom = "0.4"
+# The Gmail PKCE S256 challenge (already locked through tauri-codegen; pure Rust).
+sha2 = "0.10.9"
+# Gmail message text: the HTML tokenizer under the html-to-text port (`gmail/html_text.rs`).
+# Already locked as a build dependency through tauri-utils (dom_query); 0.40 is only on wry's
+# non-Windows targets.
+html5ever = "0.39.0"
+# Cursor, monitors and focus hand-back for the capsule window (same major as tauri's own).
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Security",
+  "Win32_Security_Cryptography",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_Performance",
+  "Win32_System_Power",
+  "Win32_System_ProcessStatus",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_SystemInformation",
+  "Win32_System_Threading",
+  "Win32_UI_Controls_Dialogs",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+tauri-plugin-global-shortcut = "2"
+# Start with Windows: our own quoted `HKCU\...\Run` value (`platform/autostart.rs`); already
+# in the lockfile (the crate the plugin's auto-launch used).
+windows-registry = "0.6"
+tauri-plugin-single-instance = "2"
+# Note and reminder ids (`randomUUID` in Electron): RFC 4122 v4, lowercase hyphenated.
+uuid = { version = "1", features = ["v4"] }
+# Reminder toasts with a click (activation) handler; Tauri's notification plugin has none on Windows.
+tauri-winrt-notification = "0.8"
+# `input.normalize('NFC')` for free-text reminders; already in the tree through `url` (idna).
+icu_normalizer = { version = "2", default-features = false, features = ["compiled_data"] }
+
+[features]
+# E2E builds only (`npm run test:e2e:tauri`): the `__e2e:*` channels, live `notch:pointer`, the test
+# clock and the dev overrides (data dir, watchers). Release builds never enable it.
+e2e = []
+
+# Size-oriented release profile, as a shipped Tauri app would use.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+# An always-on tray app must turn a handler panic into INTERNAL (see ipc::dispatch), not abort.
+panic = "unwind"
+
+[dev-dependencies]
+# Paused time for the usage ticker test (same tokio as above).
+tokio = { version = "1", features = ["rt", "test-util"] }
+# Fixed time zones (DST gaps and overlaps) for the reminders' local-time tests.
+chrono-tz = "0.10"

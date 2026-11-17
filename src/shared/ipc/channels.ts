@@ -20,6 +20,7 @@ export const channels = {
     settled: 'notch:settled',
     openIntegration: 'notch:open-integration',
     back: 'notch:back',
+    capsuleRect: 'notch:capsule-rect',
   },
   apps: {
     open: 'apps:open',

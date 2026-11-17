@@ -18,12 +18,10 @@
     "noEmit": true
   },
   "include": [
-    "src/main/**/*",
-    "src/preload/**/*",
     "src/shared/**/*",
     "tests/**/*",
-    "electron.vite.config.mts",
-    "vitest.config.mts",
-    "playwright.config.mts"
+    "vite.tauri.config.mts",
+    "vite.bridge.config.mts",
+    "vitest.config.mts"
   ]
 }

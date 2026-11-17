@@ -13,6 +13,16 @@ export const PRODUCTION_CSP = [
 ].join('; ')
 
 /**
+ * The production policy for the Tauri build only (`vite.tauri.config.mts`): Tauri's IPC on Windows
+ * goes through `http://ipc.localhost` (`ipc:` elsewhere). Without it, every page logs a CSP
+ * violation and Tauri falls back to the slower postMessage channel. Electron keeps PRODUCTION_CSP.
+ */
+export const TAURI_PRODUCTION_CSP = PRODUCTION_CSP.replace(
+  "connect-src 'self'",
+  "connect-src 'self' ipc: http://ipc.localhost",
+)
+
+/**
  * Inserts the CSP meta tag as the first element of <head>. Throws when there is no <head>,
  * so a build can never ship a page without a policy.
  */

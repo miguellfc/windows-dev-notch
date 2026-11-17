@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Notch spike</title>
+    <style>
+      /* Throwaway spike: the resting capsule (peek, 168x36) that widens to compact (358x36) on hover. */
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        font: 500 13px/1 'Segoe UI Variable', 'Segoe UI', sans-serif;
+      }
+      .capsule {
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        width: 168px;
+        height: 36px;
+        transform: translateX(-50%);
+        border-radius: 18px;
+        background: #0e0e10;
+        color: #ededef;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .capsule.hover {
+        width: 358px;
+      }
+      .date {
+        color: #8a8a93;
+      }
+      .extra {
+        display: none;
+        color: #9cc7ff;
+      }
+      .hover .extra {
+        display: inline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="capsule" id="capsule">
+      <span id="time"></span><span class="date" id="date"></span><span class="extra">CPU 12 % · RAM 41 %</span>
+    </div>
+    <script>
+      const capsule = document.getElementById('capsule')
+      const tick = () => {
+        const now = new Date()
+        document.getElementById('time').textContent = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        document.getElementById('date').textContent = now.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
+      }
+      tick()
+      setInterval(tick, 1000)
+      const setHover = (on) => capsule.classList.toggle('hover', on)
+      if (window.__TAURI__) window.__TAURI__.event.listen('hover', (event) => setHover(event.payload))
+      else if (window.spike) window.spike.onHover(setHover)
+    </script>
+  </body>
+</html>
