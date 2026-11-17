@@ -71,19 +71,21 @@ export function IntegrationRow() {
               else if (tile.kind === 'review') openReviews(tile.id)
               else void openApp(tile.id, tile.labelKey)
             }}
-            className="relative flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-tile border border-line bg-veil-tile px-1 text-chalk transition-colors duration-150 hover:bg-veil-hover"
+            className="group relative flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-tile border border-transparent px-1 text-graphite transition-colors duration-150 hover:text-chalk focus-visible:text-chalk"
           >
-            <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+            <span className="relative flex size-9 shrink-0 items-center justify-center rounded-[11px] border border-line bg-veil-tile text-chalk transition-colors duration-150 group-hover:bg-veil-hover group-focus-visible:bg-veil-hover">
+              <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+              {badge > 0 && (
+                <span
+                  data-testid={`integration-${tile.id}-badge`}
+                  aria-hidden="true"
+                  className="tabular absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wait px-1 text-label font-semibold leading-none text-on-wait"
+                >
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+            </span>
             <span className="max-w-full truncate text-label font-medium">{label}</span>
-            {badge > 0 && (
-              <span
-                data-testid={`integration-${tile.id}-badge`}
-                aria-hidden="true"
-                className="tabular absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wait px-1 text-label font-medium leading-none text-on-wait"
-              >
-                {badge > 99 ? '99+' : badge}
-              </span>
-            )}
           </button>
         )
       })}

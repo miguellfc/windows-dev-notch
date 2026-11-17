@@ -58,9 +58,9 @@ describe('content cross-fade', () => {
 })
 
 describe('capsuleRadius', () => {
-  it('rounds the panel views at 24 px and the capsules as true pills (half their height)', () => {
+  it('rounds the panel views at 26 px and the capsules as true pills (half their height)', () => {
     for (const mode of MODES) {
-      expect(capsuleRadius(mode)).toBe(PANEL_MODES.has(mode) ? 24 : CAPSULE_SIZES[mode].height / 2)
+      expect(capsuleRadius(mode)).toBe(PANEL_MODES.has(mode) ? 26 : CAPSULE_SIZES[mode].height / 2)
     }
   })
 

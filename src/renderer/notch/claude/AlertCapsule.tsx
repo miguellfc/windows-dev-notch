@@ -30,7 +30,7 @@ export function AlertCapsule() {
     />
   )
   const moreBadge = more > 0 && (
-    <span className="tabular shrink-0 text-label font-medium text-wait">{t('claude.alert.more', { count: more })}</span>
+    <span className="tabular shrink-0 text-label font-semibold text-wait">{t('claude.alert.more', { count: more })}</span>
   )
 
   if (questionFirst(permissions, asked)) {
@@ -46,7 +46,7 @@ export function AlertCapsule() {
         <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
         {/* Claude's texts are always plain text: React escapes them. */}
         <span className="min-w-0 flex-1 truncate text-body text-chalk">
-          <span className="font-medium">{t('claude.alert.question')}</span>
+          <span className="font-semibold">{t('claude.alert.question')}</span>
           <span className="text-graphite-glass"> · </span>
           <span className="text-graphite-glass">{question.project}</span>
         </span>
@@ -68,7 +68,7 @@ export function AlertCapsule() {
     >
       <span className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
-        <span className="font-medium">{oldest.sessionName}</span>
+        <span className="font-semibold">{oldest.sessionName}</span>
         <span className="text-graphite-glass"> · </span>
         <span className="font-mono text-small text-graphite-glass">{oldest.toolName}</span>
       </span>

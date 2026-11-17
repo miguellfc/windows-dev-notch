@@ -25,7 +25,7 @@ export function morphTransition(mode: VisibleMode, growing: boolean): MorphTrans
 
 /** Panel corner radius, or a true pill (half the height) for the capsule shapes. */
 export function capsuleRadius(mode: VisibleMode): number {
-  return PANEL_MODES.has(mode) ? 24 : CAPSULE_SIZES[mode].height / 2
+  return PANEL_MODES.has(mode) ? 26 : CAPSULE_SIZES[mode].height / 2
 }
 
 /**
@@ -37,7 +37,7 @@ export function capsuleRadius(mode: VisibleMode): number {
  */
 export const LEVITATION_DROP = 'drop-shadow(0 18px 50px rgba(0,0,0,0.55))'
 export const LEVITATION_LOW_DROP = 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))'
-export const LEVITATION_EDGE = 'inset 0 1px 0 rgba(255,255,255,0.06)'
+export const LEVITATION_EDGE = 'inset 0 1px 0 rgba(255,255,255,0.08)'
 
 /**
  * Content cross-fade: out quickly, in once the old content is nearly gone (no double exposure).

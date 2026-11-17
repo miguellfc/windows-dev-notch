@@ -451,7 +451,7 @@ function useSessionCount(): number {
 }
 
 const panelIconButton =
-  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk focus-visible:bg-veil-tile focus-visible:text-chalk'
+  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm bg-veil text-graphite transition-colors duration-150 hover:bg-veil-hover hover:text-chalk focus-visible:bg-veil-hover focus-visible:text-chalk'
 
 function Panel({ time, date }: { time: string; date: string }) {
   const t = useT()

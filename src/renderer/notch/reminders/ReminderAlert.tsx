@@ -24,7 +24,7 @@ export function ReminderAlert() {
       className="flex h-full items-center gap-2 px-3.5"
     >
       <AlarmClock size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
-      <span className="min-w-0 flex-1 truncate text-body font-medium text-chalk">{text}</span>
+      <span className="min-w-0 flex-1 truncate text-body font-semibold text-chalk">{text}</span>
     </div>
   )
 }
