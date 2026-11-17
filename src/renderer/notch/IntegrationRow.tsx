@@ -85,7 +85,7 @@ export function IntegrationRow() {
                 </span>
               )}
             </span>
-            <span className="max-w-full truncate text-label font-medium">{label}</span>
+            <span data-testid={`integration-${tile.id}-label`} className="max-w-full truncate text-label font-medium">{label}</span>
           </button>
         )
       })}

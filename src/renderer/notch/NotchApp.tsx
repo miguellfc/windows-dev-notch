@@ -274,7 +274,7 @@ export function NotchApp() {
             layout
             data-testid="notch-capsule"
             data-mode={mode}
-            // The radius morphs with the size (24 px panel ↔ half-height pill); never 999, which Motion
+            // The radius morphs with the size (26 px panel ↔ half-height pill); never 999, which Motion
             // would turn into a percentage of the target box and flash an ellipse on close.
             animate={{ borderRadius: capsuleRadius(mode) }}
             transition={reduceMotion ? { ...morph, borderRadius: { duration: 0 } } : morph}

@@ -362,7 +362,7 @@ describe('Developer Notch (Tauri)', () => {
             count: tiles.length,
             cut: tiles
               .filter((tile) => {
-                const label = tile.querySelector('span')
+                const label = tile.querySelector('[data-testid$="-label"]')
                 return !label || label.scrollWidth > label.clientWidth
               })
               .map((tile) => tile.dataset['testid']),
