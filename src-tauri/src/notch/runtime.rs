@@ -163,6 +163,15 @@ impl NotchRuntime {
             .store(hwnd.unwrap_or(0), Ordering::SeqCst);
     }
 
+    /// The Control Center's HWND as last reported, `None` while it does not exist. Never asks
+    /// the main thread (any thread may call it).
+    pub fn control_center_hwnd(&self) -> Option<isize> {
+        match self.control_center_hwnd.load(Ordering::SeqCst) {
+            0 => None,
+            hwnd => Some(hwnd),
+        }
+    }
+
     /// Starts the foreground watcher: a fullscreen app in front hides the capsule. Disabled by
     /// `NOTCH_DISABLE_FOREGROUND_WATCH=1` in dev builds only.
     pub fn start_foreground_watch(&self) {

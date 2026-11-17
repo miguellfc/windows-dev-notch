@@ -92,7 +92,7 @@ fn json(value: impl Serialize) -> Result<Value, ExposedError> {
     serde_json::to_value(value).map_err(internal)
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct WindowInput {
     /// A window label; the capsule when not sent.
@@ -176,7 +176,7 @@ fn foreground_is_ours(_app: &AppHandle, input: Value) -> Result<Value, ExposedEr
     Ok(Value::from(pid != 0 && pid == std::process::id()))
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AdvanceClockInput {
     ms: u64,
@@ -224,7 +224,7 @@ fn pointer(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
     Ok(Value::Null)
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct MailAlertInput {
     on: bool,
@@ -295,7 +295,7 @@ fn opened_urls(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
     json(log.urls())
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ClipboardInput {
     text: String,

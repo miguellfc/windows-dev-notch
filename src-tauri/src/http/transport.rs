@@ -25,6 +25,7 @@ pub enum Method {
     Get,
     Post,
     Put,
+    Delete,
 }
 
 /// One request. Header values may hold tokens: `Debug` prints only the method and header names.
@@ -64,6 +65,16 @@ impl HttpRequest {
         }
     }
 
+    /// A request without a body (Gmail's `messages.delete`).
+    pub fn delete(url: impl Into<String>) -> Self {
+        Self {
+            method: Method::Delete,
+            url: url.into(),
+            headers: Vec::new(),
+            body: None,
+        }
+    }
+
     #[must_use]
     pub fn header(mut self, name: &str, value: impl Into<String>) -> Self {
         self.headers.push((name.to_owned(), value.into()));
@@ -89,12 +100,23 @@ impl std::fmt::Debug for HttpRequest {
     }
 }
 
-/// A response with its whole body. Header names are kept lowercase.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A response with its whole body. Header names are kept lowercase. `Debug` prints the body's
+/// length only (it may hold tokens or mail data).
+#[derive(Clone, PartialEq, Eq)]
 pub struct HttpResponse {
     pub status: u16,
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
+}
+
+impl std::fmt::Debug for HttpResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpResponse")
+            .field("status", &self.status)
+            .field("headers", &self.headers)
+            .field("body_len", &self.body.len())
+            .finish()
+    }
 }
 
 impl HttpResponse {
@@ -185,6 +207,7 @@ impl ReqwestTransport {
             Method::Get => reqwest::Method::GET,
             Method::Post => reqwest::Method::POST,
             Method::Put => reqwest::Method::PUT,
+            Method::Delete => reqwest::Method::DELETE,
         };
         let mut builder = self.client.request(method, &request.url);
         for (name, value) in &request.headers {
@@ -381,6 +404,29 @@ mod tests {
         assert!(lower.contains("\r\ncontent-type: application/json\r\n"));
         assert!(lower.contains("\r\ncontent-length: 25\r\n"));
         assert!(seen.ends_with("\r\n\r\n{\"issue\":{\"status_id\":3}}"));
+    }
+
+    #[tokio::test]
+    async fn delete_request_carries_the_method() {
+        let (base, mut requests) =
+            serve(|_| b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".to_vec()).await;
+        let request = HttpRequest::delete(format!("{base}/gmail/v1/users/me/messages/m1"))
+            .header("authorization", "Bearer t0k3n");
+        assert_eq!(request.method, Method::Delete);
+        assert_eq!(request.body, None);
+        let response = transport().send(request).await.unwrap();
+        assert_eq!(response.status, 204);
+        assert!(response.is_ok());
+        assert!(response.body.is_empty());
+
+        let seen = requests.recv().await.unwrap();
+        let lower = seen.to_ascii_lowercase();
+        assert!(
+            lower.starts_with("delete /gmail/v1/users/me/messages/m1 http/1.1\r\n"),
+            "{seen}"
+        );
+        assert!(lower.contains("\r\nauthorization: bearer t0k3n\r\n"));
+        assert!(seen.ends_with("\r\n\r\n"));
     }
 
     #[tokio::test]

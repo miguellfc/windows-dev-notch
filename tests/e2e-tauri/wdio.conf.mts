@@ -50,6 +50,15 @@ function appEnv(dataDir: string): Record<string, string> {
     // Redmine: likewise, the API points at the closed loopback port unless redmine.spec passes its
     // fake server per launch; no app of the run can reach a real Redmine.
     NOTCH_REDMINE_BASE_URL: 'http://127.0.0.1:9',
+    // Gmail: Google (consent screen, token, revoke and the Gmail API) points at the closed loopback
+    // port unless gmail.spec passes its fake server per launch; no app of the run can reach Google.
+    NOTCH_GMAIL_BASE_URL: 'http://127.0.0.1:9',
+    // The client-file picker answers this path instead of opening the real dialog. It does not
+    // exist, so a stray "Cargar archivo JSON" answers "Not a Google desktop client file" (the picker stats
+    // it first and refuses what it cannot read) and never opens a dialog. gmail.spec passes a real
+    // file per launch; a per-launch switch msedgedriver dropped would fall back to this path. Never
+    // the empty value here or per launch: the picker reads it as Cancel.
+    NOTCH_GMAIL_CLIENT_FILE: join(dataDir, 'no-such-gmail-client-file.json'),
     NOTCH_OPEN_URL_LOG: '1',
   }
 }
@@ -97,7 +106,7 @@ type TauriCapabilities = Capabilities.RequestedStandaloneCapabilities & { 'tauri
 
 export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } = {
   runner: 'local',
-  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts', './redmine.spec.ts'],
+  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts', './redmine.spec.ts', './gmail.spec.ts'],
   maxInstances: 1,
   hostname: '127.0.0.1',
   port: DRIVER_PORT,

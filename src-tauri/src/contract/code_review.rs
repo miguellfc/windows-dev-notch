@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::claude::{BoolLiteral, False, True};
-use super::{length, nullable, present, Validate, MAX_SAFE_INTEGER};
+use super::{at_most, len_in, max_len, nullable, present, safe_int_min, Validate};
 
 /// `CODE_REVIEW_LIST_LIMIT`: each list (`toReview`, `mine`) holds at most this many items.
 pub const LIST_LIMIT: usize = 20;
@@ -78,42 +78,6 @@ string_enum! {
         Auth = "auth",
         Network = "network",
         Url = "url",
-    }
-}
-
-/// `z.string().max(max)` on the field `name`.
-pub(super) fn max_len(name: &str, value: &str, max: usize) -> Result<(), String> {
-    if length(value) <= max {
-        Ok(())
-    } else {
-        Err(format!("{name} must have at most {max} characters"))
-    }
-}
-
-/// `z.string().min(min).max(max)` on the field `name`.
-pub(super) fn len_in(name: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
-    if (min..=max).contains(&length(value)) {
-        Ok(())
-    } else {
-        Err(format!("{name} must have {min} to {max} characters"))
-    }
-}
-
-/// `z.int().min(min)` on a field deserialized as an unsigned integer (also `<= MAX_SAFE_INTEGER`).
-pub(super) fn safe_int_min(name: &str, value: u64, min: u64) -> Result<(), String> {
-    if (min..=MAX_SAFE_INTEGER).contains(&value) {
-        Ok(())
-    } else {
-        Err(format!("{name} must be an integer of at least {min}"))
-    }
-}
-
-/// `.max(max)` on the array `name`.
-pub(super) fn at_most(name: &str, len: usize, max: usize) -> Result<(), String> {
-    if len <= max {
-        Ok(())
-    } else {
-        Err(format!("{name} must have at most {max} items"))
     }
 }
 

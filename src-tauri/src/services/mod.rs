@@ -7,6 +7,7 @@ pub mod json_store;
 pub mod logger;
 pub mod quit;
 pub mod secure_token_store;
+pub mod tasks;
 #[cfg(test)]
 pub(crate) mod test_dir;
 #[cfg(test)]

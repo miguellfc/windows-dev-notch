@@ -128,3 +128,30 @@ Lectura:
 - Las pruebas de extremo a extremo pasan de 49 a 52 (`redmine.spec.ts`, 3). Corren contra el servidor falso de Electron en `127.0.0.1`, con su clave falsa, sin abrir el navegador.
 - El ejecutable de `release` sigue sin ningún canal `__e2e:` (comprobado buscando el texto en el binario).
 
+
+## Parte 6: Gmail (2026-11-17)
+
+La parte 5 más Gmail: el archivo de cliente de Google del usuario (diálogo nativo de Windows, como mucho 64 KiB), el inicio de sesión OAuth con PKCE y retorno local en `127.0.0.1`, el recuento de no leídos en la cápsula cada 60 s, los 5 correos recientes, el texto del mensaje (MIME y paso de HTML a texto), marcar como leído, borrar, abrir en Gmail, el aviso de correo nuevo, el token de renovación cifrado con DPAPI en `gmail-token.bin` y los 14 canales `gmail:*`. Ya no queda ninguna integración que responda `UNAVAILABLE`. Compilado con `npm run tauri:build` (perfil `release`, NSIS).
+
+Mismo método que las partes 4 y 5: una compilación de `release` con la feature `e2e` (`tauri build --no-bundle --features e2e`, en otra carpeta de destino), con una carpeta de datos temporal y vacía, el `settings.json` de Claude temporal, el puerto del puente efímero, las dos plataformas de revisiones, Redmine y Google apuntando al puerto cerrado 9 de `127.0.0.1`, el selector del archivo de cliente apuntando a un archivo inexistente de la carpeta temporal (nunca abre el diálogo) y la anotación de URL activa. Así, revisiones, Redmine y Gmail están sin configurar, igual que en la medición de la parte 5. Árbol de procesos completo, 15 s después de arrancar, en reposo en peek y sin abrir el Control Center, con una ventana de CPU de 15 s y otra de 60 s. Se midió dos veces; los procesos se cerraron al acabar.
+
+Las mismas salvedades que en la parte 5:
+
+- El perfil está vacío, con los ajustes por defecto (sin cliente de Google ni sesión, así que no hay recuento de Gmail).
+- El binario medido lleva la feature `e2e`, así que no es exactamente el ejecutable que se distribuye. El tamaño del instalador y del ejecutable sí son los de `npm run tauri:build`.
+- El runtime de WebView2 del sistema es el 157.0.4341.46; no se comprobó si cambió desde la medición de la parte 5.
+
+| | Memoria privada | Conjunto de trabajo | CPU en reposo (15 s / 60 s) | Instalador | En disco |
+|---|---|---|---|---|---|
+| Developer Notch 0.2.0-dev (Tauri, parte 6) | 188–190 MB | 390–399 MB | 0,10–0,62 % / 0,47–0,73 % | 3,20 MB | 11,29 MB exe + WebView2 del sistema |
+
+Desglose de la memoria privada por proceso: principal (Rust) 7, navegador WebView2 37–38, GPU 89–90, renderer 32–34, red 12, almacenamiento 7, crashpad 3.
+
+Lectura:
+
+- Siguen siendo 7 procesos. La memoria sube unos 10 MB respecto a la parte 5 (179 MB), pero toda la subida está en los procesos de WebView2 (navegador +5, GPU +5); el proceso de Rust sigue en 7 MB. Sin cliente de Google, Gmail no hace nada en reposo, así que no se atribuye a la parte 6. Las dos mediciones dieron 188,4 y 189,5 MB: la primera queda dentro del margen de las partes 2 a 5 (174–189 MB) y la segunda lo pasa por medio MB, dentro del ruido de WebView2.
+- El instalador pasa de 2,98 a 3,20 MB (3 351 664 B) y el ejecutable de 10,33 a 11,29 MB (11 837 440 B, +1 003 008 B, unos 980 KiB). Las dependencias nuevas son `html5ever` 0.39 (con `markup5ever`, `tendril`, `string_cache` y `web_atoms`) para el texto de los mensajes y `sha2` para PKCE; el resto es el módulo de Gmail y el diálogo de Windows.
+- Coste del convertidor de HTML: medido aparte en la tarea 2 (un binario mínimo con el mismo perfil de `release`), el paso de HTML a texto sobre el tokenizador de `html5ever` añade unos 562 KiB (574 976 B), casi todo la tabla de entidades y los átomos de `html5ever`. Es más de la mitad del aumento del ejecutable de esta parte. Se descartó `html2text` porque no da el formato exacto de la 0.1.0. En velocidad, un HTML de 1,9 MB tipo boletín se convierte en 106 ms en `release`.
+- CPU: entre 0,10 y 0,73 % de un núcleo, en el mismo ruido de los procesos de WebView2 que en las partes 2 a 5. Sin sesión no hay recuento; con sesión, el trabajo propio es una consulta cada 60 s (y la lista de recientes solo con la vista abierta).
+- Las pruebas de extremo a extremo pasan de 52 a 61 (`gmail.spec.ts`, 9) y tardan unos 4 min y 35 s. Corren contra el servidor falso de Google de Electron en `127.0.0.1`, con su cliente falso, sin abrir el navegador ni el diálogo de archivos.
+- El ejecutable de `release` sigue sin ningún canal `__e2e:` (comprobado buscando el texto en el binario).

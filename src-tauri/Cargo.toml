@@ -36,6 +36,12 @@ reqwest = { version = "0.13", default-features = false, features = ["native-tls"
 base64 = "0.23"
 # The bridge's random port and token from the OS RNG (same version uuid already uses).
 getrandom = "0.4"
+# The Gmail PKCE S256 challenge (already locked through tauri-codegen; pure Rust).
+sha2 = "0.10.9"
+# Gmail message text: the HTML tokenizer under the html-to-text port (`gmail/html_text.rs`).
+# Already locked as a build dependency through tauri-utils (dom_query); 0.40 is only on wry's
+# non-Windows targets.
+html5ever = "0.39.0"
 # Cursor, monitors and focus hand-back for the capsule window (same major as tauri's own).
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
@@ -55,6 +61,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_RemoteDesktop",
   "Win32_System_SystemInformation",
   "Win32_System_Threading",
+  "Win32_UI_Controls_Dialogs",
   "Win32_UI_HiDpi",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",

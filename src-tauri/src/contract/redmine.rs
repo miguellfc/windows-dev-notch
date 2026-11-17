@@ -9,8 +9,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::claude::{BoolLiteral, False, True};
-use super::code_review::{at_most, is_day_key, is_month_key, len_in, max_len, safe_int_min};
-use super::{nullable, present, Validate, MAX_SAFE_INTEGER};
+use super::code_review::{is_day_key, is_month_key};
+use super::{
+    at_most, len_in, max_len, nullable, present, safe_int_min, Validate, MAX_SAFE_INTEGER,
+};
 
 /// `TEXT_MAX`: subjects, projects, status and activity names, `updatedOn` and the account.
 pub const TEXT_MAX: usize = 512;
@@ -629,7 +631,7 @@ mod tests {
     use crate::code_review::contributions::local_date;
     use crate::contract::parse;
 
-    fn accepts<T: serde::de::DeserializeOwned + Validate>(value: Value) -> bool {
+    fn accepts<T: serde::de::DeserializeOwned + serde::Serialize + Validate>(value: Value) -> bool {
         parse::<T>(value).is_ok()
     }
 

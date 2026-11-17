@@ -38,6 +38,10 @@ impl log::Log for Capture {
     }
 
     fn log(&self, record: &log::Record) {
+        // As the app logger: the HTML crates' records carry mail text and are never kept.
+        if super::logger::is_silenced_target(record.target()) {
+            return;
+        }
         self.0.lock().unwrap_or_else(PoisonError::into_inner).push((
             std::thread::current().id(),
             format!("{} {} {}", record.level(), record.target(), record.args()),
