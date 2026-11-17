@@ -3,6 +3,7 @@ import { REMINDER_DONE_MESSAGE, type Reminder } from '../../../src/shared/remind
 import {
   attentionReminders,
   formatDue,
+  formatDueDay,
   formatTime,
   parseErrorKey,
   remindersBadgeLabel,
@@ -117,5 +118,23 @@ describe('nextReminder', () => {
   it('is null when nothing is pending', () => {
     expect(nextReminder([])).toBeNull()
     expect(nextReminder([reminder('due', local(2026, 11, 10, 9)), reminder('done', local(2026, 11, 10, 13))])).toBeNull()
+  })
+})
+
+describe('formatDueDay', () => {
+  it('is null today, so only the time shows', () => {
+    expect(formatDueDay(local(2026, 11, 10, 16, 30), NOW, 'es')).toBeNull()
+    expect(formatDueDay(local(2026, 11, 10, 16, 30), NOW, 'en')).toBeNull()
+  })
+
+  it('names tomorrow, capitalised, without the time', () => {
+    expect(formatDueDay(local(2026, 11, 11, 9, 0), NOW, 'es')).toBe('Mañana')
+    expect(formatDueDay(local(2026, 11, 11, 9, 0), NOW, 'en')).toBe('Tomorrow')
+  })
+
+  it('names a later day by weekday or date, without the time', () => {
+    expect(formatDueDay(local(2026, 11, 13, 8, 0), NOW, 'es')).toBe('Vie')
+    expect(formatDueDay(local(2026, 11, 13, 8, 0), NOW, 'en')).toBe('Fri')
+    expect(formatDueDay(local(2026, 11, 20, 8, 0), NOW, 'es')).toBe('20 nov')
   })
 })

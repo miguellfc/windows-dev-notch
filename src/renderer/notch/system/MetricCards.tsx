@@ -21,7 +21,7 @@ interface MetricCardsProps {
   ramHistory: readonly number[]
 }
 
-const card = 'card flex h-16 min-w-0 items-center gap-2 px-2.5 py-2'
+const card = 'card flex h-16 min-w-0 items-center gap-2 overflow-hidden px-2.5 py-2'
 /** The column beside a ring (or the whole card without one): head on top, line or detail below. */
 const column = 'flex h-full min-w-0 flex-1 flex-col justify-between'
 const lineColor = 'text-[color:var(--int,var(--color-int-default))]'
@@ -36,6 +36,8 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
   const t = useT()
   const language = useLanguage()
   const battery = sample?.battery ?? null
+  // With a battery card the grid is four columns and the rings shrink (see the arithmetic in the task 5 report).
+  const ringSize = battery ? 32 : 40
   const alerts = sample?.alerts
   const cpuAlert = alerts?.cpu === true
   const ramAlert = alerts?.ram === true
@@ -51,14 +53,14 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
     <div
       data-testid="system-cards"
       // CPU and RAM carry a line (and RAM a detail), so they get a little more room than the rest.
-      className={`grid shrink-0 gap-2 ${battery ? 'grid-cols-[5fr_5fr_4fr_4fr]' : 'grid-cols-[5fr_5fr_4fr]'}`}>
+      className={`grid shrink-0 gap-2 ${battery ? 'grid-cols-[11fr_11fr_8fr_8fr]' : 'grid-cols-[5fr_5fr_4fr]'}`}>
       <div
         data-testid="system-card-cpu"
         role="group"
         aria-label={t(cpuAlert ? 'system.capsule.cpuHigh' : 'system.capsule.cpu', { value: cpuText })}
         className={card}
       >
-        <Ring percent={sample?.cpuPercent ?? null} alert={cpuAlert} />
+        <Ring percent={sample?.cpuPercent ?? null} alert={cpuAlert} size={ringSize} />
         <div className={column}>
           <CardHead label={t('system.card.cpu')} value={cpuText} alert={cpuAlert} />
           <Sparkline values={cpuHistory} className={`h-4 w-full ${cpuAlert ? lineAlert : lineColor}`} />
@@ -80,7 +82,7 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
         }
         className={card}
       >
-        <Ring percent={ramPercent(sample)} alert={ramAlert} />
+        <Ring percent={ramPercent(sample)} alert={ramAlert} size={ringSize} />
         <div className={column}>
           <CardHead
             label={t('system.card.ram')}
@@ -111,7 +113,6 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
           }
           className={card}
         >
-          <Ring percent={battery.percent} alert={batteryAlert} />
           <div className={column}>
             <CardHead label={t('system.card.battery')} value={batteryText} alert={batteryAlert} />
             <span className="truncate text-label leading-3.5 text-graphite">
