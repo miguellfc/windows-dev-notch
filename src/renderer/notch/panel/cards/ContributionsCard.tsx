@@ -1,23 +1,10 @@
 import type { ContributionDay, Platform } from '../../../../shared/code-review/schema'
-import type { MessageKey } from '../../../../shared/i18n/messages'
-import { contributionsPhase, monthName } from '../../../shared/code-review/contributions-format'
+import { monthName } from '../../../shared/code-review/contributions-format'
 import { useCodeReview } from '../../../shared/code-review-store'
 import { useLanguage, useT } from '../../../shared/use-t'
 import { LEVEL_FILL } from '../../code-review/ContributionGraph'
 import { CardNotice } from './CardNotice'
-
-/** The notice that takes the card's place; null once there is a month to show. */
-function noticeKey(platform: Platform): (store: ReturnType<typeof useCodeReview.getState>) => MessageKey | null {
-  return (store) => {
-    const status = store.state?.[platform].status
-    if (status === 'unconfigured') return 'codeReview.state.unconfigured'
-    if (status === 'auth-error') return 'codeReview.state.auth'
-    const { phase } = contributionsPhase(store.contributions[platform])
-    if (phase === 'ready') return null
-    if (status === 'offline') return 'codeReview.view.offline'
-    return phase === 'error' ? 'codeReview.contrib.error' : 'codeReview.contrib.loading'
-  }
-}
+import { contributionsNotice } from './card-content'
 
 function dayFill(day: ContributionDay): string {
   if (!day.inMonth) return ''
@@ -28,7 +15,7 @@ function dayFill(day: ContributionDay): string {
 export function ContributionsCard({ platform }: { platform: Platform }) {
   const t = useT()
   const language = useLanguage()
-  const notice = useCodeReview(noticeKey(platform))
+  const notice = useCodeReview((store) => contributionsNotice(store.state?.[platform].status, store.contributions[platform]))
   const summary = useCodeReview((store) => store.contributions[platform]?.summary ?? null)
   if (notice !== null || summary === null) return <CardNotice text={t(notice ?? 'codeReview.contrib.loading')} />
   return (

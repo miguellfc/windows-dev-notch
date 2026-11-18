@@ -11,7 +11,7 @@ export function RemindersCard() {
   const now = useClock()
   const reminders = useReminders((store) => store.reminders)
   const overdue = useAttentionCount()
-  if (reminders === null) return null
+  if (reminders === null) return <CardNotice text={t('panel.card.loading')} />
   const next = nextReminder(reminders)
   if (next === null && overdue === 0) return <CardNotice text={t('reminders.list.empty')} />
   const due = next ? new Date(next.dueAt) : null

@@ -3,7 +3,18 @@ import type { ClaudeSession } from '../../../src/shared/claude/types'
 import type { GmailMessage, GmailState } from '../../../src/shared/gmail/schema'
 import { translate, type MessageKey, type MessageParams } from '../../../src/shared/i18n/messages'
 import type { Note } from '../../../src/shared/notes/schema'
-import { gmailCardBody, redmineProgress, sessionLine, topNotes, topSessions } from '../../../src/renderer/notch/panel/cards/card-content'
+import type { ContributionSummary } from '../../../src/shared/code-review/schema'
+import type { RedmineState } from '../../../src/shared/redmine/schema'
+import {
+  contributionsNotice,
+  gmailCardBody,
+  gmailUnreadFigure,
+  redmineNotice,
+  redmineProgress,
+  sessionLine,
+  topNotes,
+  topSessions,
+} from '../../../src/renderer/notch/panel/cards/card-content'
 
 const NOW = Date.UTC(2026, 10, 18, 12)
 const MINUTE = 60_000
@@ -34,8 +45,9 @@ describe('topSessions', () => {
 })
 
 describe('sessionLine', () => {
-  it('says what a waiting session waits for and for how long', () => {
-    expect(sessionLine(session('a', 'waiting', 2), NOW, 'es-ES', es).normalize('NFKC')).toBe('espera permiso · 2 min')
+  it('says a waiting session needs an answer, be it a permission or a question, and for how long', () => {
+    expect(sessionLine(session('a', 'waiting', 2), NOW, 'es-ES', es).normalize('NFKC')).toBe('espera respuesta · 2 min')
+    expect(sessionLine(session('a', 'waiting', 2), NOW, 'en-US', en).normalize('NFKC')).toBe('needs input · 2 min')
   })
 
   it('says how long a session has been working', () => {
@@ -89,6 +101,86 @@ describe('redmineProgress', () => {
 
   it('is empty without a target to measure against', () => {
     expect(redmineProgress(4, 0)).toBe(0)
+  })
+})
+
+describe('redmineNotice', () => {
+  const state = (status: RedmineState['status'], todayHours: number | null): RedmineState => ({
+    status,
+    account: null,
+    todayHours,
+    updatedAt: null,
+    persistent: true,
+  })
+
+  it('is loading before the first reading and until the hours are read', () => {
+    expect(redmineNotice(null)).toBe('panel.card.loading')
+    expect(redmineNotice(state('ok', null))).toBe('panel.card.loading')
+  })
+
+  it('asks to set up or fix the connection, whatever hours it remembers', () => {
+    expect(redmineNotice(state('unconfigured', 3))).toBe('redmine.state.unconfigured')
+    expect(redmineNotice(state('auth-error', 3))).toBe('redmine.state.auth')
+  })
+
+  it('says it is offline only without hours to show', () => {
+    expect(redmineNotice(state('offline', null))).toBe('redmine.view.offline')
+    expect(redmineNotice(state('offline', 3))).toBeNull()
+  })
+
+  it('has nothing to say with the hours read, zero included', () => {
+    expect(redmineNotice(state('ok', 0))).toBeNull()
+  })
+})
+
+describe('contributionsNotice', () => {
+  const summary = {} as ContributionSummary
+
+  it('asks to set up or fix the connection, whatever month it remembers', () => {
+    expect(contributionsNotice('unconfigured', { summary, error: false })).toBe('codeReview.state.unconfigured')
+    expect(contributionsNotice('auth-error', { summary, error: false })).toBe('codeReview.state.auth')
+  })
+
+  it('has nothing to say with a month to show, offline or after a failed query', () => {
+    expect(contributionsNotice('ok', { summary, error: false })).toBeNull()
+    expect(contributionsNotice('offline', { summary, error: true })).toBeNull()
+  })
+
+  it('says it is offline without a month to show', () => {
+    expect(contributionsNotice('offline', undefined)).toBe('codeReview.view.offline')
+  })
+
+  it('tells a failed query from one still on its way', () => {
+    expect(contributionsNotice('ok', { summary: null, error: true })).toBe('codeReview.contrib.error')
+    expect(contributionsNotice('ok', undefined)).toBe('codeReview.contrib.loading')
+    expect(contributionsNotice(undefined, undefined)).toBe('codeReview.contrib.loading')
+  })
+})
+
+describe('gmailUnreadFigure', () => {
+  const reading = (status: GmailState['status'], unread: number | null): GmailState => ({
+    status,
+    account: null,
+    unread,
+    updatedAt: null,
+    persistent: true,
+    reason: null,
+  })
+
+  it('is the count of a live session', () => {
+    expect(gmailUnreadFigure(reading('ok', 3))).toBe(3)
+    expect(gmailUnreadFigure(reading('offline', 3))).toBe(3)
+  })
+
+  it('goes away as soon as everything is read', () => {
+    expect(gmailUnreadFigure(reading('ok', 0))).toBeNull()
+  })
+
+  it('is absent without a count or a live session', () => {
+    expect(gmailUnreadFigure(null)).toBeNull()
+    expect(gmailUnreadFigure(reading('ok', null))).toBeNull()
+    expect(gmailUnreadFigure(reading('expired', 3))).toBeNull()
+    expect(gmailUnreadFigure(reading('signed-out', 3))).toBeNull()
   })
 })
 

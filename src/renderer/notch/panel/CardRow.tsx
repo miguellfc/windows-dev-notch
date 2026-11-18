@@ -14,6 +14,7 @@ import { useSettings } from '../../shared/settings-store'
 import { useLanguage, useT } from '../../shared/use-t'
 import { visibleCards } from '../integration-visibility'
 import { activePage, cardPages, landsOnTabStop, nextCardIndex, resolveTabStop, scrollForCard, snapLeft, wheelScroll, type TabStop } from './card-row'
+import { gmailUnreadFigure } from './cards/card-content'
 import { ClaudeCard } from './cards/ClaudeCard'
 import { ContributionsCard } from './cards/ContributionsCard'
 import { GmailCard } from './cards/GmailCard'
@@ -188,7 +189,7 @@ export function CardRow() {
   const language = useLanguage()
   const integrations = useSettings((state) => state.settings?.integrations ?? null)
   const remindersDue = useAttentionCount()
-  const unread = useGmail((store) => store.mail.unread)
+  const unread = useGmail((store) => gmailUnreadFigure(store.state))
   const scroller = useRef<HTMLUListElement>(null)
   const [scrolledPage, setScrolledPage] = useState(0)
   const [storedStop, setStop] = useState<TabStop<IntegrationKey>>({ key: null, index: 0 })
