@@ -8,19 +8,34 @@ import { randomUUID } from 'node:crypto'
 import { $, $$, browser, expect } from '@wdio/globals'
 import { DEFAULT_INTEGRATION_COLORS, INTEGRATION_COLOR_HEX, type IntegrationKey } from '../../src/shared/integrations/colors'
 import {
+  FAKE_GITHUB_LOGIN,
+  FAKE_GITHUB_TOKEN,
+  FAKE_GITLAB_ORIGIN,
+  FAKE_GITLAB_TOKEN,
+  FAKE_GITLAB_USER,
+  startFakeCodeReview,
+  type FakeCodeReview,
+} from './fixtures/fake-code-review'
+import { FAKE_ACCOUNT, FAKE_CLIENT_ID, FAKE_CLIENT_SECRET, startFakeGmail, type FakeGmail } from './fixtures/fake-gmail'
+import { FAKE_REDMINE_ACCOUNT, FAKE_REDMINE_KEY, FAKE_REDMINE_ORIGIN, startFakeRedmine, type FakeRedmine } from './fixtures/fake-redmine'
+import {
+  alignZoneWithWindows,
   claudeSettingsFile,
   cssOf,
   DEFAULT_ALERTS,
   dataDir,
   e2e,
   eventually,
+  fillValue,
   hookEvent,
   inPage,
   installClaudeHooks,
   ipc,
+  labelledField,
   launch,
   launchClaude,
   openControlCenter,
+  openedUrls,
   pageLang,
   postHook,
   quitApp,
@@ -55,6 +70,7 @@ async function openPanel(): Promise<void> {
     await browser.pause(300)
     if ((await capsule().getAttribute('data-mode')) === 'expanded') break
     if (attempt === 3 || panelDismissesLogged() === before) throw new Error('The panel did not stay open')
+    console.log(`The panel lost the focus right after opening (attempt ${attempt}); opening it again (known follow-up)`)
   }
   await $(ROW).waitForDisplayed()
   await settle()
@@ -170,7 +186,86 @@ const cardOverflows = (): Promise<{ cards: number; sizes: string[]; overflows: O
     return { cards: cards.length, sizes, overflows }
   })
 
+interface Fakes {
+  codeReview: FakeCodeReview
+  gmail: FakeGmail
+  redmine: FakeRedmine
+}
+
+/** The fake servers of the running test, closed even when it fails. */
+let fakes: Fakes | undefined
+
+/** Nothing connected yet and every alert of the four integrations off: only the cards are under test. */
+const unconnectedSettings = () => ({
+  ...seededSettings(DEFAULT_ALERTS),
+  gmail: { clientId: FAKE_CLIENT_ID, clientSecret: FAKE_CLIENT_SECRET, alerts: { enabled: false, hideContent: false, sound: false } },
+  codeReview: { gitlabUrl: '', alerts: { github: { enabled: false, sound: false }, gitlab: { enabled: false, sound: false } } },
+  redmine: { url: '', dailyTargetHours: 8, endOfDay: { enabled: false, time: '18:00', sound: false } },
+})
+
+const SAVE = './/button[normalize-space()="Comprobar y guardar"]'
+
+/** GitHub and GitLab from the Control Center, as code-review.spec.ts connects them. */
+async function connectCodeReview(): Promise<void> {
+  await useWindow('notch')
+  await openControlCenter('code-review')
+  await $('[data-testid="code-review-page"]').waitForDisplayed()
+  const github = '[data-testid="code-review-github"]'
+  await fillValue(await labelledField(github, 'Token de GitHub'), FAKE_GITHUB_TOKEN)
+  await $(github).$(SAVE).click()
+  await expect($('[data-testid="code-review-github-status"] span')).toHaveText(`Conectado como ${FAKE_GITHUB_LOGIN}`)
+  const gitlab = '[data-testid="code-review-gitlab"]'
+  await fillValue(await labelledField(gitlab, 'URL de GitLab'), FAKE_GITLAB_ORIGIN)
+  await fillValue(await labelledField(gitlab, 'Token de GitLab'), FAKE_GITLAB_TOKEN)
+  await $(gitlab).$(SAVE).click()
+  await expect($('[data-testid="code-review-gitlab-status"] span')).toHaveText(`Conectado como ${FAKE_GITLAB_USER.username}`)
+}
+
+/** Redmine from the Control Center, as redmine.spec.ts connects it. */
+async function connectRedmine(): Promise<void> {
+  await useWindow('notch')
+  await openControlCenter('redmine')
+  await $('[data-testid="redmine-page"]').waitForDisplayed()
+  const connection = '[data-testid="redmine-connection"]'
+  await fillValue(await labelledField(connection, 'URL de Redmine'), FAKE_REDMINE_ORIGIN)
+  await fillValue(await labelledField(connection, 'Clave de acceso API'), FAKE_REDMINE_KEY)
+  await $(connection).$(SAVE).click()
+  await expect($('[data-testid="redmine-status"] span')).toHaveText(`Conectado como ${FAKE_REDMINE_ACCOUNT}`)
+}
+
+/** Gmail's sign-in, playing the browser as gmail.spec.ts does: the consent URL, then the loopback redirect. */
+async function connectGmail(server: FakeGmail): Promise<void> {
+  await useWindow('notch')
+  await openControlCenter('gmail')
+  await $('[data-testid="gmail-page"]').waitForDisplayed()
+  const session = $('[data-testid="gmail-session"]')
+  await session.$('.//button[normalize-space()="Iniciar sesión"]').click()
+  const consent = await eventually(
+    async () => (await openedUrls()).find((url) => url.startsWith(`${server.base}/o/oauth2/v2/auth?`)) ?? '',
+    (url) => url !== '',
+    'the consent URL',
+  )
+  const consented = await fetch(consent, { redirect: 'manual' })
+  expect((await fetch(new URL(consented.headers.get('location') ?? ''))).status).toBe(200)
+  await eventually(() => session.getAttribute('data-status'), (status) => status === 'ok', 'the Gmail session')
+  await expect(session).toHaveText(expect.stringContaining(FAKE_ACCOUNT))
+}
+
+/** The four integrations show their data, not a notice. */
+async function expectCardsWithData(): Promise<void> {
+  for (const card of ['integration-github', 'integration-gitlab', 'integration-redmine']) {
+    await $(`[data-testid="${card}"] .digits`).waitForExist({ timeout: 15_000 })
+  }
+  await eventually(async () => (await $$('[data-testid="integration-gmail"] li')).length, (mails) => mails === 3, 'three mails on the Gmail card', 15_000)
+}
+
 describe('Main panel (Tauri)', () => {
+  afterEach(async () => {
+    const running = fakes
+    fakes = undefined
+    if (running) await Promise.all(Object.values(running).map((fake) => fake.close().catch(() => undefined)))
+  })
+
   after(async () => {
     await quitApp()
   })
@@ -309,6 +404,13 @@ describe('Main panel (Tauri)', () => {
 
   it('nothing overflows its card', async () => {
     claudeSettingsFile()
+    // The fake checks the contributions ranges against the app's days (see code-review.spec.ts).
+    alignZoneWithWindows()
+    fakes = { codeReview: await startFakeCodeReview(), gmail: await startFakeGmail(), redmine: await startFakeRedmine() }
+    const { codeReview, gmail, redmine } = fakes
+    for (const { base } of [codeReview, gmail, redmine]) {
+      if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(base)) throw new Error(`Unexpected fake origin ${base}`)
+    }
     const inOneMinute = new Date(Date.now() + 60_000).toISOString()
     const inTwoHours = new Date(Date.now() + 2 * 3_600_000).toISOString()
     const reminder = (text: string, dueAt: string) => ({
@@ -320,7 +422,14 @@ describe('Main panel (Tauri)', () => {
       createdAt: new Date(Date.now() - 3_600_000).toISOString(),
     })
     await launchClaude({
+      env: {
+        NOTCH_CODE_REVIEW_BASE_URLS: `github=${codeReview.base},gitlab=${codeReview.base}`,
+        NOTCH_GMAIL_BASE_URL: gmail.base,
+        NOTCH_REDMINE_BASE_URL: redmine.base,
+        NOTCH_OPEN_URL_LOG: '1',
+      },
       files: {
+        'settings.json': unconnectedSettings(),
         'reminders.json': {
           version: 1,
           reminders: [
@@ -337,7 +446,14 @@ describe('Main panel (Tauri)', () => {
     for (const text of ['Una nota muy larga que no cabe de ninguna manera en una sola línea de la tarjeta', 'Lista de la compra', 'Ideas']) {
       expect((await ipc('notes:create', { text })).ok).toBe(true)
     }
+    // The recorder must be on before the sign-in: never a real browser.
+    expect(await openedUrls()).toEqual([])
+    await connectCodeReview()
+    await connectRedmine()
+    await connectGmail(gmail)
+    await useWindow('notch')
     await openPanel()
+    await expectCardsWithData()
     // The first reminder falls due with the panel open: the badge and the coral line show too.
     await e2e('advance-clock', { ms: 90_000 })
     await $('[data-testid="integration-reminders-badge"]').waitForDisplayed()
@@ -346,11 +462,13 @@ describe('Main panel (Tauri)', () => {
     for (const language of ['es', 'en'] as const) {
       await setLanguage(language)
       await eventually(pageLang, (lang) => lang === language, `the panel in ${language}`)
+      await expectCardsWithData()
       await settle()
       const measured = await cardOverflows()
       expect({ language, cards: measured.cards }).toEqual({ language, cards: 8 })
       expect({ language, sizes: [...new Set(measured.sizes)] }).toEqual({ language, sizes: ['172x196'] })
       expect({ language, overflows: measured.overflows }).toEqual({ language, overflows: [] })
     }
+    expect([...codeReview.violations, ...gmail.violations, ...redmine.violations]).toEqual([])
   })
 })
