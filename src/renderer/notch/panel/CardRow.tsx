@@ -3,13 +3,24 @@ import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type 
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { IntegrationKey } from '../../../shared/integrations/colors'
 import { ClaudeMark, GithubMark, GitlabMark, GmailMark, RedmineMark } from '../../shared/brand-icons'
+import { useClaude } from '../../shared/claude-store'
 import { setReviewsTarget } from '../../shared/code-review-store'
+import { unreadLabel, unreadText } from '../../shared/gmail/format'
+import { useGmail } from '../../shared/gmail-store'
+import { useQuestions } from '../../shared/questions-store'
 import { useAttentionCount } from '../../shared/reminders-store'
 import { remindersBadgeLabel } from '../../shared/reminders/format'
 import { useSettings } from '../../shared/settings-store'
 import { useLanguage, useT } from '../../shared/use-t'
 import { visibleCards } from '../integration-visibility'
 import { activePage, cardPages, landsOnTabStop, nextCardIndex, resolveTabStop, scrollForCard, snapLeft, wheelScroll, type TabStop } from './card-row'
+import { ClaudeCard } from './cards/ClaudeCard'
+import { ContributionsCard } from './cards/ContributionsCard'
+import { GmailCard } from './cards/GmailCard'
+import { NotesCard } from './cards/NotesCard'
+import { RedmineCard } from './cards/RedmineCard'
+import { RemindersCard } from './cards/RemindersCard'
+import { SystemCard } from './cards/SystemCard'
 import { CardTabStop, PanelCard } from './PanelCard'
 
 const ICONS: Readonly<Record<IntegrationKey, LucideIcon>> = {
@@ -40,10 +51,18 @@ const EDGE_MASK: CSSProperties = { maskImage: 'linear-gradient(to right, #000 ca
 /** How long after the last wheel event the row forgets the distance it was adding up. */
 const WHEEL_IDLE_MS = 200
 
-/** Opens what a card stands for: its view, the reviews on its platform, or Claude itself. */
+/** Whether a permission or a question is waiting for the user. */
+function claudeHasPending(): boolean {
+  const permissions = useClaude.getState().state?.pending.length ?? 0
+  const questions = useQuestions.getState().questions?.length ?? 0
+  return permissions + questions > 0
+}
+
+/** Opens what a card stands for: its view, the reviews on its platform, what Claude asks, or Claude itself. */
 export function openCard(key: IntegrationKey): void {
   if (key === 'claude') {
-    void window.notch.claude.focusApp()
+    if (claudeHasPending()) void window.notch.notch.request({ intent: 'open-pending' })
+    else void window.notch.claude.focusApp()
   } else if (key === 'github' || key === 'gitlab') {
     setReviewsTarget({ platform: key })
     void window.notch.notch.openIntegration({ id: 'reviews' })
@@ -127,6 +146,27 @@ function useWheelScroll(scroller: RefObject<HTMLElement | null>): void {
   }, [scroller])
 }
 
+/** What each card shows under its title. */
+function CardContent({ cardKey }: { cardKey: IntegrationKey }) {
+  switch (cardKey) {
+    case 'claude':
+      return <ClaudeCard />
+    case 'github':
+    case 'gitlab':
+      return <ContributionsCard platform={cardKey} />
+    case 'gmail':
+      return <GmailCard />
+    case 'redmine':
+      return <RedmineCard />
+    case 'reminders':
+      return <RemindersCard />
+    case 'notes':
+      return <NotesCard />
+    case 'system':
+      return <SystemCard />
+  }
+}
+
 /** Where the row stands: the active page is a 16×4 bar and the others 4 px dots. */
 function PageIndicator({ page, pages }: { page: number; pages: number }) {
   return (
@@ -148,6 +188,7 @@ export function CardRow() {
   const language = useLanguage()
   const integrations = useSettings((state) => state.settings?.integrations ?? null)
   const remindersDue = useAttentionCount()
+  const unread = useGmail((store) => store.mail.unread)
   const scroller = useRef<HTMLUListElement>(null)
   const [scrolledPage, setScrolledPage] = useState(0)
   const [storedStop, setStop] = useState<TabStop<IntegrationKey>>({ key: null, index: 0 })
@@ -221,7 +262,10 @@ export function CardRow() {
                 labelTestId={`integration-${key}-label`}
                 onOpen={() => openCard(key)}
                 badge={key === 'reminders' && remindersDue > 0 ? { count: remindersDue, label: remindersBadgeLabel(remindersDue, language) } : undefined}
-              />
+                figure={key === 'gmail' && unread !== null ? { text: unreadText(unread), label: unreadLabel(unread, language) } : undefined}
+              >
+                <CardContent cardKey={key} />
+              </PanelCard>
             </CardTabStop.Provider>
           </li>
         ))}

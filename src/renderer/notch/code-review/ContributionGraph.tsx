@@ -4,7 +4,7 @@ import { dayCellLabel, gridKeyTarget, monthName, shortDate, weekdayNames } from 
 import { useLanguage, useT } from '../../shared/use-t'
 
 /** Level 0 is Grafito at 14 %, 1-4 step up the integration colour (tokens in global.css). */
-const LEVEL_FILL = ['bg-contrib-0', 'bg-contrib-1', 'bg-contrib-2', 'bg-contrib-3', 'bg-contrib-4'] as const
+export const LEVEL_FILL = ['bg-contrib-0', 'bg-contrib-1', 'bg-contrib-2', 'bg-contrib-3', 'bg-contrib-4'] as const
 
 /** 14 px squares, 3 px apart (the gap holds the focus ring and today's mark). */
 const CELL = 'block size-[14px] shrink-0 rounded-[3px]'

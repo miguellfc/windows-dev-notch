@@ -20,6 +20,8 @@ export interface PanelCardProps {
   onOpen: () => void
   /** The coral count beside the title, and how a screen reader says it. */
   badge?: { count: number; label: string } | undefined
+  /** A figure in the integration's color beside the title, and how a screen reader says it. */
+  figure?: { text: string; label: string } | undefined
   children?: ReactNode
 }
 
@@ -28,9 +30,10 @@ export interface PanelCardProps {
  * sits above without taking the pointer, so a control inside (`pointer-events-auto`) never nests in
  * another button.
  */
-export function PanelCard({ cardKey, title, icon: Icon, testId, labelTestId, onOpen, badge, children }: PanelCardProps) {
+export function PanelCard({ cardKey, title, icon: Icon, testId, labelTestId, onOpen, badge, figure, children }: PanelCardProps) {
   const { color } = useIntegration(cardKey)
   const isTabStop = useContext(CardTabStop)
+  const detail = badge?.label ?? figure?.label
   return (
     <div data-testid={testId} style={integrationStyle(color)} className="card relative h-[196px] w-[172px] overflow-hidden">
       <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={VEIL} />
@@ -38,7 +41,7 @@ export function PanelCard({ cardKey, title, icon: Icon, testId, labelTestId, onO
         type="button"
         data-card-main
         tabIndex={isTabStop ? 0 : -1}
-        aria-label={badge ? `${title}, ${badge.label}` : title}
+        aria-label={detail ? `${title}, ${detail}` : title}
         onClick={onOpen}
         className="focus-inset absolute inset-0 cursor-pointer rounded-card transition-colors duration-150 hover:bg-veil"
       />
@@ -48,6 +51,11 @@ export function PanelCard({ cardKey, title, icon: Icon, testId, labelTestId, onO
           <span data-testid={labelTestId} className="min-w-0 flex-1 truncate text-small font-medium text-chalk">
             {title}
           </span>
+          {figure && (
+            <span data-testid={`${testId}-figure`} className="tabular shrink-0 text-small font-semibold text-[color:var(--int)]">
+              {figure.text}
+            </span>
+          )}
           {badge && (
             <span
               data-testid={`${testId}-badge`}
