@@ -5,6 +5,8 @@ import { translate } from '../../../shared/i18n/messages'
 import { setReviewsTarget } from '../../shared/code-review-store'
 import { reviewAlertContent, reviewAlertLabel } from '../../shared/code-review/format'
 import { useLanguage } from '../../shared/use-t'
+import { useSettings } from '../../shared/settings-store'
+import { integrationStyle } from '../../shared/integration-color'
 import { PLATFORM_ICONS } from './icons'
 
 /**
@@ -19,6 +21,8 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
   const content = alert ? reviewAlertContent(alert, language) : null
   const label = alert ? reviewAlertLabel(alert, language) : translate(language, 'codeReview.alert.commented')
   const Icon = alert ? PLATFORM_ICONS[alert.platform] : GitPullRequest
+  // The platform's color; a spent payload no longer says the platform, so its generic icon stays chalk.
+  const color = useSettings((state) => (alert && state.settings ? state.settings.integrations[alert.platform].color : null))
 
   const open = (event: MouseEvent) => {
     // The capsule's own click would expand; open the reviews view explicitly instead.
@@ -35,8 +39,9 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
       aria-label={label}
       onClick={open}
       className="flex h-full items-center gap-2 px-3.5"
+      style={color ? integrationStyle(color) : undefined}
     >
-      <Icon size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-chalk" />
+      <Icon size={13} strokeWidth={1.8} aria-hidden="true" className={`shrink-0 ${color ? 'text-[color:var(--int)]' : 'text-chalk'}`} />
       {/* Titles and refs are always plain text: React escapes them. */}
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         {content === null ? (

@@ -1,8 +1,9 @@
 import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
-import { useCallback, useEffect, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
-import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode } from '../../shared/notch/state'
+import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode, type NotchView } from '../../shared/notch/state'
+import type { IntegrationsSettings } from '../../shared/settings/schema'
 import { useClaude } from '../shared/claude-store'
 import { setRedmineAlert, setRedmineAlertPayload, useRedmine } from '../shared/redmine-store'
 import { setReviewAlert, setReviewAlertPayload, setReviewsTarget, useCodeReview } from '../shared/code-review-store'
@@ -25,6 +26,7 @@ import { StatusDots } from './claude/StatusDots'
 import { GmailView } from './gmail/GmailView'
 import { MailAlert } from './gmail/MailAlert'
 import { IntegrationRow } from './IntegrationRow'
+import { alertAllowed, capsuleShows, viewAllowed, type AlertKind } from './integration-visibility'
 import {
   capsuleRadius,
   CONTENT_EXIT,
@@ -40,9 +42,14 @@ import {
 import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
-import { reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
+import { EMPTY_REVIEW_BLOCKS, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
 import { CapsuleMail, CapsuleMetrics, CapsuleRedmine, CapsuleReview } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
+
+/** The integrations as last loaded (null before settings arrive: nothing is filtered yet). */
+function currentIntegrations(): IntegrationsSettings | null {
+  return useSettings.getState().settings?.integrations ?? null
+}
 
 interface ModeState {
   mode: NotchMode
@@ -86,6 +93,8 @@ function useReminderChime(): void {
   useEffect(
     () =>
       window.notch.events.on('reminders:fired', () => {
+        const integrations = currentIntegrations()
+        if (integrations && !alertAllowed('reminder', integrations)) return
         const sound = useSettings.getState().settings?.reminders.sound ?? false
         if (sound) playChime()
       }),
@@ -108,6 +117,9 @@ function useMailAlert(mode: NotchMode): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsubscribe = window.notch.events.on('gmail:new-mail', (mail) => {
+      // A disabled Gmail never alerts: an answer already in flight when it was turned off is dropped.
+      const integrations = currentIntegrations()
+      if (integrations && !alertAllowed('mail', integrations)) return
       setNewMail(mail)
       if (timer !== null) clearTimeout(timer)
       timer = setTimeout(() => {
@@ -145,6 +157,8 @@ function useReviewAlert(mode: NotchMode): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsubscribe = window.notch.events.on('code-review:alert', (alert) => {
+      const integrations = currentIntegrations()
+      if (integrations && !alertAllowed(alert.platform === 'github' ? 'review-github' : 'review-gitlab', integrations)) return
       setReviewAlertPayload(alert)
       // Opening the panel while the alert shows (click, shortcut or tray) lands on that platform's "Míos".
       setReviewsTarget({ platform: alert.platform, section: 'mine' })
@@ -175,6 +189,8 @@ function useRedmineAlert(mode: NotchMode): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
     const unsubscribe = window.notch.events.on('redmine:alert', (alert) => {
+      const integrations = currentIntegrations()
+      if (integrations && !alertAllowed('redmine', integrations)) return
       setRedmineAlertPayload(alert)
       if (timer !== null) clearTimeout(timer)
       timer = setTimeout(() => {
@@ -189,6 +205,43 @@ function useRedmineAlert(mode: NotchMode): void {
       if (timer !== null) clearTimeout(timer)
     }
   }, [])
+}
+
+/** Panel modes that show one view; the others (expanded, alert, capsules) are not views. */
+const VIEW_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine'])
+
+/** Turning an integration off while its view is open sends the panel back to home. */
+function useCloseDisabledView(mode: NotchMode, integrations: IntegrationsSettings | null): void {
+  const blocked = integrations !== null && VIEW_MODES.has(mode) && !viewAllowed(mode as NotchView, integrations)
+  useEffect(() => {
+    if (blocked) void window.notch.notch.back()
+  }, [blocked])
+}
+
+/** The capsule blocks the latches hold, less those of integrations that are off or kept out of the capsule. */
+interface CapsuleBlocks {
+  unread: number | null
+  reviews: ReviewBlocks
+  hours: number | null
+}
+
+function useCapsuleBlocks(): CapsuleBlocks {
+  const integrations = useSettings((state) => state.settings?.integrations ?? null)
+  const unread = useGmail((state) => state.mail.unread)
+  const latched = useCodeReview((state) => state.blocks)
+  const hours = useRedmine((state) => state.block.hours)
+  const shows = (key: 'gmail' | 'github' | 'gitlab' | 'redmine') => integrations === null || capsuleShows(key, integrations)
+  const github = shows('github')
+  const gitlab = shows('gitlab')
+  // Memoized: useCompactContent compares the blocks by identity.
+  const reviews = useMemo<ReviewBlocks>(
+    () =>
+      github && gitlab
+        ? latched
+        : { github: github ? latched.github : EMPTY_REVIEW_BLOCKS.github, gitlab: gitlab ? latched.gitlab : EMPTY_REVIEW_BLOCKS.gitlab },
+    [latched, github, gitlab],
+  )
+  return { unread: shows('gmail') ? unread : null, reviews, hours: shows('redmine') ? hours : null }
 }
 
 /**
@@ -207,16 +260,17 @@ function useCapsuleRect() {
 export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
-  const hasMail = useGmail((state) => state.mail.unread !== null)
-  const reviewBlocks = useCodeReview((state) => reviewBlockCount(state.blocks))
-  const hasRedmine = useRedmine((state) => state.block.hours !== null)
-  const compactWidth = useSystem((state) => compactWidthFor(state.capsule.view, hasMail, reviewBlocks, hasRedmine))
+  const blocks = useCapsuleBlocks()
+  const compactWidth = useSystem((state) =>
+    compactWidthFor(state.capsule.view, blocks.unread !== null, reviewBlockCount(blocks.reviews), blocks.hours !== null),
+  )
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
   useMailAlert(mode)
   useReviewAlert(mode)
   useRedmineAlert(mode)
+  useCloseDisabledView(mode, settings?.integrations ?? null)
   const gmailReading = useGmail((state) => state.reading !== null)
   const capsuleRect = useCapsuleRect()
 
@@ -348,9 +402,7 @@ interface CompactContent {
  */
 function useCompactContent(compactWidth: number): CompactContent {
   const view = useSystem((state) => state.capsule.view)
-  const unread = useGmail((state) => state.mail.unread)
-  const reviews = useCodeReview((state) => state.blocks)
-  const hours = useRedmine((state) => state.block.hours)
+  const { unread, reviews, hours } = useCapsuleBlocks()
   const matches = compactWidthFor(view, unread !== null, reviewBlockCount(reviews), hours !== null) === compactWidth
   const [kept, setKept] = useState<CompactContent>({ view, unread, reviews, hours })
   if (matches && (kept.view !== view || kept.unread !== unread || kept.reviews !== reviews || kept.hours !== hours)) {
@@ -372,6 +424,7 @@ function CapsuleContent({
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
   const { view, unread, reviews, hours } = useCompactContent(compactWidth)
   const hasReviews = reviewBlockCount(reviews) > 0
+  const claudeDots = useSettings((state) => (state.settings ? capsuleShows('claude', state.settings.integrations) : true))
 
   if (mode === 'mini') return null
   if (mode === 'alert') return <Alert />
@@ -397,7 +450,8 @@ function CapsuleContent({
       </div>
     )
 
-  const dateOrDots = <StatusDots fallback={dateText} />
+  // Claude's dots take the date's place only while Claude shows in the capsule.
+  const dateOrDots = claudeDots ? <StatusDots fallback={dateText} /> : dateText
 
   if (mode === 'compact' && (view || unread !== null || hasReviews || hours !== null))
     return (
@@ -440,9 +494,16 @@ function Alert() {
   const review = useCodeReview((store) => store.alert)
   const redmineAlert = useRedmine((store) => store.redmineAlert)
   const redmine = useRedmine((store) => store.alert)
-  if (mailAlert) return <MailAlert mail={newMail} />
-  if (reviewAlert) return <ReviewAlert alert={review} />
-  return redmineAlert ? <RedmineAlert alert={redmine} /> : <AlertCapsule />
+  const integrations = useSettings((store) => store.settings?.integrations ?? null)
+  const allowed = (kind: AlertKind) => integrations === null || alertAllowed(kind, integrations)
+  // A spent review payload no longer says its platform: it shows while either platform is on.
+  const reviewAllowed = review
+    ? allowed(review.platform === 'github' ? 'review-github' : 'review-gitlab')
+    : allowed('review-github') || allowed('review-gitlab')
+  // An alert of a disabled integration never shows: the capsule falls through to the next one.
+  if (mailAlert && allowed('mail')) return <MailAlert mail={newMail} />
+  if (reviewAlert && reviewAllowed) return <ReviewAlert alert={review} />
+  return redmineAlert && allowed('redmine') ? <RedmineAlert alert={redmine} /> : <AlertCapsule />
 }
 
 /** How many Claude sessions the home panel lists (its height follows). */

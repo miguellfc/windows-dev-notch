@@ -5,6 +5,7 @@ import { translate } from '../../../shared/i18n/messages'
 import { setReading } from '../../shared/gmail-store'
 import { mailAlertContent, mailAlertLabel, type MailAlertContent } from '../../shared/gmail/format'
 import { useLanguage } from '../../shared/use-t'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 
 /**
  * The new-mail alert: the lowest-priority capsule alert (main ends it after 6 s). One mail shows
@@ -14,6 +15,7 @@ import { useLanguage } from '../../shared/use-t'
  */
 export function MailAlert({ mail }: { mail: GmailNewMail | null }) {
   const language = useLanguage()
+  const { color } = useIntegration('gmail')
   const content: MailAlertContent = mail ? mailAlertContent(mail, language) : { kind: 'plain', text: translate(language, 'gmail.alert.new') }
   const label = mail ? mailAlertLabel(mail, language) : translate(language, 'gmail.alert.new')
 
@@ -32,8 +34,9 @@ export function MailAlert({ mail }: { mail: GmailNewMail | null }) {
       aria-label={label}
       onClick={open}
       className="flex h-full items-center gap-2 px-3.5"
+      style={integrationStyle(color)}
     >
-      <GmailMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-chalk" />
+      <GmailMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-[color:var(--int)]" />
       {/* Mail text is always plain text: React escapes it. */}
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         {content.kind === 'content' ? (

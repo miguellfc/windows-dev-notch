@@ -15,6 +15,7 @@ import {
 import { useClaude } from '../shared/claude-store'
 import { useT } from '../shared/use-t'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 
 const ICONS: Record<StatusIcon, LucideIcon> = {
   check: Check,
@@ -149,6 +150,7 @@ export function ClaudePage() {
 
   return (
     <div>
+      <IntegrationDisabledNotice integration="claude" />
       {portInUse(state) ? (
         <div
           role="alert"

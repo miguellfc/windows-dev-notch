@@ -1,4 +1,4 @@
-import { Activity, AlarmClock, GitPullRequest, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, Blocks, GitPullRequest, Info, Keyboard, Settings2, type LucideIcon } from 'lucide-react'
 import { ClaudeMark, GmailMark, RedmineMark } from '../shared/brand-icons'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
@@ -9,16 +9,19 @@ import { ClaudePage } from './ClaudePage'
 import { CodeReviewPage } from './CodeReviewPage'
 import { GeneralPage } from './GeneralPage'
 import { GmailPage } from './GmailPage'
+import { OpenIntegrationsContext } from './IntegrationDisabledNotice'
+import { IntegrationsPage } from './IntegrationsPage'
 import { RedminePage } from './RedminePage'
 import { RemindersPage } from './RemindersPage'
 import { ShortcutPage } from './ShortcutPage'
 import { SystemPage } from './SystemPage'
 
-type PageId = 'general' | 'shortcut' | 'claude' | 'reminders' | 'system' | 'gmail' | 'code-review' | 'redmine' | 'about'
+type PageId = 'general' | 'shortcut' | 'integrations' | 'claude' | 'reminders' | 'system' | 'gmail' | 'code-review' | 'redmine' | 'about'
 
 const PAGES: readonly { id: PageId; label: MessageKey; icon: LucideIcon }[] = [
   { id: 'general', label: 'cc.nav.general', icon: Settings2 },
   { id: 'shortcut', label: 'cc.nav.shortcut', icon: Keyboard },
+  { id: 'integrations', label: 'cc.nav.integrations', icon: Blocks },
   { id: 'claude', label: 'cc.nav.claude', icon: ClaudeMark },
   { id: 'reminders', label: 'cc.nav.reminders', icon: AlarmClock },
   { id: 'system', label: 'cc.nav.system', icon: Activity },
@@ -61,12 +64,14 @@ export function ControlCenterApp() {
   }
   useEffect(refreshRuntime, [])
 
+  const openIntegrations = () => setPage('integrations')
   const current = PAGES.find((p) => p.id === page) ?? PAGES[0]!
 
   let content: ReactNode = null
   if (settings && runtime) {
     if (page === 'general') content = <GeneralPage settings={settings} runtime={runtime} />
     else if (page === 'shortcut') content = <ShortcutPage settings={settings} runtime={runtime} onChanged={refreshRuntime} />
+    else if (page === 'integrations') content = <IntegrationsPage settings={settings} />
     else if (page === 'claude') content = <ClaudePage />
     else if (page === 'reminders') content = <RemindersPage settings={settings} />
     else if (page === 'system') content = <SystemPage settings={settings} />
@@ -99,7 +104,7 @@ export function ControlCenterApp() {
         <div className="titlebar-spacer drag h-10" />
         <section className="max-w-[560px] px-8 pb-8">
           <h1 className="mb-4 text-title font-semibold">{t(current.label)}</h1>
-          {content}
+          <OpenIntegrationsContext.Provider value={openIntegrations}>{content}</OpenIntegrationsContext.Provider>
         </section>
       </main>
     </div>

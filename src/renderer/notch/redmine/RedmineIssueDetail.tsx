@@ -55,7 +55,7 @@ function WriteFeedback<Write>({ feedback, onRetry, testId }: { feedback: Feedbac
   if (feedback === null) return null
   if (feedback.kind === 'done')
     return (
-      <p role="status" data-testid={`${testId}-done`} className="mr-auto min-w-0 truncate text-label text-ok">
+      <p role="status" data-testid={`${testId}-done`} className="mr-auto min-w-0 truncate text-label text-[color:var(--int,var(--color-ok))]">
         {feedback.text}
       </p>
     )

@@ -1,4 +1,5 @@
 import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { GmailState } from '../../../shared/gmail/schema'
 import { setReading, useGmail } from '../../shared/gmail-store'
@@ -61,6 +62,7 @@ export function GmailView() {
   const [resting, setResting] = useState(false)
   const [openedAt] = useState(() => Date.now())
   const panel = useRef<HTMLDivElement>(null)
+  const { color } = useIntegration('gmail')
   const list = useRef<HTMLUListElement>(null)
 
   // Main polls the list only while the view is open. NotchApp forgets the open message when the
@@ -159,6 +161,7 @@ export function GmailView() {
     // the panel (back to the row) instead of NotchApp's window-level dismiss.
     <div
       ref={panel}
+      style={integrationStyle(color)}
       role="region"
       aria-label={t('integration.gmail')}
       data-testid="gmail-panel"
