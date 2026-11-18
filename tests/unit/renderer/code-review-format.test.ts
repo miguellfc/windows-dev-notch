@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   configuredPlatforms,
+  profileRow,
   reviewAlertContent,
   reviewAlertLabel,
   reviewCountText,
@@ -100,5 +101,21 @@ describe('reviewsPlatform', () => {
   it('falls back to the first configured platform, then to GitHub', () => {
     expect(reviewsPlatform(null, ['gitlab'])).toBe('gitlab')
     expect(reviewsPlatform(null, [])).toBe('github')
+  })
+})
+
+describe('profileRow', () => {
+  it('is the account on GitHub', () => {
+    expect(profileRow(platform('ok'), '')).toEqual({ label: 'me' })
+  })
+
+  it('puts the server (no https://) before the account on GitLab', () => {
+    expect(profileRow(platform('ok'), 'https://gitlab.acme.com')).toEqual({ label: 'gitlab.acme.com · me' })
+    expect(profileRow(platform('ok'), 'https://git.acme.com/sub')).toEqual({ label: 'git.acme.com/sub · me' })
+  })
+
+  it('is null without an account or when unconfigured', () => {
+    expect(profileRow({ ...platform('ok'), account: null }, '')).toBeNull()
+    expect(profileRow(platform('unconfigured'), '')).toBeNull()
   })
 })

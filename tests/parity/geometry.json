@@ -43,7 +43,7 @@
     },
     "reviews": {
       "width": 520,
-      "height": 560
+      "height": 324
     },
     "redmine": {
       "width": 520,
@@ -80,7 +80,7 @@
     "system": 358,
     "notes": 398,
     "gmail": 518,
-    "reviews": 638,
+    "reviews": 402,
     "redmine": 638,
     "mini": 76
   },
@@ -547,7 +547,7 @@
         "x": 494,
         "y": 0,
         "width": 932,
-        "height": 638
+        "height": 402
       }
     },
     {
@@ -562,7 +562,7 @@
         "x": -1106,
         "y": 0,
         "width": 932,
-        "height": 638
+        "height": 402
       }
     },
     {
@@ -577,7 +577,7 @@
         "x": 2734,
         "y": 0,
         "width": 932,
-        "height": 638
+        "height": 402
       }
     },
     {
@@ -1050,7 +1050,7 @@
     {
       "from": "question",
       "to": "reviews",
-      "order": "resize-first"
+      "order": "animate-first"
     },
     {
       "from": "question",
@@ -1310,7 +1310,7 @@
     {
       "from": "gmail",
       "to": "reviews",
-      "order": "resize-first"
+      "order": "animate-first"
     },
     {
       "from": "gmail",
@@ -1350,7 +1350,7 @@
     {
       "from": "reviews",
       "to": "question",
-      "order": "animate-first"
+      "order": "resize-first"
     },
     {
       "from": "reviews",
@@ -1370,7 +1370,7 @@
     {
       "from": "reviews",
       "to": "gmail",
-      "order": "animate-first"
+      "order": "resize-first"
     },
     {
       "from": "reviews",
@@ -1440,7 +1440,7 @@
     {
       "from": "redmine",
       "to": "reviews",
-      "order": "resize-first"
+      "order": "animate-first"
     },
     {
       "from": "redmine",

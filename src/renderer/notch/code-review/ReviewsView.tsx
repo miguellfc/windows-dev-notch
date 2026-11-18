@@ -1,4 +1,4 @@
-import { ArrowLeft, GitPullRequest, KeyRound, RefreshCw, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ExternalLink, GitPullRequest, KeyRound, RefreshCw, type LucideIcon } from 'lucide-react'
 import { integrationStyle } from '../../shared/integration-color'
 import { useSettings } from '../../shared/settings-store'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
@@ -7,7 +7,7 @@ import type { Platform } from '../../../shared/code-review/schema'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import { loadContributions, setReviewsTarget, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
 import { contributionsPhase, graphSummaryText, placeholderGrid } from '../../shared/code-review/contributions-format'
-import { configuredPlatforms, PLATFORM_NAMES, reviewsBody, reviewsPlatform } from '../../shared/code-review/format'
+import { configuredPlatforms, PLATFORM_NAMES, profileRow, reviewsBody, reviewsPlatform } from '../../shared/code-review/format'
 import { formatUpdated } from '../../shared/gmail/format'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
@@ -112,9 +112,30 @@ function Contributions({ platform, now, onRetry, retryResting }: { platform: Pla
   )
 }
 
+/** The account (the server in front on GitLab) in mono, and the way to its page on the platform. */
+function ProfileRow({ platform, label }: { platform: Platform; label: string }) {
+  const t = useT()
+  return (
+    <div data-testid="reviews-profile" className="flex h-8 shrink-0 items-center gap-2 px-1">
+      <span data-testid="reviews-account" title={label} className="min-w-0 flex-1 truncate font-mono text-label text-graphite">
+        {label}
+      </span>
+      <button
+        type="button"
+        data-testid="reviews-open-profile"
+        onClick={() => void window.notch.codeReview.openProfile({ platform })}
+        className="btn h-6 shrink-0"
+      >
+        {t('codeReview.view.openProfile', { platform: PLATFORM_NAMES[platform] })}
+        <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" className="text-graphite" />
+      </button>
+    </div>
+  )
+}
+
 /**
  * The reviews mini tool for one platform, named in the header ("GitHub" / "GitLab", no tabs): the
- * tile (or the alert) that opened it picks the platform. It shows the contributions only.
+ * tile (or the alert) that opened it picks the platform. It shows the contributions and, under them, the account with a button to its page.
  * Keyboard: Esc back to the integrations row. Opening the view asks main for a query now.
  */
 export function ReviewsView() {
@@ -138,6 +159,7 @@ export function ReviewsView() {
   const platformState = state?.[platform] ?? null
   const status = platformState?.status
   const updatedAt = platformState?.updatedAt ?? null
+  const gitlabUrl = useSettings((store) => store.settings?.codeReview.gitlabUrl ?? '')
 
   useEffect(() => {
     setReviewsTarget(null)
@@ -163,6 +185,7 @@ export function ReviewsView() {
   }, [resting])
 
   const body = state === null ? 'loading' : reviewsBody(platformState)
+  const profile = platformState && body === 'contributions' ? profileRow(platformState, platform === 'gitlab' ? gitlabUrl : '') : null
 
   // The tile that opened the view unmounts, or the focused element went away: keep focus in the
   // panel so Esc goes back to the row.
@@ -233,6 +256,7 @@ export function ReviewsView() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5">
         {live && <Contributions platform={platform} now={now} onRetry={refresh} retryResting={resting} />}
+        {profile && <ProfileRow platform={platform} label={profile.label} />}
         {body === 'loading' ? (
           <ReviewsSkeleton />
         ) : body === 'contributions' ? null : (

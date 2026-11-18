@@ -106,7 +106,7 @@ pub fn gmail_size_for(reading: bool) -> Size {
 }
 
 pub const QUESTION_SIZE: Size = size(520.0, 504.0);
-pub const REVIEWS_SIZE: Size = size(520.0, 560.0);
+pub const REVIEWS_SIZE: Size = size(520.0, 324.0);
 pub const REDMINE_SIZE: Size = size(520.0, 560.0);
 
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).

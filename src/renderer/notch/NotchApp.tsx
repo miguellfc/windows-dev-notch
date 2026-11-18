@@ -138,7 +138,7 @@ function useMailAlert(mode: NotchMode): void {
 
 /**
  * Forgets the alert's payload and the view target it set. A reviews view opened from the alert has
- * already read the target while rendering (before this effect runs), so it still lands on "Míos".
+ * already read the target while rendering (before this effect runs), so it still lands on that platform.
  */
 function spendReviewAlert(): void {
   setReviewAlertPayload(null)
@@ -160,8 +160,8 @@ function useReviewAlert(mode: NotchMode): void {
       const integrations = currentIntegrations()
       if (integrations && !alertAllowed(alert.platform === 'github' ? 'review-github' : 'review-gitlab', integrations)) return
       setReviewAlertPayload(alert)
-      // Opening the panel while the alert shows (click, shortcut or tray) lands on that platform's "Míos".
-      setReviewsTarget({ platform: alert.platform, section: 'mine' })
+      // Opening the panel while the alert shows (click, shortcut or tray) lands on that platform.
+      setReviewsTarget({ platform: alert.platform })
       if (timer !== null) clearTimeout(timer)
       timer = setTimeout(() => {
         timer = null

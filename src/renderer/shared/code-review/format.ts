@@ -57,7 +57,15 @@ export function reviewAlertLabel(alert: CodeReviewAlert, language: Language): st
   return `${PLATFORM_NAMES[alert.platform]}: ${parts.join(' · ')}`
 }
 
-export type ReviewSection = 'toReview' | 'mine'
+/**
+ * The row under the contributions: the account, with the server in front on GitLab (`gitlabUrl`
+ * given, no `https://`); null without an account. GitHub passes an empty `gitlabUrl`.
+ */
+export function profileRow(state: PlatformState, gitlabUrl: string): { label: string } | null {
+  if (state.status === 'unconfigured' || state.account === null || state.account === '') return null
+  const server = gitlabUrl.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+  return { label: server === '' ? state.account : `${server} · ${state.account}` }
+}
 
 /** Platforms with a token (any status but `unconfigured`), GitHub first: the view opens on the first one when no platform was asked for. */
 export function configuredPlatforms(state: CodeReviewState | null): Platform[] {

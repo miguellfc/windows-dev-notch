@@ -13,8 +13,9 @@ import { PLATFORM_ICONS } from './icons'
  * The first-review alert: the lowest-priority capsule alert, shared with new mail (main ends it
  * after 6 s). One PR/MR shows "**Aprobado** · acme/web#12 · título" (or Cambios pedidos / Revisado),
  * several "**2 PR revisados** · GitHub"; without a payload (already spent while main still shows the
- * alert) the plain verdict "Revisado". It never takes focus; a click opens the reviews view on that
- * platform, section "Míos".
+ * alert) the plain verdict "Revisado". It never takes focus. A click on a single PR/MR asks main to
+ * open it in the browser (the alert then goes away); several, or one main no longer knows, open the
+ * reviews view on that platform.
  */
 export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
   const language = useLanguage()
@@ -24,11 +25,21 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
   // The platform's color; a spent payload no longer says the platform, so its generic icon stays chalk.
   const color = useSettings((state) => (alert && state.settings ? state.settings.integrations[alert.platform].color : null))
 
-  const open = (event: MouseEvent) => {
+  const open = (event: MouseEvent): void => {
     // The capsule's own click would expand; open the reviews view explicitly instead.
     event.stopPropagation()
-    setReviewsTarget(alert ? { platform: alert.platform, section: 'mine' } : null)
-    void window.notch.notch.openIntegration({ id: 'reviews' })
+    const openView = () => {
+      setReviewsTarget(alert ? { platform: alert.platform } : null)
+      void window.notch.notch.openIntegration({ id: 'reviews' })
+    }
+    if (alert?.count !== 1) return openView()
+    void window.notch.codeReview.openAlert({ platform: alert.platform }).then(
+      (result) => {
+        if (result.ok && result.data.opened) void window.notch.notch.request({ intent: 'dismiss' })
+        else openView()
+      },
+      openView,
+    )
   }
 
   return (
