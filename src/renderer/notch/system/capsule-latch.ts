@@ -34,11 +34,6 @@ export const CAPSULE_MISSES = 3
 
 export const EMPTY_CAPSULE: CapsuleLatch = { view: null, unavailableRun: 0, batteryMissRun: 0, diskMissRun: 0 }
 
-/** The slots the capsule geometry measures. The storage block is always shown, so it always takes the old disk slot (until the 3-zone geometry). */
-export function capsuleSlots(view: CapsuleView | null): { battery: object | null; disk: object | null } | null {
-  return view && { battery: view.battery, disk: view.storage }
-}
-
 /** Folds one sample into the capsule latch (pure; the store keeps the result). */
 export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): CapsuleLatch {
   if (metrics.kind === 'unavailable') {
@@ -150,8 +145,8 @@ export function nextReviewBlocks(previous: ReviewBlocks, state: CodeReviewState)
 }
 
 /** How many code-review blocks the capsule shows (each adds its measured width). */
-export function reviewBlockCount(blocks: ReviewBlocks): number {
-  return (blocks.github.count === null ? 0 : 1) + (blocks.gitlab.count === null ? 0 : 1)
+export function reviewBlockCount(blocks: ReviewBlocks): 0 | 1 | 2 {
+  return ((blocks.github.count === null ? 0 : 1) + (blocks.gitlab.count === null ? 0 : 1)) as 0 | 1 | 2
 }
 
 /** The Redmine block of the compact capsule: the hours logged today it shows, or null when it takes no room. */

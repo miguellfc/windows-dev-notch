@@ -22,7 +22,7 @@ import { RedmineAlert } from './redmine/RedmineAlert'
 import { RedmineView } from './redmine/RedmineView'
 import { QuestionCard } from './claude/QuestionCard'
 import { SessionsSection } from './claude/SessionsSection'
-import { StatusDots } from './claude/StatusDots'
+import { StatusDots, useClaudeDots } from './claude/StatusDots'
 import { GmailView } from './gmail/GmailView'
 import { MailAlert } from './gmail/MailAlert'
 import { IntegrationRow } from './IntegrationRow'
@@ -42,7 +42,7 @@ import {
 import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
-import { EMPTY_REVIEW_BLOCKS, capsuleSlots, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
+import { EMPTY_REVIEW_BLOCKS, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
 import { CapsuleMail, CapsuleMetrics, CapsuleRedmine, CapsuleReview } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
 
@@ -220,6 +220,8 @@ function useCloseDisabledView(mode: NotchMode, integrations: IntegrationsSetting
 
 /** The capsule blocks the latches hold, less those of integrations that are off or kept out of the capsule. */
 interface CapsuleBlocks {
+  /** Some Claude session has a dot (and Claude shows in the capsule). */
+  claude: boolean
   unread: number | null
   reviews: ReviewBlocks
   hours: number | null
@@ -230,8 +232,9 @@ function useCapsuleBlocks(): CapsuleBlocks {
   const unread = useGmail((state) => state.mail.unread)
   const latched = useCodeReview((state) => state.blocks)
   const hours = useRedmine((state) => state.block.hours)
+  const dots = useClaudeDots().dots.length > 0
   // Nothing shows until the settings load: a block of an integration that is off never flashes.
-  const shows = (key: 'gmail' | 'github' | 'gitlab' | 'redmine') => integrations !== null && capsuleShows(key, integrations)
+  const shows = (key: 'claude' | 'gmail' | 'github' | 'gitlab' | 'redmine') => integrations !== null && capsuleShows(key, integrations)
   const github = shows('github')
   const gitlab = shows('gitlab')
   // Memoized: useCompactContent compares the blocks by identity.
@@ -242,7 +245,15 @@ function useCapsuleBlocks(): CapsuleBlocks {
         : { github: github ? latched.github : EMPTY_REVIEW_BLOCKS.github, gitlab: gitlab ? latched.gitlab : EMPTY_REVIEW_BLOCKS.gitlab },
     [latched, github, gitlab],
   )
-  return { unread: shows('gmail') ? unread : null, reviews, hours: shows('redmine') ? hours : null }
+  return { claude: shows('claude') && dots, unread: shows('gmail') ? unread : null, reviews, hours: shows('redmine') ? hours : null }
+}
+
+/** Width of the compact capsule for the system view (null: no sample) and the integration blocks it shows. */
+function compactWidthOf(view: CapsuleView | null, blocks: CapsuleBlocks): number {
+  return compactWidthFor({
+    system: view && { battery: view.battery !== null },
+    blocks: { claude: blocks.claude, mail: blocks.unread !== null, reviews: reviewBlockCount(blocks.reviews), redmine: blocks.hours !== null },
+  })
 }
 
 /**
@@ -262,9 +273,7 @@ export function NotchApp() {
   const { mode, growing } = useNotchMode()
   const settings = useSettings((state) => state.settings)
   const blocks = useCapsuleBlocks()
-  const compactWidth = useSystem((state) =>
-    compactWidthFor(capsuleSlots(state.capsule.view), blocks.unread !== null, reviewBlockCount(blocks.reviews), blocks.hours !== null),
-  )
+  const compactWidth = useSystem((state) => compactWidthOf(state.capsule.view, blocks))
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
@@ -387,13 +396,9 @@ function PresenceLayer({ ref, ...props }: HTMLMotionProps<'div'> & { ref?: Ref<H
   return <motion.div ref={ref} {...props} aria-hidden={isPresent ? undefined : true} inert={!isPresent} />
 }
 
-/** What the compact capsule shows besides time and date: system metrics, unread mail, code reviews and Redmine hours. */
-interface CompactContent {
+/** What the compact capsule shows besides time and date: the integration blocks and the system view. */
+interface CompactContent extends CapsuleBlocks {
   view: CapsuleView | null
-  unread: number | null
-  reviews: ReviewBlocks
-  /** Hours logged in Redmine today; null while there is no block. */
-  hours: number | null
 }
 
 /**
@@ -403,13 +408,14 @@ interface CompactContent {
  */
 function useCompactContent(compactWidth: number): CompactContent {
   const view = useSystem((state) => state.capsule.view)
-  const { unread, reviews, hours } = useCapsuleBlocks()
-  const matches = compactWidthFor(capsuleSlots(view), unread !== null, reviewBlockCount(reviews), hours !== null) === compactWidth
-  const [kept, setKept] = useState<CompactContent>({ view, unread, reviews, hours })
-  if (matches && (kept.view !== view || kept.unread !== unread || kept.reviews !== reviews || kept.hours !== hours)) {
-    setKept({ view, unread, reviews, hours })
+  const blocks = useCapsuleBlocks()
+  const { claude, unread, reviews, hours } = blocks
+  const matches = compactWidthOf(view, blocks) === compactWidth
+  const [kept, setKept] = useState<CompactContent>({ view, claude, unread, reviews, hours })
+  if (matches && (kept.view !== view || kept.claude !== claude || kept.unread !== unread || kept.reviews !== reviews || kept.hours !== hours)) {
+    setKept({ view, claude, unread, reviews, hours })
   }
-  return matches ? { view, unread, reviews, hours } : kept
+  return matches ? { view, claude, unread, reviews, hours } : kept
 }
 
 function CapsuleContent({
@@ -423,9 +429,8 @@ function CapsuleContent({
   const language = useLanguage()
   const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
-  const { view, unread, reviews, hours } = useCompactContent(compactWidth)
-  const hasReviews = reviewBlockCount(reviews) > 0
-  const claudeDots = useSettings((state) => (state.settings ? capsuleShows('claude', state.settings.integrations) : false))
+  const { view, claude, unread, reviews, hours } = useCompactContent(compactWidth)
+  const hasBlocks = claude || unread !== null || reviewBlockCount(reviews) > 0 || hours !== null
 
   if (mode === 'mini') return null
   if (mode === 'alert') return <Alert />
@@ -439,47 +444,51 @@ function CapsuleContent({
   if (mode === 'redmine') return <RedmineView />
   if (mode === 'expanded') return <Panel time={time} date={date} />
 
-  const timeText = <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
-  const dateText = <span className="truncate text-small text-graphite-glass">{date}</span>
+  // Left zone: time and date, always (the peek is this zone alone). It takes any spare width (the
+  // widths are the worst case), so the other zones stay against the right edge.
+  const left = (
+    <span data-testid="capsule-zone-left" className="flex shrink-0 grow items-center gap-2.5">
+      <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
+      <span className="shrink-0 whitespace-nowrap text-small text-graphite-glass">{date}</span>
+    </span>
+  )
 
-  // Peek, the resting capsule: time and date only (hovering turns it into compact).
-  if (mode === 'peek')
-    return (
-      <div className="flex h-full items-center justify-between gap-2 px-3.5">
-        {timeText}
-        {dateText}
-      </div>
-    )
+  if (mode === 'peek') return <div className="flex h-full items-center px-3.5">{left}</div>
 
-  // Claude's dots take the date's place only while Claude shows in the capsule.
-  const dateOrDots = claudeDots ? <StatusDots fallback={dateText} /> : dateText
-
-  if (mode === 'compact' && (view || unread !== null || hasReviews || hours !== null))
-    return (
-      <div className="flex h-full items-center justify-between gap-3 px-3.5">
-        <span className="flex min-w-0 items-center gap-2.5">
-          {timeText}
-          {dateOrDots}
-        </span>
-        {/* Metrics, the unread-mail block, one block per code-review platform, then the Redmine hours;
-            each slot exists only while its latch holds it. */}
-        <span className="flex shrink-0 items-center gap-2.5">
-          {view && <CapsuleMetrics view={view} />}
-          {unread !== null && <CapsuleMail unread={unread} />}
-          {reviews.github.count !== null && <CapsuleReview platform="github" count={reviews.github.count} />}
-          {reviews.gitlab.count !== null && <CapsuleReview platform="gitlab" count={reviews.gitlab.count} />}
-          {hours !== null && <CapsuleRedmine hours={hours} />}
-        </span>
-      </div>
-    )
-
-  // Compact with nothing besides time and date yet (no sample, no mail, no reviews, no Redmine hours).
+  // Compact: time and date | the integration blocks | the system. A zone with nothing to show goes
+  // with its divider. Every block and metric carries its 10 px gap before it (`*:ml-2.5`) and each
+  // divider its 12 px before it, so the capsule measures as the sum of COMPACT_ZONE and CAPSULE_BLOCK.
   return (
-    <div className="flex h-full items-center justify-between gap-2 px-3.5">
-      {timeText}
-      {dateOrDots}
+    <div className="flex h-full items-center px-3.5">
+      {left}
+      {hasBlocks && (
+        <>
+          <ZoneDivider />
+          {/* Claude, Gmail, GitHub, GitLab, then Redmine; each only while its latch holds it. */}
+          <span data-testid="capsule-zone-blocks" className="flex shrink-0 items-center *:ml-2.5">
+            {claude && <StatusDots />}
+            {unread !== null && <CapsuleMail unread={unread} />}
+            {reviews.github.count !== null && <CapsuleReview platform="github" count={reviews.github.count} />}
+            {reviews.gitlab.count !== null && <CapsuleReview platform="gitlab" count={reviews.gitlab.count} />}
+            {hours !== null && <CapsuleRedmine hours={hours} />}
+          </span>
+        </>
+      )}
+      {view && (
+        <>
+          <ZoneDivider />
+          <span data-testid="capsule-zone-system" className="flex shrink-0 items-center">
+            <CapsuleMetrics view={view} />
+          </span>
+        </>
+      )}
     </div>
   )
+}
+
+/** The 1×14 px line between two zones of the compact capsule: 12 px before it, 2 px after (the next item adds its 10). */
+function ZoneDivider() {
+  return <span aria-hidden="true" data-testid="capsule-divider" className="ml-3 mr-0.5 h-3.5 w-px shrink-0 bg-line-strong" />
 }
 
 /**
