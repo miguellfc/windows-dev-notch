@@ -107,6 +107,8 @@ export type NotchEvent =
   | { readonly type: 'claude-first'; readonly kind: ClaudeItem }
   /** The open question card is done (answered or gone): land on the next pending Claude item, or close. */
   | { readonly type: 'next' }
+  /** The Claude card on the integrations row asks for the pending item: the earliest permission or question. */
+  | { readonly type: 'open-pending' }
 
 export const initialNotchState: NotchState = Object.freeze({
   expanded: false,
@@ -294,6 +296,12 @@ function applyEvent(state: NotchState, event: NotchEvent): NotchState {
       if (!state.expanded || (state.view !== 'question' && state.view !== 'permission')) return state
       const claude = firstClaudeItem(state)
       return claude ? next(state, { view: claude }) : next(state, { expanded: false, view: 'home' })
+    }
+    case 'open-pending': {
+      // Only from the integrations row, and only Claude items: a late click never moves another view.
+      if (!state.expanded || state.view !== 'home') return state
+      const claude = firstClaudeItem(state)
+      return claude ? next(state, { view: claude }) : state
     }
     case 'back':
       return state.expanded ? next(state, { view: 'home' }) : state

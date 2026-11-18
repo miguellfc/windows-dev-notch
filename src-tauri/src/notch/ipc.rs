@@ -57,6 +57,7 @@ fn intent_event(intent: Intent) -> NotchEvent {
         Intent::Next => NotchEvent::Next,
         Intent::PinMini => NotchEvent::PinMini,
         Intent::UnpinMini => NotchEvent::UnpinMini,
+        Intent::OpenPending => NotchEvent::OpenPending,
     }
 }
 
@@ -253,6 +254,25 @@ mod tests {
             s.call(CONTROL_CENTER, "notch:get-mode", None),
             ok(json!("expanded"))
         );
+    }
+
+    #[test]
+    fn open_pending_request_opens_the_pending_item() {
+        let s = setup(true);
+        let intent = json!({ "intent": "open-pending" });
+        s.call(NOTCH, "notch:request", Some(json!({ "intent": "toggle" })));
+        assert_eq!(
+            s.call(NOTCH, "notch:request", Some(intent.clone())),
+            ok(Value::Null)
+        );
+        assert_eq!(s.mode(), NotchMode::Expanded);
+        s.slot
+            .get()
+            .unwrap()
+            .controller
+            .dispatch(NotchEvent::Attention { on: true });
+        s.call(NOTCH, "notch:request", Some(intent));
+        assert_eq!(s.mode(), NotchMode::Permission);
     }
 
     #[test]

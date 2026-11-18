@@ -143,6 +143,7 @@ function buildNotchTraces(): unknown {
     () => ({ type: 'question', on: bool() }),
     () => ({ type: 'claude-first', kind: claude() }),
     () => ({ type: 'next' }),
+    () => ({ type: 'open-pending' }),
   ]
   const sequences = Array.from({ length: TRACE_SEQUENCES }, () => {
     let state: NotchState = initialNotchState
