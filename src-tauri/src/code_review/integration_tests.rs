@@ -12,17 +12,17 @@ use tokio::sync::oneshot;
 
 use super::*;
 use crate::code_review::client::{
-    ClientItem, CodeReviewClient, CodeReviewError, CodeReviewSnapshot, OwnReview,
+    ClientItem, CodeReviewClient, CodeReviewError, CodeReviewSnapshot, OwnReview, ReviewItem,
 };
 use crate::code_review::contributions::{date_key, summarize, SummaryInput};
 use crate::code_review::ipc::{register, CodeReviewApi, CodeReviewSlot};
 use crate::contract::code_review::{
-    CodeReviewAlert, CodeReviewList, CodeReviewState, ContributionSummary, ContributionTotals,
-    ContributionsChanged, ContributionsResult, Platform, PlatformState, PlatformStatus, ReviewItem,
-    ReviewKind, ReviewState, SetTokenReason, SetTokenResult,
+    CodeReviewAlert, CodeReviewState, ContributionSummary, ContributionTotals,
+    ContributionsChanged, ContributionsResult, Platform, PlatformState, PlatformStatus, ReviewKind,
+    ReviewState, SetTokenReason, SetTokenResult,
 };
 use crate::contract::settings::{CodeReviewAlertSettings, CodeReviewAlerts, CodeReviewSettings};
-use crate::ipc::{BoxFuture, Ctx, IpcErrorCode, Registry, Sender, CONTROL_CENTER, NOTCH};
+use crate::ipc::{BoxFuture, Ctx, Registry, Sender, CONTROL_CENTER, NOTCH};
 use crate::services::clock::WallClock;
 use crate::services::timers::TestTimers;
 
@@ -61,12 +61,8 @@ fn item(platform: Platform, id: &str, review: ReviewState) -> ClientItem {
             id: id.into(),
             reference,
             title: format!("{TITLE} {id}"),
-            author: "someone".into(),
-            updated_at: "2026-11-12T10:00:00.000Z".into(),
             draft: false,
             review,
-            checks: None,
-            conflicts: false,
         },
         url,
     }
@@ -87,11 +83,7 @@ fn draft(mut item: ClientItem) -> ClientItem {
 }
 
 /// A snapshot like the clients build it; `uncertain` ids are left out of `own_review`.
-fn snap_with(
-    mine: Vec<ClientItem>,
-    to_review: Vec<ClientItem>,
-    uncertain: &[&str],
-) -> CodeReviewSnapshot {
+fn snap_with(mine: Vec<ClientItem>, uncertain: &[&str]) -> CodeReviewSnapshot {
     let open: Vec<&ClientItem> = mine.iter().filter(|i| !i.item.draft).collect();
     CodeReviewSnapshot {
         unreviewed: u32::try_from(
@@ -108,13 +100,12 @@ fn snap_with(
                 review: i.item.review,
             })
             .collect(),
-        to_review,
         mine,
     }
 }
 
 fn snap(mine: Vec<ClientItem>) -> CodeReviewSnapshot {
-    snap_with(mine, vec![], &[])
+    snap_with(mine, &[])
 }
 
 /// A summary like the clients build it for `now`'s month (Madrid), `commits` contributions today.
@@ -649,10 +640,6 @@ impl T {
         self.settings.get()
     }
 
-    async fn list(&self, platform: Platform) -> CodeReviewList {
-        self.integration.list(platform).await
-    }
-
     async fn summary(&self, platform: Platform) -> Option<ContributionSummary> {
         self.integration.contributions(platform).await.summary
     }
@@ -676,23 +663,6 @@ fn accepted(account: &str) -> SetTokenResult {
 
 fn refused(reason: SetTokenReason) -> SetTokenResult {
     SetTokenResult::Refused { reason }
-}
-
-fn empty_list() -> CodeReviewList {
-    CodeReviewList {
-        to_review: vec![],
-        mine: vec![],
-    }
-}
-
-fn ids(items: &[ReviewItem]) -> Vec<&str> {
-    items.iter().map(|item| item.id.as_str()).collect()
-}
-
-fn invalid_input(result: Result<(), ExposedError>, message: &str) {
-    let error = result.expect_err("refused");
-    assert_eq!(error.code(), IpcErrorCode::InvalidInput);
-    assert_eq!(error.message(), message);
 }
 
 fn changed(platform: Platform, error: bool) -> ContributionsChanged {
@@ -813,7 +783,6 @@ async fn failures_go_offline_with_growing_waits_1_2_4_5_5_min_and_keep_the_last_
     t.flush(0).await;
     let client = t.last(GITHUB);
     client.set_fetch(Err(CodeReviewError::Network));
-    t.list(GITHUB).await;
     t.flush(TICK_MS).await;
     let state = t.state().github;
     assert_eq!(state.status, PlatformStatus::Offline);
@@ -822,7 +791,6 @@ async fn failures_go_offline_with_growing_waits_1_2_4_5_5_min_and_keep_the_last_
         state.updated_at.as_deref(),
         Some("2026-11-12T10:00:00.000Z")
     );
-    assert_eq!(t.list(GITHUB).await.mine.len(), 1);
     let mut calls = client.fetch_calls();
     for wait in [
         BACKOFF_MS[0],
@@ -868,7 +836,6 @@ async fn auth_401_403_turns_auth_error_and_stops_querying_that_platform_only() {
     t.integration.refresh();
     t.flush(0).await;
     assert_eq!(t.last(GITHUB).fetch_calls(), 1);
-    assert_eq!(t.list(GITHUB).await, empty_list());
 }
 
 #[tokio::test]
@@ -1134,12 +1101,9 @@ async fn clear_removes_the_token_and_the_state_and_stops_querying() {
     t.set_prepare(|c, _, _| c.set_fetch(Ok(snap(vec![none(GITHUB, "1")]))));
     t.ready().await;
     t.flush(0).await;
-    t.list(GITHUB).await;
     t.integration.clear(GITHUB).await;
     assert_eq!(t.github_store.stored(), None);
     assert_eq!(t.state().github, unconfigured());
-    assert_eq!(t.list(GITHUB).await, empty_list());
-    assert!(t.integration.open(GITHUB, "1").is_err());
     t.flush(TICK_MS * 2).await;
     assert_eq!(t.last(GITHUB).fetch_calls(), 1);
 }
@@ -1226,7 +1190,6 @@ async fn gitlab_an_mr_reviewed_during_a_transient_per_mr_failure_still_alerts_on
         // Reviewed meanwhile, but the per-MR calls failed: degraded to 'none', uncertain.
         c.fetch_once(Ok(snap_with(
             vec![none(GITLAB_P, "7"), none(GITLAB_P, "8")],
-            vec![],
             &["7"],
         )));
         c.set_fetch(Ok(snap(vec![
@@ -1267,7 +1230,6 @@ async fn gitlab_an_uncertain_mr_keeps_its_previous_state_in_the_count_no_jump() 
         // Round 2: 7's calls fail and it degrades to 'none' -> the client counts 2; we keep 1.
         c.fetch_once(Ok(snap_with(
             vec![none(GITLAB_P, "7"), none(GITLAB_P, "8")],
-            vec![],
             &["7"],
         )));
         // Round 3: an unknown MR (never seen) is uncertain: left out of the count.
@@ -1277,7 +1239,6 @@ async fn gitlab_an_uncertain_mr_keeps_its_previous_state_in_the_count_no_jump() 
                 none(GITLAB_P, "8"),
                 none(GITLAB_P, "9"),
             ],
-            vec![],
             &["9"],
         )));
         c.set_fetch(Ok(snap(vec![
@@ -1298,53 +1259,188 @@ async fn gitlab_an_uncertain_mr_keeps_its_previous_state_in_the_count_no_jump() 
 }
 
 // ---------------------------------------------------------------------------------------------
-// list and open
+// alert and profile opening
 
-#[tokio::test]
-async fn lists_without_urls_and_opens_only_ids_of_the_last_list_on_allowed_origins() {
+/// A first review of one PR (`url` of its item) after a round where nothing was reviewed.
+async fn single_alert(platform: Platform, url: Option<&'static str>) -> T {
     let t = setup(Setup {
-        gitlab: Some("gl-token"),
+        github: (platform == GITHUB).then_some("gh-token"),
+        gitlab: (platform == GITLAB_P).then_some("gl-token"),
         ..Setup::default()
     });
-    t.set_prepare(|c, platform, _| {
-        if platform == GITHUB {
-            c.set_fetch(Ok(snap_with(
-                vec![
-                    none(GITHUB, "1"),
-                    with_url(none(GITHUB, "2"), "https://evil.example.com/x"),
-                ],
-                vec![with_url(none(GITHUB, "3"), "http://github.com/a")],
-                &[],
-            )));
-        } else {
-            c.set_fetch(Ok(snap(vec![
-                none(GITLAB_P, "5"),
-                with_url(none(GITLAB_P, "6"), "https://github.com/x"),
-            ])));
-        }
+    t.set_prepare(move |c, _, _| {
+        let fresh = |review| {
+            let item = item(platform, "1", review);
+            url.map_or(item.clone(), |url| with_url(item, url))
+        };
+        c.fetch_once(Ok(snap(vec![fresh(ReviewState::None)])));
+        c.set_fetch(Ok(snap(vec![fresh(ReviewState::Approved)])));
     });
     t.ready().await;
     t.flush(0).await;
-    assert!(t.integration.open(GITHUB, "1").is_err()); // not listed yet
-    let list = t.list(GITHUB).await;
-    assert_eq!(ids(&list.mine), ["1", "2"]);
-    assert!(!serde_json::to_string(&list).unwrap().contains("https://"));
-    t.integration.open(GITHUB, "1").unwrap();
+    t.flush(TICK_MS).await;
+    t
+}
+
+#[tokio::test]
+async fn single_alert_keeps_its_url_and_open_alert_opens_it() {
+    let t = single_alert(GITHUB, None).await;
+    assert_eq!(t.alerts().len(), 1);
+    assert!(t.integration.open_alert(GITHUB));
     t.flush(0).await;
     assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
-    assert!(t.integration.open(GITHUB, "2").is_err());
-    assert!(t.integration.open(GITHUB, "3").is_err());
-    assert!(t.integration.open(GITLAB_P, "5").is_err()); // the gitlab list was never sent
-    t.list(GITLAB_P).await;
-    t.integration.open(GITLAB_P, "5").unwrap();
+    let t = single_alert(GITLAB_P, None).await;
+    assert!(t.integration.open_alert(GITLAB_P));
     t.flush(0).await;
     assert_eq!(
-        t.opened().last().map(String::as_str),
-        Some(format!("{GITLAB}/grp/proj/-/merge_requests/5").as_str())
+        t.opened(),
+        [format!("{GITLAB}/grp/proj/-/merge_requests/1")]
     );
-    assert!(t.integration.open(GITLAB_P, "6").is_err());
-    assert!(t.integration.open(GITLAB_P, "1").is_err());
-    assert_eq!(t.opened().len(), 2);
+    // The other platform never had an alert.
+    assert!(!t.integration.open_alert(GITHUB));
+}
+
+#[tokio::test]
+async fn open_alert_without_an_alert_returns_false() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITLAB_P));
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn many_alerts_clear_the_url_and_open_alert_returns_false() {
+    let t = setup(Setup::default());
+    t.set_prepare(|c, _, _| {
+        c.fetch_once(Ok(snap(vec![
+            none(GITHUB, "1"),
+            none(GITHUB, "2"),
+            none(GITHUB, "3"),
+        ])));
+        c.fetch_once(Ok(snap(vec![
+            item(GITHUB, "1", ReviewState::Approved),
+            none(GITHUB, "2"),
+            none(GITHUB, "3"),
+        ])));
+        c.set_fetch(Ok(snap(vec![
+            item(GITHUB, "1", ReviewState::Approved),
+            item(GITHUB, "2", ReviewState::Commented),
+            item(GITHUB, "3", ReviewState::Changes),
+        ])));
+    });
+    t.ready().await;
+    t.flush(0).await;
+    t.flush(TICK_MS).await;
+    assert_eq!(t.alerts().len(), 1);
+    t.flush(TICK_MS).await;
+    assert_eq!(t.alerts()[1], count_alert(GITHUB, 2));
+    assert!(!t.integration.open_alert(GITHUB));
+    t.flush(0).await;
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn open_alert_refuses_another_origin() {
+    for (platform, url) in [
+        (GITHUB, "https://evil.example.com/x"),
+        (GITHUB, "http://github.com/acme/repo/pull/1"),
+        (GITHUB, "https://github.com.evil.example/x"),
+        (GITHUB, "https://github.com:8443/x"),
+        (GITHUB, "https://api.github.com/x"),
+        (GITHUB, "javascript:alert(1)"),
+        (GITLAB_P, "https://github.com/acme/repo/pull/1"),
+        (GITLAB_P, "http://gitlab.example.com/base/x"),
+        (GITLAB_P, "https://gitlab.example.com:444/base/x"),
+        (GITLAB_P, "not a url"),
+    ] {
+        let t = single_alert(platform, Some(url)).await;
+        assert_eq!(t.alerts().len(), 1);
+        assert!(!t.integration.open_alert(platform), "{url}");
+        t.flush(0).await;
+        assert!(t.opened().is_empty(), "{url}");
+    }
+}
+
+#[tokio::test]
+async fn disabling_a_platform_forgets_its_alert_url() {
+    let t = single_alert(GITHUB, None).await;
+    t.integration.set_enabled(GITHUB, false);
+    assert!(!t.integration.open_alert(GITHUB));
+    t.integration.set_enabled(GITHUB, true);
+    t.flush(0).await;
+    assert!(!t.integration.open_alert(GITHUB));
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn open_alert_allows_any_path_of_the_gitlab_server() {
+    let url = "https://gitlab.example.com/other/-/merge_requests/1";
+    let t = single_alert(GITLAB_P, Some(url)).await;
+    assert!(t.integration.open_alert(GITLAB_P));
+    t.flush(0).await;
+    assert_eq!(t.opened(), [url]);
+}
+
+#[tokio::test]
+async fn a_server_change_forgets_the_alert_url() {
+    let t = single_alert(GITLAB_P, None).await;
+    let mut next = t.settings();
+    next.gitlab_url = "https://elsewhere.example.com".into();
+    t.change_settings(next);
+    assert!(!t.integration.open_alert(GITLAB_P));
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn closing_the_session_forgets_the_alert_url() {
+    let t = single_alert(GITHUB, None).await;
+    t.integration.clear(GITHUB).await;
+    assert!(!t.integration.open_alert(GITHUB));
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn open_profile_builds_the_platform_url() {
+    let t = setup(both());
+    t.ready().await;
+    t.flush(0).await;
+    assert!(t.integration.open_profile(GITHUB));
+    assert!(t.integration.open_profile(GITLAB_P));
+    t.flush(0).await;
+    assert_eq!(
+        t.opened(),
+        [
+            "https://github.com/octo".to_owned(),
+            format!("{GITLAB}/tanuki")
+        ]
+    );
+}
+
+#[tokio::test]
+async fn open_profile_without_account_returns_false() {
+    let t = setup(Setup {
+        github: None,
+        ..Setup::default()
+    });
+    t.ready().await;
+    t.flush(0).await;
+    assert!(!t.integration.open_profile(GITHUB));
+    assert!(!t.integration.open_profile(GITLAB_P));
+    t.flush(0).await;
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn open_profile_encodes_the_account_as_one_path_segment() {
+    let t = setup(Setup::default());
+    t.set_prepare(|c, _, _| c.set_viewer(Ok("a/b?c#d".into())));
+    t.ready().await;
+    t.flush(0).await;
+    assert!(t.integration.open_profile(GITHUB));
+    t.flush(0).await;
+    assert_eq!(t.opened(), ["https://github.com/a%2Fb%3Fc%23d"]);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1367,8 +1463,8 @@ async fn never_logs_tokens_titles_refs_or_authors() {
     t.integration
         .set_token(GITHUB, "ghp_SECRETTOKEN", None)
         .await;
-    t.list(GITHUB).await;
-    assert!(t.integration.open(GITHUB, "nope").is_err());
+    t.integration.open_profile(GITHUB);
+    t.integration.open_alert(GITHUB);
     t.integration.clear(GITLAB_P).await;
     let log = code_review_log();
     assert!(!log.is_empty());
@@ -1518,7 +1614,6 @@ async fn a_failure_keeps_the_cache_flags_the_error_and_leaves_lists_and_state_al
     let state = t.state().github;
     assert_eq!(state.status, PlatformStatus::Ok);
     assert_eq!(state.unreviewed, Some(1));
-    assert_eq!(t.list(GITHUB).await.mine.len(), 1);
     assert!(t.emitted.lock().unwrap()[states_before..]
         .iter()
         .all(|state| state.github.status == PlatformStatus::Ok));
@@ -1562,7 +1657,6 @@ async fn a_401_403_on_contributions_goes_to_auth_error_like_the_lists_and_stops_
             error: false
         }
     );
-    assert_eq!(t.list(GITHUB).await, empty_list());
     let fetches = gh.fetch_calls();
     t.flush(CONTRIBUTIONS_TICK_MS * 2).await;
     assert_eq!(gh.contributions_calls(), 1);
@@ -1807,7 +1901,6 @@ async fn auth_error_stops_polling_only_that_platform() {
     assert_eq!(gl.contributions_calls(), 0);
     assert!(gh.contributions_calls() >= 2);
     assert_eq!(t.status(GITHUB), PlatformStatus::Ok);
-    assert!(t.integration.open(GITLAB_P, "1").is_err());
     // Only a new token revives it.
     assert_eq!(
         t.integration.set_token(GITLAB_P, "gl-new", None).await,
@@ -1854,7 +1947,6 @@ async fn backoff_then_recovers_keeping_last_data() {
         assert_eq!(offline.account.as_deref(), Some("octo"));
         assert_eq!(offline.unreviewed, Some(1));
         assert_eq!(offline.updated_at, first.updated_at);
-        assert_eq!(t.list(GITHUB).await.mine.len(), 2);
         t.flush(wait - 1).await;
         assert_eq!(client.fetch_calls(), calls);
         t.flush(1).await;
@@ -1877,66 +1969,6 @@ async fn backoff_then_recovers_keeping_last_data() {
     t.flush(1).await;
     assert_eq!(client.fetch_calls(), calls + 2);
     assert_eq!(t.status(GITHUB), PlatformStatus::Ok);
-}
-
-#[tokio::test]
-async fn open_refuses_unknown_ids_and_foreign_origins() {
-    let t = setup(Setup {
-        gitlab: Some("gl-token"),
-        gitlab_url: "https://gitlab.example.com/base",
-        ..Setup::default()
-    });
-    t.set_prepare(|c, platform, _| {
-        if platform == GITHUB {
-            c.set_fetch(Ok(snap(vec![
-                none(GITHUB, "1"),
-                with_url(none(GITHUB, "2"), "https://github.com.evil.example/x"),
-                with_url(none(GITHUB, "3"), "https://github.com:8443/x"),
-                with_url(none(GITHUB, "4"), "javascript:alert(1)"),
-                with_url(none(GITHUB, "5"), "https://api.github.com/x"),
-            ])));
-        } else {
-            c.set_fetch(Ok(snap(vec![
-                with_url(
-                    none(GITLAB_P, "7"),
-                    "https://gitlab.example.com/other/-/merge_requests/7",
-                ),
-                with_url(none(GITLAB_P, "8"), "http://gitlab.example.com/base/x"),
-                with_url(none(GITLAB_P, "9"), "https://gitlab.example.com:444/base/x"),
-                with_url(none(GITLAB_P, "10"), "not a url"),
-            ])));
-        }
-    });
-    t.ready().await;
-    t.flush(0).await;
-    invalid_input(t.integration.open(GITHUB, "1"), "Unknown item");
-    t.list(GITHUB).await;
-    t.list(GITLAB_P).await;
-    invalid_input(t.integration.open(GITHUB, "nope"), "Unknown item");
-    invalid_input(t.integration.open(GITLAB_P, "1"), "Unknown item");
-    for id in ["2", "3", "4", "5"] {
-        invalid_input(t.integration.open(GITHUB, id), "Item URL not allowed");
-    }
-    for id in ["8", "9", "10"] {
-        invalid_input(t.integration.open(GITLAB_P, id), "Item URL not allowed");
-    }
-    t.integration.open(GITHUB, "1").unwrap();
-    // The GitLab origin allows any path of that server, not only the base path.
-    t.integration.open(GITLAB_P, "7").unwrap();
-    t.flush(0).await;
-    assert_eq!(
-        t.opened(),
-        [
-            "https://github.com/acme/repo/pull/1",
-            "https://gitlab.example.com/other/-/merge_requests/7",
-        ]
-    );
-    // A server change forgets what was sent: nothing of the old server opens.
-    let mut next = t.settings();
-    next.gitlab_url = "https://elsewhere.example.com".into();
-    t.change_settings(next);
-    invalid_input(t.integration.open(GITLAB_P, "7"), "Unknown item");
-    assert_eq!(t.opened().len(), 2);
 }
 
 fn ctx(label: &str, page: &str) -> Ctx {
@@ -1985,15 +2017,13 @@ async fn no_code_review_output_carries_a_token() {
     );
     t.flush(TICK_MS).await;
     for platform in ["github", "gitlab"] {
-        outputs.push(
-            registry
-                .dispatch(
-                    &notch,
-                    "code-review:list",
-                    Some(json!({ "platform": platform })),
-                )
-                .await,
-        );
+        for channel in ["code-review:open-alert", "code-review:open-profile"] {
+            outputs.push(
+                registry
+                    .dispatch(&notch, channel, Some(json!({ "platform": platform })))
+                    .await,
+            );
+        }
         outputs.push(
             registry
                 .dispatch(
@@ -2153,7 +2183,7 @@ async fn nothing_is_emitted_or_alerted_after_dispose() {
         t.integration
             .emit_contributions(&mut inner, GITHUB, &mut late);
     }
-    late.push(Effect::Alert(count_alert(GITHUB, 1)));
+    late.push(Effect::Alert(count_alert(GITHUB, 1), None));
     let emitted = t.emitted.lock().unwrap().len();
     t.integration.dispose();
     t.integration.run(late);

@@ -6,9 +6,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::claude::{BoolLiteral, False, True};
-use super::{at_most, len_in, max_len, nullable, present, safe_int_min, Validate};
+use super::{len_in, max_len, nullable, present, safe_int_min, Validate};
 
-/// `CODE_REVIEW_LIST_LIMIT`: each list (`toReview`, `mine`) holds at most this many items.
+/// `CODE_REVIEW_LIST_LIMIT`: main reads at most this many own PR/MRs per platform.
 pub const LIST_LIMIT: usize = 20;
 /// `CODE_REVIEW_COUNT_CAP`: unreviewed counts are capped here (the UI shows "99+").
 pub const COUNT_CAP: u32 = 100;
@@ -54,15 +54,6 @@ string_enum! {
 }
 
 string_enum! {
-    /// `checksSchema` without its `null` (an `Option<Checks>` field).
-    pub enum Checks {
-        Pass = "pass",
-        Fail = "fail",
-        Running = "running",
-    }
-}
-
-string_enum! {
     /// `platformStatusSchema`.
     pub enum PlatformStatus {
         Unconfigured = "unconfigured",
@@ -78,54 +69,6 @@ string_enum! {
         Auth = "auth",
         Network = "network",
         Url = "url",
-    }
-}
-
-/// `itemSchema`: one PR/MR as the notch sees it (no URL: main opens it by id).
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct ReviewItem {
-    pub id: String,
-    /// `owner/repo#123` (GitHub) or `group/project!45` (GitLab).
-    #[serde(rename = "ref")]
-    pub reference: String,
-    pub title: String,
-    pub author: String,
-    /// ISO time of the last update.
-    pub updated_at: String,
-    pub draft: bool,
-    pub review: ReviewState,
-    #[serde(deserialize_with = "nullable")]
-    pub checks: Option<Checks>,
-    pub conflicts: bool,
-}
-
-impl Validate for ReviewItem {
-    fn validate(&self) -> Result<(), String> {
-        len_in("id", &self.id, 1, ID_MAX)?;
-        max_len("ref", &self.reference, TEXT_MAX)?;
-        max_len("title", &self.title, TEXT_MAX)?;
-        max_len("author", &self.author, TEXT_MAX)?;
-        max_len("updatedAt", &self.updated_at, UPDATED_AT_MAX)
-    }
-}
-
-/// `codeReviewListSchema`: output of `code-review:list`.
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct CodeReviewList {
-    pub to_review: Vec<ReviewItem>,
-    pub mine: Vec<ReviewItem>,
-}
-
-impl Validate for CodeReviewList {
-    fn validate(&self) -> Result<(), String> {
-        at_most("toReview", self.to_review.len(), LIST_LIMIT)?;
-        at_most("mine", self.mine.len(), LIST_LIMIT)?;
-        self.to_review
-            .iter()
-            .chain(&self.mine)
-            .try_for_each(Validate::validate)
     }
 }
 
@@ -217,7 +160,8 @@ impl Validate for CodeReviewAlert {
     }
 }
 
-/// `listInputSchema`, `clearInputSchema` and `contributionsInputSchema`: just a platform.
+/// `clearInputSchema`, `contributionsInputSchema`, `openProfileInputSchema` and
+/// `openAlertInputSchema`: just a platform.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct PlatformInput {
@@ -226,26 +170,25 @@ pub struct PlatformInput {
 
 impl Validate for PlatformInput {}
 
-/// `code-review:list` input.
-pub type ListInput = PlatformInput;
 /// `code-review:clear` input.
 pub type ClearInput = PlatformInput;
 /// `code-review:contributions` input.
 pub type ContributionsInput = PlatformInput;
 
-/// `openInputSchema`.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+/// `code-review:open-profile` input.
+pub type OpenProfileInput = PlatformInput;
+/// `code-review:open-alert` input.
+pub type OpenAlertInput = PlatformInput;
+
+/// `openedResultSchema`: output of `code-review:open-profile` and `code-review:open-alert`;
+/// whether main opened something in the browser (never a URL).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct OpenInput {
-    pub platform: Platform,
-    pub id: String,
+pub struct OpenedResult {
+    pub opened: bool,
 }
 
-impl Validate for OpenInput {
-    fn validate(&self) -> Result<(), String> {
-        len_in("id", &self.id, 1, ID_MAX)
-    }
-}
+impl Validate for OpenedResult {}
 
 /// `setTokenInputSchema`. `url` is the GitLab server as typed (normalized in main).
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -510,7 +453,7 @@ pub struct ContributionsChanged {
 
 impl Validate for ContributionsChanged {}
 
-input_entry!(PlatformInput, OpenInput, SetTokenInput, CodeReviewViewInput);
+input_entry!(PlatformInput, SetTokenInput, CodeReviewViewInput);
 
 #[cfg(test)]
 mod tests {
@@ -542,29 +485,6 @@ mod tests {
     }
 
     #[test]
-    fn item_serializes_ref_and_null_checks_without_a_url() {
-        let item = ReviewItem {
-            id: "PR_1".into(),
-            reference: "o/r#1".into(),
-            title: "t".into(),
-            author: "a".into(),
-            updated_at: "2026-11-12T10:00:00Z".into(),
-            draft: false,
-            review: ReviewState::None,
-            checks: None,
-            conflicts: false,
-        };
-        assert_eq!(
-            serde_json::to_value(&item).unwrap(),
-            json!({
-                "id": "PR_1", "ref": "o/r#1", "title": "t", "author": "a",
-                "updatedAt": "2026-11-12T10:00:00Z", "draft": false, "review": "none",
-                "checks": null, "conflicts": false,
-            })
-        );
-    }
-
-    #[test]
     fn alert_omits_the_single_review_fields_when_absent() {
         let alert = CodeReviewAlert {
             platform: Platform::Gitlab,
@@ -577,6 +497,17 @@ mod tests {
             serde_json::to_value(&alert).unwrap(),
             json!({ "platform": "gitlab", "count": 3 })
         );
+    }
+
+    #[test]
+    fn opened_result_is_one_strict_boolean() {
+        assert_eq!(
+            serde_json::to_value(OpenedResult { opened: true }).unwrap(),
+            json!({ "opened": true })
+        );
+        assert!(parse::<OpenedResult>(json!({ "opened": false })).is_ok());
+        assert!(parse::<OpenedResult>(json!({ "opened": false, "url": "https://x" })).is_err());
+        assert!(parse::<OpenedResult>(json!({ "opened": "yes" })).is_err());
     }
 
     #[test]

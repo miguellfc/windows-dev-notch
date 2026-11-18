@@ -288,9 +288,11 @@ pub fn check(
         ("claude:get-questions", Output) => required::<claude::PendingQuestions>(value),
         ("code-review:get-state" | "code-review:refresh", Input) => none(value),
         ("code-review:get-state", Output) => required::<code_review::CodeReviewState>(value),
-        ("code-review:list", Input) => required::<code_review::ListInput>(value),
-        ("code-review:list", Output) => required::<code_review::CodeReviewList>(value),
-        ("code-review:open", Input) => required::<code_review::OpenInput>(value),
+        ("code-review:open-profile", Input) => required::<code_review::OpenProfileInput>(value),
+        ("code-review:open-alert", Input) => required::<code_review::OpenAlertInput>(value),
+        ("code-review:open-profile" | "code-review:open-alert", Output) => {
+            required::<code_review::OpenedResult>(value)
+        }
         ("code-review:set-token", Input) => required::<code_review::SetTokenInput>(value),
         ("code-review:set-token", Output) => required::<code_review::SetTokenResult>(value),
         ("code-review:clear", Input) => required::<code_review::ClearInput>(value),
@@ -299,10 +301,9 @@ pub fn check(
         ("code-review:contributions", Output) => {
             required::<code_review::ContributionsResult>(value)
         }
-        (
-            "code-review:refresh" | "code-review:open" | "code-review:clear" | "code-review:view",
-            Output,
-        ) => required::<Ack>(value),
+        ("code-review:refresh" | "code-review:clear" | "code-review:view", Output) => {
+            required::<Ack>(value)
+        }
         (
             "redmine:get-state" | "redmine:issues" | "redmine:activities" | "redmine:summary"
             | "redmine:refresh" | "redmine:clear",

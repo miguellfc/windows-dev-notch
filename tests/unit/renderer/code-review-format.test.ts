@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   configuredPlatforms,
-  itemBadges,
   reviewAlertContent,
   reviewAlertLabel,
   reviewCountText,
@@ -11,7 +10,7 @@ import {
   splitRef,
   unreviewedLabel,
 } from '../../../src/renderer/shared/code-review/format'
-import type { CodeReviewState, PlatformState, ReviewItem } from '../../../src/shared/code-review/schema'
+import type { CodeReviewState, PlatformState } from '../../../src/shared/code-review/schema'
 
 const platform = (status: PlatformState['status'], unreviewed: number | null = 0): PlatformState => ({
   status,
@@ -19,18 +18,6 @@ const platform = (status: PlatformState['status'], unreviewed: number | null = 0
   unreviewed,
   updatedAt: status === 'ok' ? '2026-11-13T12:00:00.000Z' : null,
   persistent: true,
-})
-const item = (patch: Partial<ReviewItem> = {}): ReviewItem => ({
-  id: 'i1',
-  ref: 'acme/web#12',
-  title: 'Fix login',
-  author: 'ana',
-  updatedAt: '2026-11-13T11:00:00.000Z',
-  draft: false,
-  review: 'none',
-  checks: null,
-  conflicts: false,
-  ...patch,
 })
 
 describe('reviewCountText / unreviewedLabel', () => {
@@ -71,27 +58,6 @@ describe('reviewAlertContent / reviewAlertLabel', () => {
   })
 })
 
-describe('itemBadges', () => {
-  it('marks drafts, approvals, requested changes, conflicts and checks', () => {
-    expect(itemBadges(item({ draft: true }), 'toReview')).toEqual([{ key: 'draft', tone: 'neutral' }])
-    expect(itemBadges(item({ review: 'approved' }), 'toReview')).toEqual([{ key: 'approved', tone: 'ok' }])
-    expect(itemBadges(item({ review: 'changes' }), 'mine')).toEqual([{ key: 'changes', tone: 'wait' }])
-    expect(itemBadges(item({ conflicts: true, checks: 'fail' }), 'toReview')).toEqual([
-      { key: 'conflicts', tone: 'fail' },
-      { key: 'checksFail', tone: 'fail' },
-    ])
-    expect(itemBadges(item({ checks: 'pass' }), 'toReview')).toEqual([{ key: 'checksPass', tone: 'ok' }])
-    expect(itemBadges(item({ checks: 'running' }), 'toReview')).toEqual([{ key: 'checksRunning', tone: 'neutral' }])
-  })
-
-  it('says "Sin revisar" only on own, non-draft items without a review', () => {
-    expect(itemBadges(item(), 'mine')).toEqual([{ key: 'unreviewed', tone: 'ice' }])
-    expect(itemBadges(item(), 'toReview')).toEqual([])
-    expect(itemBadges(item({ draft: true }), 'mine')).toEqual([{ key: 'draft', tone: 'neutral' }])
-    expect(itemBadges(item({ review: 'commented' }), 'mine')).toEqual([])
-  })
-})
-
 describe('configuredPlatforms / reviewsBody', () => {
   const state = (github: PlatformState, gitlab: PlatformState): CodeReviewState => ({ github, gitlab })
 
@@ -102,18 +68,13 @@ describe('configuredPlatforms / reviewsBody', () => {
     expect(configuredPlatforms(state(platform('unconfigured'), platform('offline')))).toEqual(['gitlab'])
   })
 
-  it('picks the body for the platform', () => {
-    const list = { toReview: [item()], mine: [] }
-    const empty = { toReview: [], mine: [] }
-    expect(reviewsBody(null, null)).toBe('loading')
-    expect(reviewsBody(platform('unconfigured'), null)).toBe('unconfigured')
-    expect(reviewsBody(platform('auth-error'), list)).toBe('auth')
-    expect(reviewsBody(platform('ok'), null)).toBe('loading')
-    expect(reviewsBody(platform('ok'), list)).toBe('list')
-    expect(reviewsBody(platform('ok'), empty)).toBe('empty')
-    expect(reviewsBody(platform('offline'), list)).toBe('list')
-    // Offline before any successful query: nothing is known yet.
-    expect(reviewsBody(platform('offline'), empty)).toBe('loading')
+  it('picks the body for the platform: a notice, or its contributions', () => {
+    expect(reviewsBody(null)).toBe('loading')
+    expect(reviewsBody(platform('unconfigured'))).toBe('unconfigured')
+    expect(reviewsBody(platform('auth-error'))).toBe('auth')
+    expect(reviewsBody(platform('ok'))).toBe('contributions')
+    // Offline keeps the last contributions, however long ago they were read.
+    expect(reviewsBody(platform('offline'))).toBe('contributions')
   })
 })
 

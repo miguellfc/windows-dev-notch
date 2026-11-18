@@ -20,19 +20,19 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use chrono::{DateTime, SecondsFormat, Utc};
 use tokio::sync::watch;
 
-use super::client::{to_review_item, ClientItem, CodeReviewClient, CodeReviewError};
+use super::client::{ClientItem, CodeReviewClient, CodeReviewError};
 use super::detector::{merge_uncertain, Alert, ReviewDetector};
 use super::ipc::{CodeReviewApi, CodeReviewSlot};
 pub use crate::apps::OpenExternal;
 use crate::apps::{is_loopback_origin, opener, origin_of};
 use crate::contract::code_review::{
-    CodeReviewAlert, CodeReviewList, CodeReviewState, ContributionSummary, ContributionsChanged,
+    CodeReviewAlert, CodeReviewState, ContributionSummary, ContributionsChanged,
     ContributionsResult, Platform, PlatformState, PlatformStatus, ReviewState, SetTokenReason,
     SetTokenResult, GITLAB_URL_MAX,
 };
 use crate::contract::settings::CodeReviewSettings;
 use crate::contract::text::{js_trim, utf16_len};
-use crate::ipc::{BoxFuture, ExposedError, IpcErrorCode};
+use crate::ipc::BoxFuture;
 use crate::notch::runtime::NotchRuntime;
 use crate::services::clock::WallClock;
 use crate::services::secure_token_store::SecureTokenStore;
@@ -256,10 +256,11 @@ struct Runtime {
     account: Option<String>,
     unreviewed: Option<u32>,
     updated_at: Option<String>,
-    to_review: Vec<ClientItem>,
+    /// The user's own open PR/MRs of the last query.
     mine: Vec<ClientItem>,
-    /// Id -> URL of the last list handed to the notch: `open` only accepts these.
-    sent: HashMap<String, String>,
+    /// URL of the PR/MR of the last first-review alert, only while that alert was for exactly one
+    /// (`open_alert` opens it, on the platform's origin). Never sent to the renderer.
+    last_alert_url: Option<String>,
     detector: ReviewDetector,
     /// Last known review state of each own open PR/MR (kept for items uncertain in a round).
     remembered: HashMap<String, ReviewState>,
@@ -299,8 +300,9 @@ enum Effect {
     /// With its sequence number: an older snapshot never overwrites a newer one.
     State(u64, CodeReviewState),
     Contributions(u64, ContributionsChanged),
-    /// First reviews: sent only if that platform's alerts are still on.
-    Alert(CodeReviewAlert),
+    /// First reviews: sent only if that platform's alerts are still on. With the URL of the PR/MR
+    /// when the alert is for exactly one.
+    Alert(CodeReviewAlert, Option<String>),
 }
 
 type Effects = Vec<Effect>;
@@ -510,7 +512,7 @@ impl CodeReviewIntegration {
                         (self.deps.emit_contributions)(&change);
                     }
                 }
-                Effect::Alert(alert) => {
+                Effect::Alert(alert, url) => {
                     // Turned off between the answer and here: no alert.
                     if self.lock().rt(alert.platform).paused {
                         continue;
@@ -525,6 +527,8 @@ impl CodeReviewIntegration {
                         continue;
                     }
                     log::info!(target: LOG_TARGET, "Code review first reviews platform={} count={}", alert.platform.as_str(), alert.count);
+                    // One PR/MR keeps its URL for the click; several (or none) forget the last one.
+                    self.lock().rt(alert.platform).last_alert_url = url;
                     *self
                         .last_alert
                         .lock()
@@ -612,9 +616,8 @@ impl CodeReviewIntegration {
         rt.account = None;
         rt.unreviewed = None;
         rt.updated_at = None;
-        rt.to_review.clear();
         rt.mine.clear();
-        rt.sent.clear();
+        rt.last_alert_url = None;
         rt.remembered.clear();
         rt.detector.reset();
         rt.failures = 0;
@@ -635,9 +638,7 @@ impl CodeReviewIntegration {
         self.clear_timer(inner, platform, Rhythm::Contributions);
         let rt = inner.rt(platform);
         rt.unreviewed = None;
-        rt.to_review.clear();
         rt.mine.clear();
-        rt.sent.clear();
         rt.status = Status(PlatformStatus::AuthError);
         self.publish(inner, effects);
     }
@@ -724,7 +725,6 @@ impl CodeReviewIntegration {
                     // known state, for both the detector and the count.
                     let observation = merge_uncertain(&snapshot, &rt.remembered);
                     rt.account = Some(account);
-                    rt.to_review = snapshot.to_review;
                     rt.mine = snapshot.mine;
                     rt.unreviewed = Some(observation.unreviewed);
                     rt.remembered = observation.remembered;
@@ -735,8 +735,8 @@ impl CodeReviewIntegration {
                     self.schedule(&mut inner, platform, TICK_MS);
                     let rt = inner.rt(platform);
                     let fresh = rt.detector.observe(&observation.observed);
-                    if let Some(alert) = announcement(platform, &rt.mine, &fresh) {
-                        effects.push(Effect::Alert(alert));
+                    if let Some((alert, url)) = announcement(platform, &rt.mine, &fresh) {
+                        effects.push(Effect::Alert(alert, url));
                     }
                 }
                 Err(CodeReviewError::Auth) => self.auth_failed(&mut inner, platform, &mut effects),
@@ -853,34 +853,6 @@ impl CodeReviewIntegration {
         self.run(effects);
     }
 
-    /// The last lists of a platform (no URLs), remembered as the ids `open` accepts.
-    pub async fn list(&self, platform: Platform) -> CodeReviewList {
-        self.ready().await;
-        let in_flight = self
-            .lock()
-            .rt(platform)
-            .in_flight
-            .as_ref()
-            .map(|run| run.done.clone());
-        finished(in_flight).await;
-        let mut inner = self.lock();
-        let rt = inner.rt(platform);
-        let (to_review, mine) = if usable(rt.status.0) {
-            (rt.to_review.clone(), rt.mine.clone())
-        } else {
-            (Vec::new(), Vec::new())
-        };
-        rt.sent = to_review
-            .iter()
-            .chain(&mine)
-            .map(|item| (item.item.id.clone(), item.url.clone()))
-            .collect();
-        CodeReviewList {
-            to_review: to_review.iter().map(to_review_item).collect(),
-            mine: mine.iter().map(to_review_item).collect(),
-        }
-    }
-
     /// Queries every connected platform now (at most every 5 s); contributions too while open.
     pub fn refresh(&self) {
         let at = self.deps.clock.now();
@@ -921,6 +893,7 @@ impl CodeReviewIntegration {
             self.clear_timer(&mut inner, platform, Rhythm::Contributions);
             let rt = inner.rt(platform);
             rt.detector.reset();
+            rt.last_alert_url = None;
             rt.last_panel_refresh = None;
         }
     }
@@ -1010,39 +983,64 @@ impl CodeReviewIntegration {
         }
     }
 
-    /// Opens an item of the last list sent, only on its platform's allowed origin. Returns at
-    /// once; the browser opens in the background.
-    pub fn open(&self, platform: Platform, id: &str) -> Result<(), ExposedError> {
-        let url = {
-            let mut inner = self.lock();
-            let Some(url) = inner.rt(platform).sent.get(id).cloned() else {
-                log::warn!(target: LOG_TARGET, "Refused to open an item not shown in the notch platform={}", platform.as_str());
-                return Err(ExposedError::new(
-                    IpcErrorCode::InvalidInput,
-                    "Unknown item",
-                ));
-            };
-            let allowed = match platform {
-                Platform::Github => Some(GITHUB_WEB_ORIGIN.to_owned()),
-                Platform::Gitlab if inner.gitlab_url.is_empty() => None,
-                Platform::Gitlab => origin_of(&inner.gitlab_url),
-            };
-            if allowed.is_none() || origin_of(&url) != allowed {
-                log::warn!(target: LOG_TARGET, "Refused to open an item outside the allowed origin platform={}", platform.as_str());
-                return Err(ExposedError::new(
-                    IpcErrorCode::InvalidInput,
-                    "Item URL not allowed",
-                ));
-            }
-            url
-        };
+    /// The only origin a platform's pages may open from: GitHub's, or the configured GitLab
+    /// server's (`None` without one).
+    fn allowed_origin(inner: &Inner, platform: Platform) -> Option<String> {
+        match platform {
+            Platform::Github => Some(GITHUB_WEB_ORIGIN.to_owned()),
+            Platform::Gitlab if inner.gitlab_url.is_empty() => None,
+            Platform::Gitlab => origin_of(&inner.gitlab_url),
+        }
+    }
+
+    /// Opens a URL main built or kept, in the background (returns at once).
+    fn open_in_browser(&self, platform: Platform, url: String) {
         let opening = (self.deps.open_external)(url);
         (self.deps.spawn)(Box::pin(async move {
             if let Err(error) = opening.await {
-                log::warn!(target: LOG_TARGET, "Could not open the item in the browser platform={} error={error}", platform.as_str());
+                log::warn!(target: LOG_TARGET, "Could not open the page in the browser platform={} error={error}", platform.as_str());
             }
         }));
-        Ok(())
+    }
+
+    /// Opens the PR/MR of the last alert, if that alert was for exactly one and its URL is still
+    /// on the platform's origin. `false`: nothing opened (the view of the platform is the way out).
+    pub fn open_alert(&self, platform: Platform) -> bool {
+        let url = {
+            let mut inner = self.lock();
+            let allowed = Self::allowed_origin(&inner, platform);
+            let Some(url) = inner.rt(platform).last_alert_url.clone() else {
+                return false;
+            };
+            if allowed.is_none() || origin_of(&url) != allowed {
+                log::warn!(target: LOG_TARGET, "Refused to open an alert outside the allowed origin platform={}", platform.as_str());
+                return false;
+            }
+            url
+        };
+        self.open_in_browser(platform, url);
+        true
+    }
+
+    /// Opens the account's page (`https://github.com/<account>` or `<gitlab url>/<account>`).
+    /// `false` without a known account (or GitLab server).
+    pub fn open_profile(&self, platform: Platform) -> bool {
+        let url = {
+            let mut inner = self.lock();
+            let allowed = Self::allowed_origin(&inner, platform);
+            let base = match platform {
+                Platform::Github => GITHUB_WEB_ORIGIN.to_owned(),
+                Platform::Gitlab => inner.gitlab_url.clone(),
+            };
+            let account = inner.rt(platform).account.clone();
+            let url = account.and_then(|account| profile_url(&base, &account));
+            match url {
+                Some(url) if allowed.is_some() && origin_of(&url) == allowed => url,
+                _ => return false,
+            }
+        };
+        self.open_in_browser(platform, url);
+        true
     }
 
     /// Validates the token (and GitLab URL) against the API before saving anything.
@@ -1202,33 +1200,50 @@ impl CodeReviewIntegration {
     }
 }
 
-/// `announce`'s payload: one first review with its kind, ref and title (from the current list),
-/// otherwise just how many.
+/// `announce`'s payload: one first review with its kind, ref and title (from the current list)
+/// and the URL of that PR/MR, otherwise just how many.
 fn announcement(
     platform: Platform,
     mine: &[ClientItem],
     fresh: &[Alert],
-) -> Option<CodeReviewAlert> {
+) -> Option<(CodeReviewAlert, Option<String>)> {
     let first = fresh.first()?;
     let single = (fresh.len() == 1)
         .then(|| mine.iter().find(|item| item.item.id == first.id))
         .flatten();
     Some(match single {
-        Some(item) => CodeReviewAlert {
-            platform,
-            count: 1,
-            kind: Some(first.kind),
-            reference: Some(item.item.reference.clone()),
-            title: Some(item.item.title.clone()),
-        },
-        None => CodeReviewAlert {
-            platform,
-            count: u64::try_from(fresh.len()).unwrap_or(u64::MAX),
-            kind: None,
-            reference: None,
-            title: None,
-        },
+        Some(item) => (
+            CodeReviewAlert {
+                platform,
+                count: 1,
+                kind: Some(first.kind),
+                reference: Some(item.item.reference.clone()),
+                title: Some(item.item.title.clone()),
+            },
+            Some(item.url.clone()),
+        ),
+        None => (
+            CodeReviewAlert {
+                platform,
+                count: u64::try_from(fresh.len()).unwrap_or(u64::MAX),
+                kind: None,
+                reference: None,
+                title: None,
+            },
+            None,
+        ),
     })
+}
+
+/// `<base>/<account>` with the account as one path segment (never a way out of it). `None` for a
+/// base that is not a URL, or an account that is empty or a dot segment.
+fn profile_url(base: &str, account: &str) -> Option<String> {
+    if matches!(account, "" | "." | "..") {
+        return None;
+    }
+    let mut url = url::Url::parse(base).ok()?;
+    url.path_segments_mut().ok()?.pop_if_empty().push(account);
+    Some(url.into())
 }
 
 impl CodeReviewApi for CodeReviewIntegration {
@@ -1240,16 +1255,16 @@ impl CodeReviewApi for CodeReviewIntegration {
         CodeReviewIntegration::state(self)
     }
 
-    fn list(&self, platform: Platform) -> BoxFuture<'_, CodeReviewList> {
-        Box::pin(CodeReviewIntegration::list(self, platform))
-    }
-
     fn refresh(&self) {
         CodeReviewIntegration::refresh(self);
     }
 
-    fn open(&self, platform: Platform, id: &str) -> Result<(), ExposedError> {
-        CodeReviewIntegration::open(self, platform, id)
+    fn open_profile(&self, platform: Platform) -> bool {
+        CodeReviewIntegration::open_profile(self, platform)
+    }
+
+    fn open_alert(&self, platform: Platform) -> bool {
+        CodeReviewIntegration::open_alert(self, platform)
     }
 
     fn set_token(

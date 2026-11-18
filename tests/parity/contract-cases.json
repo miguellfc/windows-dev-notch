@@ -11037,7 +11037,7 @@
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "input",
     "value": {
       "platform": "github"
@@ -11045,7 +11045,7 @@
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "input",
     "value": {
       "platform": "gitlab"
@@ -11053,7 +11053,7 @@
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "input",
     "value": {
       "platform": "bitbucket"
@@ -11061,1304 +11061,163 @@
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "input",
     "value": {
       "platform": "github",
-      "x": 1
+      "id": "n1"
     },
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
+    "direction": "input",
+    "value": {
+      "platform": "github",
+      "url": "https://github.com/x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "code-review:open-profile",
     "direction": "input",
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
+      "opened": true
     },
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "id0",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id1",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id2",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id3",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id4",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id5",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id6",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id7",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id8",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id9",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id10",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id11",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id12",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id13",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id14",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id15",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id16",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id17",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id18",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id19",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": [
-        {
-          "id": "id0",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id1",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id2",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id3",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id4",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id5",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id6",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id7",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id8",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id9",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id10",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id11",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id12",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id13",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id14",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id15",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id16",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id17",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id18",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id19",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ]
+      "opened": false
     },
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "id0",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id1",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id2",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id3",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id4",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id5",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id6",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id7",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id8",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id9",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id10",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id11",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id12",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id13",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id14",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id15",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id16",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id17",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id18",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id19",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id20",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
+      "opened": true,
+      "url": "https://github.com/x"
     },
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "output",
     "value": {
-      "toReview": [],
-      "mine": [
-        {
-          "id": "id0",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id1",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id2",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id3",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id4",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id5",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id6",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id7",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id8",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id9",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id10",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id11",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id12",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id13",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id14",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id15",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id16",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id17",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id18",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id19",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        },
-        {
-          "id": "id20",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ]
+      "opened": "yes"
     },
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false,
-          "url": "https://github.com/x"
-        }
-      ],
-      "mine": []
-    },
+    "value": {},
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-profile",
     "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null
-        }
-      ],
-      "mine": []
-    },
+    "value": null,
     "accept": false
   },
   {
-    "channel": "code-review:list",
-    "direction": "output",
+    "channel": "code-review:open-alert",
+    "direction": "input",
     "value": {
-      "toReview": [
-        {
-          "id": "",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "nope",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": "pending",
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [],
-      "mine": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": true,
-          "review": "approved",
-          "checks": "pass",
-          "conflicts": false
-        }
-      ]
+      "platform": "github"
     },
     "accept": true
   },
   {
-    "channel": "code-review:list",
-    "direction": "output",
+    "channel": "code-review:open-alert",
+    "direction": "input",
     "value": {
-      "toReview": [],
-      "mine": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "changes",
-          "checks": "fail",
-          "conflicts": false
-        },
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "commented",
-          "checks": "running",
-          "conflicts": false
-        }
-      ]
+      "platform": "gitlab"
     },
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-alert",
+    "direction": "input",
+    "value": {
+      "platform": "bitbucket"
+    },
+    "accept": false
+  },
+  {
+    "channel": "code-review:open-alert",
+    "direction": "input",
+    "value": {
+      "platform": "github",
+      "id": "n1"
+    },
+    "accept": false
+  },
+  {
+    "channel": "code-review:open-alert",
+    "direction": "input",
+    "value": {
+      "platform": "github",
+      "url": "https://github.com/x"
+    },
+    "accept": false
+  },
+  {
+    "channel": "code-review:open-alert",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "code-review:open-alert",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
-          "ref": "owner/repo#123",
-          "title": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
+      "opened": true
     },
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-alert",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
-          "author": "octocat",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
-          "title": "Fix the thing",
-          "author": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
+      "opened": false
     },
     "accept": true
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-alert",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          "updatedAt": "2026-11-12T10:00:00Z",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
+      "opened": true,
+      "url": "https://github.com/x"
     },
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-alert",
     "direction": "output",
     "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
-    },
-    "accept": true
-  },
-  {
-    "channel": "code-review:list",
-    "direction": "output",
-    "value": {
-      "toReview": [
-        {
-          "id": "PR_kwDOA",
-          "ref": "owner/repo#123",
-          "title": "Fix the thing",
-          "author": "octocat",
-          "updatedAt": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
-          "draft": false,
-          "review": "none",
-          "checks": null,
-          "conflicts": false
-        }
-      ],
-      "mine": []
+      "opened": "yes"
     },
     "accept": false
   },
   {
-    "channel": "code-review:list",
+    "channel": "code-review:open-alert",
     "direction": "output",
-    "value": {
-      "toReview": []
-    },
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "code-review:open-alert",
+    "direction": "output",
+    "value": null,
     "accept": false
   },
   {
@@ -12383,90 +11242,6 @@
   {
     "channel": "code-review:refresh",
     "direction": "output",
-    "accept": false
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "gitlab",
-      "id": "12!3"
-    },
-    "accept": true
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "github",
-      "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    },
-    "accept": true
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "github",
-      "id": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
-    },
-    "accept": true
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "gitlab",
-      "id": ""
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "gitlab",
-      "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "gitlab"
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "gitlab",
-      "id": 5
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "input",
-    "value": {
-      "platform": "gitlab",
-      "id": "a",
-      "url": "https://x"
-    },
-    "accept": false
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "output",
-    "value": null,
-    "accept": true
-  },
-  {
-    "channel": "code-review:open",
-    "direction": "output",
-    "value": {},
     "accept": false
   },
   {

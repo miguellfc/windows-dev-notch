@@ -82,9 +82,9 @@ export const channels = {
   },
   codeReview: {
     getState: 'code-review:get-state',
-    list: 'code-review:list',
     refresh: 'code-review:refresh',
-    open: 'code-review:open',
+    openProfile: 'code-review:open-profile',
+    openAlert: 'code-review:open-alert',
     setToken: 'code-review:set-token',
     clear: 'code-review:clear',
     view: 'code-review:view',

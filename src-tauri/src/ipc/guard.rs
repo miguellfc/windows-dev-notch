@@ -85,9 +85,9 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("gmail:pick-client-file", Guard::ControlCenterOnly),
     // code review
     ("code-review:get-state", Guard::Any),
-    ("code-review:list", Guard::NotchOnly),
     ("code-review:refresh", Guard::NotchOnly),
-    ("code-review:open", Guard::NotchOnly),
+    ("code-review:open-profile", Guard::NotchOnly),
+    ("code-review:open-alert", Guard::NotchOnly),
     ("code-review:set-token", Guard::ControlCenterOnly),
     ("code-review:clear", Guard::ControlCenterOnly),
     ("code-review:view", Guard::NotchOnly),

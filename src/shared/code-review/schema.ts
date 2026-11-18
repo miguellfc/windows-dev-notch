@@ -1,12 +1,12 @@
 import { z } from 'zod'
 
-/** Each list (`toReview`, `mine`) holds at most this many items. */
+/** Main reads at most this many own PR/MRs per platform. */
 export const CODE_REVIEW_LIST_LIMIT = 20
 /** Unreviewed counts are capped here; the UI shows 100 as "99+". */
 export const CODE_REVIEW_COUNT_CAP = 100
 /** Titles, refs and authors are cut to this many characters before they leave the client. */
 export const CODE_REVIEW_TEXT_MAX = 1000
-/** Item ids (GitHub node ids, `projectId!iid` on GitLab) are short; the bound keeps requests small. */
+/** Item ids (GitHub node ids, `projectId!iid` on GitLab) are short; main bounds them when it reads them. */
 export const CODE_REVIEW_ID_MAX = 256
 /** A personal access token is never longer than this. */
 export const CODE_REVIEW_TOKEN_MAX = 255
@@ -23,34 +23,7 @@ export type ReviewState = z.infer<typeof reviewStateSchema>
 export const reviewKindSchema = z.enum(['approved', 'changes', 'commented'])
 export type ReviewKind = z.infer<typeof reviewKindSchema>
 
-export const checksSchema = z.enum(['pass', 'fail', 'running']).nullable()
-export type Checks = z.infer<typeof checksSchema>
-
-const idSchema = z.string().min(1).max(CODE_REVIEW_ID_MAX)
 const textSchema = z.string().max(CODE_REVIEW_TEXT_MAX)
-
-/** One PR/MR as the notch sees it (no URL: main opens it by id). */
-export const itemSchema = z.strictObject({
-  id: idSchema,
-  /** `owner/repo#123` (GitHub) or `group/project!45` (GitLab). */
-  ref: textSchema,
-  title: textSchema,
-  author: textSchema,
-  /** ISO time of the last update. */
-  updatedAt: z.string().max(64),
-  draft: z.boolean(),
-  review: reviewStateSchema,
-  checks: checksSchema,
-  conflicts: z.boolean(),
-})
-export type ReviewItem = z.infer<typeof itemSchema>
-
-/** `code-review:list` output. */
-export const codeReviewListSchema = z.strictObject({
-  toReview: z.array(itemSchema).max(CODE_REVIEW_LIST_LIMIT),
-  mine: z.array(itemSchema).max(CODE_REVIEW_LIST_LIMIT),
-})
-export type CodeReviewList = z.infer<typeof codeReviewListSchema>
 
 export const platformStatusSchema = z.enum(['unconfigured', 'ok', 'offline', 'auth-error'])
 export type PlatformStatus = z.infer<typeof platformStatusSchema>
@@ -118,11 +91,17 @@ export const gitlabUrlSchema = z
 export const isStoredGitlabUrl = (value: string): boolean => value === '' || normalizeGitlabUrl(value) === value
 
 // IPC inputs.
-export const listInputSchema = z.strictObject({ platform: platformSchema })
-export type ListInput = z.infer<typeof listInputSchema>
+/** `code-review:open-profile`: the account's page on the platform; main builds the URL. */
+export const openProfileInputSchema = z.strictObject({ platform: platformSchema })
+export type OpenProfileInput = z.infer<typeof openProfileInputSchema>
 
-export const openInputSchema = z.strictObject({ platform: platformSchema, id: idSchema })
-export type OpenInput = z.infer<typeof openInputSchema>
+/** `code-review:open-alert`: the single PR/MR of the last alert; main keeps its URL. */
+export const openAlertInputSchema = z.strictObject({ platform: platformSchema })
+export type OpenAlertInput = z.infer<typeof openAlertInputSchema>
+
+/** Output of both openers: whether main opened something in the browser (never a URL). */
+export const openedResultSchema = z.strictObject({ opened: z.boolean() })
+export type OpenedResult = z.infer<typeof openedResultSchema>
 
 export const setTokenInputSchema = z.strictObject({
   platform: platformSchema,

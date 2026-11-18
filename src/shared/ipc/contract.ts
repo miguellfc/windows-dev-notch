@@ -3,14 +3,14 @@ import { appInfoSchema } from '../app-info'
 import {
   clearInputSchema,
   codeReviewAlertSchema,
-  codeReviewListSchema,
   codeReviewStateSchema,
   codeReviewViewInputSchema,
   contributionsChangedSchema,
   contributionsInputSchema,
   contributionsResultSchema,
-  listInputSchema,
-  openInputSchema,
+  openAlertInputSchema,
+  openedResultSchema,
+  openProfileInputSchema,
   setTokenInputSchema,
   setTokenResultSchema,
 } from '../code-review/schema'
@@ -236,11 +236,11 @@ export const contract = {
   /** The reader closed: main forgets the open message (body and links); list ids stay shown. */
   'gmail:close-message': { input: none, output: ack },
   'code-review:get-state': { input: none, output: codeReviewStateSchema },
-  /** Lists of one platform without URLs (main keeps them); remembered as the ids `open` accepts. */
-  'code-review:list': { input: listInputSchema, output: codeReviewListSchema },
   'code-review:refresh': { input: none, output: ack },
-  /** Main opens the URL of an id from the last list, on github.com or the configured GitLab origin only. */
-  'code-review:open': { input: openInputSchema, output: ack },
+  /** Main opens the account's page (`github.com/<account>` or the GitLab server's); `opened: false` without an account. */
+  'code-review:open-profile': { input: openProfileInputSchema, output: openedResultSchema },
+  /** Main opens the single PR/MR of the last alert, on github.com or the configured GitLab origin only; `opened: false` when there is none. */
+  'code-review:open-alert': { input: openAlertInputSchema, output: openedResultSchema },
   /** Validates the token against the API before saving; the token never comes back. */
   'code-review:set-token': { input: setTokenInputSchema, output: setTokenResultSchema },
   'code-review:clear': { input: clearInputSchema, output: ack },

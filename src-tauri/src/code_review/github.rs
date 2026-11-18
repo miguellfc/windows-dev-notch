@@ -11,8 +11,8 @@ use chrono::{DateTime, FixedOffset, Local, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Map, Value};
 
 use super::client::{
-    clip, clip_text, read_json, send_ok, snapshot, ClientItem, CodeReviewClient, CodeReviewError,
-    CodeReviewSnapshot,
+    clip_text, read_json, send_ok, snapshot, ClientItem, CodeReviewClient, CodeReviewError,
+    CodeReviewSnapshot, ReviewItem,
 };
 use super::contributions::{summarize, ContributionRange, SummaryInput};
 use super::http::{HttpRequest, HttpResponse, Transport};
@@ -21,8 +21,7 @@ use super::zod::{
 };
 use crate::claude::js_json;
 use crate::contract::code_review::{
-    Checks, ContributionSummary, ContributionTotals, ReviewItem, ReviewState, COUNT_CAP, ID_MAX,
-    LIST_LIMIT, UPDATED_AT_MAX,
+    ContributionSummary, ContributionTotals, ReviewState, COUNT_CAP, ID_MAX, LIST_LIMIT,
 };
 use crate::contract::length;
 use crate::ipc::BoxFuture;
@@ -30,16 +29,16 @@ use crate::ipc::BoxFuture;
 /// Production GitHub API origin (GraphQL lives at `/graphql`).
 pub const GITHUB_API_BASE: &str = "https://api.github.com";
 
-pub const GITHUB_TO_REVIEW_QUERY: &str = "is:open is:pr review-requested:@me archived:false";
 pub const GITHUB_MINE_QUERY: &str = "is:open is:pr author:@me archived:false";
 /// Only its `issueCount` is read: the unreviewed count when `mine` is cut at the list limit.
 pub const GITHUB_UNREVIEWED_QUERY: &str =
     "is:open is:pr author:@me archived:false draft:false review:none";
 
-/// `GITHUB_QUERY`, byte for byte (`REVIEWS_READ` = 20 and the submitted review states inlined).
-pub const GITHUB_QUERY: &str = "query CodeReview($toReview: String!, $mine: String!, $unreviewed: String!, $first: Int!) {
+/// `GITHUB_QUERY` (`REVIEWS_READ` = 20 and the submitted review states inlined). Only the own PRs
+/// are read: the notch shows no list, so nothing waits on the user's review and no check or
+/// conflict state is needed. The PR author stays: a review by the author never counts.
+pub const GITHUB_QUERY: &str = "query CodeReview($mine: String!, $unreviewed: String!, $first: Int!) {
   viewer { login }
-  toReview: search(type: ISSUE, first: $first, query: $toReview) { nodes { ...pr } }
   mine: search(type: ISSUE, first: $first, query: $mine) { issueCount nodes { ...pr } }
   unreviewed: search(type: ISSUE, first: 0, query: $unreviewed) { issueCount }
 }
@@ -49,13 +48,10 @@ fragment pr on PullRequest {
   title
   url
   isDraft
-  updatedAt
   reviewDecision
-  mergeable
   repository { nameWithOwner }
   author { login }
   reviews(last: 20, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED]) { totalCount nodes { state author { login } } }
-  commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 }";
 
 /// `GITHUB_CONTRIBUTIONS_QUERY`, byte for byte: month (with its calendar), week and today in one
@@ -178,14 +174,10 @@ struct Pr<'a> {
     title: &'a str,
     url: &'a str,
     is_draft: bool,
-    updated_at: &'a str,
     review_decision: Option<&'a str>,
-    mergeable: Option<&'a str>,
     name_with_owner: &'a str,
     author: Option<&'a str>,
     reviews: Vec<Option<Review<'a>>>,
-    /// `statusCheckRollup.state` of each commit node (`None` for a `null` node or rollup).
-    rollups: Vec<Option<&'a str>>,
 }
 
 fn optional_string<'a>(object: &'a Obj, key: &str) -> Parsed<Option<&'a str>> {
@@ -218,33 +210,16 @@ fn pr(node: &Obj) -> Parsed<Pr<'_>> {
             }
         }
     }
-    let mut rollups = Vec::new();
-    if let Some(commits) = optional(node, "commits") {
-        for commit in array(required(object(commits)?, "nodes")?)? {
-            if commit.is_null() {
-                rollups.push(None);
-                continue;
-            }
-            let commit = object(required(object(commit)?, "commit")?)?;
-            let rollup = nullish(commit, "statusCheckRollup")
-                .map(|rollup| string(required(object(rollup)?, "state")?))
-                .transpose()?;
-            rollups.push(rollup);
-        }
-    }
     Ok(Pr {
         id,
         number: int(required(node, "number")?)?,
         title: string(required(node, "title")?)?,
         url: string(required(node, "url")?)?,
         is_draft: boolean(required(node, "isDraft")?)?,
-        updated_at: string(required(node, "updatedAt")?)?,
         review_decision: optional_string(node, "reviewDecision")?,
-        mergeable: optional_string(node, "mergeable")?,
         name_with_owner: string(required(repository, "nameWithOwner")?)?,
         author: optional_login(node, "author")?,
         reviews,
-        rollups,
     })
 }
 
@@ -270,28 +245,14 @@ fn review_of(pr: &Pr<'_>) -> ReviewState {
     }
 }
 
-/// `checksOf`: the last commit's status rollup.
-fn checks_of(pr: &Pr<'_>) -> Option<Checks> {
-    match pr.rollups.last().copied().flatten()? {
-        "SUCCESS" => Some(Checks::Pass),
-        "FAILURE" | "ERROR" => Some(Checks::Fail),
-        "PENDING" | "EXPECTED" => Some(Checks::Running),
-        _ => None,
-    }
-}
-
 fn to_item(pr: &Pr<'_>) -> ClientItem {
     ClientItem {
         item: ReviewItem {
             id: pr.id.to_owned(),
             reference: clip_text(&format!("{}#{}", pr.name_with_owner, pr.number)),
             title: clip_text(pr.title),
-            author: clip_text(pr.author.unwrap_or("")),
-            updated_at: clip(pr.updated_at, UPDATED_AT_MAX),
             draft: pr.is_draft,
             review: review_of(pr),
-            checks: checks_of(pr),
-            conflicts: pr.mergeable == Some("CONFLICTING"),
         },
         url: pr.url.to_owned(),
     }
@@ -384,10 +345,9 @@ impl GithubClient {
         Ok(login(required(data, "viewer")?)?.to_owned())
     }
 
-    /// `fetch()`: both lists and the unreviewed count in one query.
+    /// `fetch()`: the own PRs and the unreviewed count in one query.
     pub async fn list(&self) -> Result<CodeReviewSnapshot, CodeReviewError> {
         let variables = json!({
-            "toReview": GITHUB_TO_REVIEW_QUERY,
             "mine": GITHUB_MINE_QUERY,
             "unreviewed": GITHUB_UNREVIEWED_QUERY,
             "first": LIST_LIMIT,
@@ -395,16 +355,11 @@ impl GithubClient {
         let body: Value = read_json(&self.post(GITHUB_QUERY, Some(variables)).await?)?;
         let data = data_of(&body)?;
         login(required(data, "viewer")?)?;
-        let to_review = search(required(data, "toReview")?)?;
         let mine = search(required(data, "mine")?)?;
         let unreviewed = nullish(data, "unreviewed")
             .map(|search| count(required(object(search)?, "issueCount")?))
             .transpose()?;
-        let mut result = snapshot(
-            items_of(&to_review.nodes)?,
-            items_of(&mine.nodes)?,
-            &HashSet::new(),
-        );
+        let mut result = snapshot(items_of(&mine.nodes)?, &HashSet::new());
         // The list rule (no review by anyone but the author) is exact while the list holds every
         // own PR. Beyond the limit, `review:none` counts the rest; it also treats self-reviews as
         // reviews, so it can only undercount: never report fewer than the list itself shows.

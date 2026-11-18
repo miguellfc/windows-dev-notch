@@ -12,9 +12,9 @@ use serde_json::{json, Value};
 use url::Url;
 
 use super::*;
-use crate::code_review::client::{ClientItem, OwnReview};
+use crate::code_review::client::{ClientItem, OwnReview, ReviewItem};
 use crate::code_review::http::{HttpRequest, HttpResponse, Method, TransportError};
-use crate::contract::code_review::{Checks, ContributionTotals, ReviewItem, ReviewState};
+use crate::contract::code_review::{ContributionTotals, ReviewState};
 use crate::contract::Validate;
 use crate::ipc::BoxFuture;
 
@@ -141,12 +141,11 @@ fn with_fake(respond: impl Fn(&Url) -> Reply + Send + Sync + 'static) -> Setup {
 
 type Status = dyn Fn(&Url) -> Option<Reply> + Send + Sync;
 
-/// The TS `Server`: the user, both lists, approvals and `/reviewers` answers by
+/// The TS `Server`: the user, the own list, approvals and `/reviewers` answers by
 /// `"{project}/{iid}"`, and a `status` override.
 #[derive(Default)]
 struct Server {
     user: Option<Value>,
-    to_review: Option<Value>,
     mine: Option<Value>,
     approvals: Vec<(&'static str, Value)>,
     reviewers: Vec<(&'static str, Value)>,
@@ -172,12 +171,7 @@ impl Server {
             );
         }
         if path == "/base/api/v4/merge_requests" {
-            let list = if param(url, "scope").as_deref() == Some("created_by_me") {
-                &self.mine
-            } else {
-                &self.to_review
-            };
-            return json_ok(list.as_ref().unwrap_or(&json!([])));
+            return json_ok(self.mine.as_ref().unwrap_or(&json!([])));
         }
         if let Some(rest) = path.strip_prefix("/base/api/v4/projects/") {
             let parts: Vec<&str> = rest.split('/').collect();
@@ -225,10 +219,6 @@ struct MrOptions {
     iid: Option<u64>,
     draft: Option<bool>,
     work_in_progress: Option<bool>,
-    has_conflicts: Option<bool>,
-    detailed_merge_status: Option<&'static str>,
-    /// `Some(None)` for `head_pipeline: null`.
-    pipeline: Option<Option<&'static str>>,
     no_references: bool,
 }
 
@@ -243,7 +233,6 @@ fn mr(o: MrOptions) -> Value {
         "web_url": format!("https://gitlab.x.com/base/group/project/-/merge_requests/{iid}"),
         "author": { "id": 7, "username": "alice", "name": "Alice" },
         "updated_at": "2026-11-12T10:00:00Z",
-        "has_conflicts": o.has_conflicts.unwrap_or(false),
     });
     if !o.no_references {
         out["references"] =
@@ -255,15 +244,8 @@ fn mr(o: MrOptions) -> Value {
     if let Some(wip) = o.work_in_progress {
         out["work_in_progress"] = json!(wip);
     }
-    if let Some(status) = o.detailed_merge_status {
-        out["detailed_merge_status"] = json!(status);
-    }
     // The list endpoint carries reviewers as plain users (no review state).
     out["reviewers"] = json!([{ "id": 9, "username": "bob", "name": "Bob", "state": "active" }]);
-    if let Some(pipeline) = o.pipeline {
-        out["head_pipeline"] =
-            pipeline.map_or(Value::Null, |status| json!({ "id": 1, "status": status }));
-    }
     out
 }
 
@@ -322,9 +304,8 @@ async fn viewer_returns_the_username_using_private_token_and_never_following_red
 }
 
 #[tokio::test]
-async fn asks_for_the_user_both_lists_and_the_approvals_and_reviewers_of_each_own_mr() {
+async fn asks_for_the_user_the_own_list_and_the_approvals_and_reviewers_of_each_own_mr() {
     let s = setup(Server {
-        to_review: Some(json!([mr_iid(5)])),
         mine: Some(json!([
             mr_iid(1),
             mr(MrOptions {
@@ -341,26 +322,9 @@ async fn asks_for_the_user_both_lists_and_the_approvals_and_reviewers_of_each_ow
         .iter()
         .filter(|url| url.path() == "/base/api/v4/merge_requests")
         .collect();
-    assert_eq!(lists.len(), 2);
-    let to_review = lists
-        .iter()
-        .find(|url| param(url, "scope").as_deref() == Some("all"))
-        .unwrap();
+    assert_eq!(lists.len(), 1);
     assert_eq!(
-        params(to_review),
-        pairs(&[
-            ("state", "opened"),
-            ("reviewer_id", "42"),
-            ("scope", "all"),
-            ("per_page", "20")
-        ])
-    );
-    let mine = lists
-        .iter()
-        .find(|url| param(url, "scope").as_deref() == Some("created_by_me"))
-        .unwrap();
-    assert_eq!(
-        params(mine),
+        params(lists[0]),
         pairs(&[
             ("state", "opened"),
             ("scope", "created_by_me"),
@@ -377,7 +341,7 @@ async fn asks_for_the_user_both_lists_and_the_approvals_and_reviewers_of_each_ow
     ] {
         assert!(paths.contains(path), "{path}");
     }
-    assert_eq!(s.calls(), 7);
+    assert_eq!(s.calls(), 6);
     s.assert_token_on_every_request();
 }
 
@@ -396,28 +360,20 @@ async fn never_follows_a_redirect_any_3xx_is_invalid_response_with_one_request()
 #[tokio::test]
 async fn maps_an_mr_to_an_item() {
     let s = setup(Server {
-        to_review: Some(json!([mr(MrOptions {
-            iid: Some(5),
-            pipeline: Some(Some("success")),
-            has_conflicts: Some(true),
-            ..MrOptions::default()
-        })])),
+        mine: Some(json!([mr_iid(5)])),
+        approvals: vec![("10/5", json!([approver()]))],
         ..Server::default()
     });
     let result = s.client.list().await.unwrap();
     assert_eq!(
-        result.to_review,
+        result.mine,
         vec![ClientItem {
             item: ReviewItem {
                 id: "10!5".into(),
                 reference: "group/project!5".into(),
                 title: "Improve thing".into(),
-                author: "alice".into(),
-                updated_at: "2026-11-12T10:00:00Z".into(),
                 draft: false,
-                review: ReviewState::None,
-                checks: Some(Checks::Pass),
-                conflicts: true,
+                review: ReviewState::Approved,
             },
             url: "https://gitlab.x.com/base/group/project/-/merge_requests/5".into(),
         }]
@@ -434,29 +390,22 @@ async fn tolerates_missing_optional_fields() {
         "web_url": "https://gitlab.x.com/base/g/p/-/merge_requests/3",
         "updated_at": "2026-11-12T10:00:00Z",
     });
-    let mut mine = minimal.clone();
-    mine["author"] = Value::Null;
     let s = setup(Server {
-        to_review: Some(json!([minimal])),
-        mine: Some(json!([mine])),
+        mine: Some(json!([minimal])),
         ..Server::default()
     });
     let result = s.client.list().await.unwrap();
-    let item = &result.to_review[0].item;
+    let item = &result.mine[0].item;
     assert_eq!(item.id, "4!3");
     assert_eq!(item.reference, "!3");
-    assert_eq!(item.author, "");
     assert!(!item.draft);
-    assert_eq!(item.checks, None);
-    assert!(!item.conflicts);
     assert_eq!(item.review, ReviewState::None);
-    assert_eq!(result.mine[0].item.author, "");
 }
 
 #[tokio::test]
-async fn reads_drafts_from_draft_or_work_in_progress_and_conflicts_from_the_detailed_status() {
+async fn reads_drafts_from_draft_or_work_in_progress() {
     let s = setup(Server {
-        to_review: Some(json!([
+        mine: Some(json!([
             mr(MrOptions {
                 iid: Some(1),
                 draft: Some(true),
@@ -467,63 +416,14 @@ async fn reads_drafts_from_draft_or_work_in_progress_and_conflicts_from_the_deta
                 work_in_progress: Some(true),
                 ..MrOptions::default()
             }),
-            mr(MrOptions {
-                iid: Some(3),
-                detailed_merge_status: Some("conflict"),
-                ..MrOptions::default()
-            }),
+            mr_iid(3),
         ])),
         ..Server::default()
     });
     let result = s.client.list().await.unwrap();
-    assert!(result.to_review[0].item.draft);
-    assert!(result.to_review[1].item.draft);
-    assert!(result.to_review[2].item.conflicts);
-}
-
-#[tokio::test]
-async fn maps_the_pipeline_status_to_checks() {
-    let cases = [
-        (Some("success"), Some(Checks::Pass)),
-        (Some("failed"), Some(Checks::Fail)),
-        (Some("running"), Some(Checks::Running)),
-        (Some("pending"), Some(Checks::Running)),
-        (Some("created"), Some(Checks::Running)),
-        (Some("canceled"), None),
-        (Some("skipped"), None),
-        (None, None),
-    ];
-    for (pipeline, checks) in cases {
-        let s = setup(Server {
-            to_review: Some(json!([mr(MrOptions {
-                pipeline: Some(pipeline),
-                ..MrOptions::default()
-            })])),
-            ..Server::default()
-        });
-        assert_eq!(
-            s.client.list().await.unwrap().to_review[0].item.checks,
-            checks,
-            "{pipeline:?}"
-        );
-    }
-    // The other running states, and no pipeline at all.
-    for status in [
-        "waiting_for_resource",
-        "preparing",
-        "scheduled",
-        "waiting_for_callback",
-    ] {
-        let s = setup(Server {
-            to_review: Some(json!([mr(MrOptions {
-                pipeline: Some(Some(status)),
-                ..MrOptions::default()
-            })])),
-            ..Server::default()
-        });
-        let checks = s.client.list().await.unwrap().to_review[0].item.checks;
-        assert_eq!(checks, Some(Checks::Running), "{status}");
-    }
+    assert!(result.mine[0].item.draft);
+    assert!(result.mine[1].item.draft);
+    assert!(!result.mine[2].item.draft);
 }
 
 #[tokio::test]
@@ -604,9 +504,8 @@ async fn ignores_the_users_own_approval_and_review_of_their_mr() {
 }
 
 #[tokio::test]
-async fn makes_no_per_mr_calls_for_the_mrs_to_review_nor_for_own_drafts() {
+async fn makes_no_per_mr_calls_for_own_drafts() {
     let s = setup(Server {
-        to_review: Some(json!([mr_iid(1)])),
         mine: Some(json!([mr(MrOptions {
             iid: Some(2),
             draft: Some(true),
@@ -615,9 +514,9 @@ async fn makes_no_per_mr_calls_for_the_mrs_to_review_nor_for_own_drafts() {
         ..Server::default()
     });
     let result = s.client.list().await.unwrap();
-    assert_eq!(result.to_review[0].item.review, ReviewState::None);
     assert_eq!(result.mine[0].item.review, ReviewState::None);
-    assert_eq!(s.calls(), 3);
+    // The user and the list: nothing per MR.
+    assert_eq!(s.calls(), 2);
 }
 
 #[tokio::test]
@@ -647,15 +546,13 @@ async fn counts_own_open_non_draft_mrs_without_reviews_and_reports_their_review_
 }
 
 #[tokio::test]
-async fn keeps_at_most_20_items_per_list_and_asks_approvals_and_reviewers_only_for_those() {
+async fn keeps_at_most_20_items_and_asks_approvals_and_reviewers_only_for_those() {
     let many = json!((1..=25).map(mr_iid).collect::<Vec<_>>());
     let s = setup(Server {
-        to_review: Some(many.clone()),
         mine: Some(many),
         ..Server::default()
     });
     let result = s.client.list().await.unwrap();
-    assert_eq!(result.to_review.len(), 20);
     assert_eq!(result.mine.len(), 20);
     assert_eq!(result.unreviewed, 20);
     assert_eq!(s.calls_containing("/approvals"), 20);
@@ -705,7 +602,8 @@ async fn maps_http_statuses_to_codes() {
 #[tokio::test]
 async fn fails_the_whole_fetch_when_a_list_call_fails_or_a_per_mr_call_says_401() {
     let s = setup(Server::default().status(|url| {
-        (param(url, "scope").as_deref() == Some("all")).then(|| json_status(&json!({}), 500))
+        (param(url, "scope").as_deref() == Some("created_by_me"))
+            .then(|| json_status(&json!({}), 500))
     }));
     expect_code(s.client.list().await, CodeReviewError::Server);
     for suffix in ["/approvals", "/reviewers"] {
@@ -750,7 +648,7 @@ async fn gives_invalid_response_for_a_malformed_body_or_schema() {
     let mut bad = mr(MrOptions::default());
     bad["iid"] = json!("one");
     let s = setup(Server {
-        to_review: Some(json!([bad])),
+        mine: Some(json!([bad])),
         ..Server::default()
     });
     expect_code(s.client.list().await, CodeReviewError::InvalidResponse);
@@ -916,12 +814,7 @@ impl Transport for Slow {
                 return json_ok(&json!({ "id": 42, "username": "me" }));
             }
             if path.ends_with("/merge_requests") {
-                let mine = param(&url, "scope").as_deref() == Some("created_by_me");
-                let list: Vec<Value> = if mine {
-                    (1..=20).map(mr_iid).collect()
-                } else {
-                    Vec::new()
-                };
+                let list: Vec<Value> = (1..=20).map(mr_iid).collect();
                 return json_ok(&json!(list));
             }
             let lane = if path.ends_with("/approvals") { 1 } else { 2 };
@@ -950,7 +843,8 @@ async fn keeps_at_most_6_per_mr_requests_in_flight() {
     let client = GitlabClient::new(slow.clone(), BASE, TOKEN).unwrap();
     let result = client.list().await.unwrap();
     assert_eq!(result.unreviewed, 20);
-    assert_eq!(slow.calls.load(Ordering::SeqCst), 43);
+    // The user, the list and two calls for each of the 20 own MRs.
+    assert_eq!(slow.calls.load(Ordering::SeqCst), 42);
     let peak = slow.peak[0].load(Ordering::SeqCst);
     assert!(peak <= GITLAB_PER_MR_CONCURRENCY, "{peak}");
     assert!(peak > 1, "{peak}");
@@ -1324,9 +1218,6 @@ async fn request_urls_keep_the_base_path_and_the_ts_parameter_order() {
     assert_eq!(
         urls,
         [
-            format!(
-                "{BASE}/api/v4/merge_requests?state=opened&reviewer_id=42&scope=all&per_page=20"
-            ),
             format!("{BASE}/api/v4/merge_requests?state=opened&scope=created_by_me&per_page=20"),
             format!("{BASE}/api/v4/projects/10/merge_requests/1/approvals"),
             format!("{BASE}/api/v4/projects/10/merge_requests/1/reviewers"),
@@ -1367,15 +1258,11 @@ async fn accepts_integral_floats_where_zod_int_does_and_rejects_the_rest() {
     node["project_id"] = json!(1e1);
     let s = setup(Server {
         user: Some(json!({ "id": 42.0, "username": "me" })),
-        to_review: Some(json!([node])),
+        mine: Some(json!([node])),
         ..Server::default()
     });
     let result = s.client.list().await.unwrap();
-    assert_eq!(result.to_review[0].item.id, "10!12");
-    assert!(s
-        .requests()
-        .iter()
-        .any(|r| r.url.contains("reviewer_id=42&")));
+    assert_eq!(result.mine[0].item.id, "10!12");
     for bad in [
         json!(1.5),
         json!(0),
@@ -1387,7 +1274,7 @@ async fn accepts_integral_floats_where_zod_int_does_and_rejects_the_rest() {
         let mut node = mr(MrOptions::default());
         node["iid"] = bad.clone();
         let s = setup(Server {
-            to_review: Some(json!([node])),
+            mine: Some(json!([node])),
             ..Server::default()
         });
         expect_code(s.client.list().await, CodeReviewError::InvalidResponse);
@@ -1427,37 +1314,26 @@ async fn keeps_the_last_of_duplicate_keys_as_json_parse_does() {
 async fn zod_shape_rules_for_mrs_and_per_mr_answers() {
     // Nullable fields take `null`.
     let mut node = mr(MrOptions::default());
-    for key in [
-        "references",
-        "author",
-        "draft",
-        "work_in_progress",
-        "has_conflicts",
-        "detailed_merge_status",
-        "head_pipeline",
-    ] {
+    for key in ["references", "draft", "work_in_progress"] {
         node[key] = Value::Null;
     }
     let s = setup(Server {
-        to_review: Some(json!([node])),
+        mine: Some(json!([node])),
         ..Server::default()
     });
-    let item = s.client.list().await.unwrap().to_review[0].item.clone();
-    assert_eq!((item.reference.as_str(), item.author.as_str()), ("!1", ""));
+    let item = s.client.list().await.unwrap().mine[0].item.clone();
+    assert_eq!(item.reference, "!1");
     // Required fields and nested shapes.
     for (key, value) in [
         ("title", Value::Null),
         ("web_url", json!(1)),
-        ("updated_at", Value::Null),
         ("references", json!({ "short": "!1" })),
-        ("author", json!({ "id": 1 })),
         ("draft", json!("yes")),
-        ("head_pipeline", json!({ "id": 1 })),
     ] {
         let mut node = mr(MrOptions::default());
         node[key] = value;
         let s = setup(Server {
-            to_review: Some(json!([node])),
+            mine: Some(json!([node])),
             ..Server::default()
         });
         expect_code(s.client.list().await, CodeReviewError::InvalidResponse);
@@ -1466,7 +1342,7 @@ async fn zod_shape_rules_for_mrs_and_per_mr_answers() {
     let mut many: Vec<Value> = (1..=21).map(mr_iid).collect();
     many[20]["iid"] = json!("x");
     let s = setup(Server {
-        to_review: Some(json!(many)),
+        mine: Some(json!(many)),
         ..Server::default()
     });
     expect_code(s.client.list().await, CodeReviewError::InvalidResponse);
@@ -1747,4 +1623,25 @@ async fn implements_code_review_client() {
     assert_eq!(summary.month, local.format("%Y-%m").to_string());
     assert_eq!(summary.updated_at, "2026-11-13T09:30:00.000Z");
     assert!(!summary.restricted);
+}
+
+// --- gitlab client: no review-requested list -----------------------------------------------
+
+#[tokio::test]
+async fn poll_does_not_request_the_to_review_list() {
+    let s = setup(Server {
+        mine: Some(json!([mr_iid(1)])),
+        ..Server::default()
+    });
+    s.client.list().await.unwrap();
+    assert_eq!(s.calls_containing("reviewer_id"), 0);
+    assert_eq!(s.calls_containing("scope=all"), 0);
+    let lists = s
+        .urls()
+        .into_iter()
+        .filter(|url| url.path() == "/base/api/v4/merge_requests")
+        .count();
+    assert_eq!(lists, 1);
+    // The user, one list, then the approvals and reviewers of the one own MR.
+    assert_eq!(s.calls(), 4);
 }

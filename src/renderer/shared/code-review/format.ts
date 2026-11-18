@@ -1,13 +1,11 @@
 import {
   CODE_REVIEW_COUNT_CAP,
   type CodeReviewAlert,
-  type CodeReviewList,
   type CodeReviewState,
   type Platform,
   type PlatformState,
-  type ReviewItem,
 } from '../../../shared/code-review/schema'
-import { translate, type MessageKey } from '../../../shared/i18n/messages'
+import { translate } from '../../../shared/i18n/messages'
 import type { Language } from '../../../shared/settings/schema'
 
 /** Platforms in capsule order. */
@@ -61,49 +59,6 @@ export function reviewAlertLabel(alert: CodeReviewAlert, language: Language): st
 
 export type ReviewSection = 'toReview' | 'mine'
 
-export type BadgeKey = 'draft' | 'approved' | 'changes' | 'unreviewed' | 'conflicts' | 'checksPass' | 'checksFail' | 'checksRunning'
-export type BadgeTone = 'neutral' | 'ok' | 'wait' | 'fail' | 'ice'
-
-export interface Badge {
-  key: BadgeKey
-  tone: BadgeTone
-}
-
-export const BADGE_TEXT: Readonly<Record<BadgeKey, MessageKey>> = {
-  draft: 'codeReview.badge.draft',
-  approved: 'codeReview.badge.approved',
-  changes: 'codeReview.badge.changes',
-  unreviewed: 'codeReview.badge.unreviewed',
-  conflicts: 'codeReview.badge.conflicts',
-  checksPass: 'codeReview.badge.checksPass',
-  checksFail: 'codeReview.badge.checksFail',
-  checksRunning: 'codeReview.badge.checksRunning',
-}
-
-/** Accessible names that differ from the visible text (the ✓ / ✗ marks). */
-export const BADGE_LABEL: Readonly<Partial<Record<BadgeKey, MessageKey>>> = {
-  checksPass: 'codeReview.badge.checksPassLabel',
-  checksFail: 'codeReview.badge.checksFailLabel',
-}
-
-/**
- * The labels of a row, in reading order: draft or review state, then conflicts and checks.
- * "Sin revisar" only on own, non-draft PR/MRs without any review (what the capsule counts); a
- * comment-only review gets no label.
- */
-export function itemBadges(item: ReviewItem, section: ReviewSection): Badge[] {
-  const badges: Badge[] = []
-  if (item.draft) badges.push({ key: 'draft', tone: 'neutral' })
-  if (item.review === 'approved') badges.push({ key: 'approved', tone: 'ok' })
-  else if (item.review === 'changes') badges.push({ key: 'changes', tone: 'wait' })
-  else if (item.review === 'none' && section === 'mine' && !item.draft) badges.push({ key: 'unreviewed', tone: 'ice' })
-  if (item.conflicts) badges.push({ key: 'conflicts', tone: 'fail' })
-  if (item.checks === 'pass') badges.push({ key: 'checksPass', tone: 'ok' })
-  else if (item.checks === 'fail') badges.push({ key: 'checksFail', tone: 'fail' })
-  else if (item.checks === 'running') badges.push({ key: 'checksRunning', tone: 'neutral' })
-  return badges
-}
-
 /** Platforms with a token (any status but `unconfigured`), GitHub first: the view opens on the first one when no platform was asked for. */
 export function configuredPlatforms(state: CodeReviewState | null): Platform[] {
   if (!state) return []
@@ -118,20 +73,14 @@ export function reviewsPlatform(target: Platform | null, configured: readonly Pl
   return target ?? configured[0] ?? 'github'
 }
 
-export type ReviewsBody = 'loading' | 'unconfigured' | 'auth' | 'empty' | 'list'
+export type ReviewsBody = 'loading' | 'unconfigured' | 'auth' | 'contributions'
 
-/**
- * What the body shows for one platform. Offline keeps the last lists (dimmed); offline with empty
- * lists is only "empty" after a past successful query, otherwise nothing is known yet.
- */
-export function reviewsBody(platform: PlatformState | null, list: CodeReviewList | null): ReviewsBody {
+/** What the body shows for one platform: a notice, or its contributions (offline keeps the last ones). */
+export function reviewsBody(platform: PlatformState | null): ReviewsBody {
   if (!platform) return 'loading'
   if (platform.status === 'unconfigured') return 'unconfigured'
   if (platform.status === 'auth-error') return 'auth'
-  if (!list) return 'loading'
-  if (list.toReview.length > 0 || list.mine.length > 0) return 'list'
-  if (platform.status === 'offline' && platform.updatedAt === null) return 'loading'
-  return 'empty'
+  return 'contributions'
 }
 
 /** `owner/repo#123` → repo path and `#123` (GitLab `!45`), so the number survives truncation. */

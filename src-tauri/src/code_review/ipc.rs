@@ -1,11 +1,12 @@
 //! The eight `code-review:*` channels (port of 0.1.0's `code-review-ipc.ts`).
-//! Guards live in `ipc::GUARDS`: lists, contributions, the view signal and the browser opener
-//! belong to the notch; tokens to the Control Center; the state to both. Every handler waits for
-//! the stored tokens to load, so the first state is never a guess; `list`, `set-token`, `clear`
-//! and `contributions` wait inside the integration.
+//! Guards live in `ipc::GUARDS`: contributions, the view signal and the two browser openers
+//! (profile and alert) belong to the notch; tokens to the Control Center; the state to both. Every
+//! handler waits for the stored tokens to load, so the first state is never a guess;
+//! `set-token`, `clear` and `contributions` wait inside the integration.
 //!
-//! Like Electron's dispatcher, an output that does not match the contract (a URL in a list, a
-//! token in the state, more than 20 items) never leaves: it becomes INTERNAL.
+//! Like Electron's dispatcher, an output that does not match the contract (a URL, a token in the
+//! state) never leaves: it becomes INTERNAL. The renderer sends a platform and gets a boolean:
+//! main builds and checks every URL it opens.
 
 use std::sync::{Arc, OnceLock};
 
@@ -14,7 +15,7 @@ use serde_json::Value;
 
 use super::integration::LOG_TARGET;
 use crate::contract::code_review::{
-    CodeReviewList, CodeReviewState, CodeReviewViewInput, ContributionsResult, OpenInput, Platform,
+    CodeReviewState, CodeReviewViewInput, ContributionsResult, OpenedResult, Platform,
     PlatformInput, SetTokenInput, SetTokenResult,
 };
 use crate::contract::{check, Direction};
@@ -25,10 +26,12 @@ pub trait CodeReviewApi: Send + Sync {
     /// Resolves once both stored tokens were read.
     fn ready(&self) -> BoxFuture<'_, ()>;
     fn state(&self) -> CodeReviewState;
-    fn list(&self, platform: Platform) -> BoxFuture<'_, CodeReviewList>;
     fn refresh(&self);
-    /// INVALID_INPUT "Unknown item" / "Item URL not allowed".
-    fn open(&self, platform: Platform, id: &str) -> Result<(), ExposedError>;
+    /// Opens the account's page on the platform; `false` without a known account.
+    fn open_profile(&self, platform: Platform) -> bool;
+    /// Opens the single PR/MR of the last alert; `false` when there is none or its origin is not
+    /// the platform's.
+    fn open_alert(&self, platform: Platform) -> bool;
     fn set_token(
         &self,
         platform: Platform,
@@ -46,9 +49,9 @@ pub type CodeReviewSlot = OnceLock<Arc<dyn CodeReviewApi>>;
 #[derive(Clone, Copy)]
 enum Op {
     GetState,
-    List,
     Refresh,
-    Open,
+    OpenProfile,
+    OpenAlert,
     SetToken,
     Clear,
     View,
@@ -58,9 +61,9 @@ enum Op {
 /// Every `code-review:*` channel with its operation.
 const CHANNELS: [(&str, Op); 8] = [
     ("code-review:get-state", Op::GetState),
-    ("code-review:list", Op::List),
     ("code-review:refresh", Op::Refresh),
-    ("code-review:open", Op::Open),
+    ("code-review:open-profile", Op::OpenProfile),
+    ("code-review:open-alert", Op::OpenAlert),
     ("code-review:set-token", Op::SetToken),
     ("code-review:clear", Op::Clear),
     ("code-review:view", Op::View),
@@ -95,21 +98,25 @@ async fn handle(
             api.ready().await;
             json(api.state())?
         }
-        Op::List => {
-            let PlatformInput { platform } = PlatformInput::from_input(input)?;
-            json(api.list(platform).await)?
-        }
         Op::Refresh => {
             no_input(&input)?;
             api.ready().await;
             api.refresh();
             Value::Null
         }
-        Op::Open => {
-            let OpenInput { platform, id } = OpenInput::from_input(input)?;
+        Op::OpenProfile => {
+            let PlatformInput { platform } = PlatformInput::from_input(input)?;
             api.ready().await;
-            api.open(platform, &id)?;
-            Value::Null
+            json(OpenedResult {
+                opened: api.open_profile(platform),
+            })?
+        }
+        Op::OpenAlert => {
+            let PlatformInput { platform } = PlatformInput::from_input(input)?;
+            api.ready().await;
+            json(OpenedResult {
+                opened: api.open_alert(platform),
+            })?
         }
         Op::SetToken => {
             let SetTokenInput {
