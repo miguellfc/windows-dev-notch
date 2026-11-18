@@ -6,6 +6,7 @@ import {
   DEFAULT_REDMINE_SETTINGS,
   DEFAULT_SYSTEM_ALERTS,
   SETTINGS_VERSION,
+  cloneDefaultIntegrations,
   createDefaultSettings,
   languageFromLocale,
   settingsPatchSchema,
@@ -194,8 +195,8 @@ describe('code review settings', () => {
   const alerts = { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } }
   const withCodeReview = (codeReview: unknown) => settingsSchema.safeParse({ ...valid, codeReview }).success
 
-  it('is at version 7 with an empty GitLab URL and every alert on', () => {
-    expect(SETTINGS_VERSION).toBe(7)
+  it('is at version 8 with an empty GitLab URL and every alert on', () => {
+    expect(SETTINGS_VERSION).toBe(8)
     expect(DEFAULT_CODE_REVIEW_SETTINGS).toEqual({ gitlabUrl: '', alerts })
     expect(valid.codeReview).toEqual({ gitlabUrl: '', alerts })
   })
@@ -263,5 +264,48 @@ describe('redmine settings', () => {
     expect(settingsPatchSchema.parse({ redmine: { dailyTargetHours: 6 } })).toEqual({ redmine: { dailyTargetHours: 6 } })
     expect(settingsPatchSchema.parse({ redmine: { endOfDay: { time: '17:30' } } })).toEqual({ redmine: { endOfDay: { time: '17:30' } } })
     expect(settingsPatchSchema.safeParse({ redmine: { endOfDay: { time: '99:99' } } }).success).toBe(false)
+  })
+})
+
+describe('integrations (v8)', () => {
+  it('is version 8', () => {
+    expect(SETTINGS_VERSION).toBe(8)
+  })
+
+  it('defaults: all enabled, capsule only for the five capsule integrations', () => {
+    const integrations = createDefaultSettings('es').integrations
+    expect(integrations).toEqual(cloneDefaultIntegrations())
+    expect(integrations).toEqual({
+      claude: { enabled: true, capsule: true, color: 'clay' },
+      github: { enabled: true, capsule: true, color: 'green' },
+      gitlab: { enabled: true, capsule: true, color: 'orange' },
+      gmail: { enabled: true, capsule: true, color: 'salmon' },
+      redmine: { enabled: true, capsule: true, color: 'pink' },
+      reminders: { enabled: true, capsule: false, color: 'blue' },
+      notes: { enabled: true, capsule: false, color: 'violet' },
+      system: { enabled: true, capsule: false, color: 'teal' },
+    })
+    expect(cloneDefaultIntegrations().claude).not.toBe(cloneDefaultIntegrations().claude)
+  })
+
+  it('rejects capsule on notes, reminders and system', () => {
+    for (const key of ['notes', 'reminders', 'system'] as const) {
+      const settings = createDefaultSettings('es')
+      settings.integrations[key].capsule = true
+      expect(settingsSchema.safeParse(settings).success, key).toBe(false)
+    }
+  })
+
+  it('rejects a color outside the palette', () => {
+    const settings = createDefaultSettings('es')
+    ;(settings.integrations.gmail as { color: string }).color = 'magenta'
+    expect(settingsSchema.safeParse(settings).success).toBe(false)
+  })
+
+  it('accepts partial per-key, per-field patches', () => {
+    expect(settingsPatchSchema.safeParse({ integrations: { gmail: { color: 'blue' } } }).success).toBe(true)
+    expect(settingsPatchSchema.safeParse({ integrations: { notes: { enabled: false } } }).success).toBe(true)
+    expect(settingsPatchSchema.safeParse({ integrations: { gmail: { color: 'nope' } } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ integrations: { nope: { enabled: true } } }).success).toBe(false)
   })
 })
