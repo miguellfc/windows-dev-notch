@@ -40,17 +40,19 @@ const capsule = () => $('[data-testid="notch-capsule"]')
 const TILES = '[data-testid^="integration-"]:not([data-testid$="-badge"]):not([data-testid$="-label"])'
 const tileCount = async () => (await $$(TILES)).length
 const row = (key: string) => `[data-testid="integration-row-${key}"]`
-const activeSwitch = (key: string) => $(`${row(key)} [role="switch"]`)
+// The row's first switch is «Activa» (the second, when present, is «Cápsula»).
+const activeSwitch = async (key: string) => (await $$(`${row(key)} [role="switch"]`))[0]!
 
 /** Opens the Control Center on «Integraciones» and switches WebDriver to it. */
 async function openIntegrationsPage(): Promise<void> {
-  await openControlCenter('integrations')
+  await openControlCenter()
+  await $('//nav//button[normalize-space()="Integraciones" or normalize-space()="Integrations"]').click()
   await $('[data-testid="integrations-table"]').waitForDisplayed()
 }
 
 /** Turns an integration off from the table and waits for settings.json to say so. */
 async function turnOff(key: string): Promise<void> {
-  await activeSwitch(key).click()
+  await (await activeSwitch(key)).click()
   await eventually(async () => readIntegrations()[key]?.enabled, (enabled) => enabled === false, `${key} saved as off`)
 }
 
@@ -74,6 +76,7 @@ describe('Integrations (Tauri)', () => {
     await expect($(`${row('gmail')} [role="switch"]:disabled`)).toExist()
 
     await useWindow('notch')
+    await requestIntent('expand')
     await eventually(tileCount, (n) => n === 8, 'eight tiles')
     await expect($('[data-testid="integration-gmail"]')).not.toExist()
     expect(readIntegrations()['gmail']).toMatchObject({ enabled: false })
@@ -98,7 +101,7 @@ describe('Integrations (Tauri)', () => {
       ).document.querySelectorAll('[data-testid="integration-row-github"] [role="switch"]')[1]?.focus(),
     )
     await browser.keys(['Tab'])
-    const trigger = () => $(`${row('github')} button=Cambiar color`)
+    const trigger = () => $('//*[@data-testid="integration-row-github"]//button[normalize-space()="Cambiar color"]')
     await expect(trigger()).toBeFocused()
 
     await browser.keys(['Enter'])
@@ -122,8 +125,12 @@ describe('Integrations (Tauri)', () => {
     await turnOff('notes')
 
     await useWindow('notch')
-    await eventually(async () => capsule().getAttribute('data-mode'), (mode) => mode === 'expanded', 'the notch back on home')
+    // The view closes (the capsule leaves `notes`); with the pointer away it rests compact.
+    await eventually(async () => capsule().getAttribute('data-mode'), (mode) => mode !== 'notes', 'the notes view closed')
     await expect($('[data-testid="notes-panel"]')).not.toExist()
+    // Expanding again shows home (the tiles), not the view.
+    await requestIntent('expand')
+    await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
     await expect($('[data-testid="integration-notes"]')).not.toExist()
   })
 
