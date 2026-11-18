@@ -985,7 +985,8 @@ impl GmailIntegration {
     /// calls it before `start()` with the saved value, then on every change.
     ///
     /// Off: the rhythm stops and an answer still in flight is dropped (no state, no alert);
-    /// the session, token and last state stay. On: queries at once, then the usual rhythm. The
+    /// the session, token and last state stay. On: queries at once (once a run still in flight
+    /// has ended), then the usual rhythm. The
     /// new-mail baseline starts again, so mail that arrived while off is not announced. Not
     /// [`Self::dispose`], which is final.
     pub fn set_enabled(&self, enabled: bool) {
@@ -996,7 +997,10 @@ impl GmailIntegration {
         inner.paused = !enabled;
         log::info!(target: LOG_TARGET, "Gmail integration enabled={enabled}");
         if enabled {
-            self.poll(&mut inner);
+            // After any run in flight, whatever its fate: one dropped while off clears its
+            // `in_flight` only once the lock is released, and `poll` would take that run for
+            // the current one (no new query, no timer).
+            self.poll_after_in_flight(&mut inner);
         } else {
             self.clear_timer(&mut inner);
             inner.detector.reset();

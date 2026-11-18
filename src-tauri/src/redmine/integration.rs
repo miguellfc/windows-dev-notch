@@ -1123,7 +1123,7 @@ where
     ///
     /// Off: the issues and summary rhythms stop and an answer still in flight is dropped (no
     /// state); the key and last state stay. On: queries at once (the summary too while the view
-    /// is open), then the usual rhythm. Not [`Self::dispose`], which is final.
+    /// is open; once a run still in flight has ended), then the usual rhythm. Not [`Self::dispose`], which is final.
     pub fn set_enabled(&self, enabled: bool) {
         let mut inner = self.lock();
         if inner.disposed || inner.paused != enabled {
@@ -1132,12 +1132,38 @@ where
         inner.paused = !enabled;
         log::info!(target: LOG_TARGET, "Redmine integration enabled={enabled}");
         if enabled {
-            self.poll(&mut inner);
-            self.poll_summary(&mut inner);
+            self.resume(&mut inner);
         } else {
             self.clear_timer(&mut inner, Rhythm::Poll);
             self.clear_timer(&mut inner, Rhythm::Summary);
         }
+    }
+
+    /// Queries again once turned on, after any run still in flight, whatever its fate: one
+    /// dropped while off clears its `in_flight` only once the lock is released, and `poll` would
+    /// take that run for the current one (no new query, no timer).
+    fn resume(&self, inner: &mut Inner) {
+        let waiting: Vec<watch::Receiver<bool>> = [&inner.in_flight, &inner.summary_in_flight]
+            .into_iter()
+            .flatten()
+            .map(|run| run.done.clone())
+            .collect();
+        if waiting.is_empty() {
+            self.poll(inner);
+            self.poll_summary(inner);
+            return;
+        }
+        let Some(this) = self.me.upgrade() else {
+            return;
+        };
+        (self.deps.spawn)(Box::pin(async move {
+            for done in waiting {
+                finished(Some(done)).await;
+            }
+            let mut inner = this.lock();
+            this.poll(&mut inner);
+            this.poll_summary(&mut inner);
+        }));
     }
 
     /// Stops both timers; later results and publishes are dropped (in-flight work is not

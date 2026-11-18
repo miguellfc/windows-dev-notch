@@ -259,6 +259,17 @@ where
         let Some(offer) = offer else {
             return;
         };
+        // Redmine turned off since `decide` read it: no alert (the day stays open).
+        if !self.settings.integration_enabled() {
+            let _serial = lock(&self.serial);
+            let end_of_day = self.settings.get().end_of_day;
+            let mut state = lock(&self.state);
+            state.offering = false;
+            // Seen off: turned on again after the time, it does not alert that day.
+            state.last_integration_enabled = false;
+            self.reschedule_locked(&mut state, &end_of_day, false);
+            return;
+        }
         // No lock held: `on_alert` may dispatch to the notch, and a nested check skips the
         // alert because `offering` is set.
         let shown =

@@ -61,6 +61,8 @@ struct FakeSettings {
     current: Mutex<RedmineSettings>,
     /// `integrations.redmine.enabled`.
     redmine_enabled: AtomicBool,
+    /// `Some(n)`: turns Redmine off on the read after the next `n` (a change racing a check).
+    off_after_reads: Mutex<Option<usize>>,
     listeners: Mutex<Vec<Listener>>,
 }
 
@@ -91,6 +93,15 @@ impl EndOfDaySettings for FakeSettings {
     }
 
     fn integration_enabled(&self) -> bool {
+        let mut off_after = self.off_after_reads.lock().unwrap();
+        match *off_after {
+            Some(0) => {
+                self.redmine_enabled.store(false, Ordering::SeqCst);
+                *off_after = None;
+            }
+            Some(n) => *off_after = Some(n - 1),
+            None => {}
+        }
         self.redmine_enabled.load(Ordering::SeqCst)
     }
 }
@@ -151,6 +162,7 @@ fn build(start: DateTime<Utc>, initial: RedmineSettings, tz: Tz) -> H {
     let settings = Arc::new(FakeSettings {
         current: Mutex::new(initial),
         redmine_enabled: AtomicBool::new(true),
+        off_after_reads: Mutex::new(None),
         listeners: Mutex::new(Vec::new()),
     });
     let hours = Arc::new(Mutex::new(Some(5.5)));
@@ -695,5 +707,21 @@ fn end_of_day_comes_back_when_redmine_is_enabled_again_but_not_for_a_time_alread
     assert_eq!(h.alerts().len(), 1);
     h.advance_to(at(18, 18, 0, 0));
     assert_eq!(h.alerts().len(), 2);
+    h.scheduler.dispose();
+}
+
+#[test]
+fn redmine_turned_off_between_the_decision_and_the_alert_offers_nothing() {
+    let h = setup(at(16, 9, 0, 0));
+    h.advance_to(at(16, 17, 59, 0));
+    // The check's decision still sees Redmine on; it is off right before the alert.
+    *h.settings.off_after_reads.lock().unwrap() = Some(1);
+    h.jump(at(16, 18, 0, 30));
+    h.scheduler.check();
+    assert_eq!(h.offered(), []);
+    // Nothing is left half-offered: on again, the next day alerts as usual.
+    h.settings.set_redmine_enabled(true);
+    h.advance_to(at(17, 18, 0, 0));
+    assert_eq!(h.alerts(), [alert(5.5, 8.0)]);
     h.scheduler.dispose();
 }

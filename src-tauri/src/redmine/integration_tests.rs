@@ -2307,3 +2307,27 @@ async fn reenabling_redmine_queries_at_once() {
     t.flush(TICK_MS).await;
     assert_eq!(client.issues_calls(), 3);
 }
+
+#[tokio::test]
+async fn reenabling_redmine_with_an_answer_still_pending_queries_again_and_rearms_the_timers() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    let client = t.last();
+    let pending = client.issues.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(client.issues_calls(), 2);
+
+    // Off, the answer comes back, on again before anything else runs.
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(list(&[12])));
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(client.issues_calls(), 3);
+    assert_eq!(client.ranged_calls(), 2);
+    t.flush(TICK_MS).await;
+    assert_eq!(client.issues_calls(), 4);
+    t.flush(SUMMARY_TICK_MS).await;
+    assert_eq!(client.ranged_calls(), 3);
+}

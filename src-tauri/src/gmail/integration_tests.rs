@@ -2927,3 +2927,22 @@ async fn disabling_twice_or_enabling_an_enabled_gmail_changes_nothing() {
     t.flush(TICK_MS).await;
     assert_eq!(t.api.unread_calls(), before);
 }
+
+#[tokio::test]
+async fn reenabling_with_an_answer_still_pending_queries_again_and_rearms_the_timer() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let pending = t.api.unread_ids.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), 2);
+
+    // Off, the answer comes back, on again before anything else runs.
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(ids(3)));
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(t.api.unread_calls(), 3);
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), 4);
+}

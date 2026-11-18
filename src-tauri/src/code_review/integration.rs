@@ -869,7 +869,8 @@ impl CodeReviewIntegration {
     ///
     /// Off: that platform's review and contributions rhythms stop and an answer still in flight
     /// is dropped (no state, no alert); its token and last state stay. On: queries at once
-    /// (contributions too while the view is open), then the usual rhythm. The first-review
+    /// (contributions too while the view is open; once a run still in flight has ended), then
+    /// the usual rhythm. The first-review
     /// baseline starts again, so reviews that came while off are not announced. The other
     /// platform is untouched. Not [`Self::dispose`], which is final.
     pub fn set_enabled(&self, platform: Platform, enabled: bool) {
@@ -880,13 +881,40 @@ impl CodeReviewIntegration {
         inner.rt(platform).paused = !enabled;
         log::info!(target: LOG_TARGET, "Code review platform enabled platform={} enabled={enabled}", platform.as_str());
         if enabled {
-            self.poll(&mut inner, platform);
-            self.poll_contributions(&mut inner, platform);
+            self.resume(&mut inner, platform);
         } else {
             self.clear_timer(&mut inner, platform, Rhythm::Poll);
             self.clear_timer(&mut inner, platform, Rhythm::Contributions);
             inner.rt(platform).detector.reset();
         }
+    }
+
+    /// Queries a platform turned on again, after any run of it still in flight, whatever its
+    /// fate: one dropped while off clears its `in_flight` only once the lock is released, and
+    /// `poll` would take that run for the current one (no new query, no timer).
+    fn resume(&self, inner: &mut Inner, platform: Platform) {
+        let rt = inner.rt(platform);
+        let waiting: Vec<watch::Receiver<bool>> = [&rt.in_flight, &rt.contributions_in_flight]
+            .into_iter()
+            .flatten()
+            .map(|run| run.done.clone())
+            .collect();
+        if waiting.is_empty() {
+            self.poll(inner, platform);
+            self.poll_contributions(inner, platform);
+            return;
+        }
+        let Some(this) = self.me.upgrade() else {
+            return;
+        };
+        (self.deps.spawn)(Box::pin(async move {
+            for done in waiting {
+                finished(Some(done)).await;
+            }
+            let mut inner = this.lock();
+            this.poll(&mut inner, platform);
+            this.poll_contributions(&mut inner, platform);
+        }));
     }
 
     /// The "Revisiones" view opened or closed: contributions are queried on open and every

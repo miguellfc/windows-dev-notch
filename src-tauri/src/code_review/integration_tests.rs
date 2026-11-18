@@ -2270,3 +2270,28 @@ async fn reenabling_a_platform_queries_it_at_once() {
     t.flush(TICK_MS).await;
     assert_eq!(gh.fetch_calls(), 3);
 }
+
+#[tokio::test]
+async fn reenabling_a_platform_with_answers_still_pending_queries_again_and_rearms_the_timers() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    let contributions = gh.contributions_later();
+    t.integration.set_view_open(true);
+    let answer = gh.fetch_later();
+    t.flush(TICK_MS).await;
+    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (2, 1));
+
+    // Off, both answers come back, on again before anything else runs.
+    t.integration.set_enabled(GITHUB, false);
+    let _ = answer.send(Ok(snap(vec![])));
+    let _ = contributions.send(Ok(summary_for(t.clock.now(), 1)));
+    t.integration.set_enabled(GITHUB, true);
+    t.flush(0).await;
+    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (3, 2));
+    t.flush(TICK_MS).await;
+    assert_eq!(gh.fetch_calls(), 4);
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    assert_eq!(gh.contributions_calls(), 3);
+}
