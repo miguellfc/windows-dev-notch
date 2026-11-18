@@ -255,7 +255,7 @@ mod tests {
     fn default_rect_is_the_mode_size_centred() {
         assert_eq!(
             default_capsule_rect(VisibleMode::Peek),
-            rect((WINDOW_WIDTH - 168.0) / 2.0, 6.0, 168.0, 36.0)
+            rect((WINDOW_WIDTH - 177.0) / 2.0, 6.0, 177.0, 36.0)
         );
         assert_eq!(default_capsule_rect(VisibleMode::Mini).y, 0.0);
     }

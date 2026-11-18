@@ -124,8 +124,8 @@ pub const REDMINE_SIZE: Size = size(520.0, 560.0);
 
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).
 pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
-    (VisibleMode::Compact, size(358.0, 36.0)),
-    (VisibleMode::Peek, size(168.0, 36.0)),
+    (VisibleMode::Compact, size(491.0, 36.0)),
+    (VisibleMode::Peek, size(177.0, 36.0)),
     (VisibleMode::Alert, size(320.0, 44.0)),
     (VisibleMode::Expanded, size(520.0, EXPANDED_HEIGHT_SESSIONS)),
     (VisibleMode::Permission, size(480.0, 300.0)),
@@ -148,68 +148,62 @@ pub fn capsule_size(mode: VisibleMode) -> Size {
         .expect("every visible mode has a size")
 }
 
-// Compact capsule widths by content (`COMPACT_WIDTHS`).
-const WIDTH_PLAIN: f64 = 168.0;
-const WIDTH_METRICS: f64 = 299.0;
-const WIDTH_METRICS_BATTERY: f64 = 358.0;
-const WIDTH_METRICS_DISK: f64 = 376.0;
-const WIDTH_METRICS_BATTERY_DISK: f64 = 435.0;
-const WIDTH_PLAIN_MAIL: f64 = 221.0;
-const WIDTH_METRICS_MAIL: f64 = 348.0;
-const WIDTH_METRICS_BATTERY_MAIL: f64 = 407.0;
-const WIDTH_METRICS_DISK_MAIL: f64 = 425.0;
-const WIDTH_METRICS_BATTERY_DISK_MAIL: f64 = 484.0;
+/// The zones of the compact capsule, in px (`COMPACT_ZONE`).
+/// The horizontal padding and the capsule's border.
+const ZONE_PADDING: f64 = 30.0;
+/// The 1 px line and the room around it.
+const ZONE_DIVIDER: f64 = 15.0;
+/// Time and date.
+const ZONE_LEFT: f64 = 147.0;
+/// CPU, RAM, storage and connection, without the battery.
+const ZONE_SYSTEM: f64 = 235.0;
+/// What the battery adds.
+const ZONE_BATTERY: f64 = 63.5;
 
-/// One code-review block and the gap before it.
-pub const REVIEW_BLOCK_WIDTH: f64 = 48.3;
-/// Extra width of the first block after time and date only (that layout's wider gaps).
-const FIRST_BLOCK_EXTRA: f64 = 4.0;
-/// The Redmine block and the gap before it.
-pub const REDMINE_BLOCK_WIDTH: f64 = 66.7;
+/// Each integration block of the compact capsule with its gap (`CAPSULE_BLOCK`).
+const BLOCK_CLAUDE: f64 = 97.0;
+const BLOCK_MAIL: f64 = 48.5;
+const BLOCK_REVIEW: f64 = 48.5;
+const BLOCK_REDMINE: f64 = 71.0;
 
-/// What the compact capsule shows besides time and date (`content` in `compactWidthFor`).
+/// The system zone of the compact capsule (`system` in `CompactContent`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CompactContent {
+pub struct SystemZone {
     pub battery: bool,
-    pub disk: bool,
 }
 
-/// Width of the compact capsule for what it shows: `None` is time and date only.
-pub fn compact_width_for(
-    content: Option<CompactContent>,
-    mail: bool,
-    reviews: i64,
-    redmine: bool,
-) -> f64 {
-    let base = base_compact_width(content, mail);
-    let reviews = reviews.max(0);
-    let blocks = reviews + i64::from(redmine);
-    if blocks == 0 {
-        return base;
-    }
-    let extra = if content.is_none() && !mail {
-        FIRST_BLOCK_EXTRA
+/// The integration blocks of the compact capsule (`blocks` in `CompactContent`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CapsuleBlocks {
+    pub claude: bool,
+    pub mail: bool,
+    pub reviews: i64,
+    pub redmine: bool,
+}
+
+fn block(shown: bool, width: f64) -> f64 {
+    if shown {
+        width
     } else {
         0.0
-    };
-    let redmine_width = if redmine { REDMINE_BLOCK_WIDTH } else { 0.0 };
-    (base + extra + reviews as f64 * REVIEW_BLOCK_WIDTH + redmine_width).ceil()
+    }
 }
 
-fn base_compact_width(content: Option<CompactContent>, mail: bool) -> f64 {
-    let Some(content) = content else {
-        return if mail { WIDTH_PLAIN_MAIL } else { WIDTH_PLAIN };
-    };
-    match (content.disk, content.battery, mail) {
-        (true, true, true) => WIDTH_METRICS_BATTERY_DISK_MAIL,
-        (true, true, false) => WIDTH_METRICS_BATTERY_DISK,
-        (true, false, true) => WIDTH_METRICS_DISK_MAIL,
-        (true, false, false) => WIDTH_METRICS_DISK,
-        (false, true, true) => WIDTH_METRICS_BATTERY_MAIL,
-        (false, true, false) => WIDTH_METRICS_BATTERY,
-        (false, false, true) => WIDTH_METRICS_MAIL,
-        (false, false, false) => WIDTH_METRICS,
+/// Width of the compact capsule: time and date always; the integration blocks after a divider when
+/// there is one; the system zone after another divider while there is a sample.
+pub fn compact_width_for(system: Option<SystemZone>, blocks: CapsuleBlocks) -> f64 {
+    let mut width = ZONE_PADDING + ZONE_LEFT;
+    let middle = block(blocks.claude, BLOCK_CLAUDE)
+        + block(blocks.mail, BLOCK_MAIL)
+        + blocks.reviews.clamp(0, 2) as f64 * BLOCK_REVIEW
+        + block(blocks.redmine, BLOCK_REDMINE);
+    if middle > 0.0 {
+        width += ZONE_DIVIDER + middle;
     }
+    if let Some(system) = system {
+        width += ZONE_DIVIDER + ZONE_SYSTEM + block(system.battery, ZONE_BATTERY);
+    }
+    width.ceil()
 }
 
 /// Transparent room around the capsule so its shadow is not clipped by the window edge.
@@ -218,20 +212,20 @@ pub const SHADOW_MARGIN_TOP: f64 = 6.0;
 pub const SHADOW_MARGIN_BOTTOM: f64 = 72.0;
 
 /// Constant window width: the widest capsule plus its shadow, rounded up to an even number. The
-/// widest compact capsule (mail, battery, disk, two review blocks and Redmine) is 648 wide; the
+/// widest compact capsule (every block, the system zone and the battery) is 819 wide; the
 /// widest panel is 520. A test recomputes it from the formula, so it cannot drift.
-pub const WINDOW_WIDTH: f64 = 760.0;
+pub const WINDOW_WIDTH: f64 = 932.0;
 
 #[cfg(test)]
 fn computed_window_width() -> f64 {
     let widest_compact = compact_width_for(
-        Some(CompactContent {
-            battery: true,
-            disk: true,
-        }),
-        true,
-        2,
-        true,
+        Some(SystemZone { battery: true }),
+        CapsuleBlocks {
+            claude: true,
+            mail: true,
+            reviews: 2,
+            redmine: true,
+        },
     );
     let widest = CAPSULE_SIZES
         .iter()
