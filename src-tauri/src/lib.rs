@@ -263,6 +263,7 @@ pub fn run() {
                     redmine: redmine.as_ref().map(|(redmine, _)| Arc::downgrade(redmine)),
                     claude: claude.as_ref().map(Arc::downgrade),
                     reminders: Arc::downgrade(&reminders),
+                    controller: Arc::clone(&notch.controller),
                 },
             );
 
@@ -575,6 +576,41 @@ struct IntegrationSwitches {
     redmine: Option<std::sync::Weak<RedmineIntegration>>,
     claude: Option<std::sync::Weak<claude::integration::ClaudeIntegration>>,
     reminders: std::sync::Weak<Reminders>,
+    /// Ends the alert of an integration turned off while it shows (else the capsule is empty).
+    controller: Arc<notch::controller::NotchController>,
+}
+
+/// The alerts to end because their integration was turned off from `prev` to `next` (everything
+/// that is off when `prev` is `None`; ending an alert that does not show is a no-op). The review
+/// alert is one for both platforms: it ends with the platform that raised it (`review_platform`,
+/// the last one that alerted), or, if that is unknown, once both platforms are off.
+fn alerts_ended(
+    prev: Option<&IntegrationsSettings>,
+    next: &IntegrationsSettings,
+    review_platform: Option<Platform>,
+) -> Vec<NotchEvent> {
+    let turned_off =
+        |enabled: fn(&IntegrationsSettings) -> bool| !enabled(next) && prev.is_none_or(enabled);
+    let mut ended = Vec::new();
+    if turned_off(|i| i.gmail.enabled) {
+        ended.push(NotchEvent::Mail { on: false });
+    }
+    let review_ends = match review_platform {
+        Some(Platform::Github) => turned_off(|i| i.github.enabled),
+        Some(Platform::Gitlab) => turned_off(|i| i.gitlab.enabled),
+        None => {
+            (turned_off(|i| i.github.enabled) || turned_off(|i| i.gitlab.enabled))
+                && !next.github.enabled
+                && !next.gitlab.enabled
+        }
+    };
+    if review_ends {
+        ended.push(NotchEvent::Review { on: false });
+    }
+    if turned_off(|i| i.redmine.enabled) {
+        ended.push(NotchEvent::Redmine { on: false });
+    }
+    ended
 }
 
 impl IntegrationSwitches {
@@ -616,6 +652,15 @@ impl IntegrationSwitches {
             if let Some(reminders) = self.reminders.upgrade() {
                 reminders.set_alerts_enabled(next.reminders.enabled);
             }
+        }
+        // An alert showing for an integration just turned off ends now.
+        let review_platform = self
+            .code_review
+            .as_ref()
+            .and_then(std::sync::Weak::upgrade)
+            .and_then(|code_review| code_review.last_alert_platform());
+        for event in alerts_ended(prev, next, review_platform) {
+            self.controller.dispatch(event);
         }
     }
 }
@@ -671,11 +716,18 @@ fn install_reminders(
             Box::new(|request| {
                 platform::toast::show(request.title, request.body, request.sound, request.on_click)
             }),
-            Box::new(move |key, params| i18n::t_with(settings().language, key, params)),
+            Box::new({
+                let settings = settings.clone();
+                move |key, params| i18n::t_with(settings().language, key, params)
+            }),
+            // A toast left in the Action Center can be clicked after the reminders were turned
+            // off: then it opens nothing (the view is not allowed).
             Arc::new(move || {
-                controller.dispatch(NotchEvent::OpenIntegration {
-                    id: contract::notch::IntegrationId::Reminders,
-                })
+                if settings().integrations.reminders.enabled {
+                    controller.dispatch(NotchEvent::OpenIntegration {
+                        id: contract::notch::IntegrationId::Reminders,
+                    })
+                }
             }),
         )
     };
@@ -817,4 +869,77 @@ fn install_shortcut(app: &AppHandle, saved: &str) {
         log::warn!("Saved shortcut could not be registered: {reason:?}");
     }
     app.manage(service);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::defaults::default_integrations;
+
+    fn off(keys: &[&str]) -> IntegrationsSettings {
+        let mut integrations = default_integrations();
+        for key in keys {
+            match *key {
+                "gmail" => integrations.gmail.enabled = false,
+                "github" => integrations.github.enabled = false,
+                "gitlab" => integrations.gitlab.enabled = false,
+                "redmine" => integrations.redmine.enabled = false,
+                other => panic!("unexpected key {other}"),
+            }
+        }
+        integrations
+    }
+
+    #[test]
+    fn turning_gmail_or_redmine_off_ends_its_alert() {
+        let on = default_integrations();
+        assert_eq!(
+            alerts_ended(Some(&on), &off(&["gmail"]), None),
+            vec![NotchEvent::Mail { on: false }]
+        );
+        assert_eq!(
+            alerts_ended(Some(&on), &off(&["redmine"]), None),
+            vec![NotchEvent::Redmine { on: false }]
+        );
+    }
+
+    #[test]
+    fn turning_on_or_leaving_alone_ends_nothing() {
+        let on = default_integrations();
+        assert_eq!(alerts_ended(Some(&off(&["gmail"])), &on, None), vec![]);
+        assert_eq!(alerts_ended(Some(&on), &on, Some(Platform::Github)), vec![]);
+        let gmail_off = off(&["gmail"]);
+        assert_eq!(alerts_ended(Some(&gmail_off), &gmail_off, None), vec![]);
+    }
+
+    #[test]
+    fn a_review_alert_ends_only_with_its_own_platform() {
+        let on = default_integrations();
+        assert_eq!(
+            alerts_ended(Some(&on), &off(&["github"]), Some(Platform::Github)),
+            vec![NotchEvent::Review { on: false }]
+        );
+        // GitLab's alert stays while GitLab is on.
+        assert_eq!(
+            alerts_ended(Some(&on), &off(&["github"]), Some(Platform::Gitlab)),
+            vec![]
+        );
+        // An unknown platform ends only once both are off.
+        assert_eq!(alerts_ended(Some(&on), &off(&["github"]), None), vec![]);
+        assert_eq!(
+            alerts_ended(Some(&off(&["gitlab"])), &off(&["github", "gitlab"]), None),
+            vec![NotchEvent::Review { on: false }]
+        );
+    }
+
+    #[test]
+    fn the_first_apply_ends_the_alerts_of_what_is_off() {
+        assert_eq!(
+            alerts_ended(None, &off(&["gmail", "redmine"]), None),
+            vec![
+                NotchEvent::Mail { on: false },
+                NotchEvent::Redmine { on: false }
+            ]
+        );
+    }
 }

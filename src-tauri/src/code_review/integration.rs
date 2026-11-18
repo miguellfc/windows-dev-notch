@@ -171,6 +171,9 @@ pub struct CodeReviewIntegration {
     /// The newest effect of each ordered kind that went out. Held while emitting, so effects
     /// decided under `inner` in order A, B never reach the renderer as B, A.
     emitted: Mutex<Emitted>,
+    /// The platform of the last first-review alert sent (the notch's review alert is one for
+    /// both): turning that platform off ends the alert.
+    last_alert: Mutex<Option<Platform>>,
 }
 
 /// Sequence numbers (assigned under `inner`) of the last state and contributions events sent.
@@ -323,6 +326,7 @@ impl CodeReviewIntegration {
             ready,
             persistent,
             emitted: Mutex::new(Emitted::default()),
+            last_alert: Mutex::new(None),
         });
         let task = Arc::clone(&this);
         (this.deps.spawn)(Box::pin(async move {
@@ -330,6 +334,14 @@ impl CodeReviewIntegration {
             let _ = loaded.send(true);
         }));
         this
+    }
+
+    /// The platform of the last first-review alert sent, if any.
+    pub fn last_alert_platform(&self) -> Option<Platform> {
+        *self
+            .last_alert
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     fn lock(&self) -> MutexGuard<'_, Inner> {
@@ -509,6 +521,10 @@ impl CodeReviewIntegration {
                         continue;
                     }
                     log::info!(target: LOG_TARGET, "Code review first reviews platform={} count={}", alert.platform.as_str(), alert.count);
+                    *self
+                        .last_alert
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner) = Some(alert.platform);
                     (self.deps.on_alert)(&alert);
                 }
             }

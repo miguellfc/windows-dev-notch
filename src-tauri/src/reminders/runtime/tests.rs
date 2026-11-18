@@ -134,7 +134,11 @@ struct Fx {
     usage: Shared<UsageEvent>,
     snooze: Arc<AtomicU32>,
     set_due_panics: Arc<std::sync::atomic::AtomicBool>,
+    /// Runs inside every `set_due` call, before the value is recorded.
+    set_due_hook: DueHook,
 }
+
+type DueHook = Arc<Mutex<Option<Arc<dyn Fn(bool) + Send + Sync>>>>;
 
 #[derive(Default)]
 struct Opts {
@@ -159,6 +163,7 @@ fn setup(opts: Opts) -> Fx {
     let fired: Shared<u64> = Arc::default();
     let usage: Shared<UsageEvent> = Arc::default();
     let set_due_panics = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let set_due_hook: DueHook = Arc::default();
     let runtime = RemindersRuntime::new(
         RuntimeOptions {
             store,
@@ -173,9 +178,14 @@ fn setup(opts: Opts) -> Fx {
             toast: Arc::clone(&toast) as Arc<dyn ToastSink>,
             set_due: {
                 let (set_due, panics) = (Arc::clone(&set_due), Arc::clone(&set_due_panics));
+                let hook = Arc::clone(&set_due_hook);
                 Box::new(move |due| {
                     if panics.load(Ordering::SeqCst) {
                         panic!("window gone secret-text-x");
+                    }
+                    let hook = hook.lock().unwrap().clone();
+                    if let Some(hook) = hook {
+                        hook(due);
                     }
                     set_due.lock().unwrap().push(due);
                 })
@@ -206,6 +216,7 @@ fn setup(opts: Opts) -> Fx {
         usage,
         snooze,
         set_due_panics,
+        set_due_hook,
     }
 }
 
@@ -590,4 +601,39 @@ fn turning_alerts_off_clears_the_due_flag_and_on_shows_what_came_due_meanwhile()
     // Re-enabling never replays the toast or the chime.
     assert_eq!(fx.toast_fired().len(), 1);
     assert_eq!(all(&fx.fired), [1]);
+}
+
+#[test]
+fn turning_alerts_off_while_a_due_flag_is_being_published_leaves_it_off() {
+    let fx = setup(Opts {
+        seed: vec![reminder(1, plus(-60 * MIN))],
+        ..Opts::default()
+    });
+    fx.start();
+    assert_eq!(last(&fx.set_due), Some(true));
+    // While a publish sends `due: true`, another thread turns the alerts off: its `false` must
+    // land after the `true`, never before it.
+    let other: Arc<Mutex<Option<std::thread::JoinHandle<()>>>> = Arc::default();
+    {
+        let runtime = Arc::downgrade(&fx.runtime);
+        let other = Arc::clone(&other);
+        *fx.set_due_hook.lock().unwrap() = Some(Arc::new(move |due: bool| {
+            let mut other = other.lock().unwrap();
+            if !due || other.is_some() {
+                return;
+            }
+            let runtime = runtime.clone();
+            *other = Some(std::thread::spawn(move || {
+                if let Some(runtime) = runtime.upgrade() {
+                    runtime.set_alerts_enabled(false);
+                }
+            }));
+            drop(other);
+            std::thread::sleep(std::time::Duration::from_millis(150));
+        }));
+    }
+    fx.runtime.publish();
+    let handle = other.lock().unwrap().take().expect("the hook ran");
+    handle.join().unwrap();
+    assert_eq!(last(&fx.set_due), Some(false));
 }
