@@ -122,6 +122,17 @@ describe('nextCapsule', () => {
     expect(feed([a, q, q, a, q, q]).view?.storage?.alert).toBe(true)
   })
 
+  it('does not hold the alert onto another drive', () => {
+    const shown = feed([light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })])
+    const moved = feed([light(null, 30, NO_ALERTS, { letter: 'D', usedPercent: 40 })], shown)
+    expect(moved.view?.storage).toEqual({ letter: 'D', usedPercent: 40, alert: false })
+  })
+
+  it('does not flag the storage when the disk alert is for a different drive', () => {
+    const view = feed([light(null, 30, lowDisk('D', 4), { letter: 'C', usedPercent: 62 })]).view
+    expect(view?.storage).toEqual({ letter: 'C', usedPercent: 62, alert: false })
+  })
+
   it('without storage in the sample, usedPercent is null and the letter follows the alert', () => {
     expect(feed([light(null, 30, lowDisk('D', 4))]).view?.storage).toEqual({ letter: 'D', usedPercent: null, alert: true })
     expect(feed([light(null)]).view?.storage).toEqual({ letter: 'C', usedPercent: null, alert: false })

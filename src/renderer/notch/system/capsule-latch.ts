@@ -66,18 +66,17 @@ export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): Cap
   // The storage block is always there; only its alert is latched like the battery slot, so a
   // single missed read does not make the red flap. It counts only for the alerted drive.
   const alertDisk = metrics.alerts.disk
+  const letter = metrics.storage?.letter ?? alertDisk?.letter ?? 'C'
   let alert = false
   let diskMissRun = 0
   if (alertDisk && (!metrics.storage || metrics.storage.letter === alertDisk.letter)) {
     alert = true
-  } else if (previous.view?.storage?.alert) {
+  } else if (previous.view?.storage?.alert && previous.view.storage.letter === letter) {
     diskMissRun = previous.diskMissRun + 1
     if (diskMissRun < CAPSULE_MISSES) alert = true
     else diskMissRun = 0
   }
-  const storage: CapsuleView['storage'] = metrics.storage
-    ? { letter: metrics.storage.letter, usedPercent: metrics.storage.usedPercent, alert }
-    : { letter: alertDisk?.letter ?? 'C', usedPercent: null, alert }
+  const storage: CapsuleView['storage'] = { letter, usedPercent: metrics.storage?.usedPercent ?? null, alert }
   return {
     view: { cpuPercent: metrics.cpuPercent, ramPercent: ram, battery, alerts, storage },
     unavailableRun: 0,
