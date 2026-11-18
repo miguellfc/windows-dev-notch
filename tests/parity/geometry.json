@@ -14,8 +14,8 @@
       "height": 44
     },
     "expanded": {
-      "width": 520,
-      "height": 200
+      "width": 712,
+      "height": 300
     },
     "permission": {
       "width": 480,
@@ -73,7 +73,7 @@
     "compact": 114,
     "peek": 114,
     "alert": 122,
-    "expanded": 278,
+    "expanded": 378,
     "permission": 378,
     "question": 582,
     "reminders": 398,
@@ -232,7 +232,7 @@
         "x": 494,
         "y": 0,
         "width": 932,
-        "height": 278
+        "height": 378
       }
     },
     {
@@ -247,7 +247,7 @@
         "x": -1106,
         "y": 0,
         "width": 932,
-        "height": 278
+        "height": 378
       }
     },
     {
@@ -262,7 +262,7 @@
         "x": 2734,
         "y": 0,
         "width": 932,
-        "height": 278
+        "height": 378
       }
     },
     {
@@ -905,7 +905,7 @@
     {
       "from": "expanded",
       "to": "system",
-      "order": "resize-first"
+      "order": "animate-first"
     },
     {
       "from": "expanded",
@@ -950,7 +950,7 @@
     {
       "from": "permission",
       "to": "expanded",
-      "order": "animate-first"
+      "order": "resize-first"
     },
     {
       "from": "permission",
@@ -1145,7 +1145,7 @@
     {
       "from": "system",
       "to": "expanded",
-      "order": "animate-first"
+      "order": "resize-first"
     },
     {
       "from": "system",

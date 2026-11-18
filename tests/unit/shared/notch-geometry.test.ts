@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, EXPANDED_HEIGHTS, expandedHeightFor, GMAIL_SIZES, gmailSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
+import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -13,8 +13,8 @@ describe('windowBoundsFor', () => {
   it('leaves room for the shadow around the capsule', () => {
     const bounds = windowBoundsFor('expanded', workArea)
     expect(bounds.width).toBe(932)
-    // The window fits the panel with Claude sessions; without them the capsule is shorter inside it.
-    expect(bounds.height).toBe(6 + 200 + 72)
+    // The panel has one size: 6 + 300 + 72.
+    expect(bounds.height).toBe(378)
   })
 
   it('keeps one width for every mode: the widest capsule plus the shadow', () => {
@@ -63,7 +63,10 @@ describe('alert and permission geometry', () => {
     expect(resizeOrder('compact', 'alert')).toBe('resize-first')
     expect(resizeOrder('alert', 'permission')).toBe('resize-first')
     expect(resizeOrder('permission', 'alert')).toBe('animate-first')
-    expect(resizeOrder('permission', 'expanded')).toBe('animate-first')
+    // The panel and the permission card are equally tall: an equal height counts as growing.
+    expect(windowHeightFor('permission')).toBe(windowHeightFor('expanded'))
+    expect(resizeOrder('permission', 'expanded')).toBe('resize-first')
+    expect(resizeOrder('expanded', 'permission')).toBe('resize-first')
   })
 
   it('orders reminders (420×320) and permission (480×300) by height, not area', () => {
@@ -85,17 +88,17 @@ describe('system panel geometry', () => {
   })
 
   it('orders the window against the other panels by height', () => {
-    // 200 (expanded window) < 280 (system) < 300 (permission) < 320 (reminders) < 560 (reviews).
-    expect(growsWindow('expanded', 'system')).toBe(true)
+    // 280 (system) < 300 (expanded, permission) < 320 (reminders) < 560 (reviews).
+    expect(growsWindow('expanded', 'system')).toBe(false)
     expect(growsWindow('system', 'permission')).toBe(true)
     expect(growsWindow('system', 'reminders')).toBe(true)
     expect(growsWindow('system', 'reviews')).toBe(true)
     expect(growsWindow('permission', 'system')).toBe(false)
     expect(growsWindow('reminders', 'system')).toBe(false)
     expect(growsWindow('reviews', 'system')).toBe(false)
-    expect(growsWindow('system', 'expanded')).toBe(false)
-    expect(resizeOrder('system', 'expanded')).toBe('animate-first')
-    expect(resizeOrder('expanded', 'system')).toBe('resize-first')
+    expect(growsWindow('system', 'expanded')).toBe(true)
+    expect(resizeOrder('system', 'expanded')).toBe('resize-first')
+    expect(resizeOrder('expanded', 'system')).toBe('animate-first')
     expect(resizeOrder('system', 'reminders')).toBe('resize-first')
     expect(resizeOrder('reminders', 'system')).toBe('animate-first')
     expect(resizeOrder('reviews', 'system')).toBe('animate-first')
@@ -219,18 +222,18 @@ describe('gmail panel geometry', () => {
   })
 })
 
-describe('expanded panel height', () => {
-  it('is 128 without Claude sessions, 176 with one and 200 with two or more (sessions on their own line)', () => {
-    expect(EXPANDED_HEIGHTS).toEqual({ plain: 128, oneSession: 176, sessions: 200 })
-    expect(expandedHeightFor(0)).toBe(128)
-    expect(expandedHeightFor(1)).toBe(176)
-    expect(expandedHeightFor(2)).toBe(200)
-    expect(expandedHeightFor(7)).toBe(200)
+describe('expanded panel size', () => {
+  it('is one size, 712×300: 3.5 cards wide, whatever the panel lists', () => {
+    expect(CAPSULE_SIZES.expanded).toEqual({ width: 712, height: 300 })
+    // 12 + 44 + 10 + (3.5 × 172 + 3 × 10) + 12 + 2 of border.
+    expect(12 + 44 + 10 + (3.5 * 172 + 3 * 10) + 12 + 2).toBe(CAPSULE_SIZES.expanded.width)
+    // 14 + 28 + 10 + 196 + 8 + 4 + 8 + 20 + 10 + 2 of border.
+    expect(14 + 28 + 10 + 196 + 8 + 4 + 8 + 20 + 10 + 2).toBe(CAPSULE_SIZES.expanded.height)
   })
 
-  it('sizes the window for the taller panel, so sessions appearing never outgrow it', () => {
-    // 520 px wide since the ninth tile (Redmine): the 494 px row fits every label in ES and EN.
-    expect(CAPSULE_SIZES.expanded).toEqual({ width: 520, height: EXPANDED_HEIGHTS.sessions })
+  it('has a 378 px window and leaves the window width at 932', () => {
+    expect(windowHeightFor('expanded')).toBe(378)
+    expect(WINDOW_WIDTH).toBe(932)
   })
 })
 
@@ -272,8 +275,8 @@ describe('reviews panel geometry', () => {
     }
   })
 
-  it('keeps the window width: the widest panels are 520 px, so the compact capsule 819 px worst case (every block) sets it', () => {
-    expect(Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width))).toBe(520)
+  it('keeps the window width: the widest panel is 712 px, so the compact capsule 819 px worst case (every block) sets it', () => {
+    expect(Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width))).toBe(712)
     expect(WINDOW_WIDTH).toBe(932)
   })
 })

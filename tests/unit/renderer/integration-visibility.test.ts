@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { tiles } from '../../../src/shared/integrations/registry'
+import { integrationKeys } from '../../../src/shared/integrations/colors'
 import { cloneDefaultIntegrations, type IntegrationsSettings } from '../../../src/shared/settings/schema'
-import { alertAllowed, capsuleShows, panelSessionCount, viewAllowed, visibleTiles } from '../../../src/renderer/notch/integration-visibility'
+import { alertAllowed, capsuleShows, viewAllowed, visibleCards } from '../../../src/renderer/notch/integration-visibility'
 
 const withOff = (...keys: (keyof IntegrationsSettings)[]): IntegrationsSettings => {
   const integrations = cloneDefaultIntegrations()
@@ -9,27 +9,25 @@ const withOff = (...keys: (keyof IntegrationsSettings)[]): IntegrationsSettings 
   return integrations
 }
 
-describe('visibleTiles', () => {
-  it('shows the nine tiles, in registry order, when everything is on', () => {
-    expect(visibleTiles(tiles, cloneDefaultIntegrations()).map((tile) => tile.id)).toEqual(tiles.map((tile) => tile.id))
-    expect(visibleTiles(tiles, cloneDefaultIntegrations())).toHaveLength(9)
+describe('visibleCards', () => {
+  it('shows the eight cards, in the order of integrationKeys, when everything is on', () => {
+    expect(visibleCards(cloneDefaultIntegrations())).toEqual([...integrationKeys])
+    expect(visibleCards(cloneDefaultIntegrations())).toHaveLength(8)
   })
 
   it('drops gmail when it is off', () => {
-    const ids = visibleTiles(tiles, withOff('gmail')).map((tile) => tile.id)
-    expect(ids).toHaveLength(8)
-    expect(ids).not.toContain('gmail')
+    const keys = visibleCards(withOff('gmail'))
+    expect(keys).toHaveLength(7)
+    expect(keys).not.toContain('gmail')
   })
 
-  it('keeps Terminal always and follows claude, github and gitlab', () => {
-    const ids = visibleTiles(tiles, withOff('claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes', 'system')).map((tile) => tile.id)
-    expect(ids).toEqual(['terminal'])
-    expect(visibleTiles(tiles, withOff('github')).map((tile) => tile.id)).toContain('gitlab')
+  it('shows no card with every integration off', () => {
+    expect(visibleCards(withOff(...integrationKeys))).toEqual([])
   })
 
-  it('drops the system tile but leaves the capsule alone', () => {
+  it('drops the system card but leaves the capsule alone', () => {
     const integrations = withOff('system')
-    expect(visibleTiles(tiles, integrations).map((tile) => tile.id)).not.toContain('system')
+    expect(visibleCards(integrations)).not.toContain('system')
     expect(capsuleShows('gmail', integrations)).toBe(true)
   })
 })
@@ -77,19 +75,5 @@ describe('alertAllowed', () => {
     expect(alertAllowed('reminder', withOff('reminders'))).toBe(false)
     expect(alertAllowed('claude', withOff('claude'))).toBe(false)
     expect(alertAllowed('mail', cloneDefaultIntegrations())).toBe(true)
-  })
-})
-
-describe('panelSessionCount', () => {
-  it('lists the sessions while Claude is on', () => {
-    expect(panelSessionCount(2, cloneDefaultIntegrations())).toBe(2)
-  })
-
-  it('lists none while Claude is off', () => {
-    expect(panelSessionCount(2, withOff('claude'))).toBe(0)
-  })
-
-  it('keeps the count before settings load', () => {
-    expect(panelSessionCount(3, null)).toBe(3)
   })
 })

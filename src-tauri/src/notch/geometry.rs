@@ -89,21 +89,8 @@ impl VisibleMode {
     }
 }
 
-/// Height of the home panel by number of Claude sessions (`EXPANDED_HEIGHTS`).
-pub const EXPANDED_HEIGHT_PLAIN: f64 = 128.0;
-pub const EXPANDED_HEIGHT_ONE_SESSION: f64 = 176.0;
-pub const EXPANDED_HEIGHT_SESSIONS: f64 = 200.0;
-
-/// Height of the home panel for the number of Claude sessions it lists.
-pub fn expanded_height_for(sessions: i64) -> f64 {
-    if sessions <= 0 {
-        EXPANDED_HEIGHT_PLAIN
-    } else if sessions == 1 {
-        EXPANDED_HEIGHT_ONE_SESSION
-    } else {
-        EXPANDED_HEIGHT_SESSIONS
-    }
-}
+/// The home panel, one size whatever it lists (`EXPANDED_SIZE`).
+pub const EXPANDED_SIZE: Size = size(712.0, 300.0);
 
 /// The Gmail panel: the list, and the reader of one message (the window is sized for the reader).
 pub const GMAIL_LIST_SIZE: Size = size(420.0, 382.0);
@@ -127,7 +114,7 @@ pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
     (VisibleMode::Compact, size(491.0, 36.0)),
     (VisibleMode::Peek, size(177.0, 36.0)),
     (VisibleMode::Alert, size(320.0, 44.0)),
-    (VisibleMode::Expanded, size(520.0, EXPANDED_HEIGHT_SESSIONS)),
+    (VisibleMode::Expanded, EXPANDED_SIZE),
     (VisibleMode::Permission, size(480.0, 300.0)),
     (VisibleMode::Question, QUESTION_SIZE),
     (VisibleMode::Reminders, size(420.0, 320.0)),
@@ -213,7 +200,7 @@ pub const SHADOW_MARGIN_BOTTOM: f64 = 72.0;
 
 /// Constant window width: the widest capsule plus its shadow, rounded up to an even number. The
 /// widest compact capsule (every block, the system zone and the battery) is 819 wide; the
-/// widest panel is 520. A test recomputes it from the formula, so it cannot drift.
+/// widest panel is 712. A test recomputes it from the formula, so it cannot drift.
 pub const WINDOW_WIDTH: f64 = 932.0;
 
 #[cfg(test)]
