@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { INTEGRATION_COLOR_HEX, integrationColorIds } from '../../../src/shared/integrations/colors'
 
 const css = readFileSync('src/renderer/styles/global.css', 'utf8')
 
@@ -58,6 +59,28 @@ function near(actual: Rgba, hex: string): void {
   expect(Math.abs(actual.b - expected.b)).toBeLessThanOrEqual(3)
 }
 
+function oklab({ r, g, b }: Rgba): [number, number, number] {
+  const lin = (c: number) => {
+    const s = c / 255
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  const [lr, lg, lb] = [lin(r), lin(g), lin(b)]
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb)
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb)
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+function oklabDistance(a: Rgba, b: Rgba): number {
+  const [l1, a1, b1] = oklab(a)
+  const [l2, a2, b2] = oklab(b)
+  return Math.hypot(l1 - l2, a1 - a2, b1 - b2)
+}
+
 const white: Rgba = { r: 255, g: 255, b: 255, a: 1 }
 
 describe('design tokens (fusión 0.3.0)', () => {
@@ -104,5 +127,26 @@ describe('design tokens (fusión 0.3.0)', () => {
   it('ya no existen los tokens ice ni abyss', () => {
     expect(css).not.toContain('--color-ice')
     expect(css).not.toContain('--color-abyss')
+  })
+
+  describe('paleta de integraciones (21 colores)', () => {
+    const card = () => compose(color('veil'), color('obsidian-dense'))
+
+    it.each(integrationColorIds)('--color-int-%s existe y coincide con la paleta', (id) => {
+      expect(token(`int-${id}`).toLowerCase()).toBe(INTEGRATION_COLOR_HEX[id].toLowerCase())
+    })
+
+    it('el color por defecto es el verde', () => {
+      expect(token('int-default')).toBe('var(--color-int-green)')
+    })
+
+    it.each(integrationColorIds)('%s da al menos 3:1 sobre la tarjeta', (id) => {
+      expect(contrast(color(`int-${id}`), card())).toBeGreaterThanOrEqual(3)
+    })
+
+    it.each(integrationColorIds)('%s está a OKLab >= 0,07 del coral y del rojo', (id) => {
+      expect(oklabDistance(color(`int-${id}`), color('wait'))).toBeGreaterThanOrEqual(0.07)
+      expect(oklabDistance(color(`int-${id}`), color('fail'))).toBeGreaterThanOrEqual(0.07)
+    })
   })
 })

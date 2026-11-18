@@ -24,8 +24,30 @@
   /* Text on Coral Espera (the reminders badge). */
   --color-on-wait: #2a0d08;
   --color-fail: #f87171;
-  /* Default integration colour; each integration overrides --int (delivery 2). */
-  --color-int-default: #4ade80;
+  /* Integration palette (21): each integration sets --int to one of these; keep in sync with INTEGRATION_COLOR_HEX. */
+  --color-int-pistachio: #d9f99d;
+  --color-int-lime: #a3e635;
+  --color-int-green: #4ade80;
+  --color-int-emerald: #10b981;
+  --color-int-teal: #2dd4bf;
+  --color-int-cyan: #22d3ee;
+  --color-int-sky: #38bdf8;
+  --color-int-blue: #7dd3fc;
+  --color-int-cobalt: #60a5fa;
+  --color-int-indigo: #818cf8;
+  --color-int-violet: #a78bfa;
+  --color-int-lavender: #c4b5fd;
+  --color-int-plum: #c084fc;
+  --color-int-fuchsia: #e879f9;
+  --color-int-pink: #f472b6;
+  --color-int-salmon: #fda4af;
+  --color-int-peach: #fdba74;
+  --color-int-orange: #fb923c;
+  --color-int-amber: #fbbf24;
+  --color-int-clay: #cc785c;
+  --color-int-sand: #d6c7a1;
+  /* Fallback when an element has no --int. */
+  --color-int-default: var(--color-int-green);
   /* Contributions chart: level 0 is Grafito at 14 %, levels 1-4 step up the integration colour. */
   --color-contrib-0: rgba(142, 142, 150, 0.14);
   --color-contrib-1: color-mix(in srgb, var(--int, var(--color-int-default)) 25%, transparent);
