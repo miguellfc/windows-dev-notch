@@ -30,6 +30,11 @@ export function viewAllowed(view: NotchView, integrations: IntegrationsSettings)
   return integrations[view].enabled
 }
 
+/** How many Claude sessions the home panel lists: none while Claude is off (`null`: settings not loaded yet). */
+export function panelSessionCount(count: number, integrations: IntegrationsSettings | null): number {
+  return (integrations?.claude.enabled ?? true) ? count : 0
+}
+
 export type AlertKind = 'mail' | 'review-github' | 'review-gitlab' | 'redmine' | 'reminder' | 'claude'
 
 const alertKeys: Readonly<Record<AlertKind, IntegrationKey>> = {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { tiles } from '../../../src/shared/integrations/registry'
 import { cloneDefaultIntegrations, type IntegrationsSettings } from '../../../src/shared/settings/schema'
-import { alertAllowed, capsuleShows, viewAllowed, visibleTiles } from '../../../src/renderer/notch/integration-visibility'
+import { alertAllowed, capsuleShows, panelSessionCount, viewAllowed, visibleTiles } from '../../../src/renderer/notch/integration-visibility'
 
 const withOff = (...keys: (keyof IntegrationsSettings)[]): IntegrationsSettings => {
   const integrations = cloneDefaultIntegrations()
@@ -77,5 +77,19 @@ describe('alertAllowed', () => {
     expect(alertAllowed('reminder', withOff('reminders'))).toBe(false)
     expect(alertAllowed('claude', withOff('claude'))).toBe(false)
     expect(alertAllowed('mail', cloneDefaultIntegrations())).toBe(true)
+  })
+})
+
+describe('panelSessionCount', () => {
+  it('lists the sessions while Claude is on', () => {
+    expect(panelSessionCount(2, cloneDefaultIntegrations())).toBe(2)
+  })
+
+  it('lists none while Claude is off', () => {
+    expect(panelSessionCount(2, withOff('claude'))).toBe(0)
+  })
+
+  it('keeps the count before settings load', () => {
+    expect(panelSessionCount(3, null)).toBe(3)
   })
 })

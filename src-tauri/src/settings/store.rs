@@ -109,7 +109,15 @@ impl SettingsStore {
                 .await;
         };
         if version != Some(u64::from(SETTINGS_VERSION)) {
-            write_atomic(&self.path, &serialize(&settings)).await?;
+            // The migration replaces any `integrations` key a v7 file had with the defaults.
+            // If the migrated file cannot be written back, the session keeps the migrated values
+            // (not the defaults) in read-only mode, and the v7 file stays as it was.
+            if let Err(error) = write_atomic(&self.path, &serialize(&settings)).await {
+                log::warn!(
+                    "Could not write the settings migrated to version {SETTINGS_VERSION}; using them in read-only mode: {error}"
+                );
+                return Ok(self.use_settings(settings, true));
+            }
             log::info!("Migrated the settings file to version {SETTINGS_VERSION}");
         }
         Ok(self.use_settings(settings, false))
@@ -410,6 +418,35 @@ mod tests {
         assert_eq!(loaded, expected);
         assert_eq!(saved(&dir.file()), expected);
         assert_eq!(dir.names(), vec!["settings.json"]);
+    }
+
+    #[test]
+    fn v7_file_that_cannot_be_rewritten_keeps_the_migrated_values_read_only() {
+        let dir = TempDir::new();
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["version"] = 7.into();
+        value["language"] = "en".into();
+        value.as_object_mut().unwrap().remove("integrations");
+        let text = value.to_string();
+        write(&dir.file(), &text);
+        // A read-only file cannot be replaced by the atomic rename.
+        let set_read_only = |read_only: bool| {
+            let mut permissions = std::fs::metadata(dir.file()).unwrap().permissions();
+            permissions.set_readonly(read_only);
+            std::fs::set_permissions(dir.file(), permissions).unwrap();
+        };
+        set_read_only(true);
+        let s = store(&dir.file());
+        let loaded = block_on(s.load());
+        let unchanged = std::fs::read_to_string(dir.file()).unwrap();
+        let err = block_on(s.update(lang(Language::Es))).unwrap_err();
+        set_read_only(false);
+
+        let mut expected = defaults();
+        expected.language = Language::En;
+        assert_eq!(loaded, expected);
+        assert_eq!(unchanged, text);
+        assert_eq!(err.code(), IpcErrorCode::ReadOnly);
     }
 
     #[test]

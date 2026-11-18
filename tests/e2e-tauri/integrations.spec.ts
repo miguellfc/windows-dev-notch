@@ -23,6 +23,7 @@ import {
   quitApp,
   requestIntent,
   seededSettings,
+  settle,
   settledWithin,
   useWindow,
 } from './helpers'
@@ -125,8 +126,9 @@ describe('Integrations (Tauri)', () => {
     await turnOff('notes')
 
     await useWindow('notch')
-    // The view closes (the capsule leaves `notes`); with the pointer away it rests compact.
-    await eventually(async () => capsule().getAttribute('data-mode'), (mode) => mode !== 'notes', 'the notes view closed')
+    // The view closes (Back sends the panel home); with the notch's focus lost to the Control
+    // Center and the pointer away, it then rests compact.
+    await eventually(async () => capsule().getAttribute('data-mode'), (mode) => mode === 'compact', 'the notes view closed to compact')
     await expect($('[data-testid="notes-panel"]')).not.toExist()
     // Expanding again shows home (the tiles), not the view.
     await requestIntent('expand')
@@ -134,16 +136,35 @@ describe('Integrations (Tauri)', () => {
     await expect($('[data-testid="integration-notes"]')).not.toExist()
   })
 
-  it('claude off passes permissions through', async () => {
+  it('claude off hides its sessions and passes permissions through', async () => {
     await launchClaude()
     const bridge = await installClaudeHooks()
+    // A session first (as in claude.spec): with Claude on, the home panel lists it.
+    expect((await postHook(bridge.hook, hookEvent('api-server', 'UserPromptSubmit'))).status).toBe(200)
+    await requestIntent('expand')
+    await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
+    await $('[data-testid="claude-sessions"]').waitForDisplayed()
+
     await openIntegrationsPage()
     await turnOff('claude')
     await useWindow('notch')
 
-    const reply = postHook(bridge.hook, hookEvent('api-server', 'PermissionRequest', { tool_name: 'Bash', tool_input: { command: 'npm run build' } }))
+    // With Claude off the home panel lists no sessions (and the tile is gone).
+    await requestIntent('expand')
+    await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
+    await eventually(tileCount, (n) => n === 8, 'eight tiles')
+    await expect($('[data-testid="claude-sessions"]')).not.toExist()
+
+    const permission = (command: string) =>
+      postHook(bridge.hook, hookEvent('api-server', 'PermissionRequest', { tool_name: 'Bash', tool_input: { command } }))
     // Immediate and empty: Claude Code asks in its own interface; the notch holds nothing.
-    expect(await settledWithin(reply, 2000)).toEqual({ status: 200, body: '' })
-    await expect(capsule()).not.toHaveAttribute('data-mode', 'permission')
+    expect(await settledWithin(permission('npm run build'), 2000)).toEqual({ status: 200, body: '' })
+    // Nothing was retained: a second request is answered just as fast, and nothing raises the permission card.
+    expect(await settledWithin(permission('npm test'), 2000)).toEqual({ status: 200, body: '' })
+    await browser.pause(500)
+    await settle()
+    const mode = await capsule().getAttribute('data-mode')
+    expect(mode).not.toBe('permission')
+    expect(mode).not.toBe('alert')
   })
 })

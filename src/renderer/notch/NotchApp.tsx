@@ -26,7 +26,7 @@ import { StatusDots } from './claude/StatusDots'
 import { GmailView } from './gmail/GmailView'
 import { MailAlert } from './gmail/MailAlert'
 import { IntegrationRow } from './IntegrationRow'
-import { alertAllowed, capsuleShows, viewAllowed, type AlertKind } from './integration-visibility'
+import { alertAllowed, capsuleShows, panelSessionCount, viewAllowed, type AlertKind } from './integration-visibility'
 import {
   capsuleRadius,
   CONTENT_EXIT,
@@ -506,9 +506,11 @@ function Alert() {
   return redmineAlert && allowed('redmine') ? <RedmineAlert alert={redmine} /> : <AlertCapsule />
 }
 
-/** How many Claude sessions the home panel lists (its height follows). */
+/** How many Claude sessions the home panel lists (its height follows): none while Claude is off. */
 function useSessionCount(): number {
-  return useClaude((store) => store.state?.sessions.length ?? 0)
+  const count = useClaude((store) => store.state?.sessions.length ?? 0)
+  const integrations = useSettings((store) => store.settings?.integrations ?? null)
+  return panelSessionCount(count, integrations)
 }
 
 const panelIconButton =
