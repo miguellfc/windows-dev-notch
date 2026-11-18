@@ -87,7 +87,7 @@ export function ControlCenterApp() {
               type="button"
               aria-current={id === page ? 'page' : undefined}
               onClick={() => setPage(id)}
-              className="flex h-9 cursor-pointer items-center gap-3 rounded-control px-3 text-left text-graphite transition-colors duration-150 hover:text-chalk aria-[current=page]:bg-veil-tile aria-[current=page]:text-chalk"
+              className="flex h-9 cursor-pointer items-center gap-3 rounded-control px-3 text-left text-graphite transition-colors duration-150 hover:text-chalk aria-[current=page]:bg-select aria-[current=page]:font-semibold aria-[current=page]:text-on-select"
             >
               <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
               {t(label)}

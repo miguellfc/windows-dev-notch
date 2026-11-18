@@ -164,7 +164,8 @@ export function GmailView() {
       data-testid="gmail-panel"
       tabIndex={-1}
       onKeyDown={(event) => onPanelKeyDown(event, list.current)}
-      className="flex h-full flex-col gap-2 px-3 pb-2.5 pt-2 outline-none"
+      // GMAIL_SIZES.list is exact (1 px capsule border): 8 + 32 + 8 + (1 + 5 × 58 + 1) + 8 + 24 + 8 = 380.
+      className="flex h-full flex-col gap-2 px-3 pb-2 pt-2 outline-none"
     >
       <header className="flex h-8 shrink-0 items-center gap-1">
         <button
@@ -226,7 +227,7 @@ export function GmailView() {
             type="button"
             data-testid="gmail-open-inbox"
             onClick={() => void window.notch.gmail.open({})}
-            className="ml-auto flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-control-sm px-2 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-tile"
+            className="btn ml-auto h-6 shrink-0"
           >
             {t('gmail.view.openGmail')}
             <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" className="text-graphite" />

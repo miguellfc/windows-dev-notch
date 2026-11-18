@@ -46,8 +46,8 @@ export function SessionsSection() {
   const dismissable = ordered.some((session) => session.status === 'idle')
 
   return (
-    <section aria-label={t('claude.section.title')} data-testid="claude-sessions" className="min-w-0 flex-1">
-      <h2 className="flex h-3 items-center justify-between px-2 text-label font-medium leading-3 text-graphite">
+    <section aria-label={t('claude.section.title')} data-testid="claude-sessions" className="card min-w-0 flex-1 px-1.5 pb-0.5 pt-1">
+      <h2 className="flex h-3 items-center justify-between px-2 text-label font-semibold leading-3 text-graphite">
         <span>{t('claude.section.title')}</span>
         {hiddenBelow > 0 && (
           <span data-testid="claude-sessions-more" aria-hidden="true" className="tabular flex items-center gap-0.5">
@@ -63,14 +63,14 @@ export function SessionsSection() {
           const status = t(`claude.status.${session.status}`)
           const ago = formatAgo(session.updatedAt, now.getTime(), locale(language))
           return (
-            <li key={session.id} className="flex h-6 snap-start items-center rounded-control hover:bg-veil-tile">
+            <li key={session.id} className="row-hover flex h-6 snap-start items-center">
               <button
                 type="button"
                 data-testid={`claude-session-${session.id}`}
                 aria-label={`${t('claude.session.focus', { name: session.name })}, ${status}, ${ago}`}
                 title={`${session.name} · ${status} · ${ago}`}
                 onClick={() => void window.notch.claude.focusApp()}
-                className="flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control px-2 text-left focus-inset"
+                className="flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-tile px-2 text-left focus-inset"
               >
                 <Icon
                   size={12}
@@ -88,7 +88,7 @@ export function SessionsSection() {
                   aria-label={t('claude.session.dismiss', { name: session.name })}
                   title={t('claude.session.dismiss', { name: session.name })}
                   onClick={() => void window.notch.claude.dismissSession({ sessionId: session.id })}
-                  className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-control text-graphite hover:bg-veil-tile hover:text-chalk focus-inset"
+                  className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-tile text-graphite hover:bg-veil-hover hover:text-chalk focus-inset"
                 >
                   <X size={14} strokeWidth={1.8} aria-hidden="true" />
                 </button>

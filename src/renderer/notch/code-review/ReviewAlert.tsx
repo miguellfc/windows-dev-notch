@@ -36,19 +36,19 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
       onClick={open}
       className="flex h-full items-center gap-2 px-3.5"
     >
-      <Icon size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-ice" />
+      <Icon size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-chalk" />
       {/* Titles and refs are always plain text: React escapes them. */}
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         {content === null ? (
-          <span className="font-medium">{label}</span>
+          <span className="font-semibold">{label}</span>
         ) : content.kind === 'many' ? (
           <>
-            <span className="font-medium">{content.text}</span>
+            <span className="font-semibold">{content.text}</span>
             <span className="text-graphite-glass"> · {content.platform}</span>
           </>
         ) : (
           <>
-            <span className="font-medium">{content.verdict}</span>
+            <span className="font-semibold">{content.verdict}</span>
             {content.ref !== null && (
               <>
                 <span className="text-graphite-glass"> · </span>

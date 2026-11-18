@@ -9,9 +9,9 @@ import { ReminderAlert } from '../reminders/ReminderAlert'
 import { questionFirst } from './question-form'
 
 /**
- * The amber capsule: the earliest pending Claude item, a permission (session and tool) or a question
+ * The coral capsule: the earliest pending Claude item, a permission (session and tool) or a question
  * ("Claude asks · project"), plus how many more Claude items wait. Claude wins when reminders are due
- * too; a small amber dot then says so. With nothing pending from Claude, the reminders alert shows.
+ * too; a small coral dot then says so. With nothing pending from Claude, the reminders alert shows.
  */
 export function AlertCapsule() {
   const t = useT()
@@ -30,7 +30,7 @@ export function AlertCapsule() {
     />
   )
   const moreBadge = more > 0 && (
-    <span className="tabular shrink-0 text-label font-medium text-wait">{t('claude.alert.more', { count: more })}</span>
+    <span className="tabular shrink-0 text-label font-semibold text-wait">{t('claude.alert.more', { count: more })}</span>
   )
 
   if (questionFirst(permissions, asked)) {
@@ -42,11 +42,11 @@ export function AlertCapsule() {
         aria-label={`${t('claude.alert.questionLabel')}: ${question.project}`}
         className="flex h-full items-center gap-2 px-3.5"
       >
-        {/* Claude's icon (as in Control Center) in amber: Claude waits for the user. */}
+        {/* Claude's icon (as in Control Center) in coral: Claude waits for the user. */}
         <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
         {/* Claude's texts are always plain text: React escapes them. */}
         <span className="min-w-0 flex-1 truncate text-body text-chalk">
-          <span className="font-medium">{t('claude.alert.question')}</span>
+          <span className="font-semibold">{t('claude.alert.question')}</span>
           <span className="text-graphite-glass"> · </span>
           <span className="text-graphite-glass">{question.project}</span>
         </span>
@@ -68,7 +68,7 @@ export function AlertCapsule() {
     >
       <span className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
-        <span className="font-medium">{oldest.sessionName}</span>
+        <span className="font-semibold">{oldest.sessionName}</span>
         <span className="text-graphite-glass"> · </span>
         <span className="font-mono text-small text-graphite-glass">{oldest.toolName}</span>
       </span>

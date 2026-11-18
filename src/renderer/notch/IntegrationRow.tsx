@@ -47,15 +47,18 @@ export function IntegrationRow() {
 
   // Nine tiles share the 494 px row (the 520 px panel less its 1 px border and 12 px padding per side; the
   // row has no padding of its own since the ninth tile): flex-1 over each tile's own content, px-1 inside
-  // each tile (4 px + 1 px border per side) and 4 px gaps. A tile never shrinks below its label, so the
-  // row only fits when the natural widths add up: measured with Playwright at the 11 px label font, the
-  // labels are 369 px in ES (Terminal 44, Recordatorios 72, Sistema 42, Notas 31, Gmail 29, GitHub 35,
-  // GitLab 34, Redmine 46, Claude 36) and 349 px in EN (Reminders 55, System 39) plus 10 px per tile and
-  // 32 px of gaps = 491 px ES / 471 px EN of the 494 px. Tiles stay 60 px tall. app.spec checks that no
-  // label is cut and no tile overflows the row in either language. The failure line is absolutely positioned above the row so it never
-  // changes the panel's height (fixed per session count in EXPANDED_HEIGHTS).
+  // each tile (4 px + 1 px border = the 5 px of label clearance reminders.spec asks >= 4 of) and 2 px gaps
+  // (tiles have no fill of their own, so the gap is invisible; the icon squares stay 10+ px apart). A tile
+  // never shrinks below the wider of its label and the 36 px icon square, so the row only fits when those
+  // add up: measured in the Tauri e2e at the 11 px Geist label font, ES is Terminal 44, Recordatorios 72,
+  // Sistema 42, Redmine 46 and five tiles held at the 36 px square (Notas 31, Gmail 29, GitHub 35, GitLab
+  // 34, Claude 36) = 384 px; EN (Reminders 55, System 39) = 364 px. Plus 10 px per tile and 16 px of gaps
+  // = 490 px ES / 470 px EN of the 494 px (with 4 px gaps ES was 506 px and overflowed). Tiles stay 60 px
+  // tall. app.spec checks that no label is cut and no tile overflows the row in either language. The
+  // failure line is absolutely positioned above the row so it never changes the panel's height (fixed per
+  // session count in EXPANDED_HEIGHTS).
   return (
-    <section aria-label={t('notch.integrations.label')} className="relative flex w-full shrink-0 gap-1">
+    <section aria-label={t('notch.integrations.label')} className="relative flex w-full shrink-0 gap-0.5">
       {tiles.map((tile) => {
         const Icon = icons[tile.id]
         const badge = tile.id === 'reminders' && remindersDue > 0 ? remindersDue : 0
@@ -71,19 +74,21 @@ export function IntegrationRow() {
               else if (tile.kind === 'review') openReviews(tile.id)
               else void openApp(tile.id, tile.labelKey)
             }}
-            className="relative flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-tile border border-line bg-veil-tile px-1 text-chalk transition-colors duration-150 hover:bg-veil-hover"
+            className="group relative flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-tile border border-transparent px-1 text-graphite transition-colors duration-150 hover:text-chalk focus-visible:text-chalk"
           >
-            <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
-            <span className="max-w-full truncate text-label font-medium">{label}</span>
-            {badge > 0 && (
-              <span
-                data-testid={`integration-${tile.id}-badge`}
-                aria-hidden="true"
-                className="tabular absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wait px-1 text-label font-medium leading-none text-on-wait"
-              >
-                {badge > 99 ? '99+' : badge}
-              </span>
-            )}
+            <span className="relative flex size-9 shrink-0 items-center justify-center rounded-[11px] border border-line bg-veil-tile text-chalk transition-colors duration-150 group-hover:bg-veil-hover group-focus-visible:bg-veil-hover">
+              <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+              {badge > 0 && (
+                <span
+                  data-testid={`integration-${tile.id}-badge`}
+                  aria-hidden="true"
+                  className="tabular absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wait px-1 text-label font-semibold leading-none text-on-wait"
+                >
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+            </span>
+            <span data-testid={`integration-${tile.id}-label`} className="max-w-full truncate text-label font-medium">{label}</span>
           </button>
         )
       })}

@@ -46,11 +46,12 @@ const actionButton =
 
 /**
  * The actions cover the row's right edge, full height (the time included), on the row's own hover
- * colour: Velo over the dense panel.
+ * colour: the card's Velo plus Velo de fila composed over an opaque Obsidiana Densa, so the text under it never shows through.
  */
 const overlay = 'absolute inset-y-0 right-0 flex rounded-r-tile bg-obsidian-dense'
 // At least 96 px wide: the widest time ("hace 59 min", "59 min. ago") never peeks out at its left.
-const overlayFill = 'flex h-full min-w-24 items-center justify-end rounded-r-tile bg-veil'
+const overlayFill =
+  'flex h-full min-w-24 items-center justify-end rounded-r-tile bg-veil bg-[linear-gradient(var(--color-veil-tile),var(--color-veil-tile))]'
 
 /** Calls main for a row action; resolves to whether it worked. */
 const callAction = async (action: MailAction, id: string): Promise<boolean> => {
@@ -90,11 +91,11 @@ function MessageRow({
         data-testid="gmail-message"
         data-unread={message.unread || undefined}
         onClick={onOpen}
-        className="focus-inset flex h-[58px] w-full min-w-0 cursor-pointer flex-col justify-center gap-px rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil focus-visible:bg-veil"
+        className="focus-inset flex h-[58px] w-full min-w-0 cursor-pointer flex-col justify-center gap-px rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil-tile focus-visible:bg-veil-tile"
       >
         <span className="flex w-full min-w-0 items-center gap-1.5">
           {/* The dot keeps its slot on read rows too, so every sender starts at the same x. */}
-          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${message.unread ? 'bg-ice' : ''}`} />
+          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${message.unread ? 'bg-chalk' : ''}`} />
           {message.unread && <span className="sr-only">{t('gmail.view.unreadMark')}, </span>}
           {/* Mail text is always plain text: React escapes it, nothing is parsed as HTML. */}
           <span className={`min-w-0 flex-1 truncate text-body leading-[18px] text-chalk ${message.unread ? 'font-semibold' : ''}`}>
@@ -133,7 +134,7 @@ function MessageRow({
                 if (failed === 'delete') onAsk()
                 else onMarkRead()
               }}
-              className="h-6 shrink-0 cursor-pointer rounded-control-sm px-2 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover focus-inset aria-disabled:cursor-default aria-disabled:opacity-40"
+              className="btn h-6 shrink-0 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40"
             >
               {t('gmail.row.retry')}
             </button>
@@ -178,7 +179,7 @@ function MessageRow({
 }
 
 /**
- * The 5 most recent messages in Primary; unread ones in bold with an ice-blue dot. A click or Enter
+ * The 5 most recent messages in Primary; unread ones in bold with a dot. A click or Enter
  * opens the reader; per-row Mark as read and Delete (behind an inline confirmation) appear on hover
  * or focus. `onFocusLost` is called when the focused row went away and no row is left.
  */
@@ -290,7 +291,7 @@ export function MessageList({
       onKeyDown={onListKeyDown}
       onFocus={onListFocus}
       onBlur={onListBlur}
-      className={`-mx-1 flex min-h-0 flex-1 flex-col overflow-hidden px-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
+      className={`card flex min-h-0 flex-1 flex-col overflow-hidden px-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
     >
       {messages.map((message) => {
         const busy = inFlight.has(message.id)
@@ -300,7 +301,7 @@ export function MessageList({
               key={message.id}
               data-message-id={message.id}
               data-testid="gmail-message-confirm"
-              className="flex h-[58px] shrink-0 flex-col justify-center gap-1 rounded-tile bg-veil px-2.5"
+              className="flex h-[58px] shrink-0 flex-col justify-center gap-1 rounded-tile bg-veil-tile px-2.5"
             >
               <span className="truncate pl-3 text-label text-graphite">{message.from}</span>
               <DeleteConfirm

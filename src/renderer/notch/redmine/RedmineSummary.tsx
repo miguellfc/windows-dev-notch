@@ -63,7 +63,7 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
       data-testid="redmine-summary"
       data-phase={phase}
       aria-busy={loading || undefined}
-      className="flex shrink-0 flex-wrap gap-x-5 gap-y-2 border-b border-line px-1.5 pb-2.5 pt-1"
+      className="card flex shrink-0 flex-wrap gap-x-5 gap-y-2 px-3 py-2"
     >
       <ContributionGraph
         weeks={summary ? summaryGrid(summary, today, target) : placeholderGrid(now)}
@@ -96,7 +96,7 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
                 {t('redmine.summary.hours')}
               </th>
               {COLUMNS.map(({ key }) => (
-                <td key={key} data-column={key} className="tabular whitespace-nowrap p-0 text-right text-body font-medium text-chalk">
+                <td key={key} data-column={key} className="font-mono tabular whitespace-nowrap p-0 text-right text-body font-medium text-chalk">
                   {summary ? hoursLong(summary[key], language) : NO_VALUE}
                 </td>
               ))}
@@ -131,8 +131,8 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
                 data-testid="redmine-summary-retry"
                 onClick={onRetry}
                 aria-disabled={retryResting}
-                // 24 px tall target (the line stays 16 px); the global ice focus ring shows on keyboard focus.
-                className="-my-1 inline-flex min-h-6 cursor-pointer items-center rounded-control-sm px-1 font-medium text-ice underline-offset-2 hover:underline aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:no-underline"
+                // 24 px tall target (the line stays 16 px); the global focus ring shows on keyboard focus.
+                className="-my-1 inline-flex min-h-6 cursor-pointer items-center rounded-control-sm px-1 font-medium text-select underline-offset-2 hover:underline aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:no-underline"
               >
                 {t('redmine.summary.retry')}
               </button>

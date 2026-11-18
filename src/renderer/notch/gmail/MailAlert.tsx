@@ -33,17 +33,17 @@ export function MailAlert({ mail }: { mail: GmailNewMail | null }) {
       onClick={open}
       className="flex h-full items-center gap-2 px-3.5"
     >
-      <GmailMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-ice" />
+      <GmailMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-chalk" />
       {/* Mail text is always plain text: React escapes it. */}
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         {content.kind === 'content' ? (
           <>
-            <span className="font-medium">{content.from}</span>
+            <span className="font-semibold">{content.from}</span>
             <span className="text-graphite-glass"> · </span>
             <span>{content.subject}</span>
           </>
         ) : (
-          <span className="font-medium">{content.text}</span>
+          <span className="font-semibold">{content.text}</span>
         )}
       </span>
     </div>

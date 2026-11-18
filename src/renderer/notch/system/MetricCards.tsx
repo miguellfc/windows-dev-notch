@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { FullSample, LightSample } from '../../../shared/system/schema'
 import { useLanguage, useT } from '../../shared/use-t'
 import { formatBytes, formatDuration, formatPercent, formatRate } from './format'
+import { Ring } from './Ring'
 import { Sparkline } from './Sparkline'
 
 /** RAM in use as a percentage; null when it could not be read. */
@@ -20,17 +21,30 @@ interface MetricCardsProps {
   ramHistory: readonly number[]
 }
 
-const card = 'flex h-[60px] min-w-0 flex-col justify-between rounded-tile border border-line bg-veil px-2.5 py-2'
+const card = 'card flex h-16 min-w-0 items-center gap-2 overflow-hidden px-2.5 py-2'
+/** The column beside a ring (or the whole card without one): head on top, line or detail below. */
+const column = 'flex h-full min-w-0 flex-1 flex-col justify-between'
+const lineColor = 'text-[color:var(--int,var(--color-int-default))]'
+const lineAlert = 'text-fail'
 const label = 'truncate text-label leading-3.5 font-medium text-graphite'
-const value = 'tabular shrink-0 whitespace-nowrap text-body font-medium text-chalk'
+/**
+ * The figure sits under its label (beside the line on CPU and RAM), never on the label's line: in
+ * Jersey a digit is ~0.43 em, so "100 %" is ~56 px at 26 px and ~36 px at 17 px, and beside the
+ * label it truncated the RAM detail (and the battery label in the four-column grid).
+ */
+const value = 'shrink-0 whitespace-nowrap text-chalk'
 /** The same figure in Rojo Fallo, for a metric past its alert threshold. */
-const alertValue = 'tabular shrink-0 whitespace-nowrap text-body font-medium text-fail'
+const alertValue = 'shrink-0 whitespace-nowrap text-fail'
 
 /** CPU and RAM with their last minute, network up/down, and battery when the machine has one. */
 export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricCardsProps) {
   const t = useT()
   const language = useLanguage()
   const battery = sample?.battery ?? null
+  // With a battery card the grid is four columns and the rings shrink (see the arithmetic in the task 5 report).
+  const ringSize = battery ? 32 : 40
+  // Jersey only at 26 px (three columns); the four-column grid uses Geist Mono, which reads cleanly small.
+  const digits = battery ? 'font-mono tabular text-body font-medium' : 'digits text-digits-lg'
   const alerts = sample?.alerts
   const cpuAlert = alerts?.cpu === true
   const ramAlert = alerts?.ram === true
@@ -46,15 +60,21 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
     <div
       data-testid="system-cards"
       // CPU and RAM carry a line (and RAM a detail), so they get a little more room than the rest.
-      className={`grid shrink-0 gap-2 ${battery ? 'grid-cols-[5fr_5fr_4fr_4fr]' : 'grid-cols-[5fr_5fr_4fr]'}`}>
+      className={`grid shrink-0 gap-2 ${battery ? 'grid-cols-[11fr_11fr_8fr_8fr]' : 'grid-cols-[5fr_5fr_4fr]'}`}>
       <div
         data-testid="system-card-cpu"
         role="group"
         aria-label={t(cpuAlert ? 'system.capsule.cpuHigh' : 'system.capsule.cpu', { value: cpuText })}
         className={card}
       >
-        <CardHead label={t('system.card.cpu')} value={cpuText} alert={cpuAlert} />
-        <Sparkline values={cpuHistory} className="h-5 w-full text-graphite" />
+        <Ring percent={sample?.cpuPercent ?? null} alert={cpuAlert} size={ringSize} />
+        <div className={column}>
+          <span className={label}>{t('system.card.cpu')}</span>
+          <span className="flex min-w-0 items-end gap-1.5">
+            <Figure value={cpuText} alert={cpuAlert} size={digits} />
+            <Sparkline values={cpuHistory} className={`h-4 min-w-0 flex-1 ${cpuAlert ? lineAlert : lineColor}`} />
+          </span>
+        </div>
       </div>
       <div
         data-testid="system-card-ram"
@@ -72,22 +92,28 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
         }
         className={card}
       >
-        <CardHead
-          label={t('system.card.ram')}
-          detail={ram ? formatBytes(ram.usedBytes, language) : undefined}
-          value={ramText}
-          alert={ramAlert}
-        />
-        <Sparkline values={ramHistory} className="h-5 w-full text-graphite" />
+        <Ring percent={ramPercent(sample)} alert={ramAlert} size={ringSize} />
+        <div className={column}>
+          <span className={label}>
+            {t('system.card.ram')}
+            {ram && <span className="tabular font-normal"> · {formatBytes(ram.usedBytes, language)}</span>}
+          </span>
+          <span className="flex min-w-0 items-end gap-1.5">
+            <Figure value={ramText} alert={ramAlert} size={digits} />
+            <Sparkline values={ramHistory} className={`h-4 min-w-0 flex-1 ${ramAlert ? lineAlert : lineColor}`} />
+          </span>
+        </div>
       </div>
       <div data-testid="system-card-network" role="group" aria-label={t('system.card.network')} className={card}>
-        <span className={label} aria-hidden="true">
-          {t('system.card.network')}
-        </span>
-        <span className="flex flex-col">
-          <Rate icon={ArrowUp} text={upText} label={t('system.card.up', { value: upText })} />
-          <Rate icon={ArrowDown} text={downText} label={t('system.card.down', { value: downText })} />
-        </span>
+        <div className={column}>
+          <span className={label} aria-hidden="true">
+            {t('system.card.network')}
+          </span>
+          <span className="flex flex-col">
+            <Rate icon={ArrowUp} text={upText} label={t('system.card.up', { value: upText })} />
+            <Rate icon={ArrowDown} text={downText} label={t('system.card.down', { value: downText })} />
+          </span>
+        </div>
       </div>
       {battery && (
         <div
@@ -98,43 +124,28 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
           }
           className={card}
         >
-          <CardHead label={t('system.card.battery')} value={batteryText} alert={batteryAlert} />
-          <span className="truncate text-label leading-3.5 text-graphite">
-            {battery.charging
-              ? t('system.card.charging')
-              : battery.pluggedIn
-                ? t('system.card.pluggedIn')
-                : battery.secondsLeft !== null
-                  ? t('system.card.timeLeft', { time: formatDuration(battery.secondsLeft, language) })
-                  : t('system.card.onBattery')}
-          </span>
+          <div className={column}>
+            <span className={label}>{t('system.card.battery')}</span>
+            <Figure value={batteryText} alert={batteryAlert} size={digits} />
+            <span className="truncate text-label leading-3.5 text-graphite">
+              {battery.charging
+                ? t('system.card.charging')
+                : battery.pluggedIn
+                  ? t('system.card.pluggedIn')
+                  : battery.secondsLeft !== null
+                    ? t('system.card.timeLeft', { time: formatDuration(battery.secondsLeft, language) })
+                    : t('system.card.onBattery')}
+            </span>
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-/** `alert` turns the figure red (Rojo Fallo); the label stays graphite. */
-function CardHead({
-  label: text,
-  detail,
-  value: amount,
-  alert = false,
-}: {
-  label: string
-  detail?: string | undefined
-  value: string
-  alert?: boolean
-}): ReactNode {
-  return (
-    <span className="flex items-baseline justify-between gap-1.5">
-      <span className={label}>
-        {text}
-        {detail && <span className="tabular font-normal"> · {detail}</span>}
-      </span>
-      <span className={alert ? alertValue : value}>{amount}</span>
-    </span>
-  )
+/** A card's figure; `alert` turns it red (Rojo Fallo), the label stays graphite. */
+function Figure({ value: amount, alert, size }: { value: string; alert: boolean; size: string }): ReactNode {
+  return <span className={`${alert ? alertValue : value} ${size}`}>{amount}</span>
 }
 
 function Rate({ icon: Icon, text, label: name }: { icon: LucideIcon; text: string; label: string }) {

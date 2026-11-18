@@ -4,8 +4,8 @@ import { useT } from '../../shared/use-t'
 import { attentionReminders } from '../../shared/reminders/format'
 
 /**
- * The amber capsule for reminders: the oldest due/missed text, or "N reminders". Same layout and
- * type scale as the Claude alert: an amber 13 px marker, then chalk text.
+ * The coral capsule for reminders: the oldest due/missed text, or "N reminders". Same layout and
+ * type scale as the Claude alert: a coral 13 px marker, then chalk text.
  */
 export function ReminderAlert() {
   const t = useT()
@@ -24,7 +24,7 @@ export function ReminderAlert() {
       className="flex h-full items-center gap-2 px-3.5"
     >
       <AlarmClock size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
-      <span className="min-w-0 flex-1 truncate text-body font-medium text-chalk">{text}</span>
+      <span className="min-w-0 flex-1 truncate text-body font-semibold text-chalk">{text}</span>
     </div>
   )
 }

@@ -100,7 +100,7 @@ describe('Reminders (Tauri)', () => {
     for (const id of ['terminal', 'reminders']) {
       // The label shrinks to its text (truncating only when it would overflow), so its box is the text's.
       const tileBox = (await rectOf(`[data-testid="integration-${id}"]`))!
-      const textBox = (await rectOf(`[data-testid="integration-${id}"] span`))!
+      const textBox = (await rectOf(`[data-testid="integration-${id}-label"]`))!
       const clearance = Math.min(textBox.x - tileBox.x, tileBox.x + tileBox.width - (textBox.x + textBox.width))
       expect({ id, ok: clearance >= 4 }).toEqual({ id, ok: true })
     }

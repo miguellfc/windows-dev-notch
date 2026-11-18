@@ -26,7 +26,7 @@ const NOTICES: Readonly<Record<Notice, { icon: LucideIcon; title: MessageKey; ac
 }
 
 const button =
-  'flex h-8 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover'
+  'btn h-8 px-3'
 
 /** Everything the view shows instead of the lists, with a way to the Control Center page when it helps. */
 function ReviewsStatus({ notice }: { notice: Notice }) {
@@ -87,7 +87,7 @@ function Contributions({ platform, now, onRetry, retryResting }: { platform: Pla
       data-testid="contributions"
       data-phase={phase}
       aria-busy={phase === 'loading' || undefined}
-      className="flex shrink-0 flex-wrap gap-x-5 gap-y-2 border-b border-line px-1.5 pb-2.5 pt-1"
+      className="card flex shrink-0 flex-wrap gap-x-5 gap-y-2 px-3 py-2"
     >
       <ContributionGraph
         weeks={summary?.weeks ?? placeholder ?? []}

@@ -35,7 +35,7 @@ const TONES: Readonly<Record<BadgeTone, string>> = {
   ok: 'text-ok',
   wait: 'text-wait',
   fail: 'text-fail',
-  ice: 'text-ice',
+  ice: 'text-select',
 }
 
 function Row({ item, section, now, onOpen }: { item: ReviewItem; section: ReviewSection; now: Date; onOpen: () => void }) {
@@ -51,7 +51,7 @@ function Row({ item, section, now, onOpen }: { item: ReviewItem; section: Review
         type="button"
         data-testid="review-item"
         onClick={onOpen}
-        className="focus-inset flex h-[50px] w-full min-w-0 cursor-pointer flex-col justify-center gap-0.5 rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil focus-visible:bg-veil"
+        className="focus-inset flex h-[50px] w-full min-w-0 cursor-pointer flex-col justify-center gap-0.5 rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil-tile focus-visible:bg-veil-tile"
       >
         {/* Line 1: the title gets the room, the time stays whole. Refs, titles and authors are
             always plain text: React escapes them. */}
@@ -110,7 +110,7 @@ function Row({ item, section, now, onOpen }: { item: ReviewItem; section: Review
         aria-hidden="true"
         className="pointer-events-none absolute inset-y-0.5 right-0.5 flex rounded-r-tile bg-obsidian-dense opacity-0 transition-opacity duration-150 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
       >
-        <span className="flex h-full min-w-16 items-center justify-end rounded-r-tile bg-veil pr-3 text-graphite">
+        <span className="flex h-full min-w-16 items-center justify-end rounded-r-tile bg-veil bg-[linear-gradient(var(--color-veil-tile),var(--color-veil-tile))] pr-3 text-graphite">
           <ExternalLink size={14} strokeWidth={1.8} />
         </span>
       </span>
@@ -166,7 +166,7 @@ export function ReviewList({
       data-testid="reviews-list"
       data-dimmed={dimmed || undefined}
       onKeyDown={onListKeyDown}
-      className={`-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
+      className={`card flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
     >
       <Section section="toReview" items={list.toReview} onOpen={onOpen} />
       <Section section="mine" items={list.mine} onOpen={onOpen} />

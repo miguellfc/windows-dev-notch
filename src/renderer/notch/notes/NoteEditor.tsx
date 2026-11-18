@@ -4,12 +4,11 @@ import type { MessageKey } from '../../../shared/i18n/messages'
 import { NOTE_TEXT_MAX, type Note } from '../../../shared/notes/schema'
 import { noteErrorKey, thrownNoteErrorKey, validateNoteText } from '../../shared/notes/format'
 import { useT } from '../../shared/use-t'
+import { Kbd } from '../../ui/Kbd'
 import { headerIconButton } from '../reminders/styles'
 
-const secondaryButton =
-  'h-7 cursor-pointer rounded-control border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover'
-const primaryButton =
-  'h-7 cursor-pointer rounded-control bg-ice px-3 text-label font-medium text-abyss transition-opacity duration-150 hover:opacity-90 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:opacity-40'
+const secondaryButton = 'btn h-7'
+const primaryButton = 'btn btn-primary h-7 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:[filter:none]'
 
 /**
  * New note (`note` null) or edit an existing one. Enter is a newline; Ctrl+Enter (or Cmd+Enter)
@@ -118,7 +117,7 @@ export function NoteEditor({ note, onDone }: { note: Note | null; onDone: () => 
           setErrorKey(null)
         }}
         onKeyDown={onTextKeyDown}
-        className="min-h-0 flex-1 resize-none whitespace-pre-wrap break-words rounded-tile border border-line bg-veil px-3 py-2 text-body text-chalk placeholder:text-graphite aria-invalid:border-fail/60"
+        className="card min-h-0 flex-1 resize-none whitespace-pre-wrap break-words px-3 py-2 text-body text-chalk placeholder:text-graphite aria-invalid:border-fail/60"
       />
       <div className="flex h-7 shrink-0 items-center gap-2">
         {errorKey && (
@@ -135,6 +134,10 @@ export function NoteEditor({ note, onDone }: { note: Note | null; onDone: () => 
             {length} / {NOTE_TEXT_MAX}
           </span>
           <span className="sr-only">{t('notes.editor.counter', { count: length, max: NOTE_TEXT_MAX })}</span>
+        </span>
+        <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5 text-label text-graphite">
+          <Kbd accelerator="Ctrl+Enter" size="sm" />
+          {t('hint.save')}
         </span>
         <button type="button" data-testid="note-editor-cancel" onClick={onDone} className={secondaryButton}>
           {t('notes.editor.cancel')}

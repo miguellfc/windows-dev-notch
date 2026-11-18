@@ -274,7 +274,7 @@ export function NotchApp() {
             layout
             data-testid="notch-capsule"
             data-mode={mode}
-            // The radius morphs with the size (24 px panel ↔ half-height pill); never 999, which Motion
+            // The radius morphs with the size (26 px panel ↔ half-height pill); never 999, which Motion
             // would turn into a percentage of the target box and flash an ellipse on close.
             animate={{ borderRadius: capsuleRadius(mode) }}
             transition={reduceMotion ? { ...morph, borderRadius: { duration: 0 } } : morph}
@@ -451,15 +451,23 @@ function useSessionCount(): number {
 }
 
 const panelIconButton =
-  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk focus-visible:bg-veil-tile focus-visible:text-chalk'
+  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm bg-veil text-graphite transition-colors duration-150 hover:bg-veil-hover hover:text-chalk focus-visible:bg-veil-hover focus-visible:text-chalk'
 
 function Panel({ time, date }: { time: string; date: string }) {
   const t = useT()
   const hasSessions = useSessionCount() > 0
   return (
-    <motion.div initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-3 pt-3.5">
+    // Heights are exact (EXPANDED_HEIGHTS, 1 px capsule border): plain 14 + 28 + 12 + 60 + 12 = 126.
+    // With sessions the card's own border and padding (1 + 4 top, 2 + 1 bottom) are absorbed by an
+    // 8 px section gap and an 8 px bottom pad: 14 + 28 + 12 + 60 + 8 + (1 + 4 + 12 + 48 + 2 + 1) + 8 = 198.
+    <motion.div
+      initial="hidden"
+      animate="shown"
+      variants={PANEL_STAGGER}
+      className={`flex h-full flex-col px-3 pt-3.5 ${hasSessions ? 'pb-2' : 'pb-3'}`}
+    >
       <motion.header variants={PANEL_ITEM} className="flex items-center justify-between pl-2">
-        <span className="tabular font-mono text-title font-medium">{time}</span>
+        <span className="digits text-digits-md">{time}</span>
         <span className="flex items-center gap-1">
           <span className="mr-1 text-small text-graphite">{date}</span>
           <button
@@ -486,7 +494,7 @@ function Panel({ time, date }: { time: string; date: string }) {
         <IntegrationRow />
       </motion.div>
       {hasSessions && (
-        <motion.div variants={PANEL_ITEM} className="mt-3 flex">
+        <motion.div variants={PANEL_ITEM} className="mt-2 flex">
           <SessionsSection />
         </motion.div>
       )}

@@ -60,7 +60,7 @@ export function ShortcutPage({
       <SettingRow label={t('cc.shortcut.title')} hint={t('cc.shortcut.description')}>
         <div className="flex items-center gap-3">
           {recording ? (
-            <span className="text-small text-ice">{t('cc.shortcut.recording')}</span>
+            <span className="text-small text-select">{t('cc.shortcut.recording')}</span>
           ) : (
             <Kbd accelerator={settings.shortcut} />
           )}
@@ -70,7 +70,7 @@ export function ShortcutPage({
               setStatus(null)
               setRecording(!recording)
             }}
-            className="h-8 cursor-pointer rounded-control border border-line bg-veil px-3 text-small text-chalk transition-colors duration-150 hover:bg-veil-tile"
+            className="btn h-8"
           >
             {recording ? t('cc.shortcut.cancel') : t('cc.shortcut.change')}
           </button>

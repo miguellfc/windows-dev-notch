@@ -11,9 +11,9 @@ import { DeleteConfirm } from './DeleteConfirm'
 type Load = { kind: 'loading' } | { kind: 'gone' } | { kind: 'error' } | { kind: 'ready'; detail: GmailMessageDetail }
 
 const footerButton =
-  'flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-control-sm px-2 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-tile focus-inset aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent'
+  'btn h-6 shrink-0 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:[filter:none]'
 const noticeButton =
-  'flex h-8 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover'
+  'btn h-8 px-3'
 
 type ReaderAction = 'markRead' | 'delete'
 const FAILED: Readonly<Record<ReaderAction, MessageKey>> = {
@@ -176,7 +176,7 @@ export function MessageReader({
       </header>
 
       {load.kind === 'loading' && (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 rounded-card bg-veil p-3.5" aria-hidden="true">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 card p-3.5" aria-hidden="true">
           {['w-1/2', 'w-11/12', 'w-4/5', 'w-3/5'].map((width) => (
             <span key={width} className={`h-2.5 ${width} animate-pulse rounded-full bg-veil-tile motion-reduce:animate-none`} />
           ))}
@@ -218,7 +218,7 @@ export function MessageReader({
           data-testid="gmail-reader-body"
           tabIndex={0}
           aria-label={t('gmail.reader.label')}
-          className="focus-inset min-h-0 flex-1 overflow-y-auto rounded-card bg-veil px-3.5 py-3"
+          className="focus-inset card min-h-0 flex-1 overflow-y-auto px-3.5 py-3"
         >
           {detail.truncated && (
             <p data-testid="gmail-reader-truncated" className="mb-2 flex items-center gap-1 text-label text-graphite">
@@ -243,7 +243,7 @@ export function MessageReader({
                       data-testid="gmail-reader-link"
                       title={link.url}
                       onClick={() => void window.notch.gmail.openLink({ id: detail.id, index })}
-                      className="focus-inset flex min-h-6 w-full min-w-0 cursor-pointer flex-col rounded-control-sm px-1.5 py-1 text-left transition-colors duration-150 hover:bg-veil-tile"
+                      className="focus-inset flex min-h-6 w-full min-w-0 cursor-pointer flex-col rounded-tile px-1.5 py-1 text-left transition-colors duration-150 hover:bg-veil-tile"
                     >
                       {link.text.trim() !== '' && <span className="w-full truncate text-small text-chalk">{link.text}</span>}
                       <span className="w-full truncate font-mono text-label text-graphite">{link.url}</span>
