@@ -32,9 +32,9 @@ const label = 'truncate text-label leading-3.5 font-medium text-graphite'
  * Jersey a digit is ~0.43 em, so "100 %" is ~56 px at 26 px and ~36 px at 17 px, and beside the
  * label it truncated the RAM detail (and the battery label in the four-column grid).
  */
-const value = 'digits shrink-0 whitespace-nowrap text-chalk'
+const value = 'shrink-0 whitespace-nowrap text-chalk'
 /** The same figure in Rojo Fallo, for a metric past its alert threshold. */
-const alertValue = 'digits shrink-0 whitespace-nowrap text-fail'
+const alertValue = 'shrink-0 whitespace-nowrap text-fail'
 
 /** CPU and RAM with their last minute, network up/down, and battery when the machine has one. */
 export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricCardsProps) {
@@ -43,8 +43,8 @@ export function MetricCards({ sample, network, cpuHistory, ramHistory }: MetricC
   const battery = sample?.battery ?? null
   // With a battery card the grid is four columns and the rings shrink (see the arithmetic in the task 5 report).
   const ringSize = battery ? 32 : 40
-  // Four columns: the figure drops to the 17 px digits so the line beside it keeps some room.
-  const digits = battery ? 'text-digits' : 'text-digits-lg'
+  // Jersey only at 26 px (three columns); the four-column grid uses Geist Mono, which reads cleanly small.
+  const digits = battery ? 'font-mono tabular text-body font-medium' : 'digits text-digits-lg'
   const alerts = sample?.alerts
   const cpuAlert = alerts?.cpu === true
   const ramAlert = alerts?.ram === true

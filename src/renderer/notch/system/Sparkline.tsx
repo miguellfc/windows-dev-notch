@@ -1,20 +1,21 @@
-import { HISTORY_LENGTH } from './history'
+const MIN_POINTS = 8
 
 /**
- * The last minute of a 0–100 percentage as a thin line, newest at the right edge. The scale is
+ * The last minute of a 0–100 percentage as a thin line, newest at the right edge (a buffer still filling is stretched across the width). The scale is
  * fixed (0–100), so a quiet minute reads flat instead of being stretched into noise. Static: no
  * animation, no grid; decorative (the card states the value in text).
  */
 export function Sparkline({ values, className }: { values: readonly number[]; className?: string }) {
-  if (values.length < 2) return <div aria-hidden="true" className={className} />
-  const offset = HISTORY_LENGTH - values.length
-  const points = values.map((value, index) => `${offset + index},${100 - value}`).join(' ')
+  // Few samples drawn at the full 60 s scale made a sub-pixel stroke at the right edge (a stray comma or dot):
+  // nothing until there are MIN_POINTS, then the line spans the card and the older samples fill it in.
+  if (values.length < MIN_POINTS) return <div aria-hidden="true" className={className} />
+  const points = values.map((value, index) => `${index},${100 - value}`).join(' ')
   return (
     <svg
       aria-hidden="true"
       className={className}
       // A little headroom above 100 % and below 0 % so the stroke is never clipped at the edges.
-      viewBox={`0 -4 ${HISTORY_LENGTH - 1} 108`}
+      viewBox={`0 -4 ${values.length - 1} 108`}
       preserveAspectRatio="none"
     >
       <polyline
