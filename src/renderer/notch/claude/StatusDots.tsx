@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { MAX_DOTS, nextDoneExpiry, summarizeDots, type DotStatus, type DotSummary } from '../../../shared/claude/view'
+import { extraLabel, MAX_DOTS, MAX_VISIBLE_EXTRA, nextDoneExpiry, summarizeDots, type DotStatus, type DotSummary } from '../../../shared/claude/view'
 import { ClaudeMark } from '../../shared/brand-icons'
 import { useClaude } from '../../shared/claude-store'
 import { integrationStyle, useIntegration } from '../../shared/integration-color'
@@ -36,8 +36,8 @@ export function useClaudeDots(): DotSummary {
   return sessions ? summarizeDots(sessions, now) : NO_DOTS
 }
 
-/** Widest "+N" the block can show: one digit, as wide as any other in the tabular mono font. */
-const WIDEST_EXTRA = '+9'
+/** Widest "+N" the block can show (`extraLabel` caps it): one digit, as wide as any other in the tabular mono font. */
+const WIDEST_EXTRA = extraLabel(MAX_VISIBLE_EXTRA)
 
 /**
  * The Claude block of the compact capsule: its mark, then the sessions' dots and "+N". The parent
@@ -71,7 +71,7 @@ export function StatusDots() {
           {dots.map((status, index) => (
             <span key={index} className="status-dot" style={{ '--dot': DOT_COLOR[status] } as CSSProperties} />
           ))}
-          {extra > 0 && <span className="tabular font-mono text-small font-medium text-chalk">+{extra}</span>}
+          {extra > 0 && <span className="tabular font-mono text-small font-medium text-chalk">{extraLabel(extra)}</span>}
         </span>
       </span>
     </span>
