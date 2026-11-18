@@ -2,10 +2,10 @@
 // debug binary with the `e2e` feature first; this file starts tauri-driver (over msedgedriver),
 // which launches that binary for every WebDriver session.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { connect } from 'node:net'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import type { Capabilities, Options } from '@wdio/types'
 import { SevereServiceError } from 'webdriverio'
 
@@ -20,6 +20,9 @@ const nativeDriverPath =
 // Away from the defaults (4444 / 9515) so nothing else listening there is reused.
 const DRIVER_PORT = 4746
 const NATIVE_PORT = 9746
+// Outside the profile, which does not outlive the run (git-ignored).
+const FOCUS_FAILURES_LOG = join(root, 'test-results/e2e-focus-failures.log')
+const FOCUS_LINE = /notch: focus lost|mode change from .* on Dismiss/
 
 // One profile per run, shared by the launcher and its workers (they inherit the environment); the
 // specs empty it before each test. tauri-driver passes its environment on to every app it starts.
@@ -129,9 +132,31 @@ export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } 
     }
   },
 
+  afterTest(test, _context, { passed }) {
+    if (!passed) recordFocusLines(test.title)
+  },
+
   onComplete() {
     cleanUp()
   },
+}
+
+/**
+ * Keeps a failed test's focus lines: the next `launch({ fresh: true })` empties the profile and the
+ * end of the run deletes it. Diagnostics only, so nothing here may fail a test.
+ */
+function recordFocusLines(title: string): void {
+  try {
+    const logs = join(process.env['NOTCH_E2E_DATA_DIR'] ?? '', 'logs')
+    const lines = readdirSync(logs)
+      .filter((name) => name.endsWith('.log'))
+      .flatMap((name) => readFileSync(join(logs, name), 'utf8').split(/\r?\n/))
+      .filter((line) => FOCUS_LINE.test(line))
+    mkdirSync(dirname(FOCUS_FAILURES_LOG), { recursive: true })
+    appendFileSync(FOCUS_FAILURES_LOG, [`=== ${new Date().toISOString()} ${title}`, ...lines, ''].join('\n'), 'utf8')
+  } catch (error) {
+    console.warn(`Could not record the focus lines of "${title}": ${String(error)}`)
+  }
 }
 
 async function startDriver(): Promise<void> {

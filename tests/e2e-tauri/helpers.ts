@@ -400,6 +400,9 @@ export const rectOf = (selector: string): Promise<Rect | null> =>
  */
 export async function clickCard(testId: string): Promise<void> {
   const selector = `[data-testid="${testId}"]`
+  // Right after `requestIntent('expand')` the card may not be committed: scrolling it would do nothing.
+  await $(selector).waitForExist()
+  await settle()
   await inPage(async (sel: string) => {
     const w = globalThis as unknown as {
       document: { querySelector(s: string): { scrollIntoView(options: unknown): void } | null }
