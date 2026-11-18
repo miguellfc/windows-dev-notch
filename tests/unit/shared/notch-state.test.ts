@@ -675,3 +675,43 @@ describe('redmineAlert (end-of-day hours, same priority as mail and reviews)', (
     expect(reviewAlertShown(run(redmine(true)))).toBe(false)
   })
 })
+
+describe('open-pending intent', () => {
+  const openPending: NotchEvent = { type: 'open-pending' }
+  const attention: NotchEvent = { type: 'attention', on: true }
+  const question: NotchEvent = { type: 'question', on: true }
+
+  it('goes from the integrations row to a pending permission', () => {
+    const state = reduceNotch(run({ type: 'expand' }, attention), openPending)
+    expect(state.view).toBe('permission')
+    expect(notchMode(state)).toBe('permission')
+  })
+
+  it('goes from the integrations row to a pending question', () => {
+    const state = reduceNotch(run({ type: 'expand' }, question), openPending)
+    expect(state.view).toBe('question')
+    expect(notchMode(state)).toBe('question')
+  })
+
+  it('lands on the oldest item when a permission and a question both wait', () => {
+    const waiting = run({ type: 'expand' }, attention, question)
+    expect(reduceNotch(reduceNotch(waiting, { type: 'claude-first', kind: 'question' }), openPending).view).toBe('question')
+    expect(reduceNotch(reduceNotch(waiting, { type: 'claude-first', kind: 'permission' }), openPending).view).toBe('permission')
+  })
+
+  it('changes nothing with no Claude item pending', () => {
+    const idle = run({ type: 'expand' })
+    expect(reduceNotch(idle, openPending)).toBe(idle)
+    // Only Claude items count: the card never jumps to a due reminder.
+    const reminder = run({ type: 'expand' }, { type: 'reminders', due: true })
+    expect(reduceNotch(reminder, openPending)).toBe(reminder)
+  })
+
+  it('changes nothing outside the open integrations row', () => {
+    expect(reduceNotch(initialNotchState, openPending)).toBe(initialNotchState)
+    const alert = run(attention)
+    expect(reduceNotch(alert, openPending)).toBe(alert)
+    const integration = run({ type: 'open-integration', id: 'notes' }, attention)
+    expect(reduceNotch(integration, openPending)).toBe(integration)
+  })
+})

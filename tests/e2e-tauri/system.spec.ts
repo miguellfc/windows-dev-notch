@@ -7,7 +7,7 @@ import { availableParallelism } from 'node:os'
 import { $, $$, browser, expect } from '@wdio/globals'
 import { CONFIRM_ARM_MS } from '../../src/renderer/notch/system/confirm-guard'
 import { PROCESS_LIMIT } from '../../src/shared/system/schema'
-import { cssOf, e2e, eventually, inPage, isAlive, launch, pointer, pointerToCorner, quitApp, requestIntent, setLanguage, settle } from './helpers'
+import { clickCard, cssOf, e2e, eventually, inPage, isAlive, launch, pointer, pointerToCorner, quitApp, requestIntent, setLanguage, settle } from './helpers'
 
 let burner: ChildProcess | undefined
 
@@ -32,9 +32,8 @@ async function leaveCapsule(): Promise<void> {
 async function openSystem(): Promise<void> {
   await requestIntent('expand')
   await expectMode('expanded')
-  const tile = $('[data-testid="integration-system"]')
-  await expect(tile).toHaveText(/^(Sistema|System)$/)
-  await tile.click()
+  await expect($('[data-testid="integration-system-label"]')).toHaveText(/^(Sistema|System)$/)
+  await clickCard('integration-system')
   await expectMode('system')
 }
 
@@ -103,9 +102,8 @@ describe('System (Tauri)', () => {
     await setLanguage('es')
     await requestIntent('expand')
     await expectMode('expanded')
-    const tile = $('[data-testid="integration-system"]')
-    await expect(tile).toHaveText('Sistema')
-    await tile.click()
+    await expect($('[data-testid="integration-system-label"]')).toHaveText('Sistema')
+    await clickCard('integration-system')
     await expectMode('system')
     await $('[data-testid="system-card-cpu"]').waitForDisplayed({ timeout: 2000 })
     await $('[data-testid="system-card-ram"]').waitForDisplayed({ timeout: 2000 })

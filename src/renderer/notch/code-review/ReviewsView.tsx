@@ -153,15 +153,10 @@ export function ReviewsView() {
     void window.notch.codeReview.refresh()
   }, [])
 
-  // Contributions are queried only while the view is open: listen first, then say it opened, so no
-  // change is missed; every change (new data, failure, cleared cache) asks for that platform again.
+  // Contributions keep coming every 15 min while the view is open; the store follows each change.
   useEffect(() => {
-    const off = window.notch.events.on('code-review:contributions-changed', ({ platform: changed }) => void loadContributions(changed))
     void window.notch.codeReview.view({ open: true })
-    return () => {
-      off()
-      void window.notch.codeReview.view({ open: false })
-    }
+    return () => void window.notch.codeReview.view({ open: false })
   }, [])
 
   // Every reading of this platform (a poll, a status change) may carry new lists: ask again.

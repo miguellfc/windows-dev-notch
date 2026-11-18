@@ -7,7 +7,6 @@
 import { $, $$, browser, expect } from '@wdio/globals'
 import {
   claudeSettingsFile,
-  clockBottom,
   e2e,
   eventually,
   hookEvent,
@@ -50,25 +49,19 @@ const lineText = (): Promise<string | null> =>
       ).document.querySelector('[data-testid="apps-open-failed"]')?.textContent ?? null,
   )
 
-/** Float noise allowed between two edges that touch, well under one layout unit (1/64 px). */
-const SUBPIXEL_NOISE = 0.001
-
-/** The failure line sits inside the panel, below the clock and above the tiles. */
+/** The failure line takes the help line's place: inside the panel, below the cards and their indicator. */
 async function expectLineClear(): Promise<void> {
   await settle()
   const box = await rectOf('[data-testid="apps-open-failed"]')
   const panel = await rectOf('[data-testid="notch-capsule"]')
-  const tile = await rectOf('[data-testid="integration-claude"]')
-  if (!box || !panel || !tile) throw new Error('missing failure line, panel or tile')
-  // The clock row ends before the failure line starts (no text over text).
-  const bottom = await clockBottom()
-  expect(bottom).not.toBeNull()
-  expect(bottom!).toBeLessThanOrEqual(box.y)
-  expect(box.y).toBeGreaterThanOrEqual(panel.y)
-  // Float noise only: the line's bottom and the tile's top come out of transformed layout as
-  // 61.0000114 vs 61 or 61 vs 60.999996 when they touch. Below Chromium's layout unit (1/64 px),
-  // so a real overlap still fails.
-  expect(box.y + box.height).toBeLessThanOrEqual(tile.y + SUBPIXEL_NOISE)
+  const row = await rectOf('[data-testid="card-row"]')
+  const pages = await rectOf('[data-testid="card-row-pages"]')
+  if (!box || !panel || !row || !pages) throw new Error('missing failure line, panel, card row or indicator')
+  expect(box.y).toBeGreaterThanOrEqual(row.y + row.height)
+  expect(box.y).toBeGreaterThanOrEqual(pages.y + pages.height)
+  expect(box.y + box.height).toBeLessThanOrEqual(panel.y + panel.height)
+  // In its place, not beside it: the keys come back when the notice ends.
+  await expect($('[data-testid="panel-help"]')).not.toExist()
 }
 
 describe('Apps (Tauri)', () => {
@@ -121,8 +114,10 @@ describe('Apps (Tauri)', () => {
     await $('[data-testid="integration-claude"]').click()
     await eventually(lineText, (text) => text === 'No se pudo abrir Claude', 'the failure line')
     await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
-    // Inside the panel and above the tiles (never over a control), clear of the clock.
+    // In the help line's slot (never over a control), and the keys return after its 4 s.
     await expectLineClear()
+    await eventually(lineText, (text) => text === '', 'the failure line to empty')
+    await expect($('[data-testid="panel-help"]')).toBeDisplayed()
   })
 
   it('la línea de fallo se ve completa también con sesiones de Claude en el panel', async () => {

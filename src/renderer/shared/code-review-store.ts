@@ -67,4 +67,6 @@ export function bindCodeReview(): void {
   void window.notch.codeReview.getState().then((result) => {
     if (result.ok && !pushed) apply(result.data)
   })
+  // Every change (new data, failure, cleared cache) asks for that platform again, view open or not.
+  window.notch.events.on('code-review:contributions-changed', ({ platform }) => void loadContributions(platform))
 }

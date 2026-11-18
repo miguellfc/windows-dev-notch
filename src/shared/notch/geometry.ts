@@ -10,30 +10,17 @@ export interface Rect {
 export type VisibleMode = Exclude<NotchMode, 'hidden'>
 
 /**
- * Heights of the home panel (header with the clock and the two 28 px icon buttons, then the
- * integrations row; no footer), measured with Playwright in ES and EN (content 126 / 174 / 198 px
- * plus the capsule's 2 px of border, nothing clipped; measured again at 520 px wide with nine tiles:
- * no gap, no overflow): Claude sessions get their own line under the
- * tiles (12 px gap, 12 px heading and one 24 px row per session, two visible, the rest scroll). With
- * the panel this short, the window is shorter than the system, permission and reminders ones. The
- * window height follows the mode (the "Revisiones" panel, 520×560 in a 638 px window, is the
- * tallest); with fewer sessions the capsule is shorter inside its window, like the compact capsule
- * is narrower than the window, and the transparent strip below lets clicks through (the window
- * ignores the mouse outside the capsule).
+ * The home panel, one size whatever it lists. Wide enough for the quick-access column and 3.5 cards:
+ * 12 + 44 + 10 + (3.5 × 172 + 3 × 10) + 12 + 2 of border. Tall enough for the header, the cards, the
+ * page indicator and the help line: 14 + 28 + 10 + 196 + 8 + 4 + 8 + 20 + 10 + 2 of border.
  */
-export const EXPANDED_HEIGHTS = { plain: 128, oneSession: 176, sessions: 200 } as const
-
-/** Height of the home panel for the number of Claude sessions it lists: no gap, no empty row. */
-export function expandedHeightFor(sessions: number): number {
-  if (sessions <= 0) return EXPANDED_HEIGHTS.plain
-  return sessions === 1 ? EXPANDED_HEIGHTS.oneSession : EXPANDED_HEIGHTS.sessions
-}
+export const EXPANDED_SIZE = { width: 712, height: 300 } as const
 
 /**
  * The Gmail panel: the list (5 rows of 58 px, measured with Playwright: no gap, no scroll) and the
  * reader of one message (measured with Playwright on long mail: the header and the footer never
  * clip, the body scrolls). Both are the `gmail` mode; the window is sized for the reader, and the
- * list is a shorter capsule inside it (like the home panel without sessions).
+ * list is a shorter capsule inside it.
  */
 export const GMAIL_SIZES = {
   list: { width: 420, height: 382 },
@@ -141,7 +128,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   compact: { width: 491, height: 36 },
   peek: { width: 177, height: 36 },
   alert: { width: 320, height: 44 },
-  expanded: { width: 520, height: EXPANDED_HEIGHTS.sessions },
+  expanded: EXPANDED_SIZE,
   permission: { width: 480, height: 300 },
   question: QUESTION_SIZE,
   reminders: { width: 420, height: 320 },

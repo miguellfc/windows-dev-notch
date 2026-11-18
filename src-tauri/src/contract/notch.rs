@@ -33,6 +33,7 @@ string_enum! {
         Next = "next",
         PinMini = "pin-mini",
         UnpinMini = "unpin-mini",
+        OpenPending = "open-pending",
     }
 }
 

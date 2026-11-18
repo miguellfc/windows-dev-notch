@@ -3,7 +3,7 @@
 // Notes, ported from 0.1.0's Electron e2e notes.spec.ts. The system clipboard is read and written
 // through `__e2e:clipboard` (Electron's `clipboard` in main); the user's text is put back.
 import { $, $$, browser, expect } from '@wdio/globals'
-import { DEFAULT_ALERTS, e2e, eventually, fillValue, inPage, launch, quitApp, requestIntent, seededSettings, setLanguage, settle } from './helpers'
+import { clickCard, DEFAULT_ALERTS, e2e, eventually, fillValue, inPage, launch, quitApp, requestIntent, seededSettings, setLanguage, settle } from './helpers'
 
 const FIRST = 'Primera nota'
 const FIRST_EDITED = 'Primera nota editada'
@@ -45,7 +45,7 @@ const copiedShown = (): Promise<boolean> =>
 
 async function openNotes(): Promise<void> {
   await requestIntent('expand')
-  await $('[data-testid="integration-notes"]').click()
+  await clickCard('integration-notes')
   await $('[data-testid="notes-panel"]').waitForDisplayed()
 }
 

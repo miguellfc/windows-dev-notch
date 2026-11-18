@@ -3,8 +3,8 @@
 //!
 //! One runtime: the client credentials, the stored refresh token, the access token (refreshed
 //! once per session generation, 60 s before it expires), the unread count every 60 s in every
-//! notch mode (plus the recent list while the Gmail view is open), backoff on trouble (1, 2, 4,
-//! 5 min), the shown ids (`sent`, the open message, the last alert), the actions, sign-in and
+//! notch mode (plus the recent list while the Gmail view is open, and once per opening of the
+//! main panel, at most every 60 s), backoff on trouble (1, 2, 4, 5 min), the shown ids (`sent`, the open message, the last alert), the actions, sign-in and
 //! sign-out, and the new-mail alert.
 //!
 //! Everything lives under one `Mutex`, never held across an `.await`, an emit, the opener, the
@@ -63,6 +63,8 @@ pub const TICK_MS: u64 = 60_000;
 pub const BACKOFF_MS: [u64; 4] = [60_000, 120_000, 240_000, 300_000];
 /// Minimum time between two manual refreshes.
 pub const MANUAL_REFRESH_MIN_MS: i64 = 5_000;
+/// Minimum time between two queries started by opening the main panel.
+pub const PANEL_REFRESH_MIN_MS: u64 = 60_000;
 /// An access token this close to expiry (ms) is refreshed before use.
 pub const ACCESS_TOKEN_MARGIN_MS: f64 = 60_000.0;
 /// The inbox; a thread is `INBOX_URL + "/" + encodeURIComponent(threadId)`.
@@ -261,6 +263,10 @@ struct Inner {
     in_flight: Option<InFlight>,
     /// `None`: never (`-Infinity`).
     last_manual_refresh: Option<DateTime<Utc>>,
+    /// The last query started by opening the main panel, in this session (`None`: none yet).
+    last_panel_refresh: Option<DateTime<Utc>>,
+    /// The next query also brings the recent list, with the view closed (the panel's card).
+    recent_wanted: bool,
     sign_in_seq: u64,
     /// Sequence number of the sign-in waiting for the browser, if any.
     pending_sign_in: Option<u64>,
@@ -307,6 +313,8 @@ impl Inner {
             failures: 0,
             in_flight: None,
             last_manual_refresh: None,
+            last_panel_refresh: None,
+            recent_wanted: false,
             sign_in_seq: 0,
             pending_sign_in: None,
             pending_save: None,
@@ -626,6 +634,8 @@ impl GmailIntegration {
         inner.reason = None;
         inner.detector.reset();
         inner.failures = 0;
+        inner.last_panel_refresh = None;
+        inner.recent_wanted = false;
     }
 
     /// `clearStoredToken`: after the save in progress that the caller saw under the lock, if any
@@ -790,12 +800,13 @@ impl GmailIntegration {
             }
         }
         if !inner.can_poll() {
+            inner.recent_wanted = false;
             return None;
         }
         let this = self.me.upgrade()?;
         self.clear_timer(inner);
         let started_in = inner.generation;
-        let with_recent = inner.view_open;
+        let with_recent = std::mem::take(&mut inner.recent_wanted) || inner.view_open;
         let client = self.client(inner);
         let id = inner.next_id();
         let (finish, done) = watch::channel(false);
@@ -1004,6 +1015,8 @@ impl GmailIntegration {
         } else {
             self.clear_timer(&mut inner);
             inner.detector.reset();
+            inner.last_panel_refresh = None;
+            inner.recent_wanted = false;
         }
     }
 
@@ -1019,6 +1032,44 @@ impl GmailIntegration {
         if opening && inner.status == GmailStatus::Ok {
             self.poll_after_in_flight(&mut inner);
         }
+    }
+
+    /// The main panel opened: with a live session (`ok`), one query that brings the recent list
+    /// even with the view closed, at most every [`PANEL_REFRESH_MIN_MS`]. It runs after a query in
+    /// flight, which may not carry the list, unless that query left the session anything but `ok`:
+    /// its backoff stands. The view's own queries do not count here.
+    pub fn panel_opened(&self) {
+        let at = self.deps.clock.now();
+        let mut inner = self.lock();
+        if !inner.can_poll() || inner.status != GmailStatus::Ok {
+            return;
+        }
+        // A clock moved backwards never counts as "just asked".
+        let recently = inner.last_panel_refresh.is_some_and(|last| {
+            u64::try_from((at - last).num_milliseconds())
+                .is_ok_and(|elapsed| elapsed < PANEL_REFRESH_MIN_MS)
+        });
+        if recently {
+            return;
+        }
+        inner.last_panel_refresh = Some(at);
+        inner.recent_wanted = true;
+        let Some(done) = inner.in_flight.as_ref().map(|run| run.done.clone()) else {
+            self.poll(&mut inner);
+            return;
+        };
+        let Some(this) = self.me.upgrade() else {
+            return;
+        };
+        (self.deps.spawn)(Box::pin(async move {
+            finished(Some(done)).await;
+            let mut inner = this.lock();
+            if inner.status == GmailStatus::Ok {
+                this.poll(&mut inner);
+            } else {
+                inner.recent_wanted = false;
+            }
+        }));
     }
 
     /// Queries now, at most every 5 s.

@@ -5,7 +5,8 @@ import type { RedmineIssue, RedmineSummary, RedmineWriteError } from '../../../s
 import type { Language } from '../../../shared/settings/schema'
 import { locale } from '../locale'
 
-const hoursNumber = (hours: number, language: Language): string => new Intl.NumberFormat(locale(language), { maximumFractionDigits: 2 }).format(hours)
+/** The figure alone: "5,5" / "5.5", at most 2 decimals, no trailing zeros. */
+export const hoursNumber = (hours: number, language: Language): string => new Intl.NumberFormat(locale(language), { maximumFractionDigits: 2 }).format(hours)
 
 /** Hours as the capsule and the lists show them: "5,5h" / "5.5h", at most 2 decimals, no trailing zeros, "0h". */
 export function hoursText(hours: number, language: Language): string {

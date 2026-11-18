@@ -1,10 +1,9 @@
 import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
-import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, expandedHeightFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
+import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode, type NotchView } from '../../shared/notch/state'
 import type { IntegrationsSettings } from '../../shared/settings/schema'
-import { useClaude } from '../shared/claude-store'
 import { setRedmineAlert, setRedmineAlertPayload, useRedmine } from '../shared/redmine-store'
 import { setReviewAlert, setReviewAlertPayload, setReviewsTarget, useCodeReview } from '../shared/code-review-store'
 import { setMailAlert, setNewMail, setReading, useGmail } from '../shared/gmail-store'
@@ -21,12 +20,10 @@ import { ReviewsView } from './code-review/ReviewsView'
 import { RedmineAlert } from './redmine/RedmineAlert'
 import { RedmineView } from './redmine/RedmineView'
 import { QuestionCard } from './claude/QuestionCard'
-import { SessionsSection } from './claude/SessionsSection'
 import { StatusDots, useClaudeDots } from './claude/StatusDots'
 import { GmailView } from './gmail/GmailView'
 import { MailAlert } from './gmail/MailAlert'
-import { IntegrationRow } from './IntegrationRow'
-import { alertAllowed, capsuleShows, panelSessionCount, viewAllowed, type AlertKind } from './integration-visibility'
+import { alertAllowed, capsuleShows, viewAllowed, type AlertKind } from './integration-visibility'
 import {
   capsuleRadius,
   CONTENT_EXIT,
@@ -40,6 +37,9 @@ import {
   PANEL_STAGGER,
 } from './motion'
 import { NotesView } from './notes/NotesView'
+import { CardRow } from './panel/CardRow'
+import { HelpLine } from './panel/HelpLine'
+import { QuickAccess, useOpenFailure } from './panel/QuickAccess'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
 import { EMPTY_REVIEW_BLOCKS, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
@@ -274,7 +274,6 @@ export function NotchApp() {
   const settings = useSettings((state) => state.settings)
   const blocks = useCapsuleBlocks()
   const compactWidth = useSystem((state) => compactWidthOf(state.capsule.view, blocks))
-  const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
   useMailAlert(mode)
@@ -302,15 +301,12 @@ export function NotchApp() {
 
   // The compact capsule is only as wide as what it shows: it grows (one capsule morph) when the
   // first sample arrives and narrows back to time and date if the monitor stays unavailable.
-  // The home panel is only as tall as what it lists: Claude sessions add their own line.
   const size =
     mode === 'compact'
       ? { ...CAPSULE_SIZES.compact, width: compactWidth }
-      : mode === 'expanded'
-        ? { ...CAPSULE_SIZES.expanded, height: expandedHeightFor(sessionCount) }
-        : mode === 'gmail'
-          ? gmailSizeFor(gmailReading)
-          : CAPSULE_SIZES[mode]
+      : mode === 'gmail'
+        ? gmailSizeFor(gmailReading)
+        : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
   // Left click: the pill goes back to compact (then peek once the pointer leaves); peek and compact
@@ -365,7 +361,7 @@ export function NotchApp() {
               <PresenceLayer
                 // A compact width change (first sample, battery, monitor lost) cross-fades its content
                 // like a mode change; re-laid-out in place, the time would slide while the edge moves.
-                key={mode === 'compact' ? `compact-${size.width}` : mode === 'expanded' ? `expanded-${size.height}` : mode}
+                key={mode === 'compact' ? `compact-${size.width}` : mode}
                 layout="position"
                 // Project the content from the capsule's top-centre (its anchor at the screen edge), not its
                 // top-left: during the morph it is clipped evenly on both sides, so the reveal reads as one
@@ -516,33 +512,22 @@ function Alert() {
   return redmineAlert && allowed('redmine') ? <RedmineAlert alert={redmine} /> : <AlertCapsule />
 }
 
-/** How many Claude sessions the home panel lists (its height follows): none while Claude is off. */
-function useSessionCount(): number {
-  const count = useClaude((store) => store.state?.sessions.length ?? 0)
-  const integrations = useSettings((store) => store.settings?.integrations ?? null)
-  return panelSessionCount(count, integrations)
-}
-
 const panelIconButton =
   'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm bg-veil text-graphite transition-colors duration-150 hover:bg-veil-hover hover:text-chalk focus-visible:bg-veil-hover focus-visible:text-chalk'
 
 function Panel({ time, date }: { time: string; date: string }) {
   const t = useT()
-  const hasSessions = useSessionCount() > 0
+  const { failed, reportFailure } = useOpenFailure()
   return (
-    // Heights are exact (EXPANDED_HEIGHTS, 1 px capsule border): plain 14 + 28 + 12 + 60 + 12 = 126.
-    // With sessions the card's own border and padding (1 + 4 top, 2 + 1 bottom) are absorbed by an
-    // 8 px section gap and an 8 px bottom pad: 14 + 28 + 12 + 60 + 8 + (1 + 4 + 12 + 48 + 2 + 1) + 8 = 198.
-    <motion.div
-      initial="hidden"
-      animate="shown"
-      variants={PANEL_STAGGER}
-      className={`flex h-full flex-col px-3 pt-3.5 ${hasSessions ? 'pb-2' : 'pb-3'}`}
-    >
-      <motion.header variants={PANEL_ITEM} className="flex items-center justify-between pl-2">
-        <span className="digits text-digits-md">{time}</span>
+    // Heights are exact (EXPANDED_SIZE, 1 px capsule border): 14 + 28 + 10 + 196 + 8 + 4 + 8 + 20 + 10 = 298.
+    <motion.div data-notch-panel initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-2.5 pt-3.5">
+      <motion.header variants={PANEL_ITEM} className="flex h-7 shrink-0 items-center justify-between">
+        <span className="flex items-center gap-2.5">
+          <span className="digits text-digits-md">{time}</span>
+          <span aria-hidden="true" className="h-3.5 w-px bg-line-strong" />
+          <span className="text-small text-graphite">{date}</span>
+        </span>
         <span className="flex items-center gap-1">
-          <span className="mr-1 text-small text-graphite">{date}</span>
           <button
             type="button"
             aria-label={t('notch.panel.controlCenter')}
@@ -563,14 +548,14 @@ function Panel({ time, date }: { time: string; date: string }) {
           </button>
         </span>
       </motion.header>
-      <motion.div variants={PANEL_ITEM} className="mt-3 flex">
-        <IntegrationRow />
+      {/* 196 of cards, then 8 + 4 of page indicator: reserved even when the row has no pages. */}
+      <motion.div variants={PANEL_ITEM} className="mt-2.5 flex h-[208px] shrink-0 gap-2.5">
+        <QuickAccess onFailure={reportFailure} />
+        <CardRow />
       </motion.div>
-      {hasSessions && (
-        <motion.div variants={PANEL_ITEM} className="mt-2 flex">
-          <SessionsSection />
-        </motion.div>
-      )}
+      <motion.div variants={PANEL_ITEM}>
+        <HelpLine failed={failed} />
+      </motion.div>
     </motion.div>
   )
 }

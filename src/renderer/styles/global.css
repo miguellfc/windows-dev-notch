@@ -1,6 +1,40 @@
 @import 'tailwindcss';
 
 /* Fusión (0.3.0) design tokens (DESIGN.md). Fonts are bundled from @fontsource in each entry. */
+/* Integration palette (21): each integration sets --int to one of these; keep in sync with INTEGRATION_COLOR_HEX.
+   Static: `integrationStyle` builds the names at run time, where Tailwind cannot see them to keep them. */
+@theme static {
+  --color-int-pistachio: #d9f99d;
+  --color-int-lime: #a3e635;
+  --color-int-green: #4ade80;
+  --color-int-emerald: #10b981;
+  --color-int-teal: #2dd4bf;
+  --color-int-cyan: #22d3ee;
+  --color-int-sky: #38bdf8;
+  --color-int-blue: #7dd3fc;
+  --color-int-cobalt: #60a5fa;
+  --color-int-indigo: #818cf8;
+  --color-int-violet: #a78bfa;
+  --color-int-lavender: #c4b5fd;
+  --color-int-plum: #c084fc;
+  --color-int-fuchsia: #e879f9;
+  --color-int-pink: #f472b6;
+  --color-int-salmon: #fda4af;
+  --color-int-peach: #fdba74;
+  --color-int-orange: #fb923c;
+  --color-int-amber: #fbbf24;
+  --color-int-clay: #cc785c;
+  --color-int-sand: #d6c7a1;
+}
+
+/* Contributions chart, levels 1-4. Inline: the value must resolve on the square, whose card sets --int, not on :root. */
+@theme inline {
+  --color-contrib-1: color-mix(in srgb, var(--int, var(--color-int-default)) 25%, transparent);
+  --color-contrib-2: color-mix(in srgb, var(--int, var(--color-int-default)) 45%, transparent);
+  --color-contrib-3: color-mix(in srgb, var(--int, var(--color-int-default)) 70%, transparent);
+  --color-contrib-4: color-mix(in srgb, var(--int, var(--color-int-default)) 100%, transparent);
+}
+
 @theme {
   --color-obsidian: rgba(5, 5, 6, 0.86);
   /* Opaque on purpose: even 5% transparency lets text behind show through (M1 QA). */
@@ -24,36 +58,10 @@
   /* Text on Coral Espera (the reminders badge). */
   --color-on-wait: #2a0d08;
   --color-fail: #f87171;
-  /* Integration palette (21): each integration sets --int to one of these; keep in sync with INTEGRATION_COLOR_HEX. */
-  --color-int-pistachio: #d9f99d;
-  --color-int-lime: #a3e635;
-  --color-int-green: #4ade80;
-  --color-int-emerald: #10b981;
-  --color-int-teal: #2dd4bf;
-  --color-int-cyan: #22d3ee;
-  --color-int-sky: #38bdf8;
-  --color-int-blue: #7dd3fc;
-  --color-int-cobalt: #60a5fa;
-  --color-int-indigo: #818cf8;
-  --color-int-violet: #a78bfa;
-  --color-int-lavender: #c4b5fd;
-  --color-int-plum: #c084fc;
-  --color-int-fuchsia: #e879f9;
-  --color-int-pink: #f472b6;
-  --color-int-salmon: #fda4af;
-  --color-int-peach: #fdba74;
-  --color-int-orange: #fb923c;
-  --color-int-amber: #fbbf24;
-  --color-int-clay: #cc785c;
-  --color-int-sand: #d6c7a1;
   /* Fallback when an element has no --int. */
   --color-int-default: var(--color-int-green);
   /* Contributions chart: level 0 is Grafito at 14 %, levels 1-4 step up the integration colour. */
   --color-contrib-0: rgba(142, 142, 150, 0.14);
-  --color-contrib-1: color-mix(in srgb, var(--int, var(--color-int-default)) 25%, transparent);
-  --color-contrib-2: color-mix(in srgb, var(--int, var(--color-int-default)) 45%, transparent);
-  --color-contrib-3: color-mix(in srgb, var(--int, var(--color-int-default)) 70%, transparent);
-  --color-contrib-4: color-mix(in srgb, var(--int, var(--color-int-default)) 100%, transparent);
 
   --font-sans: 'Geist Variable', 'Segoe UI Variable', system-ui, sans-serif;
   --font-pixel: 'Jersey 10', 'Geist Mono Variable', monospace;

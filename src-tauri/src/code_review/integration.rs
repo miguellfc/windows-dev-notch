@@ -48,6 +48,8 @@ pub const TICK_MS: u64 = 120_000;
 pub const BACKOFF_MS: [u64; 4] = [60_000, 120_000, 240_000, 300_000];
 /// Contributions rhythm, only while the "Revisiones" view is open.
 pub const CONTRIBUTIONS_TICK_MS: u64 = 900_000;
+/// Minimum time between two contributions queries started by opening the main panel.
+pub const PANEL_REFRESH_MIN_MS: u64 = 60_000;
 /// Minimum time between two manual refreshes (process-wide, not per platform).
 pub const MANUAL_REFRESH_MIN_MS: i64 = 5_000;
 /// The only origin GitHub items may open in the browser.
@@ -275,6 +277,8 @@ struct Runtime {
     contributions_error: bool,
     contributions_timer: Option<(TimerId, u64)>,
     contributions_in_flight: Option<InFlight>,
+    /// The last contributions query started by opening the main panel, with this token.
+    last_panel_refresh: Option<DateTime<Utc>>,
     /// Turned off in the settings (`integrations.github|gitlab.enabled`): no review or
     /// contributions query, no state from one, no alert. Unlike `disposed`, it can be undone.
     paused: bool,
@@ -618,6 +622,7 @@ impl CodeReviewIntegration {
         let had_contributions = rt.contributions.is_some() || rt.contributions_error;
         rt.contributions = None;
         rt.contributions_error = false;
+        rt.last_panel_refresh = None;
         if had_contributions {
             self.emit_contributions(inner, platform, effects);
         }
@@ -749,13 +754,26 @@ impl CodeReviewIntegration {
         self.run(effects);
     }
 
-    /// `pollContributions`: never with the view closed; one query per platform and generation.
+    /// `pollContributions`: never with the view closed.
     fn poll_contributions(
         &self,
         inner: &mut Inner,
         platform: Platform,
     ) -> Option<watch::Receiver<bool>> {
-        if !inner.view_open || !inner.can_poll(platform) {
+        if !inner.view_open {
+            return None;
+        }
+        self.fetch_contributions(inner, platform)
+    }
+
+    /// One contributions query per platform and generation. The 15-min timer is armed when it
+    /// ends only if the view is open by then.
+    fn fetch_contributions(
+        &self,
+        inner: &mut Inner,
+        platform: Platform,
+    ) -> Option<watch::Receiver<bool>> {
+        if !inner.can_poll(platform) {
             return None;
         }
         let rt = inner.rt(platform);
@@ -901,7 +919,9 @@ impl CodeReviewIntegration {
         } else {
             self.clear_timer(&mut inner, platform, Rhythm::Poll);
             self.clear_timer(&mut inner, platform, Rhythm::Contributions);
-            inner.rt(platform).detector.reset();
+            let rt = inner.rt(platform);
+            rt.detector.reset();
+            rt.last_panel_refresh = None;
         }
     }
 
@@ -947,6 +967,30 @@ impl CodeReviewIntegration {
             } else {
                 self.clear_timer(&mut inner, platform, Rhythm::Contributions);
             }
+        }
+    }
+
+    /// The main panel opened: one contributions query per connected platform that is turned on,
+    /// at most every [`PANEL_REFRESH_MIN_MS`]. It does not count as the view being open: no 15-min
+    /// timer stays armed, and the view's own query is never held back by this minimum.
+    pub fn panel_opened(&self) {
+        let at = self.deps.clock.now();
+        let mut inner = self.lock();
+        for platform in PLATFORMS {
+            if !inner.can_poll(platform) {
+                continue;
+            }
+            let rt = inner.rt(platform);
+            // A clock moved backwards never counts as "just asked".
+            let recently = rt.last_panel_refresh.is_some_and(|last| {
+                u64::try_from((at - last).num_milliseconds())
+                    .is_ok_and(|elapsed| elapsed < PANEL_REFRESH_MIN_MS)
+            });
+            if recently {
+                continue;
+            }
+            rt.last_panel_refresh = Some(at);
+            self.fetch_contributions(&mut inner, platform);
         }
     }
 

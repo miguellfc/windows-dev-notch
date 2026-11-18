@@ -1109,8 +1109,11 @@ mod tests {
         h.dispatch(OPEN_SYSTEM);
         h.reset();
         h.dispatch(E::Back);
-        // The home panel's window is shorter than the system view's: mode first, shrink after.
-        assert_eq!(h.calls(), strings(&["mode:expanded"]));
+        // The home panel's window is taller than the system view's: grow first, then the mode.
+        assert_eq!(
+            h.calls(),
+            [size(VisibleMode::Expanded), "mode:expanded".into()]
+        );
     }
 
     // --- attention ---
@@ -1162,7 +1165,11 @@ mod tests {
         h.dispatch(E::Expand);
         h.reset();
         h.dispatch(E::Attention { on: false });
-        assert_eq!(h.calls(), strings(&["mode:expanded"]));
+        // Both windows are equally tall, which counts as growing: bounds first, and no focus change.
+        assert_eq!(
+            h.calls(),
+            [size(VisibleMode::Expanded), "mode:expanded".into()]
+        );
     }
 
     // --- reminders ---

@@ -1,19 +1,10 @@
-import type { CapsuleIntegrationKey, IntegrationKey } from '../../shared/integrations/colors'
-import type { Tile } from '../../shared/integrations/registry'
+import { integrationKeys, type CapsuleIntegrationKey, type IntegrationKey } from '../../shared/integrations/colors'
 import type { NotchView } from '../../shared/notch/state'
 import type { IntegrationsSettings } from '../../shared/settings/schema'
 
-/** The integration a tile belongs to; Terminal belongs to none and always shows. */
-function tileKey(tile: Tile): IntegrationKey | null {
-  return tile.id === 'terminal' ? null : tile.id
-}
-
-/** The tiles of the enabled integrations, in registry order. */
-export function visibleTiles(tiles: readonly Tile[], integrations: IntegrationsSettings): Tile[] {
-  return tiles.filter((tile) => {
-    const key = tileKey(tile)
-    return key === null || integrations[key].enabled
-  })
+/** The cards of the enabled integrations, in the order of `integrationKeys`. */
+export function visibleCards(integrations: IntegrationsSettings): IntegrationKey[] {
+  return integrationKeys.filter((key) => integrations[key].enabled)
 }
 
 /** Whether an integration's block shows in the capsule. System's metrics never depend on this. */
@@ -28,11 +19,6 @@ export function viewAllowed(view: NotchView, integrations: IntegrationsSettings)
   if (view === 'reviews') return integrations.github.enabled || integrations.gitlab.enabled
   if (view === 'permission' || view === 'question') return integrations.claude.enabled
   return integrations[view].enabled
-}
-
-/** How many Claude sessions the home panel lists: none while Claude is off (`null`: settings not loaded yet). */
-export function panelSessionCount(count: number, integrations: IntegrationsSettings | null): number {
-  return (integrations?.claude.enabled ?? true) ? count : 0
 }
 
 export type AlertKind = 'mail' | 'review-github' | 'review-gitlab' | 'redmine' | 'reminder' | 'claude'
