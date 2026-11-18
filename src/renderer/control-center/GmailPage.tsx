@@ -6,6 +6,7 @@ import { useSettings } from '../shared/settings-store'
 import { useT } from '../shared/use-t'
 import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 import { createGmailUpdater } from './gmail-settings-patch'
 
 const GUIDE_PATH = 'docs/gmail-setup.md'
@@ -106,6 +107,7 @@ export function GmailPage({ settings }: { settings: Settings }) {
 
   return (
     <div data-testid="gmail-page">
+      <IntegrationDisabledNotice integration="gmail" />
       <Group title={t('cc.gmail.clientTitle')}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">

@@ -5,6 +5,9 @@ import { useClaude } from '../../shared/claude-store'
 import { useQuestions } from '../../shared/questions-store'
 import { useAttentionCount } from '../../shared/reminders-store'
 import { useT } from '../../shared/use-t'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
+import { useSettings } from '../../shared/settings-store'
+import { alertAllowed } from '../integration-visibility'
 import { ReminderAlert } from '../reminders/ReminderAlert'
 import { questionFirst } from './question-form'
 
@@ -17,11 +20,17 @@ export function AlertCapsule() {
   const t = useT()
   const pending = useClaude((store) => store.state?.pending)
   const questions = useQuestions((store) => store.questions)
+  const integrations = useSettings((store) => store.settings?.integrations ?? null)
+  // Claude's icon always takes its integration color (the default one until settings load).
+  const claudeStyle = integrationStyle(useIntegration('claude').color)
+  // Off integrations never alert: with Claude off its items are ignored, with reminders off neither the dot nor their alert shows.
+  const claudeOn = integrations === null || alertAllowed('claude', integrations)
+  const remindersOn = integrations === null || alertAllowed('reminder', integrations)
   const remindersDue = useAttentionCount()
-  const permissions = pending ?? []
-  const asked = questions ?? []
+  const permissions = claudeOn ? (pending ?? []) : []
+  const asked = claudeOn ? (questions ?? []) : []
   const more = permissions.length + asked.length - 1
-  const reminderDot = remindersDue > 0 && (
+  const reminderDot = remindersOn && remindersDue > 0 && (
     <span
       data-testid="claude-alert-reminder-dot"
       role="img"
@@ -41,9 +50,11 @@ export function AlertCapsule() {
         role="status"
         aria-label={`${t('claude.alert.questionLabel')}: ${question.project}`}
         className="flex h-full items-center gap-2 px-3.5"
+        style={claudeStyle}
       >
-        {/* Claude's icon (as in Control Center) in coral: Claude waits for the user. */}
-        <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
+        {/* Needs you: the pulsing coral dot, then Claude's icon in its integration color. */}
+        <span aria-hidden="true" className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
+        <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-[color:var(--int)]" />
         {/* Claude's texts are always plain text: React escapes them. */}
         <span className="min-w-0 flex-1 truncate text-body text-chalk">
           <span className="font-semibold">{t('claude.alert.question')}</span>
@@ -57,7 +68,7 @@ export function AlertCapsule() {
   }
 
   const oldest = permissions[0]
-  if (!oldest) return <ReminderAlert />
+  if (!oldest) return remindersOn ? <ReminderAlert /> : null
 
   return (
     <div
@@ -65,8 +76,11 @@ export function AlertCapsule() {
       role="status"
       aria-label={`${t('claude.alert.label')}: ${oldest.sessionName}, ${oldest.toolName}`}
       className="flex h-full items-center gap-2 px-3.5"
+      style={claudeStyle}
     >
-      <span className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
+      {/* Needs you: the pulsing coral dot, then Claude's icon in its integration color. */}
+      <span aria-hidden="true" className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
+      <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-[color:var(--int)]" />
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         <span className="font-semibold">{oldest.sessionName}</span>
         <span className="text-graphite-glass"> · </span>

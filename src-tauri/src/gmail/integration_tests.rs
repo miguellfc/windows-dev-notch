@@ -2836,3 +2836,113 @@ async fn futures_poll_once<F: std::future::Future + Unpin>(future: &mut F) -> Op
     })
     .await
 }
+
+// ---------------------------------------------------------------------------------------------
+// v0.3.0: the integration disabled in the settings (`integrations.gmail.enabled`)
+
+#[tokio::test]
+async fn disabled_gmail_does_not_poll_or_announce() {
+    // Disabled before the start, as main applies the settings: not a single query.
+    let t = setup(Setup {
+        started: false,
+        ..Setup::default()
+    });
+    t.integration.set_enabled(false);
+    t.integration.start();
+    t.ready().await;
+    t.flush(5 * TICK_MS).await;
+    assert_eq!(t.requests(), 0);
+    t.integration.set_view_open(true);
+    t.integration.refresh();
+    t.flush(TICK_MS).await;
+    assert_eq!(t.requests(), 0);
+
+    // Disabled at runtime: the rhythm stops and new mail is never announced.
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let before = t.requests();
+    assert!(before > 0);
+    t.integration.set_enabled(false);
+    t.set_unread(with_new(&["n1"]));
+    t.flush(10 * TICK_MS).await;
+    assert_eq!(t.requests(), before);
+    assert!(t.new_mail().is_empty());
+}
+
+#[tokio::test]
+async fn disabling_mid_poll_discards_response() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let pending = t.api.unread_ids.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), 2);
+    let states = t.states.lock().unwrap().len();
+
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(with_new(&["n1"])));
+    t.flush(0).await;
+    assert_eq!(t.states.lock().unwrap().len(), states);
+    assert!(t.new_mail().is_empty());
+    assert_eq!(t.api.summary.lock().unwrap().count(), 0);
+    t.flush(5 * TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), 2);
+}
+
+#[tokio::test]
+async fn reenabling_polls_immediately() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.set_enabled(false);
+    t.set_unread(with_new(&["n0"]));
+    t.flush(3 * TICK_MS).await;
+    let before = t.api.unread_calls();
+
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(t.api.unread_calls(), before + 1);
+    // Then the normal rhythm again.
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), before + 2);
+    // Mail that arrived while it was off is not announced as new: a new baseline.
+    assert!(t.new_mail().is_empty());
+    t.set_unread(with_new(&["n1", "n0"]));
+    t.flush(TICK_MS).await;
+    assert_eq!(t.new_mail_ids(), ["n1"]);
+}
+
+#[tokio::test]
+async fn disabling_twice_or_enabling_an_enabled_gmail_changes_nothing() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let before = t.api.unread_calls();
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(t.api.unread_calls(), before);
+    t.integration.set_enabled(false);
+    t.integration.set_enabled(false);
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), before);
+}
+
+#[tokio::test]
+async fn reenabling_with_an_answer_still_pending_queries_again_and_rearms_the_timer() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let pending = t.api.unread_ids.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), 2);
+
+    // Off, the answer comes back, on again before anything else runs.
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(ids(3)));
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(t.api.unread_calls(), 3);
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.unread_calls(), 4);
+}

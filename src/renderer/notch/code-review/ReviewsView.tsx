@@ -1,4 +1,6 @@
 import { ArrowLeft, GitPullRequest, KeyRound, RefreshCw, type LucideIcon } from 'lucide-react'
+import { integrationStyle } from '../../shared/integration-color'
+import { useSettings } from '../../shared/settings-store'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { localDate } from '../../../shared/code-review/contributions'
 import type { CodeReviewList, Platform } from '../../../shared/code-review/schema'
@@ -134,8 +136,13 @@ export function ReviewsView() {
   const panel = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
 
-  const configured = configuredPlatforms(state)
-  const platform = reviewsPlatform(target?.platform ?? null, configured)
+  const integrations = useSettings((store) => store.settings?.integrations ?? null)
+  // A platform turned off in Control Center is never shown: the view lands on the other one.
+  const on = (candidate: Platform) => integrations === null || integrations[candidate].enabled
+  const configured = configuredPlatforms(state).filter(on)
+  const targetPlatform = target?.platform && on(target.platform) ? target.platform : null
+  const platform = reviewsPlatform(targetPlatform ?? (on('github') ? null : 'gitlab'), configured)
+  const color = integrations?.[platform].color ?? null
   const platformName = PLATFORM_NAMES[platform]
   const platformState = state?.[platform] ?? null
   const status = platformState?.status
@@ -241,6 +248,7 @@ export function ReviewsView() {
     // the panel (back to the row) instead of NotchApp's window-level dismiss.
     <div
       ref={panel}
+      style={color ? integrationStyle(color) : undefined}
       role="region"
       aria-label={platformName}
       data-testid="reviews-panel"

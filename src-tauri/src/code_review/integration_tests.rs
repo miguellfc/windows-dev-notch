@@ -2161,3 +2161,137 @@ async fn nothing_is_emitted_or_alerted_after_dispose() {
     assert_eq!(t.events(), vec![]);
     assert_eq!(t.alerts(), vec![]);
 }
+
+// ---------------------------------------------------------------------------------------------
+// v0.3.0: a platform disabled in the settings (`integrations.github|gitlab.enabled`)
+
+/// GitHub and GitLab connected, each with its first review waiting in the second round.
+fn reviews_waiting() -> T {
+    let t = setup(both());
+    t.set_prepare(|c, platform, _| {
+        c.fetch_once(Ok(snap(vec![none(platform, "1")])));
+        c.set_fetch(Ok(snap(vec![item(platform, "1", ReviewState::Approved)])));
+    });
+    t
+}
+
+#[tokio::test]
+async fn disabled_platform_stops_reviews_and_contributions() {
+    let t = reviews_waiting();
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    let (gh, gl) = (t.last(GITHUB), t.last(GITLAB_P));
+    assert_eq!((gh.fetch_calls(), gl.fetch_calls()), (1, 1));
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 1));
+
+    t.integration.set_enabled(GITHUB, false);
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    // GitHub: no review, no contributions, no alert.
+    assert_eq!(gh.fetch_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 1);
+    // GitLab untouched: its rhythm and its first-review alert.
+    assert!(gl.fetch_calls() > 1);
+    assert_eq!(gl.contributions_calls(), 2);
+    assert_eq!(
+        t.alerts()
+            .iter()
+            .map(|alert| alert.platform)
+            .collect::<Vec<_>>(),
+        vec![GITLAB_P]
+    );
+    // A manual refresh does not reach the disabled platform either.
+    t.integration.refresh();
+    t.flush(0).await;
+    assert_eq!(gh.fetch_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 1);
+}
+
+#[tokio::test]
+async fn a_platform_disabled_before_the_start_never_queries() {
+    let t = setup(Setup {
+        started: false,
+        ..both()
+    });
+    t.integration.set_enabled(GITLAB_P, false);
+    t.integration.start();
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(TICK_MS * 3).await;
+    let gl = t.last(GITLAB_P);
+    assert_eq!(gl.fetch_calls(), 0);
+    assert_eq!(gl.viewer_calls(), 0);
+    assert_eq!(gl.contributions_calls(), 0);
+    assert!(t.last(GITHUB).fetch_calls() > 0);
+}
+
+#[tokio::test]
+async fn a_review_answer_that_arrives_after_disabling_is_dropped() {
+    let t = reviews_waiting();
+    t.ready().await;
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    let answer = gh.fetch_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(gh.fetch_calls(), 2);
+    let emitted = t.emitted.lock().unwrap().len();
+
+    t.integration.set_enabled(GITHUB, false);
+    let _ = answer.send(Ok(snap(vec![item(GITHUB, "1", ReviewState::Approved)])));
+    t.flush(0).await;
+    assert!(t.alerts().iter().all(|alert| alert.platform != GITHUB));
+    // Only GitLab may have published meanwhile; GitHub's state did not move.
+    assert!(t
+        .emitted
+        .lock()
+        .unwrap()
+        .iter()
+        .skip(emitted)
+        .all(|state| state.github.unreviewed == Some(1)));
+}
+
+#[tokio::test]
+async fn reenabling_a_platform_queries_it_at_once() {
+    let t = reviews_waiting();
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    t.integration.set_enabled(GITHUB, false);
+    t.flush(TICK_MS * 2).await;
+    assert_eq!(gh.fetch_calls(), 1);
+
+    t.integration.set_enabled(GITHUB, true);
+    t.flush(0).await;
+    assert_eq!(gh.fetch_calls(), 2);
+    assert_eq!(gh.contributions_calls(), 2);
+    // A new baseline: the review that came while it was off is not announced.
+    assert!(t.alerts().iter().all(|alert| alert.platform != GITHUB));
+    t.flush(TICK_MS).await;
+    assert_eq!(gh.fetch_calls(), 3);
+}
+
+#[tokio::test]
+async fn reenabling_a_platform_with_answers_still_pending_queries_again_and_rearms_the_timers() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    let contributions = gh.contributions_later();
+    t.integration.set_view_open(true);
+    let answer = gh.fetch_later();
+    t.flush(TICK_MS).await;
+    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (2, 1));
+
+    // Off, both answers come back, on again before anything else runs.
+    t.integration.set_enabled(GITHUB, false);
+    let _ = answer.send(Ok(snap(vec![])));
+    let _ = contributions.send(Ok(summary_for(t.clock.now(), 1)));
+    t.integration.set_enabled(GITHUB, true);
+    t.flush(0).await;
+    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (3, 2));
+    t.flush(TICK_MS).await;
+    assert_eq!(gh.fetch_calls(), 4);
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    assert_eq!(gh.contributions_calls(), 3);
+}

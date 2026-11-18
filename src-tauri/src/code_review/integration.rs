@@ -171,6 +171,9 @@ pub struct CodeReviewIntegration {
     /// The newest effect of each ordered kind that went out. Held while emitting, so effects
     /// decided under `inner` in order A, B never reach the renderer as B, A.
     emitted: Mutex<Emitted>,
+    /// The platform of the last first-review alert sent (the notch's review alert is one for
+    /// both): turning that platform off ends the alert.
+    last_alert: Mutex<Option<Platform>>,
 }
 
 /// Sequence numbers (assigned under `inner`) of the last state and contributions events sent.
@@ -221,7 +224,7 @@ impl Inner {
     /// `canPoll`.
     fn can_poll(&self, platform: Platform) -> bool {
         let rt = &self.runtimes[index(platform)];
-        !self.disposed && self.started && rt.client.is_some() && usable(rt.status.0)
+        !self.disposed && !rt.paused && self.started && rt.client.is_some() && usable(rt.status.0)
     }
 
     /// `isStale`: another generation, disposed, or the token was rejected meanwhile (only a new
@@ -229,6 +232,11 @@ impl Inner {
     fn is_stale(&self, platform: Platform, started_in: u64) -> bool {
         let rt = &self.runtimes[index(platform)];
         started_in != rt.generation || self.disposed || rt.status.0 == PlatformStatus::AuthError
+    }
+
+    /// A query's answer is dropped: stale, or the platform was turned off meanwhile.
+    fn poll_dropped(&self, platform: Platform, started_in: u64) -> bool {
+        self.is_stale(platform, started_in) || self.runtimes[index(platform)].paused
     }
 }
 
@@ -267,6 +275,9 @@ struct Runtime {
     contributions_error: bool,
     contributions_timer: Option<(TimerId, u64)>,
     contributions_in_flight: Option<InFlight>,
+    /// Turned off in the settings (`integrations.github|gitlab.enabled`): no review or
+    /// contributions query, no state from one, no alert. Unlike `disposed`, it can be undone.
+    paused: bool,
 }
 
 /// `PlatformStatus` with a default (`unconfigured`).
@@ -315,6 +326,7 @@ impl CodeReviewIntegration {
             ready,
             persistent,
             emitted: Mutex::new(Emitted::default()),
+            last_alert: Mutex::new(None),
         });
         let task = Arc::clone(&this);
         (this.deps.spawn)(Box::pin(async move {
@@ -322,6 +334,14 @@ impl CodeReviewIntegration {
             let _ = loaded.send(true);
         }));
         this
+    }
+
+    /// The platform of the last first-review alert sent, if any.
+    pub fn last_alert_platform(&self) -> Option<Platform> {
+        *self
+            .last_alert
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     fn lock(&self) -> MutexGuard<'_, Inner> {
@@ -487,6 +507,10 @@ impl CodeReviewIntegration {
                     }
                 }
                 Effect::Alert(alert) => {
+                    // Turned off between the answer and here: no alert.
+                    if self.lock().rt(alert.platform).paused {
+                        continue;
+                    }
                     // The setting is read when the alert is due; `sound` is the renderer's.
                     let alerts = self.deps.settings.get().alerts;
                     let enabled = match alert.platform {
@@ -497,6 +521,10 @@ impl CodeReviewIntegration {
                         continue;
                     }
                     log::info!(target: LOG_TARGET, "Code review first reviews platform={} count={}", alert.platform.as_str(), alert.count);
+                    *self
+                        .last_alert
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner) = Some(alert.platform);
                     (self.deps.on_alert)(&alert);
                 }
             }
@@ -676,7 +704,7 @@ impl CodeReviewIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(platform, started_in) {
+            if inner.poll_dropped(platform, started_in) {
                 return;
             }
             match result {
@@ -776,7 +804,7 @@ impl CodeReviewIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(platform, started_in) {
+            if inner.poll_dropped(platform, started_in) {
                 return;
             }
             match result {
@@ -850,6 +878,59 @@ impl CodeReviewIntegration {
             self.poll(&mut inner, platform);
             self.poll_contributions(&mut inner, platform);
         }
+    }
+
+    /// A platform turned off or on in the settings (`integrations.github|gitlab.enabled`);
+    /// the wiring applies the saved value before `start()`, then every change.
+    ///
+    /// Off: that platform's review and contributions rhythms stop and an answer still in flight
+    /// is dropped (no state, no alert); its token and last state stay. On: queries at once
+    /// (contributions too while the view is open; once a run still in flight has ended), then
+    /// the usual rhythm. The first-review
+    /// baseline starts again, so reviews that came while off are not announced. The other
+    /// platform is untouched. Not [`Self::dispose`], which is final.
+    pub fn set_enabled(&self, platform: Platform, enabled: bool) {
+        let mut inner = self.lock();
+        if inner.disposed || inner.rt(platform).paused != enabled {
+            return;
+        }
+        inner.rt(platform).paused = !enabled;
+        log::info!(target: LOG_TARGET, "Code review platform enabled platform={} enabled={enabled}", platform.as_str());
+        if enabled {
+            self.resume(&mut inner, platform);
+        } else {
+            self.clear_timer(&mut inner, platform, Rhythm::Poll);
+            self.clear_timer(&mut inner, platform, Rhythm::Contributions);
+            inner.rt(platform).detector.reset();
+        }
+    }
+
+    /// Queries a platform turned on again, after any run of it still in flight, whatever its
+    /// fate: one dropped while off clears its `in_flight` only once the lock is released, and
+    /// `poll` would take that run for the current one (no new query, no timer).
+    fn resume(&self, inner: &mut Inner, platform: Platform) {
+        let rt = inner.rt(platform);
+        let waiting: Vec<watch::Receiver<bool>> = [&rt.in_flight, &rt.contributions_in_flight]
+            .into_iter()
+            .flatten()
+            .map(|run| run.done.clone())
+            .collect();
+        if waiting.is_empty() {
+            self.poll(inner, platform);
+            self.poll_contributions(inner, platform);
+            return;
+        }
+        let Some(this) = self.me.upgrade() else {
+            return;
+        };
+        (self.deps.spawn)(Box::pin(async move {
+            for done in waiting {
+                finished(Some(done)).await;
+            }
+            let mut inner = this.lock();
+            this.poll(&mut inner, platform);
+            this.poll_contributions(&mut inner, platform);
+        }));
     }
 
     /// The "Revisiones" view opened or closed: contributions are queried on open and every
@@ -1313,6 +1394,11 @@ pub fn install(
             }
         });
     }
+    // A platform disabled in the settings never queries, not even at start; `lib.rs` follows
+    // later changes.
+    let integrations = app.state::<SettingsStore>().get().integrations;
+    integration.set_enabled(Platform::Github, integrations.github.enabled);
+    integration.set_enabled(Platform::Gitlab, integrations.gitlab.enabled);
     if slot
         .set(Arc::clone(&integration) as Arc<dyn CodeReviewApi>)
         .is_err()

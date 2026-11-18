@@ -17,6 +17,7 @@ import { useLanguage, useT } from '../shared/use-t'
 import { Segmented } from '../ui/Segmented'
 import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 
 type Run = (id: string, call: () => Promise<Result<unknown>>) => Promise<boolean>
 type RepeatValue = Reminder['repeat']
@@ -415,6 +416,7 @@ export function RemindersPage({ settings }: { settings: Settings }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <IntegrationDisabledNotice integration="reminders" />
       <NoticeBanner />
       <ReminderComposer />
       {errorKey && (

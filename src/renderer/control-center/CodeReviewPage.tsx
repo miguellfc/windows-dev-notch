@@ -8,6 +8,7 @@ import { useSettings } from '../shared/settings-store'
 import { useT } from '../shared/use-t'
 import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 import { createCodeReviewUpdater } from './code-review-settings-patch'
 import { createLatestRequests } from './latest-request'
 
@@ -221,6 +222,8 @@ export function CodeReviewPage({ settings }: { settings: Settings }) {
   const state = useCodeReview((store) => store.state)
   return (
     <div data-testid="code-review-page">
+      <IntegrationDisabledNotice integration="github" prefix={t('integration.github')} />
+      <IntegrationDisabledNotice integration="gitlab" prefix={t('integration.gitlab')} />
       <PlatformCard platform="github" settings={settings} state={state?.github} />
       <PlatformCard platform="gitlab" settings={settings} state={state?.gitlab} />
       <p className="text-small text-graphite">{t('cc.codeReview.guide', { path: GUIDE_PATH })}</p>

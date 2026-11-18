@@ -7,6 +7,9 @@ import { setReviewsTarget } from '../shared/code-review-store'
 import { useAttentionCount } from '../shared/reminders-store'
 import { remindersBadgeLabel } from '../shared/reminders/format'
 import { useLanguage, useT } from '../shared/use-t'
+import { integrationStyle } from '../shared/integration-color'
+import { useSettings } from '../shared/settings-store'
+import { visibleTiles } from './integration-visibility'
 
 const icons: Readonly<Record<(typeof tiles)[number]['id'], LucideIcon>> = {
   terminal: SquareTerminal,
@@ -27,6 +30,8 @@ export function IntegrationRow() {
   const t = useT()
   const language = useLanguage()
   const remindersDue = useAttentionCount()
+  // Until the settings load nothing integration-specific shows (no flash of tiles about to hide).
+  const integrations = useSettings((state) => state.settings?.integrations ?? null)
   const [failed, setFailed] = useState<MessageKey | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -45,7 +50,7 @@ export function IntegrationRow() {
     timer.current = setTimeout(() => setFailed(null), FAILURE_VISIBLE_MS)
   }
 
-  // Nine tiles share the 494 px row (the 520 px panel less its 1 px border and 12 px padding per side; the
+  // Only the enabled integrations' tiles show (Terminal always). Up to nine tiles share the 494 px row (the 520 px panel less its 1 px border and 12 px padding per side; the
   // row has no padding of its own since the ninth tile): flex-1 over each tile's own content, px-1 inside
   // each tile (4 px + 1 px border = the 5 px of label clearance reminders.spec asks >= 4 of) and 2 px gaps
   // (tiles have no fill of their own, so the gap is invisible; the icon squares stay 10+ px apart). A tile
@@ -59,8 +64,10 @@ export function IntegrationRow() {
   // session count in EXPANDED_HEIGHTS).
   return (
     <section aria-label={t('notch.integrations.label')} className="relative flex w-full shrink-0 gap-0.5">
-      {tiles.map((tile) => {
+      {(integrations ? visibleTiles(tiles, integrations) : tiles.filter((tile) => tile.id === 'terminal')).map((tile) => {
         const Icon = icons[tile.id]
+        // The icon takes its integration's color; Terminal belongs to none and stays chalk.
+        const color = tile.id === 'terminal' || !integrations ? null : integrations[tile.id].color
         const badge = tile.id === 'reminders' && remindersDue > 0 ? remindersDue : 0
         const label = t(tile.labelKey)
         return (
@@ -74,10 +81,11 @@ export function IntegrationRow() {
               else if (tile.kind === 'review') openReviews(tile.id)
               else void openApp(tile.id, tile.labelKey)
             }}
+            style={color ? integrationStyle(color) : undefined}
             className="group relative flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-tile border border-transparent px-1 text-graphite transition-colors duration-150 hover:text-chalk focus-visible:text-chalk"
           >
             <span className="relative flex size-9 shrink-0 items-center justify-center rounded-[11px] border border-line bg-veil-tile text-chalk transition-colors duration-150 group-hover:bg-veil-hover group-focus-visible:bg-veil-hover">
-              <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+              <Icon size={16} strokeWidth={1.8} aria-hidden="true" className={color ? 'text-[color:var(--int)]' : undefined} />
               {badge > 0 && (
                 <span
                   data-testid={`integration-${tile.id}-badge`}

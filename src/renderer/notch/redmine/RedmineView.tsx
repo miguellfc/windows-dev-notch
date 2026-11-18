@@ -1,4 +1,5 @@
 import { ArrowLeft, CloudOff, KeyRound, ListTodo, RefreshCw, Search, type LucideIcon } from 'lucide-react'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { RedmineIssueList as IssueList } from '../../../shared/redmine/schema'
@@ -95,6 +96,7 @@ export function RedmineView() {
   const [resting, setResting] = useState(false)
   const pendingFocus = useRef<number | 'detail' | null>(null)
   const panel = useRef<HTMLDivElement>(null)
+  const { color } = useIntegration('redmine')
   const scroller = useRef<HTMLDivElement>(null)
   const detail = useRef<HTMLDivElement>(null)
 
@@ -234,6 +236,7 @@ export function RedmineView() {
     // the panel (back to the row) instead of NotchApp's window-level dismiss.
     <div
       ref={panel}
+      style={integrationStyle(color)}
       role="region"
       aria-label={t('integration.redmine')}
       data-testid="redmine-panel"

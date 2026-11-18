@@ -94,8 +94,8 @@ function MessageRow({
         className="focus-inset flex h-[58px] w-full min-w-0 cursor-pointer flex-col justify-center gap-px rounded-tile px-2.5 text-left transition-colors duration-150 group-hover:bg-veil-tile focus-visible:bg-veil-tile"
       >
         <span className="flex w-full min-w-0 items-center gap-1.5">
-          {/* The dot keeps its slot on read rows too, so every sender starts at the same x. */}
-          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${message.unread ? 'bg-chalk' : ''}`} />
+          {/* The dot keeps its slot on read rows too, so every sender starts at the same x. Gmail's color (--int from the view). */}
+          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${message.unread ? 'bg-[color:var(--int,var(--color-chalk))]' : ''}`} />
           {message.unread && <span className="sr-only">{t('gmail.view.unreadMark')}, </span>}
           {/* Mail text is always plain text: React escapes it, nothing is parsed as HTML. */}
           <span className={`min-w-0 flex-1 truncate text-body leading-[18px] text-chalk ${message.unread ? 'font-semibold' : ''}`}>

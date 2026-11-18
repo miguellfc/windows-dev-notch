@@ -8,6 +8,8 @@ import { hoursLong, hoursText } from '../../shared/redmine/format'
 import { PLATFORM_ICONS } from '../code-review/icons'
 import { useLanguage, useT } from '../../shared/use-t'
 import type { CapsuleView } from './capsule-latch'
+import type { IntegrationColor } from '../../../shared/integrations/colors'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { formatPercent } from './format'
 
 /** Below this charge the battery icon turns to its low variant; the colour follows the alert only. */
@@ -87,8 +89,10 @@ const WIDEST_UNREAD = unreadText(100)
  */
 export function CapsuleMail({ unread }: { unread: number }) {
   const language = useLanguage()
+  const { color } = useIntegration('gmail')
   return (
     <Metric
+      color={color}
       icon={GmailMark}
       text={unreadText(unread)}
       reserve={WIDEST_UNREAD}
@@ -110,8 +114,10 @@ const WIDEST_UNREVIEWED = reviewCountText(100)
  */
 export function CapsuleReview({ platform, count }: { platform: Platform; count: number }) {
   const language = useLanguage()
+  const { color } = useIntegration(platform)
   return (
     <Metric
+      color={color}
       icon={PLATFORM_ICONS[platform]}
       text={reviewCountText(count)}
       reserve={WIDEST_UNREVIEWED}
@@ -133,8 +139,10 @@ const WIDEST_HOURS = 23.75
  */
 export function CapsuleRedmine({ hours }: { hours: number }) {
   const language = useLanguage()
+  const { color } = useIntegration('redmine')
   return (
     <Metric
+      color={color}
       icon={RedmineMark}
       text={hoursText(hours, language)}
       reserve={hoursText(WIDEST_HOURS, language)}
@@ -154,6 +162,7 @@ function Metric({
   align = 'right',
   label,
   testId,
+  color,
 }: {
   icon: LucideIcon
   text: string
@@ -165,6 +174,8 @@ function Metric({
   align?: 'left' | 'right'
   label: string
   testId: string
+  /** The block's integration color for its icon (mail, reviews, Redmine). System metrics pass none and stay grey; red wins while alerting. */
+  color?: IntegrationColor
 }) {
   return (
     <span
@@ -173,8 +184,9 @@ function Metric({
       data-testid={testId}
       data-alert={alert || undefined}
       className={`flex items-center gap-1 ${alert ? 'text-fail' : 'text-graphite-glass'}`}
+      style={color ? integrationStyle(color) : undefined}
     >
-      <Icon size={12} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+      <Icon size={12} strokeWidth={2} aria-hidden="true" className={`shrink-0 ${color && !alert ? 'text-[color:var(--int)]' : ''}`} />
       {/* Both texts share one grid cell: the invisible widest value fixes the width, so the capsule
           never jitters as digits change. Right-aligned like a column of figures unless told otherwise. */}
       <span className="tabular grid whitespace-nowrap text-small font-medium" aria-hidden="true">

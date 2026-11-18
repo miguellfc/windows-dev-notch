@@ -10,6 +10,7 @@ import { useSettings } from '../shared/settings-store'
 import { useLanguage, useT } from '../shared/use-t'
 import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 import { createLatestRequests } from './latest-request'
 import { createRedmineUpdater } from './redmine-settings-patch'
 import { parseTarget } from './redmine-target'
@@ -190,6 +191,7 @@ export function RedminePage({ settings }: { settings: Settings }) {
 
   return (
     <div data-testid="redmine-page">
+      <IntegrationDisabledNotice integration="redmine" />
       <Card title={t('cc.redmine.connection')} testId="redmine-connection">
         <div className="mb-3 flex items-center justify-between gap-3" data-testid="redmine-status" data-status={status}>
           <span className={`min-w-0 truncate text-body ${status === 'ok' ? 'text-chalk' : status === 'auth-error' ? 'text-wait' : 'text-graphite'}`}>{statusText}</span>

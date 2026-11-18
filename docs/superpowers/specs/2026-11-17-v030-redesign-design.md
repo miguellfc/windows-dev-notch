@@ -95,12 +95,14 @@ El anillo de foco pasa de azul hielo a **Tiza** (2 px, desplazamiento de 2 px). 
   | Ciruela | `#C084FC` |
   | Fucsia | `#E879F9` |
   | Rosa | `#F472B6` |
-  | Salmón | `#F28B82` |
+  | Salmón | `#FDA4AF` |
   | Melocotón | `#FDBA74` |
   | Naranja | `#FB923C` |
   | Ámbar | `#FBBF24` |
-  | Arcilla | `#D97757` |
+  | Arcilla | `#CC785C` |
   | Arena | `#D6C7A1` |
+
+  Salmón y Arcilla se ajustaron respecto a los valores iniciales (`#F28B82` y `#D97757`): con la comprobación de distancia OKLab quedaban a 0,024 del coral `#FF8A7A` y a 0,067 del rojo `#F87171`, y el criterio es ≥ 0,07 frente a ambos. Con `#FDA4AF` y `#CC785C` se cumple, y todos los colores siguen dando ≥ 5:1 sobre la tarjeta.
 
   Algunos pares son cercanos a propósito (Azul y Celeste, Violeta y Lavanda), para dar matices. Si la comprobación de contraste o de distinción muestra dos indistinguibles a 12 px, se ajusta el tono, sin quitar entradas.
 

@@ -1,4 +1,5 @@
 import { ArrowLeft, Plus, Search, TriangleAlert } from 'lucide-react'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useNotes } from '../../shared/notes-store'
 import { useT } from '../../shared/use-t'
@@ -54,6 +55,7 @@ export function NotesView() {
   const [deleted, setDeleted] = useState<readonly Deleted[]>([])
   const addButton = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
+  const { color } = useIntegration('notes')
 
   // The note being edited went away (deleted elsewhere): close the editor silently. Adjusted during
   // render, so the editor never saves over a note that is gone, and an undo never reopens it.
@@ -102,6 +104,7 @@ export function NotesView() {
     // onPanelKeyDown (back to the row) instead of NotchApp's window-level dismiss.
     <div
       ref={panel}
+      style={integrationStyle(color)}
       role="region"
       aria-label={t('integration.notes')}
       data-testid="notes-panel"

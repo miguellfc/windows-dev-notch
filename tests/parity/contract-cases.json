@@ -212,7 +212,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -268,6 +268,48 @@
           "enabled": true,
           "time": "18:00",
           "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
         }
       }
     },
@@ -398,7 +440,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -456,7 +498,49 @@
           "sound": true
         }
       },
-      "theme": "dark"
+      "theme": "dark",
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
     },
     "accept": false
   },
@@ -464,7 +548,7 @@
     "channel": "settings:update",
     "direction": "output",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -520,6 +604,48 @@
           "enabled": true,
           "time": "18:00",
           "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
         }
       }
     },
@@ -529,7 +655,7 @@
     "channel": "settings:update",
     "direction": "output",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "fr",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -586,6 +712,48 @@
           "time": "18:00",
           "sound": true
         }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
       }
     },
     "accept": false
@@ -594,7 +762,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -651,6 +819,48 @@
           "time": "18:00",
           "sound": true
         }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
       }
     },
     "accept": true
@@ -659,7 +869,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Space",
       "launchAtLogin": false,
@@ -716,6 +926,48 @@
           "time": "18:00",
           "sound": true
         }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
       }
     },
     "accept": false
@@ -724,7 +976,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -781,6 +1033,48 @@
           "time": "18:00",
           "sound": true
         }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
       }
     },
     "accept": false
@@ -789,7 +1083,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -845,6 +1139,48 @@
           "enabled": true,
           "time": "18:00",
           "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
         }
       }
     },
@@ -3164,7 +3500,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 7,
+      "version": 8,
       "language": {
         "es": null
       },
@@ -3222,6 +3558,48 @@
           "enabled": true,
           "time": "18:00",
           "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
         }
       }
     },
@@ -23527,6 +23905,1079 @@
     "channel": "gmail:new-mail",
     "direction": "event",
     "value": null,
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": false,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "sand"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": true,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": true,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": true,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "red"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "Blue"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon",
+          "size": 1
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        },
+        "system": {
+          "enabled": true,
+          "capsule": false,
+          "color": "teal"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {}
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {}
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "blue"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "claude": {
+          "enabled": false,
+          "capsule": false,
+          "color": "pistachio"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "notes": {
+          "capsule": true
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "red"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "enabled": "yes"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "size": 1
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "calendar": {
+          "enabled": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": null
+      }
+    },
     "accept": false
   }
 ]

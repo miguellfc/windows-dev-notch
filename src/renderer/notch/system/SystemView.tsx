@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { ProcessOrder, SystemMetrics } from '../../../shared/system/schema'
 import { useSystem } from '../../shared/system-store'
@@ -60,6 +61,7 @@ export function SystemView() {
   const [order, setOrder] = useState<ProcessOrder>('cpu')
   const history = useHistory(metrics)
   const panel = useRef<HTMLDivElement>(null)
+  const { color } = useIntegration('system')
 
   // Main samples the view for as long as the mode is 'system'; the view only tells it the order.
   // On unmount the list is dropped: the next visit must not show a stale top list until its first tick.
@@ -81,6 +83,7 @@ export function SystemView() {
     // onPanelKeyDown (back to the row) instead of NotchApp's window-level dismiss.
     <div
       ref={panel}
+      style={integrationStyle(color)}
       data-testid="system-panel"
       tabIndex={-1}
       onKeyDown={onPanelKeyDown}

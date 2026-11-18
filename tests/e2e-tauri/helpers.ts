@@ -214,8 +214,8 @@ export async function launch({ fresh, env = {}, files = {} }: LaunchOptions): Pr
 
 /**
  * `settings.json` as the Electron specs seed it (Spanish, reminders without sound, these system
- * alerts). GAP: Electron writes a version 3 file and its store migrates it; the Rust store has no
- * migrations (an older version is quarantined), so the same values go into a current-version file.
+ * alerts), as a valid current-version (v8) file. Electron wrote a version 3 file and migrated it;
+ * the Rust store only migrates v7 (anything older is quarantined), so the seed is already current.
  */
 export const seededSettings = (systemAlerts: Settings['systemAlerts']): Settings => ({
   ...createDefaultSettings('es'),

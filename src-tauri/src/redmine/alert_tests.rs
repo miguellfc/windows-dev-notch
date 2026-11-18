@@ -117,6 +117,10 @@ impl EndOfDaySettings for FixedSettings {
     }
 
     fn on_change(&self, _listener: SettingsListener) {}
+
+    fn integration_enabled(&self) -> bool {
+        true
+    }
 }
 
 struct FakeReadings {

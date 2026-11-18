@@ -2235,3 +2235,99 @@ async fn the_wall_clock_dates_the_poll_and_today_hours_follow_the_local_day() {
     );
     assert_eq!(t.state().today_hours, Some(3.75));
 }
+
+// ---------------------------------------------------------------------------------------------
+// v0.3.0: the integration disabled in the settings (`integrations.redmine.enabled`)
+
+#[tokio::test]
+async fn disabled_redmine_does_not_poll() {
+    // Disabled before the start, as main applies the settings: not a single query.
+    let t = setup(Setup {
+        started: false,
+        ..Setup::default()
+    });
+    t.integration.set_enabled(false);
+    t.integration.start();
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.integration.refresh();
+    t.flush(TICK_MS * 3).await;
+    let client = t.last();
+    assert_eq!(client.viewer_calls(), 0);
+    assert_eq!(client.issues_calls(), 0);
+    assert!(client.entries_calls().is_empty());
+
+    // Disabled at runtime: tasks and summary stop.
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    let client = t.last();
+    assert_eq!(client.issues_calls(), 1);
+    assert_eq!(client.ranged_calls(), 1);
+    t.integration.set_enabled(false);
+    t.flush(SUMMARY_TICK_MS * 2).await;
+    assert_eq!(client.issues_calls(), 1);
+    assert_eq!(client.ranged_calls(), 1);
+}
+
+#[tokio::test]
+async fn an_answer_that_arrives_after_disabling_redmine_is_dropped() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let client = t.last();
+    let pending = client.issues.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(client.issues_calls(), 2);
+    let emitted = t.emitted().len();
+
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(list(&[99])));
+    t.flush(0).await;
+    assert_eq!(t.emitted().len(), emitted);
+    assert_eq!(t.issue_ids().await, [12, 13]);
+}
+
+#[tokio::test]
+async fn reenabling_redmine_queries_at_once() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    let client = t.last();
+    t.integration.set_enabled(false);
+    t.flush(TICK_MS * 2).await;
+    assert_eq!(client.issues_calls(), 1);
+
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(client.issues_calls(), 2);
+    assert_eq!(client.ranged_calls(), 2);
+    t.flush(TICK_MS).await;
+    assert_eq!(client.issues_calls(), 3);
+}
+
+#[tokio::test]
+async fn reenabling_redmine_with_an_answer_still_pending_queries_again_and_rearms_the_timers() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    let client = t.last();
+    let pending = client.issues.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    assert_eq!(client.issues_calls(), 2);
+
+    // Off, the answer comes back, on again before anything else runs.
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(list(&[12])));
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    assert_eq!(client.issues_calls(), 3);
+    assert_eq!(client.ranged_calls(), 2);
+    t.flush(TICK_MS).await;
+    assert_eq!(client.issues_calls(), 4);
+    t.flush(SUMMARY_TICK_MS).await;
+    assert_eq!(client.ranged_calls(), 3);
+}

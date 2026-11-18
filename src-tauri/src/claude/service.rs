@@ -220,6 +220,9 @@ pub struct ClaudeService {
     /// Start, stop and the Control Center operations, one at a time (`serial`).
     serial: tokio::sync::Mutex<()>,
     stopped: AtomicBool,
+    /// False while the Claude integration is turned off in the settings: nothing is held, every
+    /// permission and question goes straight back to Claude's own prompt.
+    intercept: AtomicBool,
     test_probe_seen: AtomicBool,
     /// One connection test at a time: they share `test_probe_seen`.
     testing: tokio::sync::Mutex<()>,
@@ -369,6 +372,7 @@ impl ClaudeService {
                 in_event: Mutex::new(None),
                 serial: tokio::sync::Mutex::new(()),
                 stopped: AtomicBool::new(false),
+                intercept: AtomicBool::new(true),
                 test_probe_seen: AtomicBool::new(false),
                 testing: tokio::sync::Mutex::new(()),
             }
@@ -564,9 +568,9 @@ impl ClaudeService {
         if route == HookRoute::Question && reply.is_none() {
             return;
         }
-        // While stopping, nothing new is held: Claude gets its answer at once and asks in its own
-        // window (what `release_all` sends).
-        if self.is_stopped() {
+        // While stopping or not intercepting, nothing new is held: Claude gets its answer at once
+        // and asks in its own window (what `release_all` sends).
+        if !self.holds_requests() {
             if let Some(reply) = reply {
                 release_reply(&*reply, route);
                 return;
@@ -591,9 +595,10 @@ impl ClaudeService {
                     }
                 }
             }
-            // A stop that began while this request was being held: its `release_all` may have run
-            // before the hold, so release again (a no-op otherwise).
-            if self.is_stopped() {
+            // A stop (or the integration turned off) that began while this request was being
+            // held: its `release_all` may have run before the hold, so release again (a no-op
+            // otherwise).
+            if !self.holds_requests() {
                 self.release_all();
             }
             // After the brokers: a Stop that released the session's requests leaves it `done`.
@@ -758,6 +763,21 @@ impl ClaudeService {
 
     pub fn is_stopped(&self) -> bool {
         self.stopped.load(Ordering::SeqCst)
+    }
+
+    /// Whether permissions and questions are held for the notch (`true` by default). Turning it
+    /// off (the Claude integration disabled) releases everything held at once, without a
+    /// decision, so no session is left waiting for the notch; the hooks stay installed and the
+    /// sessions keep being observed.
+    pub fn set_intercept(&self, on: bool) {
+        let was = self.intercept.swap(on, Ordering::SeqCst);
+        if was && !on {
+            self.release_all();
+        }
+    }
+
+    fn holds_requests(&self) -> bool {
+        !self.is_stopped() && self.intercept.load(Ordering::SeqCst)
     }
 
     /// Periodic housekeeping: idle sessions and hooks edited outside the app. The hook refresh
