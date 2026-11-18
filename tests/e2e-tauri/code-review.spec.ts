@@ -58,6 +58,7 @@ import {
   type FakeCodeReview,
 } from './fixtures/fake-code-review'
 import {
+  clickCard,
   DEFAULT_ALERTS,
   advanceClock,
   alignZoneWithWindows,
@@ -86,6 +87,8 @@ import {
 const TICK_MS = 120_000
 /** The contributions rhythm while the "Revisiones" view is open. */
 const CONTRIBUTIONS_TICK_MS = 15 * 60_000
+/** The minimum gap between two contributions queries started by opening the main panel. */
+const PANEL_REFRESH_MS = 60_000
 /** The minimum gap between two manual refreshes (Actualizar, Reintentar). */
 const REFRESH_REST_MS = 5_000
 
@@ -204,7 +207,7 @@ async function expandPanel(): Promise<void> {
 
 async function openReviewsView(platform: 'github' | 'gitlab' = 'github'): Promise<void> {
   await expandPanel()
-  await byTestId(`integration-${platform}`).click()
+  await clickCard(`integration-${platform}`)
   await expectMode('reviews')
   await panel().waitForDisplayed()
   await expect(panel()).toHaveAttribute('data-platform', platform)
@@ -232,7 +235,7 @@ async function closeReviewsView(): Promise<void> {
 /** The view has no tabs: Esc back to the tile row, then the other platform's tile. */
 async function switchReviewsPlatform(platform: 'github' | 'gitlab'): Promise<void> {
   await closeReviewsView()
-  await byTestId(`integration-${platform}`).click()
+  await clickCard(`integration-${platform}`)
   await eventually(() => panel().getAttribute('data-platform'), (value) => value === platform, `the ${platform} view`)
 }
 
@@ -753,10 +756,19 @@ describe('Code review (Tauri)', () => {
     // Both platforms connected, the view closed: no contributions asked yet.
     expect(contributionHits(server)).toEqual({ github: 0, gitlab: 0 })
 
-    // Opening "Revisiones" asks each platform once (GitLab: two pages of events).
-    await openReviewsView()
+    // Opening the panel asks each platform once for its card (GitLab: two pages of events). Waiting
+    // for both cards keeps the view's query apart: one started during the panel's would share it.
+    await expandPanel()
     await expectContributionHits(server, { github: 1, gitlab: 1 })
     await eventually(async () => server.hits['gitlab events'], (n) => n === 2, 'two pages of GitLab events')
+    await $('[data-testid="integration-github"] .digits').waitForExist()
+    await $('[data-testid="integration-gitlab"] .digits').waitForExist()
+    // Opening "Revisiones" asks again, whatever the panel just did.
+    await clickCard('integration-github')
+    await expectMode('reviews')
+    await panel().waitForDisplayed()
+    await expectContributionHits(server, { github: 2, gitlab: 2 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 4, 'four pages of GitLab events')
 
     // GitHub: the month's calendar (today 12, the rest 0/3/6/9/2), the totals and the merged searches.
     await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
@@ -807,8 +819,16 @@ describe('Code review (Tauri)', () => {
       await expect(byTestId('contributions-updated')).toBeDisplayed()
     }
 
+    // Back on the panel a minute later: its 60 s minimum is over, so it asks once more.
+    await advanceClock(PANEL_REFRESH_MS)
+    await closeReviewsView()
+    await expectContributionHits(server, { github: 3, gitlab: 3 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 6, 'six pages of GitLab events')
+    await browser.pause(300)
+
     // GitLab: one square per event (a push is 1), the summary's commits are the pushes' commit_count.
-    await switchReviewsPlatform('gitlab')
+    await clickCard('integration-gitlab')
+    await eventually(() => panel().getAttribute('data-platform'), (value) => value === 'gitlab', 'the gitlab view')
     await expectRowCount('toReview', 2)
     await expectRowCount('mine', 3)
     const gitlab = expectedGitlabContributions(today)
@@ -833,22 +853,23 @@ describe('Code review (Tauri)', () => {
     await setLanguage('es')
     await expectSectionText('#reviews-section-toReview', /^Por revisar\s*2$/)
 
-    // Each opening asks again (the GitLab tile reopened the view): one for GitHub, one for GitLab.
-    expect(contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
+    // Each opening of the view asks again (the GitLab card reopened it): one for GitHub, one for GitLab.
+    expect(contributionHits(server)).toEqual({ github: 4, gitlab: 4 })
     // While open: one more query per platform every 15 min (test clock).
     await advanceClock(CONTRIBUTIONS_TICK_MS)
-    await expectContributionHits(server, { github: 3, gitlab: 3 })
-    await eventually(async () => server.hits['gitlab events'], (n) => n === 6, 'six pages of GitLab events')
+    await expectContributionHits(server, { github: 5, gitlab: 5 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 10, 'ten pages of GitLab events')
 
-    // Closed: no contributions query across two more 15-min steps (the 120 s lists keep going).
+    // Back on the panel: its own query, the last one. No more across two 15-min steps (the 120 s lists keep going).
     await closeReviewsView()
     expect(await mode()).not.toBe('reviews')
+    await expectContributionHits(server, { github: 6, gitlab: 6 })
     const fetches = server.hits['github fetch'] ?? 0
     await advanceClock(CONTRIBUTIONS_TICK_MS)
     await advanceClock(CONTRIBUTIONS_TICK_MS)
     await eventually(async () => server.hits['github fetch'] ?? 0, (n) => n > fetches, 'more GitHub list queries')
     await browser.pause(1_000)
-    expect(contributionHits(server)).toEqual({ github: 3, gitlab: 3 })
+    expect(contributionHits(server)).toEqual({ github: 6, gitlab: 6 })
 
     expect(server.violations).toEqual([])
     // No event title, branch, commit or note text in the log (only counts and codes).

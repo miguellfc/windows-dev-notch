@@ -11,6 +11,7 @@ import { join } from 'node:path'
 import { $, $$, browser, expect } from '@wdio/globals'
 import { Key } from 'webdriverio'
 import {
+  clickCard,
   DEFAULT_ALERTS,
   dataDir,
   eventually,
@@ -137,7 +138,7 @@ describe('Integrations (Tauri)', () => {
   it('disabling an integration with its view open returns home', async () => {
     await launch({ fresh: true, files: seeded })
     await requestIntent('expand')
-    await $('[data-testid="integration-notes"]').click()
+    await clickCard('integration-notes')
     await $('[data-testid="notes-panel"]').waitForDisplayed()
     await expect(capsule()).toHaveAttribute('data-mode', 'notes')
 

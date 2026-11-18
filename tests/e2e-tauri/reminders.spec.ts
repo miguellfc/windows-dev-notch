@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { $, $$, browser, expect } from '@wdio/globals'
 import {
+  clickCard,
+  alignZoneWithWindows,
   capsuleWindow,
   dataDir,
   DEFAULT_ALERTS,
@@ -84,6 +86,11 @@ const focusedTestId = (): Promise<string | null> =>
 const expectFocused = (testId: string) => eventually(focusedTestId, (id) => id === testId, `${testId} focused`)
 
 describe('Reminders (Tauri)', () => {
+  before(() => {
+    // The expected local times come from this process: they must be the app's (see alignZoneWithWindows).
+    alignZoneWithWindows()
+  })
+
   after(async () => {
     await quitApp()
   })
@@ -96,16 +103,19 @@ describe('Reminders (Tauri)', () => {
     const tile = () => $('[data-testid="integration-reminders"]')
     await expect(tile()).toBeDisplayed()
     await settle()
-    // Every tile label keeps at least 4 px from the tile's edges ("Recordatorios" is the longest).
-    for (const id of ['terminal', 'reminders']) {
-      // The label shrinks to its text (truncating only when it would overflow), so its box is the text's.
-      const tileBox = (await rectOf(`[data-testid="integration-${id}"]`))!
-      const textBox = (await rectOf(`[data-testid="integration-${id}-label"]`))!
-      const clearance = Math.min(textBox.x - tileBox.x, tileBox.x + tileBox.width - (textBox.x + textBox.width))
-      expect({ id, ok: clearance >= 4 }).toEqual({ id, ok: true })
-    }
+    // The longest card title ("Recordatorios") shows whole and keeps at least 4 px from the card's edges.
+    const cardBox = (await rectOf('[data-testid="integration-reminders"]'))!
+    const titleBox = (await rectOf('[data-testid="integration-reminders-label"]'))!
+    expect(Math.min(titleBox.x - cardBox.x, cardBox.x + cardBox.width - (titleBox.x + titleBox.width))).toBeGreaterThanOrEqual(4)
+    const titleCut = await inPage(() => {
+      const title = (
+        globalThis as unknown as { document: { querySelector(s: string): { scrollWidth: number; clientWidth: number } | null } }
+      ).document.querySelector('[data-testid="integration-reminders-label"]')
+      return !title || title.scrollWidth > title.clientWidth
+    })
+    expect(titleCut).toBe(false)
 
-    await tile().click()
+    await clickCard('integration-reminders')
     await expectMode('reminders')
     await expect($('[data-testid="reminders-empty"]')).toBeDisplayed()
     const add = () => $('[data-testid="reminders-add"]')
@@ -231,16 +241,16 @@ describe('Reminders (Tauri)', () => {
     await browser.keys('Escape')
     await expectMode('expanded')
     await expect($('[data-testid="integration-reminders-badge"]')).toHaveText('1')
-    await expect(tile()).toHaveAttribute('aria-label', 'Recordatorios, 1 recordatorio vencido')
+    await expect($('[data-testid="integration-reminders"] [data-card-main]')).toHaveAttribute('aria-label', 'Recordatorios, 1 recordatorio vencido')
     await settle()
 
     // A click on a blank part of the list panel keeps Esc in the panel too.
-    await tile().click()
+    await clickCard('integration-reminders')
     await expectMode('reminders')
     await $('//h2[normalize-space()="Recordatorios"]').click()
     await browser.keys('Escape')
     await expectMode('expanded')
-    await tile().click()
+    await clickCard('integration-reminders')
     await expectMode('reminders')
     // Complete the remaining one: nothing is due any more.
     await $(COMPLETE).click()
@@ -325,7 +335,7 @@ describe('Reminders (Tauri)', () => {
       { text: 'segunda cosa', dueAt: new Date(Date.now() + 3 * DAY_MS) },
     ])
     await requestIntent('expand')
-    await $('[data-testid="integration-reminders"]').click()
+    await clickCard('integration-reminders')
     await expectMode('reminders')
     await expectItems(2)
     await settle()

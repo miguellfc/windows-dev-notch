@@ -106,7 +106,7 @@ type TauriCapabilities = Capabilities.RequestedStandaloneCapabilities & { 'tauri
 
 export const config: Options.Testrunner & { capabilities: TauriCapabilities[] } = {
   runner: 'local',
-  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts', './redmine.spec.ts', './gmail.spec.ts', './integrations.spec.ts', './capsule.spec.ts'],
+  specs: ['./app.spec.ts', './system.spec.ts', './system-alerts.spec.ts', './notes.spec.ts', './reminders.spec.ts', './apps.spec.ts', './claude.spec.ts', './claude-questions.spec.ts', './code-review.spec.ts', './redmine.spec.ts', './gmail.spec.ts', './integrations.spec.ts', './capsule.spec.ts', './panel.spec.ts'],
   maxInstances: 1,
   hostname: '127.0.0.1',
   port: DRIVER_PORT,

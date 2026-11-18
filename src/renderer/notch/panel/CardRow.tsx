@@ -242,6 +242,7 @@ export function CardRow() {
     <div className="flex w-[632px] shrink-0 flex-col">
       <ul
         ref={scroller}
+        data-testid="card-row"
         aria-label={t('panel.cards')}
         onKeyDown={onKeyDown}
         onFocus={onFocus}

@@ -53,6 +53,7 @@ import {
   type FakeMessage,
 } from './fixtures/fake-gmail'
 import {
+  clickCard,
   DEFAULT_ALERTS,
   advanceClock,
   capsuleWindow,
@@ -388,7 +389,7 @@ const messageOf = (id: string) => `${rowOf(id)} [data-testid="gmail-message"]`
 async function openGmailView(): Promise<void> {
   await useWindow('notch')
   await expandPanel()
-  await byTestId('integration-gmail').click()
+  await clickCard('integration-gmail')
   await expectMode('gmail')
   await $(PANEL).waitForDisplayed()
 }

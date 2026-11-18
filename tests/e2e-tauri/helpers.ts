@@ -393,17 +393,23 @@ export const rectOf = (selector: string): Promise<Rect | null> =>
     return { x, y, width, height }
   }, selector)
 
-/** The bottom of the panel's clock (the first element whose whole text is HH:mm), in page px. */
-export const clockBottom = (): Promise<number | null> =>
-  inPage(() => {
-    const doc = (
-      globalThis as unknown as {
-        document: { querySelectorAll(s: string): ArrayLike<{ textContent: string | null; getBoundingClientRect(): { bottom: number } }> }
-      }
-    ).document
-    const el = Array.from(doc.querySelectorAll('span, time, div, p')).find((node) => /^[0-9]{2}:[0-9]{2}$/.test(node.textContent ?? ''))
-    return el ? el.getBoundingClientRect().bottom : null
-  })
+/**
+ * Clicks a card of the panel's row. WebDriver scrolls a card only as far as "in view", which can leave
+ * it half shown with its centre (where it clicks) on the row's clipped edge, so the card comes to the
+ * start of the row first.
+ */
+export async function clickCard(testId: string): Promise<void> {
+  const selector = `[data-testid="${testId}"]`
+  await inPage(async (sel: string) => {
+    const w = globalThis as unknown as {
+      document: { querySelector(s: string): { scrollIntoView(options: unknown): void } | null }
+      requestAnimationFrame(callback: () => void): void
+    }
+    w.document.querySelector(sel)?.scrollIntoView({ block: 'nearest', inline: 'start' })
+    for (let frame = 0; frame < 3; frame++) await new Promise<void>((done) => w.requestAnimationFrame(done))
+  }, selector)
+  await $(selector).click()
+}
 
 // --- Claude Code (part 3) -----------------------------------------------------------------
 //

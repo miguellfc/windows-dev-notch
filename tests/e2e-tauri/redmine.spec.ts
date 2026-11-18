@@ -53,6 +53,7 @@ import {
 } from './fixtures/fake-redmine'
 import type { RedmineState } from '../../src/shared/redmine/schema'
 import {
+  clickCard,
   DEFAULT_ALERTS,
   advanceClock,
   alignZoneWithWindows,
@@ -227,7 +228,7 @@ const panel = () => $(PANEL)
 
 async function openRedmineView(): Promise<void> {
   await expandPanel()
-  await byTestId('integration-redmine').click()
+  await clickCard('integration-redmine')
   await expectMode('redmine')
   await panel().waitForDisplayed()
 }
@@ -430,7 +431,7 @@ describe('Redmine (Tauri)', () => {
     await eventually(pageLang, (lang) => lang === 'es', 'lang=es (the panel is mounted)')
 
     // The tile opens the view: the summary (today, week, month) and the assigned issues, newest first.
-    await byTestId('integration-redmine').click()
+    await clickCard('integration-redmine')
     await expectMode('redmine')
     await expect(panel()).toHaveAttribute('data-body', 'list')
     await expectCount(ROWS, REDMINE_ISSUES.length)
