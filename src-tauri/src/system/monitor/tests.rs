@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::*;
-use crate::contract::system::{FullSample, LightSample, RamSample};
+use crate::contract::system::{FullSample, LightSample, RamSample, StorageSample};
 use crate::services::timers::{TestTimers, TimerCallback};
 use crate::settings::default_settings;
 use crate::system::alerts::AlertEvaluator;
@@ -114,12 +114,29 @@ fn no_alerts() -> SystemAlerts {
     SystemAlerts::default()
 }
 
-fn light_metrics(sample: MetricsLight) -> SystemMetrics {
-    SystemMetrics::Light(sample.with_alerts(no_alerts()))
+fn storage(letter: &str, used_percent: f64) -> Option<StorageSample> {
+    Some(StorageSample {
+        letter: letter.into(),
+        used_percent,
+    })
 }
 
+/// A light sample as emitted with the default [`disks`] reading (C: 40 % free).
+fn light_metrics(sample: MetricsLight) -> SystemMetrics {
+    SystemMetrics::Light(sample.with_alerts(no_alerts(), storage("C", 60.0)))
+}
+
+/// A full sample as emitted; [`full`] has no disks, so no storage.
 fn full_metrics(sample: MetricsFull) -> SystemMetrics {
-    SystemMetrics::Full(sample.with_alerts(no_alerts()))
+    SystemMetrics::Full(sample.with_alerts(no_alerts(), None))
+}
+
+fn storage_out(metrics: &SystemMetrics) -> Option<StorageSample> {
+    match metrics {
+        SystemMetrics::Light(sample) => sample.storage.clone(),
+        SystemMetrics::Full(sample) => sample.storage.clone(),
+        SystemMetrics::Unavailable(_) => panic!("unexpected unavailable"),
+    }
 }
 
 fn default_alert_settings() -> SystemAlertSettings {
@@ -868,6 +885,92 @@ fn reads_disk_space_on_the_first_light_tick_and_then_every_60000_ms_passing_null
 }
 
 #[test]
+fn light_sample_carries_worst_drive_storage() {
+    let fx = setup();
+    fx.spy().disks = Some(vec![
+        DiskFree {
+            letter: "C".into(),
+            free_percent: 40.0,
+        },
+        DiskFree {
+            letter: "D".into(),
+            free_percent: 10.0,
+        },
+    ]);
+    fx.monitor.set_mode(NotchMode::Compact);
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage("D", 90.0))
+    );
+}
+
+#[test]
+fn storage_is_kept_between_disk_reads() {
+    let fx = setup();
+    fx.monitor.set_mode(NotchMode::Compact);
+    fx.advance(3000);
+    assert_eq!(fx.count("disks"), 1);
+    let sent: Vec<_> = fx.metrics_out().iter().map(storage_out).collect();
+    assert_eq!(sent, [storage("C", 60.0), storage("C", 60.0)]);
+    // A failed read (`None`) keeps the last value too.
+    fx.spy().disks = None;
+    fx.advance(57_000);
+    assert_eq!(fx.count("disks"), 2);
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage("C", 60.0))
+    );
+}
+
+#[test]
+fn storage_is_null_without_a_reading() {
+    for reading in [None, Some(Vec::new())] {
+        let fx = setup();
+        fx.spy().disks = reading.clone();
+        fx.monitor.set_mode(NotchMode::Compact);
+        fx.advance(3000);
+        assert!(
+            fx.metrics_out().iter().all(|m| storage_out(m).is_none()),
+            "{reading:?}"
+        );
+    }
+}
+
+#[test]
+fn full_sample_carries_the_worst_of_its_own_disks_and_light_keeps_it() {
+    let fx = setup();
+    fx.spy().full = MetricsFull {
+        disks: vec![
+            crate::contract::system::DiskSample {
+                letter: "C".into(),
+                used_percent: 70.0,
+                free_bytes: 30.0,
+                activity_percent: None,
+            },
+            crate::contract::system::DiskSample {
+                letter: "E".into(),
+                used_percent: 95.0,
+                free_bytes: 5.0,
+                activity_percent: None,
+            },
+        ],
+        ..full()
+    };
+    fx.open_view();
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage("E", 95.0))
+    );
+    // Back in light, a failed first read keeps the view's value.
+    fx.spy().disks = None;
+    fx.monitor.set_mode(NotchMode::Compact);
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage("E", 95.0))
+    );
+}
+
+#[test]
 fn a_resync_within_the_light_rhythm_does_not_re_read_disk_space_early() {
     let fx = setup();
     fx.monitor.set_mode(NotchMode::Compact);
@@ -1021,6 +1124,7 @@ fn works_end_to_end_with_the_real_evaluator() {
                     free_percent: 3.0
                 }),
             },
+            storage: storage("D", 97.0),
         }))
     );
 }

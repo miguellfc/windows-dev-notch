@@ -455,11 +455,13 @@ let claudeProof = ''
  * `proof` (the marker by default) before the install is confirmed, so a wrong path fails before
  * any write.
  */
-export async function launchClaude(options: { seed?: string; proof?: string; env?: Record<string, string> } = {}): Promise<void> {
+export async function launchClaude(
+  options: { seed?: string; proof?: string; env?: Record<string, string>; files?: Record<string, unknown> } = {},
+): Promise<void> {
   const marker = `notch-e2e-${randomUUID()}`
   const seed = options.seed ?? `${JSON.stringify({ notchE2eMarker: marker }, null, 2)}\n`
   claudeProof = options.proof ?? marker
-  await launch({ fresh: true, env: { ...claudeEnv(), ...options.env }, files: { [CLAUDE_SETTINGS]: seed } })
+  await launch({ fresh: true, env: { ...claudeEnv(), ...options.env }, files: { ...options.files, [CLAUDE_SETTINGS]: seed } })
 }
 
 const ccButton = (...names: string[]) => $(`//button[${names.map((name) => `normalize-space()="${name}"`).join(' or ')}]`)

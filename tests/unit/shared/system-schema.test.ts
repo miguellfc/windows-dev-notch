@@ -17,6 +17,7 @@ const light = {
   ram: { usedBytes: 8 * 2 ** 30, totalBytes: 16 * 2 ** 30 },
   battery: { percent: 80, charging: true, pluggedIn: true, secondsLeft: null },
   alerts: NO_ALERTS,
+  storage: { letter: 'C', usedPercent: 62 },
 }
 const full = {
   ...light,
@@ -68,7 +69,21 @@ describe('lightSampleSchema', () => {
   })
   it('accepts a valid sample and nulls', () => {
     expect(lightSampleSchema.safeParse(light).success).toBe(true)
-    expect(lightSampleSchema.safeParse({ cpuPercent: null, ram: null, battery: null, alerts: NO_ALERTS }).success).toBe(true)
+    expect(
+      lightSampleSchema.safeParse({ cpuPercent: null, ram: null, battery: null, alerts: NO_ALERTS, storage: null }).success,
+    ).toBe(true)
+  })
+  it('storage is the worst drive (uppercase letter, used 0-100) or null, and required', () => {
+    expect(lightSampleSchema.safeParse({ ...light, storage: null }).success).toBe(true)
+    expect(lightSampleSchema.safeParse({ ...light, storage: { letter: 'C', usedPercent: 62 } }).success).toBe(true)
+    expect(lightSampleSchema.safeParse({ ...light, storage: { letter: 'c', usedPercent: 62 } }).success).toBe(false)
+    expect(lightSampleSchema.safeParse({ ...light, storage: { letter: 'C', usedPercent: 101 } }).success).toBe(false)
+    expect(lightSampleSchema.safeParse({ ...light, storage: { letter: 'C', usedPercent: 62, extra: 1 } }).success).toBe(
+      false,
+    )
+    const withoutStorage: Record<string, unknown> = { ...light }
+    delete withoutStorage.storage
+    expect(lightSampleSchema.safeParse(withoutStorage).success).toBe(false)
   })
   it('bounds percents to 0-100', () => {
     expect(lightSampleSchema.safeParse({ ...light, cpuPercent: -1 }).success).toBe(false)
@@ -109,6 +124,10 @@ describe('fullSampleSchema', () => {
   it('accepts a valid sample, bytes above 2^31', () => {
     expect(fullSampleSchema.safeParse(full).success).toBe(true)
     expect(fullSampleSchema.safeParse({ ...full, network: null, disks: [] }).success).toBe(true)
+  })
+  it('inherits storage from the light sample', () => {
+    expect(fullSampleSchema.safeParse({ ...full, storage: null }).success).toBe(true)
+    expect(fullSampleSchema.safeParse({ ...full, storage: { letter: 'c', usedPercent: 1 } }).success).toBe(false)
   })
   it('letter must be one uppercase A-Z', () => {
     const d = (letter: string) => ({ ...full, disks: [{ ...full.disks[0], letter }] })

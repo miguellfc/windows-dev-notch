@@ -73,15 +73,73 @@ export const REVIEWS_SIZE = { width: 520, height: 560 } as const
 export const REDMINE_SIZE = { width: 520, height: 560 } as const
 
 /**
- * Size of the visible capsule per mode, in DIP. `peek` is the resting capsule (time and date): the
- * width of the compact capsule without metrics (`COMPACT_WIDTHS.plain`) and its height, so hovering
- * into compact only widens it and never resizes the window. `mini` is the pill the user pins with a
+ * The zones of the compact capsule (time and date | integration blocks | system), in px, measured
+ * with `getBoundingClientRect` in the real WebView2 (debug e2e build) in ES and EN, every value at
+ * its reserved width ("100 %", "W: 100 %", "99+", "23,75h", 4 dots and "+9"); each is the worst of
+ * the two languages. Every slot carries its own 10 px gap before it, so the zones add up exactly.
+ */
+export const COMPACT_ZONE = {
+  /** The horizontal padding (14 px each side) and the capsule's 1 px border on each side. */
+  padding: 30,
+  /** The 1 px line and the room around it (12 px before, 2 px after; the next slot adds its 10). */
+  divider: 15,
+  /**
+   * Time and date: EN, "12:59 AM" (62.4) + 10 + "Wed, May 20" (74.6) = 147.0, rounded up (ES: "00:59",
+   * "dom, 20 sept", 124.3). The worst of every hour and every day of a year.
+   */
+  left: 147,
+  /** CPU, RAM, storage and connection, without the battery: ES 63.5 + 63.5 + 86 + 22 (EN 212.5). */
+  system: 235,
+  /** What the battery adds, with its gap: ES 63.5 (EN 56). */
+  battery: 63.5,
+} as const
+
+/** Each integration block of the compact capsule with its 10 px gap, in px (measured like COMPACT_ZONE, the same in ES and EN). */
+export const CAPSULE_BLOCK = {
+  /** Claude's mark, 4 dots and "+9". */
+  claude: 97,
+  /** Gmail's mark and "99+". */
+  mail: 48.5,
+  /** One code-review platform's mark and "99+". */
+  review: 48.5,
+  /** Redmine's mark and "23,75h" / "23.75h". */
+  redmine: 71,
+} as const
+
+/** What the compact capsule shows: the system zone (null: no sample) and the integration blocks. */
+export interface CompactContent {
+  system: { battery: boolean } | null
+  blocks: { claude: boolean; mail: boolean; reviews: 0 | 1 | 2; redmine: boolean }
+}
+
+/**
+ * Width of the compact capsule: time and date always; the integration blocks after a divider when
+ * there is one; the system zone after another divider while there is a sample. Alerts (a low disk
+ * included) only change colours, never the width.
+ */
+export function compactWidthFor({ system, blocks }: CompactContent): number {
+  let width = COMPACT_ZONE.padding + COMPACT_ZONE.left
+  const middle =
+    (blocks.claude ? CAPSULE_BLOCK.claude : 0) +
+    (blocks.mail ? CAPSULE_BLOCK.mail : 0) +
+    blocks.reviews * CAPSULE_BLOCK.review +
+    (blocks.redmine ? CAPSULE_BLOCK.redmine : 0)
+  if (middle > 0) width += COMPACT_ZONE.divider + middle
+  if (system) width += COMPACT_ZONE.divider + COMPACT_ZONE.system + (system.battery ? COMPACT_ZONE.battery : 0)
+  return Math.ceil(width)
+}
+
+/**
+ * Size of the visible capsule per mode, in DIP. `compact` is its usual content (time and date, then
+ * the system zone with a battery; the renderer sizes it with {@link compactWidthFor}). `peek` is the
+ * resting capsule: the compact capsule's time-and-date zone alone (`ceil(padding + left)`) at the
+ * compact height, so hovering into compact only widens it and never resizes the window. `mini` is the pill the user pins with a
  * right click: 4 px tall, flush against the top edge of the screen ({@link capsuleTopFor}), where the
  * edge stops the pointer, so it stays easy to hit while covering a 96×4 strip of what is under it.
  */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
-  compact: { width: 358, height: 36 },
-  peek: { width: 168, height: 36 },
+  compact: { width: 491, height: 36 },
+  peek: { width: 177, height: 36 },
   alert: { width: 320, height: 44 },
   expanded: { width: 520, height: EXPANDED_HEIGHTS.sessions },
   permission: { width: 480, height: 300 },
@@ -96,92 +154,23 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
 }
 
 /**
- * Compact capsule widths by content, measured with Playwright in ES and EN (worst time and date,
- * every value at its reserved "100 %" width). `CAPSULE_SIZES.compact` is the usual one (time, date,
- * CPU, RAM and battery); without a battery its slot is dropped, and with no sample yet or the
- * monitor unavailable the capsule keeps its original time-and-date width. The low-disk block
- * (reserving "W: 100 %", the widest drive letter) only exists while that alert is latched:
- * EN 374.7 px without a battery and 433.8 px with one. The unread-mail block (`Mail` + "99+", its
- * widest value) goes last and only exists while unread mail is latched: it measures 38.3 px in ES
- * and EN and adds 48.3 px after the metrics (its 10 px gap) or 52.3 px after time and date (that
- * layout's wider gaps); each variant is its width without mail plus that, rounded up (worst case
- * EN, battery, disk and "99+": 482.1 px).
- */
-export const COMPACT_WIDTHS = {
-  plain: 168,
-  metrics: 299,
-  metricsBattery: CAPSULE_SIZES.compact.width,
-  metricsDisk: 376,
-  metricsBatteryDisk: 435,
-  plainMail: 221,
-  metricsMail: 348,
-  metricsBatteryMail: 407,
-  metricsDiskMail: 425,
-  metricsBatteryDiskMail: 484,
-} as const
-
-/**
- * One code-review block (`Github`/`Gitlab` mark + "99+", the same metric as the mail block: 38.3 px)
- * and the 10 px gap before it, measured with Playwright in ES and EN: each platform with unreviewed
- * PR/MRs adds it after the other slots (worst case, both blocks after CPU, RAM, battery, disk and
- * mail "99+": 581 px, time and date still whole). With only time and date before it, it takes that layout's wider
- * gaps (+4 px), like the mail block (`plainMail`).
- */
-export const REVIEW_BLOCK_WIDTH = 48.3
-const FIRST_BLOCK_EXTRA = 4
-
-/**
- * The Redmine block (mark + the hours logged today at its reserved width, "23,75h" / "23.75h") and the
- * 10 px gap before it, measured with Playwright in ES and EN: the block is 56.7 px in both languages,
- * so it adds 66.7 px, last of all after the code-review blocks (worst case, every block showing:
- * 648 px, time and date still whole). With only time and date before it, it takes that layout's wider
- * gaps (+4 px), like the other blocks.
- */
-export const REDMINE_BLOCK_WIDTH = 66.7
-
-/**
- * Width of the compact capsule for what it shows: null is time and date only; `mail` adds the
- * unread-mail block, `reviews` one code-review block per platform and `redmine` the hours block. Alerts only change colours,
- * never the width; the low-disk block is the one alert that adds a slot.
- */
-export function compactWidthFor(
-  content: { battery: object | null; disk: object | null } | null,
-  mail = false,
-  reviews = 0,
-  redmine = false,
-): number {
-  const base = baseCompactWidth(content, mail)
-  const blocks = Math.max(0, reviews) + (redmine ? 1 : 0)
-  if (blocks === 0) return base
-  const extra = !content && !mail ? FIRST_BLOCK_EXTRA : 0
-  return Math.ceil(base + extra + Math.max(0, reviews) * REVIEW_BLOCK_WIDTH + (redmine ? REDMINE_BLOCK_WIDTH : 0))
-}
-
-function baseCompactWidth(content: { battery: object | null; disk: object | null } | null, mail: boolean): number {
-  if (!content) return mail ? COMPACT_WIDTHS.plainMail : COMPACT_WIDTHS.plain
-  if (content.disk) {
-    if (content.battery) return mail ? COMPACT_WIDTHS.metricsBatteryDiskMail : COMPACT_WIDTHS.metricsBatteryDisk
-    return mail ? COMPACT_WIDTHS.metricsDiskMail : COMPACT_WIDTHS.metricsDisk
-  }
-  if (content.battery) return mail ? COMPACT_WIDTHS.metricsBatteryMail : COMPACT_WIDTHS.metricsBattery
-  return mail ? COMPACT_WIDTHS.metricsMail : COMPACT_WIDTHS.metrics
-}
-
-/**
  * Transparent room around the capsule so its shadow is not clipped by the window edge. The
  * levitation shadow (`0 18px 50px`) reaches 50 px sideways and 18 + 50 px below the capsule.
  */
 export const SHADOW_MARGIN = { side: 56, top: 6, bottom: 72 } as const
 
-/** The widest the compact capsule gets: mail, battery, disk, both code-review blocks and the Redmine block. */
-const WIDEST_COMPACT_WIDTH = compactWidthFor({ battery: {}, disk: {} }, true, 2, true)
+/** The widest the compact capsule gets: every integration block (both code-review ones), the system zone and the battery. */
+export const WIDEST_COMPACT_WIDTH = compactWidthFor({
+  system: { battery: true },
+  blocks: { claude: true, mail: true, reviews: 2, redmine: true },
+})
 
 /**
  * Constant window width: the widest capsule (a panel, or the compact capsule with every block
  * showing) plus its shadow. The width never changes between modes because Motion suspends layout
  * animations for 250 ms whenever `innerWidth` changes, which turned every growing morph into a
  * jump. Only the height follows the mode. Rounded up to an even number so the window centres
- * on the screen without a half pixel.
+ * on the screen without a half pixel: the widest compact capsule (819 px) makes it 932.
  */
 export const WINDOW_WIDTH = Math.ceil((Math.max(WIDEST_COMPACT_WIDTH, ...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2) / 2) * 2
 

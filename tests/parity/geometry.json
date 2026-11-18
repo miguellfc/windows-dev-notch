@@ -1,12 +1,12 @@
 {
-  "windowWidth": 760,
+  "windowWidth": 932,
   "capsuleSizes": {
     "compact": {
-      "width": 358,
+      "width": 491,
       "height": 36
     },
     "peek": {
-      "width": 168,
+      "width": 177,
       "height": 36
     },
     "alert": {
@@ -94,9 +94,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 114
       }
     },
@@ -109,9 +109,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 114
       }
     },
@@ -124,9 +124,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 114
       }
     },
@@ -139,9 +139,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 114
       }
     },
@@ -154,9 +154,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 114
       }
     },
@@ -169,9 +169,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 114
       }
     },
@@ -184,9 +184,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 122
       }
     },
@@ -199,9 +199,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 122
       }
     },
@@ -214,9 +214,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 122
       }
     },
@@ -229,9 +229,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 278
       }
     },
@@ -244,9 +244,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 278
       }
     },
@@ -259,9 +259,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 278
       }
     },
@@ -274,9 +274,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 378
       }
     },
@@ -289,9 +289,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 378
       }
     },
@@ -304,9 +304,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 378
       }
     },
@@ -319,9 +319,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 582
       }
     },
@@ -334,9 +334,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 582
       }
     },
@@ -349,9 +349,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 582
       }
     },
@@ -364,9 +364,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 398
       }
     },
@@ -379,9 +379,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 398
       }
     },
@@ -394,9 +394,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 398
       }
     },
@@ -409,9 +409,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 358
       }
     },
@@ -424,9 +424,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 358
       }
     },
@@ -439,9 +439,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 358
       }
     },
@@ -454,9 +454,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 398
       }
     },
@@ -469,9 +469,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 398
       }
     },
@@ -484,9 +484,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 398
       }
     },
@@ -499,9 +499,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 518
       }
     },
@@ -514,9 +514,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 518
       }
     },
@@ -529,9 +529,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 518
       }
     },
@@ -544,9 +544,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 638
       }
     },
@@ -559,9 +559,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 638
       }
     },
@@ -574,9 +574,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 638
       }
     },
@@ -589,9 +589,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 638
       }
     },
@@ -604,9 +604,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 638
       }
     },
@@ -619,9 +619,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 638
       }
     },
@@ -634,9 +634,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 580,
+        "x": 494,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 76
       }
     },
@@ -649,9 +649,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1020,
+        "x": -1106,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 76
       }
     },
@@ -664,9 +664,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2820,
+        "x": 2734,
         "y": 0,
-        "width": 760,
+        "width": 932,
         "height": 76
       }
     }
@@ -1520,568 +1520,820 @@
   ],
   "compactWidths": [
     {
-      "content": null,
-      "mail": false,
-      "reviews": 0,
-      "redmine": false,
-      "width": 168
-    },
-    {
-      "content": null,
-      "mail": false,
-      "reviews": 0,
-      "redmine": true,
-      "width": 239
-    },
-    {
-      "content": null,
-      "mail": false,
-      "reviews": 1,
-      "redmine": false,
-      "width": 221
-    },
-    {
-      "content": null,
-      "mail": false,
-      "reviews": 1,
-      "redmine": true,
-      "width": 287
-    },
-    {
-      "content": null,
-      "mail": false,
-      "reviews": 2,
-      "redmine": false,
-      "width": 269
-    },
-    {
-      "content": null,
-      "mail": false,
-      "reviews": 2,
-      "redmine": true,
-      "width": 336
-    },
-    {
-      "content": null,
-      "mail": true,
-      "reviews": 0,
-      "redmine": false,
-      "width": 221
-    },
-    {
-      "content": null,
-      "mail": true,
-      "reviews": 0,
-      "redmine": true,
-      "width": 288
-    },
-    {
-      "content": null,
-      "mail": true,
-      "reviews": 1,
-      "redmine": false,
-      "width": 270
-    },
-    {
-      "content": null,
-      "mail": true,
-      "reviews": 1,
-      "redmine": true,
-      "width": 336
-    },
-    {
-      "content": null,
-      "mail": true,
-      "reviews": 2,
-      "redmine": false,
-      "width": 318
-    },
-    {
-      "content": null,
-      "mail": true,
-      "reviews": 2,
-      "redmine": true,
-      "width": 385
-    },
-    {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
       },
-      "mail": false,
-      "reviews": 0,
-      "redmine": false,
-      "width": 299
+      "width": 177
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 0,
-      "redmine": true,
-      "width": 366
+      "width": 263
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
       },
-      "mail": false,
-      "reviews": 1,
-      "redmine": false,
-      "width": 348
+      "width": 241
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 1,
-      "redmine": true,
-      "width": 414
+      "width": 312
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
       },
-      "mail": false,
-      "reviews": 2,
-      "redmine": false,
-      "width": 396
+      "width": 289
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 2,
-      "redmine": true,
-      "width": 463
+      "width": 360
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
       },
-      "mail": true,
-      "reviews": 0,
-      "redmine": false,
-      "width": 348
+      "width": 241
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
       },
-      "mail": true,
-      "reviews": 0,
-      "redmine": true,
-      "width": 415
+      "width": 312
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
       },
-      "mail": true,
-      "reviews": 1,
-      "redmine": false,
-      "width": 397
+      "width": 289
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
       },
-      "mail": true,
-      "reviews": 1,
-      "redmine": true,
-      "width": 463
+      "width": 360
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
       },
-      "mail": true,
-      "reviews": 2,
-      "redmine": false,
-      "width": 445
+      "width": 338
     },
     {
-      "content": {
-        "battery": false,
-        "disk": false
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
       },
-      "mail": true,
-      "reviews": 2,
-      "redmine": true,
-      "width": 512
+      "width": 409
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
       },
-      "mail": false,
-      "reviews": 0,
-      "redmine": false,
-      "width": 376
+      "width": 289
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 0,
-      "redmine": true,
-      "width": 443
+      "width": 360
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
       },
-      "mail": false,
-      "reviews": 1,
-      "redmine": false,
-      "width": 425
+      "width": 338
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 1,
-      "redmine": true,
-      "width": 491
+      "width": 409
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
       },
-      "mail": false,
-      "reviews": 2,
-      "redmine": false,
-      "width": 473
+      "width": 386
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 2,
-      "redmine": true,
-      "width": 540
+      "width": 457
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
       },
-      "mail": true,
-      "reviews": 0,
-      "redmine": false,
-      "width": 425
+      "width": 338
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
       },
-      "mail": true,
-      "reviews": 0,
-      "redmine": true,
-      "width": 492
+      "width": 409
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
       },
-      "mail": true,
-      "reviews": 1,
-      "redmine": false,
-      "width": 474
+      "width": 386
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
       },
-      "mail": true,
-      "reviews": 1,
-      "redmine": true,
-      "width": 540
+      "width": 457
     },
     {
-      "content": {
-        "battery": false,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
       },
-      "mail": true,
-      "reviews": 2,
-      "redmine": false,
-      "width": 522
-    },
-    {
-      "content": {
-        "battery": false,
-        "disk": true
-      },
-      "mail": true,
-      "reviews": 2,
-      "redmine": true,
-      "width": 589
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": false,
-      "reviews": 0,
-      "redmine": false,
-      "width": 358
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": false,
-      "reviews": 0,
-      "redmine": true,
-      "width": 425
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": false,
-      "reviews": 1,
-      "redmine": false,
-      "width": 407
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": false,
-      "reviews": 1,
-      "redmine": true,
-      "width": 473
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": false,
-      "reviews": 2,
-      "redmine": false,
-      "width": 455
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": false,
-      "reviews": 2,
-      "redmine": true,
-      "width": 522
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": true,
-      "reviews": 0,
-      "redmine": false,
-      "width": 407
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": true,
-      "reviews": 0,
-      "redmine": true,
-      "width": 474
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": true,
-      "reviews": 1,
-      "redmine": false,
-      "width": 456
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": true,
-      "reviews": 1,
-      "redmine": true,
-      "width": 522
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": true,
-      "reviews": 2,
-      "redmine": false,
-      "width": 504
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": false
-      },
-      "mail": true,
-      "reviews": 2,
-      "redmine": true,
-      "width": 571
-    },
-    {
-      "content": {
-        "battery": true,
-        "disk": true
-      },
-      "mail": false,
-      "reviews": 0,
-      "redmine": false,
       "width": 435
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
       },
-      "mail": false,
-      "reviews": 0,
-      "redmine": true,
-      "width": 502
+      "width": 506
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": false,
-      "reviews": 1,
-      "redmine": false,
-      "width": 484
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 427
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": false,
-      "reviews": 1,
-      "redmine": true,
-      "width": 550
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 513
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": false,
-      "reviews": 2,
-      "redmine": false,
-      "width": 532
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 491
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": false,
-      "reviews": 2,
-      "redmine": true,
-      "width": 599
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 562
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": true,
-      "reviews": 0,
-      "redmine": false,
-      "width": 484
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 539
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": true,
-      "reviews": 0,
-      "redmine": true,
-      "width": 551
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 610
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": true,
-      "reviews": 1,
-      "redmine": false,
-      "width": 533
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 491
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": true,
-      "reviews": 1,
-      "redmine": true,
-      "width": 599
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 562
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": true,
-      "reviews": 2,
-      "redmine": false,
-      "width": 581
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 539
     },
     {
-      "content": {
-        "battery": true,
-        "disk": true
+      "system": {
+        "battery": false
       },
-      "mail": true,
-      "reviews": 2,
-      "redmine": true,
-      "width": 648
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 610
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 588
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 659
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 539
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 610
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 588
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 659
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 636
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 707
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 588
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 659
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 636
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 707
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 685
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 756
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 491
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 577
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 554
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 625
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 603
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 674
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 554
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 625
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 603
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 674
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 651
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 722
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 603
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 674
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 651
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 722
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 700
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 771
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 651
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 722
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 700
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 771
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 748
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 819
     }
   ]
 }
