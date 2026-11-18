@@ -330,9 +330,9 @@ mod tests {
         );
         controller.start();
         let rects = CapsuleRectStore::new();
-        let placement = WindowPlacement::new((580, 0), 1.0);
+        let placement = WindowPlacement::new((494, 0), 1.0);
         let mut tracker = PointerTracker::new();
-        // Peek at its default box: x 296..464 in the window, so 876..1044 on screen.
+        // Peek at its default box: x 377.5..554.5 in the window, so 871.5..1048.5 on screen.
         let mut poll = |cursor| poll_once(&controller, &rects, &placement, &mut tracker, cursor);
         poll((500, 20));
         assert_eq!(controller.mode(), NotchMode::Peek);
