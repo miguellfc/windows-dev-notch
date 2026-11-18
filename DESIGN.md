@@ -47,8 +47,52 @@ Estrategia Restrained: neutros negros sin tinte más un único color de selecci�
 - **Coral** (#FF8A7A, `--color-wait`; sustituye al Ámbar Espera): "te necesita" (esperando permiso o input); pulsa mientras haya algo pendiente. Texto sobre él: #2A0D08 (token `--color-on-wait`).
 - **Rojo Fallo** (#F87171): error; y métrica por encima de su umbral (avisos del sistema): solo icono y cifra en la cápsula compacta y la cifra en la vista Sistema; nunca superficie ni borde; contraste ≈ 5,3:1 sobre Cápsula encima de una ventana blanca.
 
+### Color por integración
+Cada integración (Claude, GitHub, GitLab, Gmail, Redmine, Recordatorios, Notas y Sistema) tiene un color elegido por el usuario de una paleta cerrada de 21 (`src/shared/integrations/colors.ts`), guardado en `integrations.<clave>.color` de los ajustes (v8). Es un matiz de identificación, no un estado: no cambia la estrategia Restrained, solo reparte una nota de color estable por integración.
+
+- **Paleta** (tres filas de 7 en el selector, por tono; todos dan ≥ 5:1 sobre Tarjeta):
+
+  | Nombre | Hex |
+  |---|---|
+  | Pistacho | `#D9F99D` |
+  | Lima | `#A3E635` |
+  | Verde | `#4ADE80` |
+  | Esmeralda | `#10B981` |
+  | Turquesa | `#2DD4BF` |
+  | Cian | `#22D3EE` |
+  | Celeste | `#38BDF8` |
+  | Azul | `#7DD3FC` |
+  | Cobalto | `#60A5FA` |
+  | Índigo | `#818CF8` |
+  | Violeta | `#A78BFA` |
+  | Lavanda | `#C4B5FD` |
+  | Ciruela | `#C084FC` |
+  | Fucsia | `#E879F9` |
+  | Rosa | `#F472B6` |
+  | Salmón | `#FDA4AF` |
+  | Melocotón | `#FDBA74` |
+  | Naranja | `#FB923C` |
+  | Ámbar | `#FBBF24` |
+  | Arcilla | `#CC785C` |
+  | Arena | `#D6C7A1` |
+
+  Salmón y Arcilla están ajustados para separarse del coral y del rojo: el criterio es una distancia OKLab ≥ 0,07 frente a Coral `#FF8A7A` y Rojo `#F87171` (Salmón `#F28B82` → `#FDA4AF`, que estaba a 0,024 del coral; Arcilla `#D97757` → `#CC785C`, que estaba a 0,067 del rojo). Coral y Rojo **no** están en la paleta.
+- **Por defecto:** Claude = Arcilla, GitHub = Verde, GitLab = Naranja, Gmail = Salmón, Redmine = Rosa, Recordatorios = Azul, Notas = Violeta, Sistema = Turquesa.
+- **Dónde va:** el icono de la integración en su casilla, en su bloque de la cápsula, en la cabecera de su vista y en sus alertas; sus visualizaciones mediante `--int` (rejillas de contribuciones y de horas, anillos, sparklines); el punto de no leído de Gmail y la chincheta de Notas; y la confirmación de éxito de su vista.
+- **Dónde no va nunca:** fondos, texto de cuerpo, botones principales (siguen en Tiza) ni anillo de foco. Coral y Rojo **ganan siempre** al color de la integración en un mismo elemento (una alerta pendiente sigue coral, una métrica por encima del umbral sigue roja). El toast de Windows no se colorea.
+- **Selector:** botón «Cambiar color» que abre una cuadrícula de 3 × 7 muestras. Es un Radio Group: un solo punto de Tab (el color actual), las flechas mueven y seleccionan (arriba y abajo saltan una fila) y Esc cierra y devuelve el foco al botón. Foco Tiza visible.
+
+### Desactivar una integración
+El interruptor «Activa» de cada integración (Control Center → Integraciones) la apaga sin borrar su configuración (tokens, sesión).
+
+- Desaparecen su casilla del panel, su bloque de la cápsula y sus alertas, y deja de consultar. Con su vista abierta, el panel vuelve a `home`; una respuesta que estaba en vuelo se descarta.
+- **Cápsula:** GitHub, GitLab, Gmail, Redmine y Claude tienen además un interruptor «Cápsula» que oculta solo su bloque (sin él, siguen activas). Sistema no lo tiene: sus métricas están siempre en la cápsula.
+- **Sistema** solo quita la casilla y la vista; las métricas de la cápsula y los avisos (CPU, RAM, batería, disco) siguen.
+- **Claude:** el hook sigue instalado, pero el bridge responde de inmediato con un 200 vacío a los permisos y preguntas, sin retenerlos; Claude Code pregunta en su propia interfaz y ninguna sesión puede quedarse esperando a la notch.
+- **Recordatorios:** sin alerta, toast, chime ni badge. Los que venzan mientras tanto aparecen como vencidos al reactivarlos.
+
 ### Named Rules
-**The «Un color, un trabajo» Rule.** Cada color hace un solo trabajo: Tiza selecciona, coral dice «te necesita», verde «listo», rojo «falló». Fuera de los estados no hay otra nota de color; si una pantalla parece colorida, algo sobra.
+**The «Un color, un trabajo» Rule.** Cada color hace un solo trabajo: Tiza selecciona, coral dice «te necesita», verde «listo», rojo «falló». Fuera de los estados, la única nota de color es el matiz de cada integración (ver «Color por integración»), que nunca va en fondos ni en texto de cuerpo y cede ante coral y rojo; si una pantalla parece colorida, algo sobra.
 
 **The Meaningful Color Rule.** Verde, coral y rojo solo aparecen ligados a un estado real; nunca como decoración, iconos de categoría ni fondos. Un estado nunca depende solo del color: siempre lo acompaña texto o icono.
 
@@ -104,6 +148,8 @@ Todo texto pasa por i18n: las filas truncan con elipsis y nunca saltan de línea
 **Panel "Revisiones" (520×560, el panel más alto: la ventana de 638 px crece antes de abrirlo).** Se abre desde las casillas GitHub y GitLab, y muestra una sola plataforma por apertura: sin pestañas (ni `tablist` ni ←/→ entre plataformas); para cambiar de plataforma se vuelve con Esc y se pulsa la otra casilla. Si esa plataforma no está configurada, la vista muestra su estado "sin configurar"; sin plataforma pedida (alerta sin datos) abre la primera configurada, o GitHub. Cabecera de 32 px: `←`, el nombre de la plataforma ("GitHub" o "GitLab", también el nombre accesible de la región) y Actualizar (`aria-disabled` 5 s tras pulsarlo). Bajo la cabecera, por plataforma (hito 2), las **contribuciones del mes** sobre un divisor Filo: a la izquierda el gráfico (114 px fijos, el ancho de 6 columnas; mes con `Intl` arriba; 7 filas lun→dom, cada una con su letra (L M X J V S D / M T W T F S S); una columna por semana, de 4 a 6; cuadrados de 14 px a 3 px con radio de 3 px; nivel 0 Grafito al 14 % y niveles 1–4 en el color de integración (`--int`) al 25 / 45 / 70 / 100 %, tokens `--color-contrib-0…4`; días fuera del mes sin pintar, futuros solo con borde Filo, hoy con un anillo Tiza por dentro del cuadrado, distinto del anillo de foco Tiza por fuera); a la derecha la tabla Hoy · Semana · Mes × Commits · PR/MR abiertos · PR/MR fusionados · Revisiones (cifras tabulares, "—" sin dato) y debajo "84 contribuciones en el gráfico de noviembre" (en GitLab con la nota "En el gráfico un push cuenta 1; el resumen cuenta commits" como `title` y descripción accesible), "Actualizado hace 3 min" (con hover o foco en un día, esa línea dice "12 nov · 7 contribuciones") y, si aplican, "Datos parciales…", "Incluye contribuciones privadas…" y "No se pudieron cargar las contribuciones · Reintentar" (Reintentar en Tiza, objetivo de 24 px, el mismo descanso de 5 s que Actualizar). Cargando: la rejilla gris (pulsa salvo con `prefers-reduced-motion`) y "—". El gráfico es un `role="grid"` con cabeceras de día y semana, una etiqueta por celda, `aria-current="date"` en hoy y el resumen "Noviembre: 84 contribuciones en 15 días activos"; un solo punto de Tab (hoy), ↑/↓ un día, ←/→ una semana, Home/End al primer y último día del mes en la fila. Sin configurar y "Revisa el token" ocupan todo el cuerpo, como antes. Secciones "Por revisar" y "Míos" con título `text-caps` en Grafito. Filas de 50 px de 2 líneas: título (Body, Tiza) y hace cuánto (Label, Grafito, tabular) / `ref` · autor (en "Por revisar") · etiquetas (Label): Borrador, Aprobado, Cambios pedidos, Sin revisar (en "Míos"), Conflictos y Checks ✓ / ✗ / en curso (siempre con texto, nunca solo color). Hover y foco pintan Hover; clic o Enter abre en el navegador. Estados centrados con icono de 20 px: sin configurar (botón a Control Center), "Revisa el token en Control Center", sin conexión (últimos datos al 70 %), cargando (esqueletos de 50 px) y "Nada pendiente". Teclado: flechas entre filas, Enter abre, Esc vuelve. Los títulos se pintan siempre como texto.
 
 **Aviso de revisión (alerta de 320 px).** La misma cápsula de alerta (320×44) con la prioridad del correo (el más nuevo sustituye al anterior), 6 s, sin robar el foco y también con la cápsula en `mini` u oculta. Marca de GitHub (Invertocat) o de GitLab de 13 px en Tiza + "**Aprobado** · acme/web#12 · título" (o **Cambios pedidos** / **Revisado**; ref en Grafito Cristal); varios: "**2 PR revisados** · GitHub" / "**2 MR revisados** · GitLab". `role="status"`, `aria-live="polite"`. Clic: abre la vista de revisiones en esa plataforma (cabecera con su nombre), sección "Míos". Suena el `chime` si está activado.
+
+**Control Center → "Integraciones".** Página después de «Atajo» (no se abre desde el notch), con una tabla de ocho filas, una por integración, en el orden Claude, GitHub, GitLab, Gmail, Redmine, Recordatorios, Notas y Sistema. Columnas: nombre con su icono en el color de la integración, «Activa» (interruptor), «Cápsula» (interruptor en las cinco que la admiten, desactivado si la integración está apagada; «Siempre» en Sistema) y «Color» (botón «Cambiar color» con su cuadrícula de 21 muestras). Los cambios se guardan al instante, serializados por integración para que un cambio de color justo después de un interruptor no envíe un bloque obsoleto.
 
 **Control Center → "GitHub y GitLab".** Página después de Gmail con una tarjeta por plataforma: token (`type="password"` con mostrar/ocultar), URL del servidor (GitLab, solo `https`), Comprobar y guardar (muestra la cuenta o el error), Quitar, y los interruptores de avisos y sonido; "Cómo configurarlo" con pasos breves y la ruta de la guía `docs/code-review-setup.md`.
 
