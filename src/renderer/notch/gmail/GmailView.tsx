@@ -65,7 +65,7 @@ export function GmailView() {
   const { color } = useIntegration('gmail')
   const list = useRef<HTMLUListElement>(null)
 
-  // Main polls the list only while the view is open. NotchApp forgets the open message when the
+  // Main keeps the list fresh while the view is open. NotchApp forgets the open message when the
   // mode leaves the view (not here: StrictMode's mount-cleanup-mount would drop an alert's reader).
   useEffect(() => {
     void window.notch.gmail.view({ open: true })

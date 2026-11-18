@@ -232,6 +232,24 @@ pub fn run() {
             if let Some(code_review) = &code_review {
                 app.manage(Arc::clone(code_review));
             }
+            // The main panel's cards show data that is otherwise queried only with its view open.
+            {
+                let gmail = gmail.as_ref().map(Arc::downgrade);
+                let code_review = code_review.as_ref().map(Arc::downgrade);
+                notch.controller.add_mode_listener(move |mode| {
+                    if mode != contract::notch::NotchMode::Expanded {
+                        return;
+                    }
+                    if let Some(gmail) = gmail.as_ref().and_then(std::sync::Weak::upgrade) {
+                        gmail.panel_opened();
+                    }
+                    if let Some(code_review) =
+                        code_review.as_ref().and_then(std::sync::Weak::upgrade)
+                    {
+                        code_review.panel_opened();
+                    }
+                });
+            }
 
             let reminders = install_reminders(
                 app.handle(),

@@ -2946,3 +2946,164 @@ async fn reenabling_with_an_answer_still_pending_queries_again_and_rearms_the_ti
     t.flush(TICK_MS).await;
     assert_eq!(t.api.unread_calls(), 4);
 }
+
+// ---------------------------------------------------------------------------------------------
+// The main panel's cards
+
+#[tokio::test]
+async fn panel_opened_fetches_recent_once_per_minute() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 0);
+
+    t.integration.panel_opened();
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 1);
+    let shown: Vec<String> = t
+        .integration
+        .recent()
+        .await
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    assert_eq!(shown, ["m1", "m2"]);
+
+    t.flush(PANEL_REFRESH_MIN_MS - 1).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 1);
+
+    t.flush(1).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 2);
+}
+
+#[tokio::test]
+async fn panel_opened_skips_when_disabled_or_signed_out() {
+    // Signed out: nothing is asked at all.
+    let signed_out = setup(Setup {
+        token: None,
+        ..Setup::default()
+    });
+    signed_out.ready().await;
+    signed_out.flush(0).await;
+    signed_out.integration.panel_opened();
+    signed_out.flush(0).await;
+    assert_eq!(signed_out.requests(), 0);
+
+    // Turned off: nothing is asked, and the skipped opening does not spend the minute.
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.set_enabled(false);
+    let before = t.requests();
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.requests(), before);
+    t.integration.set_enabled(true);
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 1);
+}
+
+#[tokio::test]
+async fn panel_opened_skips_while_offline() {
+    let t = setup(Setup::default());
+    t.api
+        .unread_ids
+        .lock()
+        .unwrap()
+        .set(Err(api(GmailApiError::Network)));
+    t.ready().await;
+    t.flush(0).await;
+    assert_eq!(t.status(), GmailStatus::Offline);
+    let before = t.requests();
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.requests(), before);
+}
+
+#[tokio::test]
+async fn panel_opened_does_not_leave_the_list_in_the_regular_rhythm() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(TICK_MS * 3).await;
+    assert_eq!(t.api.recent_calls(), 1);
+}
+
+#[tokio::test]
+async fn panel_opened_during_a_run_without_the_list_queries_again_once_it_ends() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let pending = t.api.unread_ids.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 0);
+
+    pending.resolve(Ok(ids(3)));
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 1);
+}
+
+#[tokio::test]
+async fn panel_opened_forgets_the_list_when_turned_off_before_the_run_ends() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let pending = t.api.unread_ids.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+
+    t.integration.panel_opened();
+    t.integration.set_enabled(false);
+    pending.resolve(Ok(ids(3)));
+    t.flush(0).await;
+    t.integration.set_enabled(true);
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.recent_calls(), 0);
+}
+
+#[tokio::test]
+async fn a_view_opened_right_after_the_panel_still_makes_its_own_query() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 1);
+
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 2);
+    t.flush(TICK_MS).await;
+    assert_eq!(t.api.recent_calls(), 3);
+}
+
+#[tokio::test]
+async fn a_new_session_is_not_held_back_by_the_minute_of_the_previous_one() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 1);
+
+    t.integration.sign_out().await;
+    let signing_in = t.sign_in();
+    settle().await;
+    t.finish_sign_in(None);
+    assert_eq!(signing_in.await.unwrap(), GmailSignInResult::Ok);
+    t.flush(0).await;
+
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.api.recent_calls(), 2);
+}

@@ -2295,3 +2295,111 @@ async fn reenabling_a_platform_with_answers_still_pending_queries_again_and_rear
     t.flush(CONTRIBUTIONS_TICK_MS).await;
     assert_eq!(gh.contributions_calls(), 3);
 }
+
+// ---------------------------------------------------------------------------------------------
+// The main panel's cards
+
+#[tokio::test]
+async fn panel_opened_fetches_contributions_for_enabled_platforms() {
+    let t = setup(both());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.set_enabled(GITLAB_P, false);
+    let (gh, gl) = (t.last(GITHUB), t.last(GITLAB_P));
+
+    t.integration.panel_opened();
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 0));
+    assert!(t.events().contains(&changed(GITHUB, false)));
+    assert!(t.summary(GITHUB).await.is_some());
+
+    t.flush(PANEL_REFRESH_MIN_MS - 1).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(gh.contributions_calls(), 1);
+
+    t.flush(1).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (2, 0));
+}
+
+#[tokio::test]
+async fn panel_opened_skips_unconfigured_and_rejected_platforms() {
+    let t = setup(Setup {
+        github: None,
+        gitlab: Some("gl-token"),
+        ..Setup::default()
+    });
+    t.set_prepare(|c, _, _| c.set_fetch(Err(CodeReviewError::Auth)));
+    t.ready().await;
+    t.flush(0).await;
+    assert_eq!(t.status(GITLAB_P), PlatformStatus::AuthError);
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.last(GITLAB_P).contributions_calls(), 0);
+}
+
+#[tokio::test]
+async fn panel_opened_does_not_arm_the_view_timer() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(CONTRIBUTIONS_TICK_MS * 3).await;
+    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
+}
+
+#[tokio::test]
+async fn a_view_opened_right_after_the_panel_still_makes_its_own_query_and_keeps_its_rhythm() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(gh.contributions_calls(), 1);
+
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    assert_eq!(gh.contributions_calls(), 2);
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    assert_eq!(gh.contributions_calls(), 3);
+}
+
+#[tokio::test]
+async fn a_view_opened_during_the_panel_query_shares_it_and_arms_the_timer() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    let answer = gh.contributions_later();
+    t.integration.panel_opened();
+    t.flush(0).await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    assert_eq!(gh.contributions_calls(), 1);
+
+    let _ = answer.send(Ok(summary_for(t.clock.now(), 1)));
+    t.flush(0).await;
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    assert_eq!(gh.contributions_calls(), 2);
+}
+
+#[tokio::test]
+async fn a_new_token_is_not_held_back_by_the_minute_of_the_previous_one() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
+
+    t.integration.set_token(GITHUB, "ghp_new", None).await;
+    t.flush(0).await;
+    t.integration.panel_opened();
+    t.flush(0).await;
+    assert_eq!(t.client_count(), 2);
+    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
+}
