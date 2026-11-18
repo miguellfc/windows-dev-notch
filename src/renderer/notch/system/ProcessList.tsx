@@ -157,6 +157,9 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
 
   return (
     <>
+      {/* Five 24 px rows fill the card's 120 px exactly. Rows are split by an inset shadow, not a
+          border-t: a 1 px border left a 23 px content box under the 24 px ✕/Cancel, which spilled
+          1 px past the last row and made the list scroll. */}
       <ul
         ref={list}
         aria-label={t('system.processes.label')}
@@ -189,7 +192,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
                 data-process-id={id}
                 data-testid="process-confirm"
                 onKeyDown={onKeyDown}
-                className="flex h-6 shrink-0 items-center gap-1.5 border-t border-line bg-veil-tile pl-2 first:border-t-0"
+                className="flex h-6 shrink-0 items-center gap-1.5 bg-veil-tile pl-2 not-first:shadow-[inset_0_1px_0_var(--color-line)]"
               >
                 <span id={questionId} title={question} className="min-w-0 flex-1 truncate text-small text-chalk">
                   {question}
@@ -225,7 +228,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
               data-process-id={id}
               data-testid="process-row"
               data-pid={row.pid}
-              className="group flex h-6 shrink-0 items-center gap-2 border-t border-line pl-2 first:border-t-0 hover:bg-veil-tile"
+              className="group flex h-6 shrink-0 items-center gap-2 pl-2 not-first:shadow-[inset_0_1px_0_var(--color-line)] hover:bg-veil-tile"
             >
               <span title={row.name} className="min-w-0 flex-1 truncate text-small text-chalk">
                 {row.name}
