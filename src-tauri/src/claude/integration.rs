@@ -269,6 +269,15 @@ pub fn install(
         idle_after_ms: None,
     };
     let service = ClaudeService::new(deps);
+    // Disabled in the settings: nothing is held from the very first request (the bridge starts
+    // below; `follow_integrations` follows later changes).
+    service.set_intercept(
+        app.state::<crate::settings::SettingsStore>()
+            .get()
+            .integrations
+            .claude
+            .enabled,
+    );
     if slot.set(Arc::clone(&service)).is_err() {
         log::error!("claude: installed twice");
     }

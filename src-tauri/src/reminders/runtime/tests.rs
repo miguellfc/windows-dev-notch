@@ -536,3 +536,58 @@ fn the_power_listener_starts_a_check() {
     block_on(fx.runtime.check());
     assert_eq!(fx.toast_fired(), [vec![uuid(1)]]);
 }
+
+// Reminders turned off in Integrations (v0.3.0): no toast, no chime, no alert flag.
+
+#[test]
+fn due_reminder_does_not_alert_when_disabled() {
+    let fx = setup(Opts {
+        seed: vec![reminder(1, plus(5 * MIN))],
+        ..Opts::default()
+    });
+    fx.runtime.set_alerts_enabled(false);
+    fx.start();
+    fx.advance(10 * MIN);
+    fx.check();
+    assert!(fx.toast_fired().is_empty());
+    assert!(fx.toast_missed().is_empty());
+    assert!(all(&fx.fired).is_empty());
+    assert!(!all(&fx.set_due).contains(&true));
+    // The reminder itself still came due: it is in the list, awaiting attention.
+    assert_eq!(
+        last(&fx.changed).unwrap().reminders[0].state,
+        ReminderState::Due
+    );
+}
+
+#[test]
+fn missed_reminders_do_not_alert_when_disabled() {
+    let fx = setup(Opts {
+        seed: vec![reminder(1, plus(-60 * MIN))],
+        ..Opts::default()
+    });
+    fx.runtime.set_alerts_enabled(false);
+    fx.start();
+    assert!(fx.toast_missed().is_empty());
+    assert!(all(&fx.fired).is_empty());
+    assert!(!all(&fx.set_due).contains(&true));
+}
+
+#[test]
+fn turning_alerts_off_clears_the_due_flag_and_on_shows_what_came_due_meanwhile() {
+    let fx = setup(Opts {
+        seed: vec![reminder(1, plus(5 * MIN))],
+        ..Opts::default()
+    });
+    fx.start();
+    fx.advance(10 * MIN);
+    fx.check();
+    assert_eq!(last(&fx.set_due), Some(true));
+    fx.runtime.set_alerts_enabled(false);
+    assert_eq!(last(&fx.set_due), Some(false));
+    fx.runtime.set_alerts_enabled(true);
+    assert_eq!(last(&fx.set_due), Some(true));
+    // Re-enabling never replays the toast or the chime.
+    assert_eq!(fx.toast_fired().len(), 1);
+    assert_eq!(all(&fx.fired), [1]);
+}

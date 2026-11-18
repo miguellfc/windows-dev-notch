@@ -3,6 +3,7 @@
 //! `reminders:changed`, timer moved to the new next due reminder). Never logs reminder text.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 use chrono::{Local, TimeZone};
@@ -76,6 +77,9 @@ pub struct RemindersRuntime<Z: TimeZone = Local> {
     emit_fired: Box<dyn Fn(u64) + Send + Sync>,
     toast: Arc<dyn ToastSink>,
     record_usage: Option<UsageRecorder>,
+    /// False while the reminders integration is turned off in the settings: reminders still
+    /// come due, but nothing alerts (no toast, no chime, no alert flag).
+    alerts: AtomicBool,
 }
 
 fn notice_of(outcome: LoadOutcome) -> Option<StoreNotice> {
@@ -154,6 +158,7 @@ where
                 emit_fired: options.emit_fired,
                 toast: options.toast,
                 record_usage,
+                alerts: AtomicBool::new(true),
             }
         })
     }
@@ -168,6 +173,20 @@ where
         }
     }
 
+    fn alerts_enabled(&self) -> bool {
+        self.alerts.load(Ordering::SeqCst)
+    }
+
+    /// Turns the alerts on or off (the reminders integration in the settings; on by default).
+    /// Off: due reminders raise no toast, chime or alert flag, and the flag is cleared now. On:
+    /// the flag comes back for whatever came due meanwhile (they show as due or missed), with no
+    /// toast or chime replayed.
+    pub fn set_alerts_enabled(&self, on: bool) {
+        if self.alerts.swap(on, Ordering::SeqCst) != on {
+            self.publish_due();
+        }
+    }
+
     fn fired(&self, count: usize) {
         log::info!("Reminders fired: count {count}");
         (self.emit_fired)(count as u64);
@@ -177,16 +196,31 @@ where
         self.record(UsageEvent::RemindersFired {
             count: batch.len() as f64,
         });
-        self.toast.fired(batch);
-        self.fired(batch.len());
+        if self.alerts_enabled() {
+            self.toast.fired(batch);
+            self.fired(batch.len());
+        }
     }
 
     fn on_missed(&self, count: usize) {
         self.record(UsageEvent::RemindersMissed {
             count: count as f64,
         });
-        self.toast.missed(count);
-        self.fired(count);
+        if self.alerts_enabled() {
+            self.toast.missed(count);
+            self.fired(count);
+        }
+    }
+
+    /// The notch's alert flag: on while something needs attention and the alerts are on.
+    fn due_flag(&self) -> bool {
+        self.alerts_enabled() && self.service.attention_count() > 0
+    }
+
+    fn publish_due(&self) {
+        if catch_unwind(AssertUnwindSafe(|| (self.set_due)(self.due_flag()))).is_err() {
+            log::error!("Publishing the reminders alert flag failed");
+        }
     }
 
     /// `{ reminders, notice }`: the `reminders:list` answer and `reminders:changed` payload.
@@ -200,7 +234,7 @@ where
     /// After every change: alert flag, renderers, and the timer (creating or snoozing moves it).
     fn publish(&self) {
         let published = catch_unwind(AssertUnwindSafe(|| {
-            (self.set_due)(self.service.attention_count() > 0);
+            (self.set_due)(self.due_flag());
             (self.emit_changed)(&self.snapshot());
             self.scheduler.reschedule();
         }));

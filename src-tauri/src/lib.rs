@@ -261,6 +261,8 @@ pub fn run() {
                     gmail: gmail.as_ref().map(Arc::downgrade),
                     code_review: code_review.as_ref().map(Arc::downgrade),
                     redmine: redmine.as_ref().map(|(redmine, _)| Arc::downgrade(redmine)),
+                    claude: claude.as_ref().map(Arc::downgrade),
+                    reminders: Arc::downgrade(&reminders),
                 },
             );
 
@@ -571,6 +573,8 @@ struct IntegrationSwitches {
     gmail: Option<std::sync::Weak<GmailIntegration>>,
     code_review: Option<std::sync::Weak<CodeReviewIntegration>>,
     redmine: Option<std::sync::Weak<RedmineIntegration>>,
+    claude: Option<std::sync::Weak<claude::integration::ClaudeIntegration>>,
+    reminders: std::sync::Weak<Reminders>,
 }
 
 impl IntegrationSwitches {
@@ -600,7 +604,19 @@ impl IntegrationSwitches {
                 redmine.set_enabled(next.redmine.enabled);
             }
         }
-        // Claude and the reminders (Task 6) are added here, alongside.
+        // Claude off: the hooks stay installed, but nothing is held for the notch (everything
+        // held is released at once, so Claude asks in its own window).
+        if changed(|i| i.claude.enabled) {
+            if let Some(claude) = self.claude.as_ref().and_then(std::sync::Weak::upgrade) {
+                claude.service().set_intercept(next.claude.enabled);
+            }
+        }
+        // Reminders off: they still come due, but raise no toast, chime or alert flag.
+        if changed(|i| i.reminders.enabled) {
+            if let Some(reminders) = self.reminders.upgrade() {
+                reminders.set_alerts_enabled(next.reminders.enabled);
+            }
+        }
     }
 }
 
@@ -714,6 +730,9 @@ fn install_reminders(
         },
         chrono::Local,
     );
+    // Disabled in the settings: no alert from the very first check (the load starts below;
+    // `follow_integrations` follows later changes).
+    runtime.set_alerts_enabled(settings().integrations.reminders.enabled);
     if slot
         .set(Arc::clone(&runtime) as Arc<dyn reminders::ipc::RemindersApi>)
         .is_err()
