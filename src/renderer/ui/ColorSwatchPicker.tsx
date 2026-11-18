@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import {
   INTEGRATION_COLOR_HEX,
   integrationColorIds,
@@ -13,15 +14,19 @@ interface ColorSwatchPickerProps {
   onChange: (color: IntegrationColor) => void
   /** Accessible name of the radio group. */
   label: string
+  /** The integration's icon, shown left of the button in a 28 px square tinted with the colour. */
+  icon?: LucideIcon
 }
 
 /**
- * «Cambiar color» button that opens a 3 x 7 grid of the palette. A radio group: one Tab stop
- * (the current colour), arrows move and select (up/down jump a row), Esc closes and returns
- * focus to the button.
+ * The integration's icon in its colour and a «Cambiar color» button that opens a 3 x 7 grid of the
+ * palette below. A radio group: one Tab stop (the current colour), arrows move and select (up/down
+ * jump a row), Esc (in the grid or on the button) closes and returns focus to the button; focus
+ * leaving the picker closes it too.
  */
-export function ColorSwatchPicker({ value, onChange, label }: ColorSwatchPickerProps) {
+export function ColorSwatchPicker({ value, onChange, label, icon: Icon }: ColorSwatchPickerProps) {
   const t = useT()
+  const gridId = useId()
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement | null>(null)
   const swatches = useRef<(HTMLButtonElement | null)[]>([])
@@ -36,6 +41,19 @@ export function ColorSwatchPicker({ value, onChange, label }: ColorSwatchPickerP
   const close = () => {
     setOpen(false)
     trigger.current?.focus()
+  }
+
+  // Tabbing or clicking out of the picker closes it, without pulling focus back.
+  const onBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget
+    if (!(next instanceof Node && event.currentTarget.contains(next))) setOpen(false)
+  }
+
+  const onTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'Escape' || !open) return
+    event.preventDefault()
+    event.stopPropagation()
+    close()
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -55,18 +73,35 @@ export function ColorSwatchPicker({ value, onChange, label }: ColorSwatchPickerP
   }
 
   return (
-    <div className="flex flex-col items-start gap-2">
-      <button
-        ref={trigger}
-        type="button"
-        className="btn"
-        aria-expanded={open}
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        {t('cc.integrations.changeColor')}
-      </button>
+    <div className="flex flex-col items-start gap-2" onBlur={onBlur}>
+      <span className="flex items-center gap-2">
+        {Icon && (
+          <span
+            aria-hidden="true"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-tile"
+            style={{
+              backgroundColor: `color-mix(in srgb, ${INTEGRATION_COLOR_HEX[value]} 14%, transparent)`,
+              color: INTEGRATION_COLOR_HEX[value],
+            }}
+          >
+            <Icon size={16} strokeWidth={1.8} />
+          </span>
+        )}
+        <button
+          ref={trigger}
+          type="button"
+          className="btn"
+          aria-expanded={open}
+          aria-controls={open ? gridId : undefined}
+          onClick={() => (open ? close() : setOpen(true))}
+          onKeyDown={onTriggerKeyDown}
+        >
+          {t('cc.integrations.changeColor')}
+        </button>
+      </span>
       {open && (
         <div
+          id={gridId}
           role="radiogroup"
           aria-label={label}
           onKeyDown={onKeyDown}

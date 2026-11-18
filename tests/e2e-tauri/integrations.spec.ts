@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { $, $$, browser, expect } from '@wdio/globals'
+import { Key } from 'webdriverio'
 import {
   DEFAULT_ALERTS,
   dataDir,
@@ -113,6 +114,24 @@ describe('Integrations (Tauri)', () => {
     await browser.keys(['Escape'])
     await expect($('[role="radiogroup"]')).not.toExist()
     await expect(trigger()).toBeFocused()
+    // The button names the grid it opens.
+    await browser.keys(['Enter'])
+    await $('[role="radiogroup"]').waitForDisplayed()
+    const grid = await $('[role="radiogroup"]').getAttribute('id')
+    expect(grid).toBeTruthy()
+    await expect(trigger()).toHaveAttribute('aria-controls', grid!)
+    // Back on the button with the grid open, Esc closes it there too.
+    await browser.action('key').down(Key.Shift).down(Key.Tab).up(Key.Tab).up(Key.Shift).perform()
+    await expect(trigger()).toBeFocused()
+    await expect($('[role="radiogroup"]')).toBeDisplayed()
+    await browser.keys(['Escape'])
+    await expect($('[role="radiogroup"]')).not.toExist()
+    await expect(trigger()).toBeFocused()
+    // Focus leaving the picker closes the grid.
+    await browser.keys(['Enter'])
+    await $('[role="radiogroup"]').waitForDisplayed()
+    await browser.keys(['Tab'])
+    await expect($('[role="radiogroup"]')).not.toExist()
   })
 
   it('disabling an integration with its view open returns home', async () => {

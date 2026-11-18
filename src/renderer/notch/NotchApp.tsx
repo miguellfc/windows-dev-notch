@@ -230,7 +230,8 @@ function useCapsuleBlocks(): CapsuleBlocks {
   const unread = useGmail((state) => state.mail.unread)
   const latched = useCodeReview((state) => state.blocks)
   const hours = useRedmine((state) => state.block.hours)
-  const shows = (key: 'gmail' | 'github' | 'gitlab' | 'redmine') => integrations === null || capsuleShows(key, integrations)
+  // Nothing shows until the settings load: a block of an integration that is off never flashes.
+  const shows = (key: 'gmail' | 'github' | 'gitlab' | 'redmine') => integrations !== null && capsuleShows(key, integrations)
   const github = shows('github')
   const gitlab = shows('gitlab')
   // Memoized: useCompactContent compares the blocks by identity.
@@ -424,7 +425,7 @@ function CapsuleContent({
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
   const { view, unread, reviews, hours } = useCompactContent(compactWidth)
   const hasReviews = reviewBlockCount(reviews) > 0
-  const claudeDots = useSettings((state) => (state.settings ? capsuleShows('claude', state.settings.integrations) : true))
+  const claudeDots = useSettings((state) => (state.settings ? capsuleShows('claude', state.settings.integrations) : false))
 
   if (mode === 'mini') return null
   if (mode === 'alert') return <Alert />

@@ -86,6 +86,7 @@ export function IntegrationsPage({ settings }: { settings: Settings }) {
                   </td>
                   <td className="px-4 py-3">
                     <ColorSwatchPicker
+                      icon={Icon}
                       value={integration.color}
                       label={`${name}: ${t('cc.integrations.color')}`}
                       onChange={(color) => void updateIntegration(key, { color })}
