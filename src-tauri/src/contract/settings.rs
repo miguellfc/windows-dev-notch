@@ -8,7 +8,7 @@ use super::{present, Validate};
 use crate::settings::validate::{validate_patch, validate_settings};
 
 /// Current settings file version (`SETTINGS_VERSION`).
-pub const SETTINGS_VERSION: u32 = 7;
+pub const SETTINGS_VERSION: u32 = 8;
 
 /// `SNOOZE_MINUTES_OPTIONS`.
 pub const SNOOZE_MINUTES_OPTIONS: [u32; 4] = [5, 10, 15, 30];
@@ -124,6 +124,58 @@ pub struct RedmineSettings {
     pub end_of_day: RedmineEndOfDaySettings,
 }
 
+/// `integrationColorIds` (`src/shared/integrations/colors.ts`): the 21 palette ids, in display
+/// order.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum IntegrationColor {
+    Pistachio,
+    Lime,
+    Green,
+    Emerald,
+    Teal,
+    Cyan,
+    Sky,
+    Blue,
+    Cobalt,
+    Indigo,
+    Violet,
+    Lavender,
+    Plum,
+    Fuchsia,
+    Pink,
+    Salmon,
+    Peach,
+    Orange,
+    Amber,
+    Clay,
+    Sand,
+}
+
+/// `integrationSettingsSchema`: on/off, whether it shows in the capsule, and its palette color.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct IntegrationSettings {
+    pub enabled: bool,
+    pub capsule: bool,
+    pub color: IntegrationColor,
+}
+
+/// `integrationsSettingsSchema` (v8): the eight integrations, in `integrationKeys` order. Only
+/// claude, github, gitlab, gmail and redmine may have `capsule: true` (checked in `validate`).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct IntegrationsSettings {
+    pub claude: IntegrationSettings,
+    pub github: IntegrationSettings,
+    pub gitlab: IntegrationSettings,
+    pub gmail: IntegrationSettings,
+    pub redmine: IntegrationSettings,
+    pub reminders: IntegrationSettings,
+    pub notes: IntegrationSettings,
+    pub system: IntegrationSettings,
+}
+
 /// `settingsSchema`.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -137,6 +189,7 @@ pub struct Settings {
     pub gmail: GmailSettings,
     pub code_review: CodeReviewSettings,
     pub redmine: RedmineSettings,
+    pub integrations: IntegrationsSettings,
 }
 
 impl Validate for Settings {
@@ -211,6 +264,85 @@ pub struct RedmineSettingsPatch {
     pub end_of_day: Option<RedmineEndOfDayPatch>,
 }
 
+/// `integrationSettingsSchema.partial()`.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct IntegrationSettingsPatch {
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub enabled: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub capsule: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub color: Option<IntegrationColor>,
+}
+
+/// The `integrations` patch: per integration and per field, so recoloring one never touches the
+/// others. `capsule` is only checked on the merged settings.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct IntegrationsPatch {
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub claude: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub github: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub gitlab: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub gmail: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub redmine: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub reminders: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub notes: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub system: Option<IntegrationSettingsPatch>,
+}
+
 /// `settingsPatchSchema`: any non-empty subset of the user fields, never `version`.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -263,6 +395,12 @@ pub struct SettingsPatch {
         skip_serializing_if = "Option::is_none"
     )]
     pub redmine: Option<RedmineSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub integrations: Option<IntegrationsPatch>,
 }
 
 impl Validate for SettingsPatch {

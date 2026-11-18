@@ -190,7 +190,7 @@ mod tests {
         );
         assert_eq!(code(&call("app:open-control-center", None)), "UNAVAILABLE");
         assert_eq!(
-            code(&call("settings:update", Some(json!({ "version": 7 })))),
+            code(&call("settings:update", Some(json!({ "version": 8 })))),
             "INVALID_INPUT"
         );
         assert_eq!(code(&call("settings:update", None)), "INVALID_INPUT");

@@ -11,6 +11,25 @@ pub fn language_from_locale(locale: &str) -> Language {
     }
 }
 
+/// `cloneDefaultIntegrations`: all on, capsule only where it exists, the default palette colors.
+pub fn default_integrations() -> IntegrationsSettings {
+    let entry = |capsule: bool, color: IntegrationColor| IntegrationSettings {
+        enabled: true,
+        capsule,
+        color,
+    };
+    IntegrationsSettings {
+        claude: entry(true, IntegrationColor::Clay),
+        github: entry(true, IntegrationColor::Green),
+        gitlab: entry(true, IntegrationColor::Orange),
+        gmail: entry(true, IntegrationColor::Salmon),
+        redmine: entry(true, IntegrationColor::Pink),
+        reminders: entry(false, IntegrationColor::Blue),
+        notes: entry(false, IntegrationColor::Violet),
+        system: entry(false, IntegrationColor::Teal),
+    }
+}
+
 /// `createDefaultSettings`.
 pub fn default_settings(locale: &str) -> Settings {
     let alert = CodeReviewAlertSettings {
@@ -70,5 +89,6 @@ pub fn default_settings(locale: &str) -> Settings {
                 sound: true,
             },
         },
+        integrations: default_integrations(),
     }
 }

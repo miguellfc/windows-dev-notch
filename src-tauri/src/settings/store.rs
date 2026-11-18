@@ -9,10 +9,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-use crate::contract::settings::{Settings, SettingsPatch, SETTINGS_VERSION};
+use crate::contract::settings::{
+    IntegrationSettings, IntegrationSettingsPatch, Settings, SettingsPatch, SETTINGS_VERSION,
+};
 use crate::ipc::{ExposedError, IpcErrorCode};
 use crate::services::fs_atomic::write_atomic;
 use crate::services::quarantine_path;
+use crate::settings::defaults::default_integrations;
 use crate::settings::validate::validate_settings;
 
 type Listener = Arc<dyn Fn(&Settings) + Send + Sync>;
@@ -89,24 +92,27 @@ impl SettingsStore {
         let Ok(raw) = serde_json::from_slice::<Value>(&bytes) else {
             return self.recover("Settings file is not valid JSON").await;
         };
-        // No migrations in this port: an older (or missing) version is not usable.
-        match raw.get("version").and_then(Value::as_u64) {
-            Some(version) if version > u64::from(SETTINGS_VERSION) => {
-                log::warn!(
-                    "Settings file comes from a newer version ({version}); using defaults in read-only mode"
-                );
-                return Ok(self.use_settings(self.defaults.clone(), true));
-            }
-            Some(version) if version == u64::from(SETTINGS_VERSION) => {}
-            _ => return self.recover("Settings file has no usable version").await,
+        let version = raw.get("version").and_then(Value::as_u64);
+        if let Some(version) = version.filter(|v| *v > u64::from(SETTINGS_VERSION)) {
+            log::warn!(
+                "Settings file comes from a newer version ({version}); using defaults in read-only mode"
+            );
+            return Ok(self.use_settings(self.defaults.clone(), true));
         }
-        match crate::contract::parse::<Settings>(raw) {
-            Ok(settings) => Ok(self.use_settings(settings, false)),
-            Err(_) => {
-                self.recover("Settings file does not match the schema")
-                    .await
-            }
+        // Only v7 migrates; an older (or missing) version is not usable.
+        let Some(migrated) = migrate(raw) else {
+            return self.recover("Settings file has no usable version").await;
+        };
+        let Ok(settings) = crate::contract::parse::<Settings>(migrated) else {
+            return self
+                .recover("Settings file does not match the schema")
+                .await;
+        };
+        if version != Some(u64::from(SETTINGS_VERSION)) {
+            write_atomic(&self.path, &serialize(&settings)).await?;
+            log::info!("Migrated the settings file to version {SETTINGS_VERSION}");
         }
+        Ok(self.use_settings(settings, false))
     }
 
     pub fn get(&self) -> Settings {
@@ -114,7 +120,9 @@ impl SettingsStore {
     }
 
     /// Merges `patch` into the current settings (`codeReview` and `redmine` one level deep,
-    /// `redmine.endOfDay` one more), validates the result, writes it and notifies listeners.
+    /// `redmine.endOfDay` one more, `integrations` per key and per field), validates the whole
+    /// result (a patch can only break the capsule rule once merged), writes it and notifies
+    /// listeners.
     pub async fn update(&self, patch: SettingsPatch) -> Result<Settings, ExposedError> {
         let _turn = self.queue.lock().await;
         let (mut next, read_only) = {
@@ -173,6 +181,39 @@ impl SettingsStore {
     }
 }
 
+/// Brings a settings file up to [`SETTINGS_VERSION`]: v7 gets the default `integrations`; the
+/// current version passes through untouched. Anything older (or without a version) is `None`,
+/// which sends the file to quarantine. The result still has to pass the schema.
+pub fn migrate(mut raw: Value) -> Option<Value> {
+    match raw.get("version").and_then(Value::as_u64)? {
+        version if version == u64::from(SETTINGS_VERSION) => Some(raw),
+        7 => {
+            let integrations = serde_json::to_value(default_integrations()).ok()?;
+            let object = raw.as_object_mut()?;
+            object.insert("integrations".into(), integrations);
+            object.insert("version".into(), SETTINGS_VERSION.into());
+            Some(raw)
+        }
+        _ => None,
+    }
+}
+
+fn apply_integration_patch(
+    target: &mut IntegrationSettings,
+    patch: Option<IntegrationSettingsPatch>,
+) {
+    let Some(patch) = patch else { return };
+    if let Some(enabled) = patch.enabled {
+        target.enabled = enabled;
+    }
+    if let Some(capsule) = patch.capsule {
+        target.capsule = capsule;
+    }
+    if let Some(color) = patch.color {
+        target.color = color;
+    }
+}
+
 fn apply_patch(settings: &mut Settings, patch: SettingsPatch) {
     if let Some(value) = patch.language {
         settings.language = value;
@@ -220,6 +261,17 @@ fn apply_patch(settings: &mut Settings, patch: SettingsPatch) {
             }
         }
     }
+    if let Some(integrations) = patch.integrations {
+        let target = &mut settings.integrations;
+        apply_integration_patch(&mut target.claude, integrations.claude);
+        apply_integration_patch(&mut target.github, integrations.github);
+        apply_integration_patch(&mut target.gitlab, integrations.gitlab);
+        apply_integration_patch(&mut target.gmail, integrations.gmail);
+        apply_integration_patch(&mut target.redmine, integrations.redmine);
+        apply_integration_patch(&mut target.reminders, integrations.reminders);
+        apply_integration_patch(&mut target.notes, integrations.notes);
+        apply_integration_patch(&mut target.system, integrations.system);
+    }
 }
 
 #[cfg(test)]
@@ -228,6 +280,7 @@ mod tests {
     use crate::contract::settings::*;
     use crate::ipc::IpcErrorCode;
     use crate::settings::default_settings;
+    use crate::settings::defaults::default_integrations;
     use chrono::{TimeZone, Utc};
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -340,7 +393,58 @@ mod tests {
     }
 
     #[test]
-    fn older_version_is_quarantined() {
+    fn v7_file_migrates_to_v8_keeping_other_fields() {
+        let dir = TempDir::new();
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["version"] = 7.into();
+        value["language"] = "en".into();
+        value["shortcut"] = "Control+Alt+K".into();
+        value.as_object_mut().unwrap().remove("integrations");
+        write(&dir.file(), &value.to_string());
+        let loaded = block_on(store(&dir.file()).load());
+        let mut expected = defaults();
+        expected.language = Language::En;
+        expected.shortcut = "Control+Alt+K".into();
+        assert_eq!(loaded.version, 8);
+        assert_eq!(loaded.integrations, default_integrations());
+        assert_eq!(loaded, expected);
+        assert_eq!(saved(&dir.file()), expected);
+        assert_eq!(dir.names(), vec!["settings.json"]);
+    }
+
+    #[test]
+    fn v7_file_that_does_not_match_the_schema_is_quarantined() {
+        let dir = TempDir::new();
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["version"] = 7.into();
+        value["language"] = "klingon".into();
+        value.as_object_mut().unwrap().remove("integrations");
+        write(&dir.file(), &value.to_string());
+        assert_eq!(block_on(store(&dir.file()).load()), defaults());
+        assert!(dir
+            .names()
+            .iter()
+            .any(|n| n.starts_with("settings.corrupt-")));
+    }
+
+    #[test]
+    fn migrate_handles_only_v7_and_the_current_version() {
+        let current = serde_json::to_value(defaults()).unwrap();
+        assert_eq!(migrate(current.clone()), Some(current.clone()));
+        let mut v7 = current.clone();
+        v7["version"] = 7.into();
+        v7.as_object_mut().unwrap().remove("integrations");
+        assert_eq!(migrate(v7), Some(current.clone()));
+        for version in [6, 3, 0] {
+            let mut old = current.clone();
+            old["version"] = version.into();
+            assert_eq!(migrate(old), None, "version {version}");
+        }
+        assert_eq!(migrate(serde_json::json!({ "language": "es" })), None);
+    }
+
+    #[test]
+    fn older_than_v7_is_still_quarantined() {
         let dir = TempDir::new();
         let mut value = serde_json::to_value(defaults()).unwrap();
         value["version"] = 6.into();
@@ -498,6 +602,62 @@ mod tests {
         };
         assert_eq!(s.get().redmine, expected);
         assert_eq!(saved(&dir.file()).redmine, expected);
+    }
+
+    #[test]
+    fn patch_merges_one_integration_field() {
+        let dir = TempDir::new();
+        let s = store(&dir.file());
+        block_on(s.load());
+        block_on(s.update(SettingsPatch {
+            integrations: Some(IntegrationsPatch {
+                gmail: Some(IntegrationSettingsPatch {
+                    enabled: Some(false),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
+        .unwrap();
+        let next = block_on(s.update(SettingsPatch {
+            integrations: Some(IntegrationsPatch {
+                gmail: Some(IntegrationSettingsPatch {
+                    color: Some(IntegrationColor::Blue),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
+        .unwrap();
+        let mut expected = default_integrations();
+        expected.gmail = IntegrationSettings {
+            enabled: false,
+            capsule: true,
+            color: IntegrationColor::Blue,
+        };
+        assert_eq!(next.integrations, expected);
+        assert_eq!(next.integrations.github, default_integrations().github);
+        assert_eq!(saved(&dir.file()).integrations, expected);
+    }
+
+    #[test]
+    fn patch_turning_on_capsule_for_notes_is_rejected_after_the_merge() {
+        let dir = TempDir::new();
+        let s = store(&dir.file());
+        block_on(s.load());
+        let before = std::fs::read_to_string(dir.file()).unwrap();
+        let patch: SettingsPatch = serde_json::from_value(
+            serde_json::json!({ "integrations": { "notes": { "capsule": true } } }),
+        )
+        .unwrap();
+        // The patch shape is fine (as in zod); only the merged settings are invalid.
+        assert!(crate::settings::validate::validate_patch(&patch).is_ok());
+        let err = block_on(s.update(patch)).unwrap_err();
+        assert_eq!(err.code(), IpcErrorCode::InvalidInput);
+        assert_eq!(s.get(), defaults());
+        assert_eq!(std::fs::read_to_string(dir.file()).unwrap(), before);
     }
 
     #[test]
