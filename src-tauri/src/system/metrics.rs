@@ -7,10 +7,12 @@ use std::sync::Arc;
 use super::alerts::DiskFree;
 use super::{SystemApi, SystemTimes};
 use crate::contract::system::{
-    BatterySample, DiskSample, FullSample, LightSample, NetworkSample, RamSample, SystemAlerts,
+    BatterySample, DiskSample, FullSample, LightSample, NetworkSample, RamSample, StorageSample,
+    SystemAlerts,
 };
 
-/// A light sample without its `alerts` (what the sampler measures).
+/// A light sample without its `alerts` and `storage` (what the sampler measures; the monitor
+/// adds both).
 #[derive(Clone, Debug, PartialEq)]
 pub struct MetricsLight {
     pub cpu_percent: Option<f64>,
@@ -19,17 +21,18 @@ pub struct MetricsLight {
 }
 
 impl MetricsLight {
-    pub fn with_alerts(self, alerts: SystemAlerts) -> LightSample {
+    pub fn with_alerts(self, alerts: SystemAlerts, storage: Option<StorageSample>) -> LightSample {
         LightSample {
             cpu_percent: self.cpu_percent,
             ram: self.ram,
             battery: self.battery,
             alerts,
+            storage,
         }
     }
 }
 
-/// A full sample without its `alerts`.
+/// A full sample without its `alerts` and `storage`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MetricsFull {
     pub cpu_percent: Option<f64>,
@@ -49,12 +52,13 @@ impl MetricsFull {
         }
     }
 
-    pub fn with_alerts(self, alerts: SystemAlerts) -> FullSample {
+    pub fn with_alerts(self, alerts: SystemAlerts, storage: Option<StorageSample>) -> FullSample {
         FullSample {
             cpu_percent: self.cpu_percent,
             ram: self.ram,
             battery: self.battery,
             alerts,
+            storage,
             disks: self.disks,
             network: self.network,
         }

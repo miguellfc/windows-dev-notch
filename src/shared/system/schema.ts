@@ -28,6 +28,8 @@ export const lightSampleSchema = z.strictObject({
     })
     .nullable(),
   alerts: systemAlertsSchema,
+  /** The fixed drive with the least free space (the one the disk alert watches), as % used; null without a reading. */
+  storage: z.strictObject({ letter: z.string().regex(/^[A-Z]$/), usedPercent: percentSchema }).nullable(),
 })
 export type LightSample = z.infer<typeof lightSampleSchema>
 

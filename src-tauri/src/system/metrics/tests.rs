@@ -66,7 +66,7 @@ fn free(letter: &str, free_percent: f64) -> DiskFree {
 /// `lightSampleSchema` / `fullSampleSchema` with `NO_ALERTS`, through the event contract.
 fn light_parses(sample: MetricsLight) -> bool {
     let value = serde_json::to_value(SystemMetrics::Light(
-        sample.with_alerts(SystemAlerts::default()),
+        sample.with_alerts(SystemAlerts::default(), None),
     ))
     .unwrap();
     check("system:metrics", Direction::Event, Some(&value)) == Some(Ok(()))
@@ -74,7 +74,7 @@ fn light_parses(sample: MetricsLight) -> bool {
 
 fn full_parses(sample: MetricsFull) -> bool {
     let value = serde_json::to_value(SystemMetrics::Full(
-        sample.with_alerts(SystemAlerts::default()),
+        sample.with_alerts(SystemAlerts::default(), None),
     ))
     .unwrap();
     check("system:metrics", Direction::Event, Some(&value)) == Some(Ok(()))
@@ -494,7 +494,7 @@ fn keys(value: &Value) -> Vec<String> {
         .as_object()
         .unwrap()
         .keys()
-        .filter(|key| *key != "alerts" && *key != "kind")
+        .filter(|key| !["alerts", "storage", "kind"].contains(&key.as_str()))
         .cloned()
         .collect();
     keys.sort();
@@ -504,8 +504,10 @@ fn keys(value: &Value) -> Vec<String> {
 #[test]
 fn light_has_no_disks_or_network_and_full_extends_it() {
     let (_api, mut sampler) = fake();
-    let light = serde_json::to_value(sampler.light().with_alerts(SystemAlerts::default())).unwrap();
-    let full = serde_json::to_value(sampler.full().with_alerts(SystemAlerts::default())).unwrap();
+    let light =
+        serde_json::to_value(sampler.light().with_alerts(SystemAlerts::default(), None)).unwrap();
+    let full =
+        serde_json::to_value(sampler.full().with_alerts(SystemAlerts::default(), None)).unwrap();
     assert_eq!(keys(&light), ["battery", "cpuPercent", "ram"]);
     assert_eq!(
         keys(&full),

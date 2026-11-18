@@ -50,7 +50,8 @@ fn finite(value: Option<f64>) -> Option<f64> {
     value.filter(|value| value.is_finite())
 }
 
-fn worst_disk(disks: &[DiskFree]) -> Option<&DiskFree> {
+/// The fixed drive with the least free space (the disk alert's and the capsule's drive).
+pub(crate) fn worst_disk(disks: &[DiskFree]) -> Option<&DiskFree> {
     let mut worst: Option<&DiskFree> = None;
     for disk in disks {
         if worst.is_none_or(|worst| disk.free_percent < worst.free_percent) {

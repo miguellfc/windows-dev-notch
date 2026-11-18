@@ -13,6 +13,7 @@ const light = (
   ram: { usedBytes: 8 * GB, totalBytes: 16 * GB },
   battery: battery && { ...battery, secondsLeft: null },
   alerts,
+  storage: null,
 })
 const QUIET = { cpu: false, ram: false, battery: false }
 const ON_BATTERY = { percent: 12, charging: false, pluggedIn: false }
@@ -41,6 +42,7 @@ describe('nextCapsule', () => {
       disks: [],
       network: null,
       alerts: NO_ALERTS,
+      storage: null,
     }
     expect(feed([full]).view).toEqual({ cpuPercent: 30, ramPercent: 50, battery: null, alerts: QUIET, disk: null })
   })
@@ -79,7 +81,7 @@ describe('nextCapsule', () => {
   })
 
   it('treats an empty RAM total as unknown', () => {
-    const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null, alerts: NO_ALERTS }
+    const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null, alerts: NO_ALERTS, storage: null }
     expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null, alerts: QUIET, disk: null })
   })
 

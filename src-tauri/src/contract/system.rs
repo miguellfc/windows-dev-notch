@@ -99,6 +99,22 @@ pub struct BatterySample {
     pub seconds_left: Option<u64>,
 }
 
+/// `lightSampleSchema.storage`: the fixed drive with the least free space (the one the disk alert
+/// watches) and its used percent.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct StorageSample {
+    pub letter: String,
+    pub used_percent: f64,
+}
+
+fn optional_storage(storage: Option<&StorageSample>) -> Result<(), String> {
+    storage.map_or(Ok(()), |storage| {
+        drive_letter(&storage.letter)?;
+        percent("usedPercent", storage.used_percent)
+    })
+}
+
 /// `lightSampleSchema`.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -110,6 +126,8 @@ pub struct LightSample {
     #[serde(deserialize_with = "nullable")]
     pub battery: Option<BatterySample>,
     pub alerts: SystemAlerts,
+    #[serde(deserialize_with = "nullable")]
+    pub storage: Option<StorageSample>,
 }
 
 impl Validate for LightSample {
@@ -128,6 +146,7 @@ impl Validate for LightSample {
                 return Err("secondsLeft must be a safe integer".into());
             }
         }
+        optional_storage(self.storage.as_ref())?;
         self.alerts.validate()
     }
 }
@@ -161,6 +180,8 @@ pub struct FullSample {
     #[serde(deserialize_with = "nullable")]
     pub battery: Option<BatterySample>,
     pub alerts: SystemAlerts,
+    #[serde(deserialize_with = "nullable")]
+    pub storage: Option<StorageSample>,
     pub disks: Vec<DiskSample>,
     #[serde(deserialize_with = "nullable")]
     pub network: Option<NetworkSample>,
@@ -174,6 +195,7 @@ impl FullSample {
             ram: self.ram,
             battery: self.battery,
             alerts: self.alerts.clone(),
+            storage: self.storage.clone(),
         }
     }
 }
@@ -317,6 +339,10 @@ mod tests {
             ram: None,
             battery: None,
             alerts: SystemAlerts::default(),
+            storage: Some(StorageSample {
+                letter: "C".into(),
+                used_percent: 62.0,
+            }),
         };
         let full = FullSample {
             cpu_percent: None,
@@ -326,6 +352,7 @@ mod tests {
             }),
             battery: None,
             alerts: SystemAlerts::default(),
+            storage: None,
             disks: Vec::new(),
             network: None,
         };

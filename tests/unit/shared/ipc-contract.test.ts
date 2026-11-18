@@ -318,7 +318,7 @@ describe('usage contract', () => {
 })
 
 describe('system monitor contract', () => {
-  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS }
+  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS, storage: { letter: 'C', usedPercent: 62 } }
   const row = { pid: 42, name: 'node.exe', cpuPercent: 1.5, privateBytes: 1024, startTime: '2026-11-10T09:00:00.000Z', killable: true }
 
   it('exposes the system channels and events', () => {

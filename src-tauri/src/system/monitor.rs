@@ -19,14 +19,14 @@ use std::collections::VecDeque;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 
-use super::alerts::{AlertInput, Alerts, BatteryInput, DiskFree};
+use super::alerts::{worst_disk, AlertInput, Alerts, BatteryInput, DiskFree};
 use super::metrics::{Metrics, MetricsFull, MetricsLight};
 use super::processes::{MonotonicClock, Processes};
 use crate::contract::notch::NotchMode;
 use crate::contract::settings::SystemAlertSettings;
 use crate::contract::system::{
-    KillInput, KillResult, ProcessOrder, ProcessRow, SystemAlerts, SystemMetrics, Unavailable,
-    PROCESS_LIMIT,
+    KillInput, KillResult, ProcessOrder, ProcessRow, StorageSample, SystemAlerts, SystemMetrics,
+    Unavailable, PROCESS_LIMIT,
 };
 use crate::services::timers::{Interval, TimerId, Timers};
 
@@ -121,6 +121,9 @@ struct State {
 struct Work {
     samplers: Option<Samplers>,
     alerts: Box<dyn Alerts>,
+    /// The worst drive of the last disk reading, sent with every sample until the next one (the
+    /// light rhythm reads disks every [`DISK_CHECK_MS`]); a failed read keeps it.
+    storage: Option<StorageSample>,
 }
 
 enum Emission {
@@ -178,6 +181,14 @@ fn guarded(what: &str, run: impl FnOnce()) {
     if catch_unwind(AssertUnwindSafe(run)).is_err() {
         log::error!("System sample failed: {what} (panic)");
     }
+}
+
+/// The capsule's storage figure: the drive with the least free space, as % used.
+fn storage_of(disks: &[DiskFree]) -> Option<StorageSample> {
+    worst_disk(disks).map(|disk| StorageSample {
+        letter: disk.letter.clone(),
+        used_percent: (100.0 - disk.free_percent).clamp(0.0, 100.0),
+    })
 }
 
 /// Free space from a full sample, so the full rhythm needs no extra disk read.
@@ -488,7 +499,11 @@ impl Inner {
             }
             (state.rhythm, state.order, now)
         };
-        let Work { samplers, alerts } = work;
+        let Work {
+            samplers,
+            alerts,
+            storage,
+        } = work;
         let Some(samplers) = samplers.as_mut() else {
             return Vec::new();
         };
@@ -497,10 +512,11 @@ impl Inner {
             Rhythm::Full => {
                 guarded("full", || {
                     let sample = samplers.metrics.full();
-                    let disks = Some(free_from_full(&sample));
-                    let alerts = self.evaluate(alerts.as_mut(), &sample.light(), disks, now);
+                    let free = free_from_full(&sample);
+                    *storage = storage_of(&free);
+                    let alerts = self.evaluate(alerts.as_mut(), &sample.light(), Some(free), now);
                     out.push(Emission::Metrics(SystemMetrics::Full(
-                        sample.with_alerts(alerts),
+                        sample.with_alerts(alerts, storage.clone()),
                     )));
                 });
                 guarded("processes", || {
@@ -513,9 +529,12 @@ impl Inner {
                 guarded("light", || {
                     let sample = samplers.metrics.light();
                     let disks = self.light_disks(samplers.metrics.as_mut(), now);
+                    if let Some(disks) = &disks {
+                        *storage = storage_of(disks);
+                    }
                     let alerts = self.evaluate(alerts.as_mut(), &sample, disks, now);
                     out.push(Emission::Metrics(SystemMetrics::Light(
-                        sample.with_alerts(alerts),
+                        sample.with_alerts(alerts, storage.clone()),
                     )));
                 });
             }
@@ -568,6 +587,7 @@ impl SystemMonitor {
             work: Mutex::new(Work {
                 samplers: options.samplers,
                 alerts: options.alerts,
+                storage: None,
             }),
             queue: Mutex::new(Queue::default()),
             timers: options.timers,
