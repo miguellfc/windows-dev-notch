@@ -1036,7 +1036,8 @@ impl GmailIntegration {
 
     /// The main panel opened: with a live session (`ok`), one query that brings the recent list
     /// even with the view closed, at most every [`PANEL_REFRESH_MIN_MS`]. It runs after a query in
-    /// flight, which may not carry the list. The view's own queries do not count here.
+    /// flight, which may not carry the list, unless that query left the session anything but `ok`:
+    /// its backoff stands. The view's own queries do not count here.
     pub fn panel_opened(&self) {
         let at = self.deps.clock.now();
         let mut inner = self.lock();
@@ -1053,7 +1054,22 @@ impl GmailIntegration {
         }
         inner.last_panel_refresh = Some(at);
         inner.recent_wanted = true;
-        self.poll_after_in_flight(&mut inner);
+        let Some(done) = inner.in_flight.as_ref().map(|run| run.done.clone()) else {
+            self.poll(&mut inner);
+            return;
+        };
+        let Some(this) = self.me.upgrade() else {
+            return;
+        };
+        (self.deps.spawn)(Box::pin(async move {
+            finished(Some(done)).await;
+            let mut inner = this.lock();
+            if inner.status == GmailStatus::Ok {
+                this.poll(&mut inner);
+            } else {
+                inner.recent_wanted = false;
+            }
+        }));
     }
 
     /// Queries now, at most every 5 s.

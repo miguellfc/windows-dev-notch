@@ -3055,6 +3055,30 @@ async fn panel_opened_during_a_run_without_the_list_queries_again_once_it_ends()
 }
 
 #[tokio::test]
+async fn panel_opened_during_a_run_that_fails_keeps_the_backoff() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    let pending = t.api.unread_ids.lock().unwrap().once_later();
+    t.flush(TICK_MS).await;
+    let asked = t.api.unread_calls();
+
+    t.integration.panel_opened();
+    pending.resolve(Err(api(GmailApiError::Network)));
+    t.flush(0).await;
+    assert_eq!(t.status(), GmailStatus::Offline);
+    assert_eq!(t.api.unread_calls(), asked);
+    assert_eq!(t.api.recent_calls(), 0);
+
+    // The retry comes when the backoff says, and the panel's list was forgotten with the opening.
+    t.flush(BACKOFF_MS[0] - 1).await;
+    assert_eq!(t.api.unread_calls(), asked);
+    t.flush(1).await;
+    assert_eq!(t.api.unread_calls(), asked + 1);
+    assert_eq!(t.api.recent_calls(), 0);
+}
+
+#[tokio::test]
 async fn panel_opened_forgets_the_list_when_turned_off_before_the_run_ends() {
     let t = setup(Setup::default());
     t.ready().await;
