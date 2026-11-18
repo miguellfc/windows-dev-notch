@@ -8,14 +8,16 @@ const NO_DRIVE = '—'
 function Gauge({ name, percent, alert, label }: { name: string; percent: number | null; alert: boolean; label: string }) {
   const language = useLanguage()
   return (
-    <li role="img" aria-label={label} className="flex w-12 min-w-0 flex-col items-center gap-1">
-      <Ring percent={percent} alert={alert} size={40} />
-      <span aria-hidden="true" className={`tabular whitespace-nowrap text-small font-medium ${alert ? 'text-fail' : 'text-chalk'}`}>
-        {formatPercent(percent, language)}
-      </span>
-      <span aria-hidden="true" className="max-w-full truncate text-label text-graphite">
-        {name}
-      </span>
+    <li className="w-12 min-w-0">
+      <div role="img" aria-label={label} className="flex flex-col items-center gap-1">
+        <Ring percent={percent} alert={alert} size={40} />
+        <span aria-hidden="true" className={`tabular whitespace-nowrap text-small font-medium ${alert ? 'text-fail' : 'text-chalk'}`}>
+          {formatPercent(percent, language)}
+        </span>
+        <span aria-hidden="true" className="max-w-full truncate text-label text-graphite">
+          {name}
+        </span>
+      </div>
     </li>
   )
 }

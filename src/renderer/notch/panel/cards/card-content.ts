@@ -68,7 +68,7 @@ export function gmailUnreadFigure(state: GmailState | null): number | null {
   return state.unread !== null && state.unread > 0 ? state.unread : null
 }
 
-export type GmailCardBody ='loading' | 'list' | 'empty' | 'offline' | 'unconfigured' | 'signed-out' | 'signing-in' | 'expired'
+export type GmailCardBody = 'loading' | 'list' | 'empty' | 'offline' | 'unconfigured' | 'signed-out' | 'signing-in' | 'expired'
 
 /**
  * What the Gmail card shows. An empty list only means an empty mailbox when the count agrees: the
