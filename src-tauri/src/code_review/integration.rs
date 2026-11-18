@@ -221,7 +221,7 @@ impl Inner {
     /// `canPoll`.
     fn can_poll(&self, platform: Platform) -> bool {
         let rt = &self.runtimes[index(platform)];
-        !self.disposed && self.started && rt.client.is_some() && usable(rt.status.0)
+        !self.disposed && !rt.paused && self.started && rt.client.is_some() && usable(rt.status.0)
     }
 
     /// `isStale`: another generation, disposed, or the token was rejected meanwhile (only a new
@@ -229,6 +229,11 @@ impl Inner {
     fn is_stale(&self, platform: Platform, started_in: u64) -> bool {
         let rt = &self.runtimes[index(platform)];
         started_in != rt.generation || self.disposed || rt.status.0 == PlatformStatus::AuthError
+    }
+
+    /// A query's answer is dropped: stale, or the platform was turned off meanwhile.
+    fn poll_dropped(&self, platform: Platform, started_in: u64) -> bool {
+        self.is_stale(platform, started_in) || self.runtimes[index(platform)].paused
     }
 }
 
@@ -267,6 +272,9 @@ struct Runtime {
     contributions_error: bool,
     contributions_timer: Option<(TimerId, u64)>,
     contributions_in_flight: Option<InFlight>,
+    /// Turned off in the settings (`integrations.github|gitlab.enabled`): no review or
+    /// contributions query, no state from one, no alert. Unlike `disposed`, it can be undone.
+    paused: bool,
 }
 
 /// `PlatformStatus` with a default (`unconfigured`).
@@ -487,6 +495,10 @@ impl CodeReviewIntegration {
                     }
                 }
                 Effect::Alert(alert) => {
+                    // Turned off between the answer and here: no alert.
+                    if self.lock().rt(alert.platform).paused {
+                        continue;
+                    }
                     // The setting is read when the alert is due; `sound` is the renderer's.
                     let alerts = self.deps.settings.get().alerts;
                     let enabled = match alert.platform {
@@ -676,7 +688,7 @@ impl CodeReviewIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(platform, started_in) {
+            if inner.poll_dropped(platform, started_in) {
                 return;
             }
             match result {
@@ -776,7 +788,7 @@ impl CodeReviewIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(platform, started_in) {
+            if inner.poll_dropped(platform, started_in) {
                 return;
             }
             match result {
@@ -849,6 +861,31 @@ impl CodeReviewIntegration {
         for platform in PLATFORMS {
             self.poll(&mut inner, platform);
             self.poll_contributions(&mut inner, platform);
+        }
+    }
+
+    /// A platform turned off or on in the settings (`integrations.github|gitlab.enabled`);
+    /// the wiring applies the saved value before `start()`, then every change.
+    ///
+    /// Off: that platform's review and contributions rhythms stop and an answer still in flight
+    /// is dropped (no state, no alert); its token and last state stay. On: queries at once
+    /// (contributions too while the view is open), then the usual rhythm. The first-review
+    /// baseline starts again, so reviews that came while off are not announced. The other
+    /// platform is untouched. Not [`Self::dispose`], which is final.
+    pub fn set_enabled(&self, platform: Platform, enabled: bool) {
+        let mut inner = self.lock();
+        if inner.disposed || inner.rt(platform).paused != enabled {
+            return;
+        }
+        inner.rt(platform).paused = !enabled;
+        log::info!(target: LOG_TARGET, "Code review platform enabled platform={} enabled={enabled}", platform.as_str());
+        if enabled {
+            self.poll(&mut inner, platform);
+            self.poll_contributions(&mut inner, platform);
+        } else {
+            self.clear_timer(&mut inner, platform, Rhythm::Poll);
+            self.clear_timer(&mut inner, platform, Rhythm::Contributions);
+            inner.rt(platform).detector.reset();
         }
     }
 
@@ -1313,6 +1350,11 @@ pub fn install(
             }
         });
     }
+    // A platform disabled in the settings never queries, not even at start; `lib.rs` follows
+    // later changes.
+    let integrations = app.state::<SettingsStore>().get().integrations;
+    integration.set_enabled(Platform::Github, integrations.github.enabled);
+    integration.set_enabled(Platform::Gitlab, integrations.gitlab.enabled);
     if slot
         .set(Arc::clone(&integration) as Arc<dyn CodeReviewApi>)
         .is_err()

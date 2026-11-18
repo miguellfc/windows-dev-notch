@@ -30,7 +30,8 @@ use apps::{AppsHandles, AppsSlot};
 use claude::ipc::ClaudeSlot;
 use code_review::integration::CodeReviewIntegration;
 use code_review::ipc::CodeReviewSlot;
-use contract::settings::Settings;
+use contract::code_review::Platform;
+use contract::settings::{IntegrationsSettings, Settings};
 use control_center::ControlCenterState;
 use gmail::integration::GmailIntegration;
 use gmail::ipc::GmailSlot;
@@ -251,6 +252,17 @@ pub fn run() {
             // stored key loads in the background (the channels wait for it); the rhythm runs on
             // the notch's timers and the shared wall clock (both follow the E2E test clock).
             let redmine = install_redmine(app.handle(), &redmine_slot, &notch, &data_dir, &power);
+
+            // Integrations turned off or on in the settings (v0.3.0): each install above applied
+            // the saved value before its first query; from here on this follows every change.
+            follow_integrations(
+                app.handle(),
+                IntegrationSwitches {
+                    gmail: gmail.as_ref().map(Arc::downgrade),
+                    code_review: code_review.as_ref().map(Arc::downgrade),
+                    redmine: redmine.as_ref().map(|(redmine, _)| Arc::downgrade(redmine)),
+                },
+            );
 
             install_apps(app.handle(), &apps_slot, &notch);
             {
@@ -492,6 +504,15 @@ fn install_redmine(
         power,
     );
     app.manage(Arc::clone(&end_of_day));
+    // Disabled in the settings: not a single query, not even at start (`follow_integrations`
+    // follows later changes; the end of day reads the flag on every check).
+    redmine.set_enabled(
+        app.state::<settings::SettingsStore>()
+            .get()
+            .integrations
+            .redmine
+            .enabled,
+    );
     redmine.start();
     end_of_day.start();
     Some((redmine, end_of_day))
@@ -531,8 +552,79 @@ fn install_gmail(
     if slot.set(handles).is_err() {
         log::error!(target: gmail::integration::LOG_TARGET, "Gmail installed twice");
     }
+    // Disabled in the settings: not a single query, not even at start (`follow_integrations`
+    // follows later changes).
+    gmail.set_enabled(
+        app.state::<settings::SettingsStore>()
+            .get()
+            .integrations
+            .gmail
+            .enabled,
+    );
     gmail.start();
     Some(gmail)
+}
+
+/// The integrations that pause while disabled in the settings, held weakly (the quit's cleanup
+/// owns them). `None`: not installed (no HTTP client).
+struct IntegrationSwitches {
+    gmail: Option<std::sync::Weak<GmailIntegration>>,
+    code_review: Option<std::sync::Weak<CodeReviewIntegration>>,
+    redmine: Option<std::sync::Weak<RedmineIntegration>>,
+}
+
+impl IntegrationSwitches {
+    /// Pauses or resumes what changed from `prev` to `next` (everything when `prev` is `None`).
+    /// `set_enabled` is idempotent, so applying a value twice is harmless.
+    fn apply(&self, prev: Option<&IntegrationsSettings>, next: &IntegrationsSettings) {
+        let changed = |enabled: fn(&IntegrationsSettings) -> bool| {
+            prev.is_none_or(|prev| enabled(prev) != enabled(next))
+        };
+        if changed(|i| i.gmail.enabled) {
+            if let Some(gmail) = self.gmail.as_ref().and_then(std::sync::Weak::upgrade) {
+                gmail.set_enabled(next.gmail.enabled);
+            }
+        }
+        if let Some(code_review) = self.code_review.as_ref().and_then(std::sync::Weak::upgrade) {
+            if changed(|i| i.github.enabled) {
+                code_review.set_enabled(Platform::Github, next.github.enabled);
+            }
+            if changed(|i| i.gitlab.enabled) {
+                code_review.set_enabled(Platform::Gitlab, next.gitlab.enabled);
+            }
+        }
+        // The Redmine end of day reads `integrations.redmine.enabled` on every check (it
+        // listens to the settings itself).
+        if changed(|i| i.redmine.enabled) {
+            if let Some(redmine) = self.redmine.as_ref().and_then(std::sync::Weak::upgrade) {
+                redmine.set_enabled(next.redmine.enabled);
+            }
+        }
+        // Claude and the reminders (Task 6) are added here, alongside.
+    }
+}
+
+/// Subscribes `switches` to the settings store, diffing each change against the last value
+/// seen. The current value is applied once more right after subscribing, under the same lock,
+/// so a change saved between the installs' own reads and this subscription is not lost.
+fn follow_integrations(app: &AppHandle, switches: IntegrationSwitches) {
+    use std::sync::{Mutex, PoisonError};
+
+    let store = app.state::<settings::SettingsStore>();
+    let switches = Arc::new(switches);
+    let last: Arc<Mutex<Option<IntegrationsSettings>>> = Arc::new(Mutex::new(None));
+    {
+        let (switches, last) = (Arc::clone(&switches), Arc::clone(&last));
+        store.on_change(move |next| {
+            let mut last = last.lock().unwrap_or_else(PoisonError::into_inner);
+            switches.apply(last.as_ref(), &next.integrations);
+            *last = Some(next.integrations);
+        });
+    }
+    let mut last = last.lock().unwrap_or_else(PoisonError::into_inner);
+    let current = store.get().integrations;
+    switches.apply(None, &current);
+    *last = Some(current);
 }
 
 /// The reminders (`reminders.json`) on the shared wall clock and timers (both follow the E2E

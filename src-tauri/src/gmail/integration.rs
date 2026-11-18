@@ -268,6 +268,9 @@ struct Inner {
     pending_save: Option<watch::Receiver<bool>>,
     status_before_sign_in: Option<GmailStatus>,
     disposed: bool,
+    /// Turned off in the settings (`integrations.gmail.enabled`): no query, no state from a
+    /// query, no alert. Unlike `disposed`, it can be undone.
+    paused: bool,
     logged_status: Option<GmailStatus>,
     next_id: u64,
     next_seq: u64,
@@ -309,6 +312,7 @@ impl Inner {
             pending_save: None,
             status_before_sign_in: None,
             disposed: false,
+            paused: false,
             logged_status: None,
             next_id: 0,
             next_seq: 0,
@@ -326,12 +330,22 @@ impl Inner {
 
     /// `canPoll`.
     fn can_poll(&self) -> bool {
-        !self.disposed && self.started && self.refresh_token.is_some() && usable(self.status)
+        !self.disposed
+            && !self.paused
+            && self.started
+            && self.refresh_token.is_some()
+            && usable(self.status)
     }
 
     /// `isStale`: another generation, disposed, or a sign-in under way.
     fn is_stale(&self, started_in: u64) -> bool {
         started_in != self.generation || self.disposed || self.status == GmailStatus::SigningIn
+    }
+
+    /// A query's answer (or its alert) is dropped: stale, or the integration was turned off
+    /// meanwhile. User actions use [`Self::is_stale`] only: their answer is still owed.
+    fn poll_dropped(&self, started_in: u64) -> bool {
+        self.is_stale(started_in) || self.paused
     }
 
     /// `forgetOpen`.
@@ -537,7 +551,7 @@ impl GmailIntegration {
                 if inner.disposed {
                     return;
                 }
-                matches!(effect, Effect::NewMail(started_in, _) if inner.is_stale(started_in))
+                matches!(effect, Effect::NewMail(started_in, _) if inner.poll_dropped(started_in))
             };
             if stale {
                 continue;
@@ -850,7 +864,7 @@ impl GmailIntegration {
         let mut effects = Effects::new();
         let fresh = {
             let mut inner = self.lock();
-            if inner.is_stale(started_in) {
+            if inner.poll_dropped(started_in) {
                 return;
             }
             match result {
@@ -900,7 +914,7 @@ impl GmailIntegration {
         let Some(id) = fresh.first().cloned() else {
             return;
         };
-        if !alerts.enabled || self.deps.on_new_mail.is_none() {
+        if !alerts.enabled || self.deps.on_new_mail.is_none() || self.lock().paused {
             return;
         }
         let mut mail = GmailNewMail {
@@ -912,7 +926,7 @@ impl GmailIntegration {
         if !alerts.hide_content {
             let summary = client.summary(&id).await;
             let inner = self.lock();
-            if inner.is_stale(started_in) {
+            if inner.poll_dropped(started_in) {
                 return;
             }
             match summary {
@@ -931,7 +945,7 @@ impl GmailIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(started_in) {
+            if inner.poll_dropped(started_in) {
                 return;
             }
             inner.alert_id = Some(id);
@@ -965,6 +979,28 @@ impl GmailIntegration {
         }
         inner.started = true;
         self.poll(&mut inner);
+    }
+
+    /// The integration turned off or on in the settings (`integrations.gmail.enabled`); main
+    /// calls it before `start()` with the saved value, then on every change.
+    ///
+    /// Off: the rhythm stops and an answer still in flight is dropped (no state, no alert);
+    /// the session, token and last state stay. On: queries at once, then the usual rhythm. The
+    /// new-mail baseline starts again, so mail that arrived while off is not announced. Not
+    /// [`Self::dispose`], which is final.
+    pub fn set_enabled(&self, enabled: bool) {
+        let mut inner = self.lock();
+        if inner.disposed || inner.paused != enabled {
+            return;
+        }
+        inner.paused = !enabled;
+        log::info!(target: LOG_TARGET, "Gmail integration enabled={enabled}");
+        if enabled {
+            self.poll(&mut inner);
+        } else {
+            self.clear_timer(&mut inner);
+            inner.detector.reset();
+        }
     }
 
     /// The Gmail view opened or closed: opening (with status `ok`) queries the count and the

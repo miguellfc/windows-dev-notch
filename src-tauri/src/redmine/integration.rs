@@ -179,6 +179,9 @@ struct Inner {
     server_url: String,
     started: bool,
     disposed: bool,
+    /// Turned off in the settings (`integrations.redmine.enabled`): no issues or summary query,
+    /// no state from one. Unlike `disposed`, it can be undone.
+    paused: bool,
     /// `None`: never (`-Infinity`).
     last_manual_refresh: Option<DateTime<Utc>>,
     view_open: bool,
@@ -221,6 +224,7 @@ impl Inner {
             server_url,
             started: false,
             disposed: false,
+            paused: false,
             last_manual_refresh: None,
             view_open: false,
             client: None,
@@ -255,13 +259,23 @@ impl Inner {
 
     /// `canPoll`.
     fn can_poll(&self) -> bool {
-        !self.disposed && self.started && self.client.is_some() && usable(self.status)
+        !self.disposed
+            && !self.paused
+            && self.started
+            && self.client.is_some()
+            && usable(self.status)
     }
 
     /// `isStale`: another generation, disposed, or the key was rejected meanwhile (only a new
     /// key revives it).
     fn is_stale(&self, started_in: u64) -> bool {
         started_in != self.generation || self.disposed || self.status == RedmineStatus::AuthError
+    }
+
+    /// A query's answer is dropped: stale, or the integration was turned off meanwhile. Reads
+    /// and writes use [`Self::is_stale`] only: their answer is still owed.
+    fn poll_dropped(&self, started_in: u64) -> bool {
+        self.is_stale(started_in) || self.paused
     }
 
     /// `sessionClient`: the client of a usable session.
@@ -655,7 +669,7 @@ where
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(started_in) {
+            if inner.poll_dropped(started_in) {
                 return;
             }
             match result {
@@ -716,7 +730,7 @@ where
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(started_in) {
+            if inner.poll_dropped(started_in) {
                 return;
             }
             match result {
@@ -1102,6 +1116,28 @@ where
         inner.started = true;
         self.poll(&mut inner);
         self.poll_summary(&mut inner);
+    }
+
+    /// The integration turned off or on in the settings (`integrations.redmine.enabled`); main
+    /// calls it before `start()` with the saved value, then on every change.
+    ///
+    /// Off: the issues and summary rhythms stop and an answer still in flight is dropped (no
+    /// state); the key and last state stay. On: queries at once (the summary too while the view
+    /// is open), then the usual rhythm. Not [`Self::dispose`], which is final.
+    pub fn set_enabled(&self, enabled: bool) {
+        let mut inner = self.lock();
+        if inner.disposed || inner.paused != enabled {
+            return;
+        }
+        inner.paused = !enabled;
+        log::info!(target: LOG_TARGET, "Redmine integration enabled={enabled}");
+        if enabled {
+            self.poll(&mut inner);
+            self.poll_summary(&mut inner);
+        } else {
+            self.clear_timer(&mut inner, Rhythm::Poll);
+            self.clear_timer(&mut inner, Rhythm::Summary);
+        }
     }
 
     /// Stops both timers; later results and publishes are dropped (in-flight work is not

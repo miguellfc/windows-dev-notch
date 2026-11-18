@@ -59,6 +59,8 @@ type Listener = Arc<dyn Fn(&RedmineSettings) + Send + Sync>;
 /// `settings.get` / `settings.onChange` over a value the test swaps with [`H::change`].
 struct FakeSettings {
     current: Mutex<RedmineSettings>,
+    /// `integrations.redmine.enabled`.
+    redmine_enabled: AtomicBool,
     listeners: Mutex<Vec<Listener>>,
 }
 
@@ -70,6 +72,13 @@ impl FakeSettings {
             listener(&next);
         }
     }
+
+    /// Turns the Redmine integration on or off, then notifies like the store.
+    fn set_redmine_enabled(&self, enabled: bool) {
+        self.redmine_enabled.store(enabled, Ordering::SeqCst);
+        let current = self.current.lock().unwrap().clone();
+        self.change(current);
+    }
 }
 
 impl EndOfDaySettings for FakeSettings {
@@ -79,6 +88,10 @@ impl EndOfDaySettings for FakeSettings {
 
     fn on_change(&self, listener: SettingsListener) {
         self.listeners.lock().unwrap().push(Arc::from(listener));
+    }
+
+    fn integration_enabled(&self) -> bool {
+        self.redmine_enabled.load(Ordering::SeqCst)
     }
 }
 
@@ -137,6 +150,7 @@ fn build(start: DateTime<Utc>, initial: RedmineSettings, tz: Tz) -> H {
     let active = Arc::new(Mutex::new(HashSet::new()));
     let settings = Arc::new(FakeSettings {
         current: Mutex::new(initial),
+        redmine_enabled: AtomicBool::new(true),
         listeners: Mutex::new(Vec::new()),
     });
     let hours = Arc::new(Mutex::new(Some(5.5)));
@@ -638,4 +652,48 @@ fn start_twice_or_after_dispose_arms_nothing_more() {
     idle.scheduler.check();
     assert_eq!(idle.offered(), []);
     assert_eq!(idle.timer_count(), 0);
+}
+
+// ---------------------------------------------------------------------------------------------
+// v0.3.0: the Redmine integration disabled in the settings (`integrations.redmine.enabled`)
+
+#[test]
+fn end_of_day_skipped_when_redmine_disabled() {
+    let h = setup(at(16, 9, 0, 0));
+    h.settings.set_redmine_enabled(false);
+    h.advance_to(at(16, 18, 30, 0));
+    h.scheduler.check();
+    assert_eq!(h.offered(), []);
+    assert_eq!(h.alerts(), []);
+    h.scheduler.dispose();
+}
+
+#[test]
+fn end_of_day_disabled_at_start_never_offers() {
+    let h = build(at(16, 9, 0, 0), default_settings(), Madrid);
+    h.settings.redmine_enabled.store(false, Ordering::SeqCst);
+    h.scheduler.start();
+    h.advance_to(at(17, 19, 0, 0));
+    assert_eq!(h.offered(), []);
+    h.scheduler.dispose();
+}
+
+#[test]
+fn end_of_day_comes_back_when_redmine_is_enabled_again_but_not_for_a_time_already_past() {
+    let h = setup(at(16, 9, 0, 0));
+    h.settings.set_redmine_enabled(false);
+    h.advance_to(at(16, 17, 0, 0));
+    h.settings.set_redmine_enabled(true);
+    h.advance_to(at(16, 18, 0, 0));
+    assert_eq!(h.alerts(), [alert(5.5, 8.0)]);
+
+    // Off over the next day's time, back on after it (within the grace): not that day.
+    h.settings.set_redmine_enabled(false);
+    h.advance_to(at(17, 18, 10, 0));
+    h.settings.set_redmine_enabled(true);
+    h.advance_to(at(17, 18, 40, 0));
+    assert_eq!(h.alerts().len(), 1);
+    h.advance_to(at(18, 18, 0, 0));
+    assert_eq!(h.alerts().len(), 2);
+    h.scheduler.dispose();
 }
