@@ -6,7 +6,8 @@ const css = readFileSync('src/renderer/styles/global.css', 'utf8')
 type Rgba = { r: number; g: number; b: number; a: number }
 
 function token(name: string): string {
-  const match = new RegExp(`--color-${name}:\s*([^;]+);`).exec(css)
+  // String.raw: in a plain template literal `\s` is just "s", and the regex would not skip spaces.
+  const match = new RegExp(String.raw`--color-${name}:\s*([^;]+);`).exec(css)
   if (!match) throw new Error(`token --color-${name} not found`)
   return (match[1] ?? '').trim()
 }
@@ -85,6 +86,19 @@ describe('design tokens (fusión 0.3.0)', () => {
     near(compose(color('veil-tile'), void_), '#1a1a1d')
     near(compose(color('veil-hover'), void_), '#1f1f23')
     expect(luminance(compose(color('veil-tile'), card))).toBeGreaterThan(luminance(card))
+  })
+
+  it('Grafito cumple 4,5:1 en una fila en hover dentro de una tarjeta, y el rojo sobre tarjeta', () => {
+    const card = compose(color('veil'), color('obsidian-dense'))
+    expect(contrast(color('graphite'), compose(color('veil-tile'), card))).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(color('fail'), card)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('el nivel 0 de contribuciones es Grafito al 14 %', () => {
+    const graphite = color('graphite')
+    const level0 = color('contrib-0')
+    expect({ r: level0.r, g: level0.g, b: level0.b }).toEqual({ r: graphite.r, g: graphite.g, b: graphite.b })
+    expect(level0.a).toBe(0.14)
   })
 
   it('ya no existen los tokens ice ni abyss', () => {

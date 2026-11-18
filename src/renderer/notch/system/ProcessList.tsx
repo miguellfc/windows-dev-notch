@@ -225,7 +225,7 @@ export function ProcessList({ order, onFocusLost }: { order: ProcessOrder; onFoc
               data-process-id={id}
               data-testid="process-row"
               data-pid={row.pid}
-              className="row-hover group flex h-6 shrink-0 items-center gap-2 border-t border-line pl-2 first:border-t-0"
+              className="group flex h-6 shrink-0 items-center gap-2 border-t border-line pl-2 first:border-t-0 hover:bg-veil-tile"
             >
               <span title={row.name} className="min-w-0 flex-1 truncate text-small text-chalk">
                 {row.name}

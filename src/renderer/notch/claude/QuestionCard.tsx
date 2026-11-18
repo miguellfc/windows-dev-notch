@@ -185,14 +185,19 @@ function QuestionForm({ question, busy, failed, onSend, onAnswerInClaude }: Ques
           {t('claude.question.error')}
         </p>
       )}
-      <div className="mt-3 flex shrink-0 items-center gap-2">
-        <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5 text-label text-graphite">
+      {/* The key hint gets its own line: beside the buttons it squeezed "Responder en Claude" into a wrap. */}
+      <p className="mt-3 flex shrink-0 items-center gap-1.5 text-label text-graphite">
+        {/* Ctrl+Enter is announced through the send button's aria-keyshortcuts; Esc has no button. */}
+        <span aria-hidden="true" className="flex items-center gap-1.5">
           <Kbd accelerator="Ctrl+Enter" size="sm" />
           {t('hint.send')}
           <span>·</span>
-          <Kbd accelerator="Esc" size="sm" />
-          {t('hint.close')}
         </span>
+        <span className="sr-only">Esc </span>
+        <Kbd accelerator="Esc" size="sm" />
+        {t('hint.close')}
+      </p>
+      <div className="mt-2 flex shrink-0 items-center gap-2">
         <button
           type="button"
           data-testid="claude-question-reply"
@@ -337,7 +342,7 @@ function QuestionBlock({ question, draft, first, disabled, onChange }: QuestionB
   )
 }
 
-/** The radio dot or check box in front of an option: Azul Hielo when picked (selection). */
+/** The radio dot or check box in front of an option: Tiza when picked (selection). */
 function Indicator({ multi, checked }: { multi: boolean; checked: boolean }) {
   const shape = multi ? 'rounded-key' : 'rounded-full'
   return (

@@ -66,9 +66,9 @@ Sombras: la Levitación se mantiene. Las tarjetas no llevan sombra y la profundi
 
 | Color | Valor | Significa | Ejemplos |
 |---|---|---|---|
-| Blanco (Tiza) | `#F2F2F4` | Estás aquí / acción principal | «Guardar», «Imputar», «Enviar», «Permitir»; opción elegida; página activa; interruptor encendido |
+| Blanco (Tiza) | `#F2F2F4` | Estás aquí / acción principal | «Guardar», «Imputar», «Enviar», «Permitir»; opción elegida; página activa; interruptor encendido; sesión trabajando (punto). Verde para trabajando y terminada haría indistinguibles los dos estados donde el punto solo lleva color. |
 | Coral | `#FF8A7A` | Te necesita | Permiso y pregunta de Claude, sesión esperando, recordatorio vencido, «Cambios pedidos». Sustituye al Ámbar Espera. |
-| Verde | `#4ADE80` | Hecho / OK (estado) | Sesión trabajando o terminada, «Checks ✓», confirmación de guardado cuando la vista no tiene integración con color |
+| Verde | `#4ADE80` | Hecho / OK (estado) | Sesión terminada, «Checks ✓», confirmación de guardado cuando la vista no tiene integración con color |
 | Rojo | `#F87171` | Fallo / aviso del sistema | Métrica en umbral, error, «Borrar» de la confirmación, campo inválido |
 | Color de la integración | elegido | Pertenece a esta integración | Ver la sección siguiente |
 
