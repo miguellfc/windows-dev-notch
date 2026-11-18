@@ -520,7 +520,7 @@ function Panel({ time, date }: { time: string; date: string }) {
   const { failed, reportFailure } = useOpenFailure()
   return (
     // Heights are exact (EXPANDED_SIZE, 1 px capsule border): 14 + 28 + 10 + 196 + 8 + 4 + 8 + 20 + 10 = 298.
-    <motion.div initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-2.5 pt-3.5">
+    <motion.div data-notch-panel initial="hidden" animate="shown" variants={PANEL_STAGGER} className="flex h-full flex-col px-3 pb-2.5 pt-3.5">
       <motion.header variants={PANEL_ITEM} className="flex h-7 shrink-0 items-center justify-between">
         <span className="flex items-center gap-2.5">
           <span className="digits text-digits-md">{time}</span>

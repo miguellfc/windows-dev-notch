@@ -1,5 +1,5 @@
 import { Activity, AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent, type RefObject } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { IntegrationKey } from '../../../shared/integrations/colors'
 import { ClaudeMark, GithubMark, GitlabMark, GmailMark, RedmineMark } from '../../shared/brand-icons'
@@ -9,7 +9,7 @@ import { remindersBadgeLabel } from '../../shared/reminders/format'
 import { useSettings } from '../../shared/settings-store'
 import { useLanguage, useT } from '../../shared/use-t'
 import { visibleCards } from '../integration-visibility'
-import { activePage, cardPages, nextCardIndex, scrollForCard, snapLeft, wheelScroll } from './card-row'
+import { activePage, cardPages, landsOnTabStop, nextCardIndex, resolveTabStop, scrollForCard, snapLeft, wheelScroll, type TabStop } from './card-row'
 import { CardTabStop, PanelCard } from './PanelCard'
 
 const ICONS: Readonly<Record<IntegrationKey, LucideIcon>> = {
@@ -54,6 +54,40 @@ export function openCard(key: IntegrationKey): void {
 
 function scrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+}
+
+/** Moves the focus to a card and scrolls the row only as far as showing it whole takes. */
+function focusCard(row: HTMLElement, index: number): void {
+  row.querySelector<HTMLElement>(`[data-card-index="${index}"] [data-card-main]`)?.focus({ preventScroll: true })
+  row.scrollTo({ left: scrollForCard(index, row.scrollLeft), behavior: scrollBehavior() })
+}
+
+/** Whether no control holds the focus. */
+function focusIsFree(row: HTMLElement): boolean {
+  const active = document.activeElement
+  return active === null || active === document.body || active === row.closest('[data-notch-panel]')
+}
+
+/**
+ * The panel opens with nothing focused (the Tab order starts at the header), so the first arrow key
+ * lands on the row's Tab stop and the next ones move along it. Any focused control keeps its keys.
+ */
+function useArrowsReachRow(scroller: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const row = scroller.current
+      // A copy of the panel on its way out is inert: the keys belong to what replaced it.
+      if (!row || row.closest('[inert]')) return
+      const modified = event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+      if (!landsOnTabStop(event.key, modified, focusIsFree(row))) return
+      const item = row.querySelector<HTMLElement>('[data-card-main][tabindex="0"]')?.closest<HTMLElement>('[data-card-index]')
+      if (!item) return
+      event.preventDefault()
+      focusCard(row, Number(item.dataset.cardIndex))
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [scroller])
 }
 
 /**
@@ -116,32 +150,50 @@ export function CardRow() {
   const remindersDue = useAttentionCount()
   const scroller = useRef<HTMLUListElement>(null)
   const [scrolledPage, setScrolledPage] = useState(0)
-  const [focused, setFocused] = useState(0)
+  const [storedStop, setStop] = useState<TabStop<IntegrationKey>>({ key: null, index: 0 })
+  // Whether the focus is on the row; React reports no blur for a card that unmounts with it.
+  const holdsFocus = useRef(false)
   useWheelScroll(scroller)
+  useArrowsReachRow(scroller)
 
   const keys = integrations ? visibleCards(integrations) : []
   const count = keys.length
   const pages = cardPages(count)
   const overflows = count > 3
-  // Turning an integration off can leave either of them past the end.
+  // Turning an integration off can leave the page past the end.
   const page = Math.min(scrolledPage, pages - 1)
-  const tabStop = Math.min(focused, Math.max(count - 1, 0))
+  const stop = resolveTabStop(keys, storedStop)
+  if (stop !== storedStop) setStop(stop)
 
-  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+  // The focused card went away (its integration was turned off): the focus goes to the nearest one.
+  useEffect(() => {
+    const row = scroller.current
+    if (!row || !holdsFocus.current || !focusIsFree(row)) return
+    if (stop.key === null) holdsFocus.current = false
+    else focusCard(row, stop.index)
+  }, [stop.key, stop.index])
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLUListElement>) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
-    const next = nextCardIndex(tabStop, event.key, count)
-    if (next === tabStop) return
-    const element = event.currentTarget
-    setFocused(next)
-    element.querySelector<HTMLElement>(`[data-card-index="${next}"] [data-card-main]`)?.focus({ preventScroll: true })
-    element.scrollTo({ left: scrollForCard(next, element.scrollLeft), behavior: scrollBehavior() })
+    const next = nextCardIndex(stop.index, event.key, count)
+    if (next === stop.index) return
+    setStop({ key: keys[next] ?? null, index: next })
+    focusCard(event.currentTarget, next)
   }
 
-  // A click or a Tab lands on a card too: the arrow keys carry on from there.
+  // Any way onto a card (arrow, click or Tab) moves the Tab stop there.
   const onFocus = (event: FocusEvent<HTMLUListElement>) => {
+    holdsFocus.current = true
     const item = event.target.closest<HTMLElement>('[data-card-index]')
-    if (item) setFocused(Number(item.dataset.cardIndex))
+    const index = Number(item?.dataset.cardIndex)
+    const key = keys[index]
+    if (key) setStop({ key, index })
+  }
+
+  // Losing the window keeps the focused card, so only a move inside the window lets go of it.
+  const onBlur = () => {
+    if (document.hasFocus()) holdsFocus.current = false
   }
 
   return (
@@ -151,6 +203,7 @@ export function CardRow() {
         aria-label={t('panel.cards')}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
+        onBlur={onBlur}
         onScroll={(event) => setScrolledPage(activePage(event.currentTarget.scrollLeft, pages))}
         style={overflows ? EDGE_MASK : undefined}
         className={`flex h-[196px] snap-x snap-mandatory gap-2.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none] ${
@@ -159,7 +212,7 @@ export function CardRow() {
       >
         {keys.map((key, index) => (
           <li key={key} data-card-index={index} className="shrink-0 snap-start">
-            <CardTabStop.Provider value={index === tabStop}>
+            <CardTabStop.Provider value={index === stop.index}>
               <PanelCard
                 cardKey={key}
                 title={t(TITLES[key])}

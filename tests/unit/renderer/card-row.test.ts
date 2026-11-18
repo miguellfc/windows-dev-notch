@@ -1,5 +1,47 @@
 import { describe, expect, it } from 'vitest'
-import { activePage, CARD_STEP, cardPages, nextCardIndex, scrollForCard, snapLeft, VISIBLE_CARDS, wheelScroll } from '../../../src/renderer/notch/panel/card-row'
+import { activePage, CARD_STEP, cardPages, landsOnTabStop, nextCardIndex, resolveTabStop, scrollForCard, snapLeft, VISIBLE_CARDS, wheelScroll } from '../../../src/renderer/notch/panel/card-row'
+
+describe('landsOnTabStop', () => {
+  it('takes an arrow key while no control has the focus', () => {
+    expect(landsOnTabStop('ArrowLeft', false, true)).toBe(true)
+    expect(landsOnTabStop('ArrowRight', false, true)).toBe(true)
+  })
+
+  it('stays out of the way of any other control', () => {
+    expect(landsOnTabStop('ArrowRight', false, false)).toBe(false)
+  })
+
+  it('ignores other keys and modified arrows', () => {
+    expect(landsOnTabStop('Enter', false, true)).toBe(false)
+    expect(landsOnTabStop('ArrowDown', false, true)).toBe(false)
+    expect(landsOnTabStop('ArrowRight', true, true)).toBe(false)
+  })
+})
+
+describe('resolveTabStop', () => {
+  it('starts on the first card', () => {
+    expect(resolveTabStop(['a', 'b'], { key: null, index: 0 })).toEqual({ key: 'a', index: 0 })
+  })
+
+  it('follows its card when the list shifts', () => {
+    expect(resolveTabStop(['b', 'c'], { key: 'c', index: 2 })).toEqual({ key: 'c', index: 1 })
+    expect(resolveTabStop(['a', 'x', 'b'], { key: 'b', index: 1 })).toEqual({ key: 'b', index: 2 })
+  })
+
+  it('moves to the nearest card when its card goes', () => {
+    expect(resolveTabStop(['a', 'c'], { key: 'b', index: 1 })).toEqual({ key: 'c', index: 1 })
+    expect(resolveTabStop(['a', 'b'], { key: 'c', index: 2 })).toEqual({ key: 'b', index: 1 })
+  })
+
+  it('holds nothing with no cards left', () => {
+    expect(resolveTabStop([], { key: 'a', index: 3 })).toEqual({ key: null, index: 0 })
+  })
+
+  it('returns the same stop when nothing changed', () => {
+    const stop = { key: 'b', index: 1 }
+    expect(resolveTabStop(['a', 'b'], stop)).toBe(stop)
+  })
+})
 
 describe('card row constants', () => {
   it('steps by a 172 px card and its 10 px gap, and shows 3.5 cards', () => {

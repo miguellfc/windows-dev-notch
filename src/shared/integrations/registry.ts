@@ -8,8 +8,3 @@ export type IntegrationId = (typeof viewIntegrationIds)[number]
 export const appIds = ['terminal', 'claude'] as const
 
 export type AppTileId = (typeof appIds)[number]
-
-/** Platforms whose card opens the reviews view (`notch:open-integration` with id `reviews`). */
-export const reviewPlatformIds = ['github', 'gitlab'] as const
-
-export type ReviewTileId = (typeof reviewPlatformIds)[number]

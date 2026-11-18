@@ -40,6 +40,31 @@ export function scrollForCard(index: number, scrollLeft: number): number {
   return first * CARD_STEP
 }
 
+/**
+ * Whether a key pressed anywhere in the panel lands on the row's Tab stop: a plain arrow while no
+ * control has the focus, so the keys the help line announces work as soon as the panel opens.
+ */
+export function landsOnTabStop(key: string, modified: boolean, focusIsFree: boolean): boolean {
+  return (key === 'ArrowLeft' || key === 'ArrowRight') && !modified && focusIsFree
+}
+
+/** The card that holds the row's Tab stop, and where it stood. */
+export interface TabStop<K> {
+  key: K | null
+  index: number
+}
+
+/**
+ * The Tab stop over the cards showing now: it follows its card when the list shifts and, if the card
+ * has gone, moves to the one that took its place (the last card, if it was past the end).
+ */
+export function resolveTabStop<K>(keys: readonly K[], stop: TabStop<K>): TabStop<K> {
+  const found = stop.key === null ? -1 : keys.indexOf(stop.key)
+  const index = found >= 0 ? found : Math.max(Math.min(stop.index, keys.length - 1), 0)
+  const key = keys[index] ?? null
+  return key === stop.key && index === stop.index ? stop : { key, index }
+}
+
 /** The card an arrow key moves to; the ends stop it. */
 export function nextCardIndex(index: number, key: 'ArrowLeft' | 'ArrowRight', count: number): number {
   return key === 'ArrowLeft' ? Math.max(index - 1, 0) : Math.min(index + 1, count - 1)
