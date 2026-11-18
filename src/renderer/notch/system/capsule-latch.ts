@@ -3,15 +3,15 @@ import type { GmailState } from '../../../shared/gmail/schema'
 import type { RedmineState } from '../../../shared/redmine/schema'
 import type { SystemMetrics } from '../../../shared/system/schema'
 
-/** What the compact capsule shows: percentages only, battery slot or not, low-disk block or not. */
+/** What the compact capsule shows: percentages only, battery slot or not, the storage block always. */
 export interface CapsuleView {
   cpuPercent: number | null
   ramPercent: number | null
   battery: { percent: number; charging: boolean; pluggedIn: boolean } | null
   /** Which metrics are painted red. Colour only: never changes the width. */
   alerts: { cpu: boolean; ram: boolean; battery: boolean }
-  /** The worst fixed drive below its free-space threshold; the block exists only while set. */
-  disk: { letter: string; freePercent: number } | null
+  /** The drive with the least free space, always present while the view is. `alert` is the latched low-space flag; it only paints red. */
+  storage: { letter: string; usedPercent: number | null; alert: boolean } | null
 }
 
 export interface CapsuleLatch {
@@ -21,7 +21,7 @@ export interface CapsuleLatch {
   unavailableRun: number
   /** Consecutive samples without a battery while the battery slot is shown. */
   batteryMissRun: number
-  /** Consecutive samples without a disk alert while the disk block is shown. */
+  /** Consecutive samples without a disk alert while the storage alert is held. */
   diskMissRun: number
 }
 
@@ -33,6 +33,11 @@ export interface CapsuleLatch {
 export const CAPSULE_MISSES = 3
 
 export const EMPTY_CAPSULE: CapsuleLatch = { view: null, unavailableRun: 0, batteryMissRun: 0, diskMissRun: 0 }
+
+/** The slots the capsule geometry measures. The storage block is always shown, so it always takes the old disk slot (until the 3-zone geometry). */
+export function capsuleSlots(view: CapsuleView | null): { battery: object | null; disk: object | null } | null {
+  return view && { battery: view.battery, disk: view.storage }
+}
 
 /** Folds one sample into the capsule latch (pure; the store keeps the result). */
 export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): CapsuleLatch {
@@ -58,19 +63,23 @@ export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): Cap
       alerts.battery = previous.view.alerts.battery
     } else batteryMissRun = 0
   }
-  // The disk block follows the same rule: shown with the first low-disk sample, given up only after
-  // CAPSULE_MISSES samples in a row without one, since it changes the capsule width.
-  let disk: CapsuleView['disk'] = null
+  // The storage block is always there; only its alert is latched like the battery slot, so a
+  // single missed read does not make the red flap. It counts only for the alerted drive.
+  const alertDisk = metrics.alerts.disk
+  let alert = false
   let diskMissRun = 0
-  if (metrics.alerts.disk) {
-    disk = { letter: metrics.alerts.disk.letter, freePercent: metrics.alerts.disk.freePercent }
-  } else if (previous.view?.disk) {
+  if (alertDisk && (!metrics.storage || metrics.storage.letter === alertDisk.letter)) {
+    alert = true
+  } else if (previous.view?.storage?.alert) {
     diskMissRun = previous.diskMissRun + 1
-    if (diskMissRun < CAPSULE_MISSES) disk = previous.view.disk
+    if (diskMissRun < CAPSULE_MISSES) alert = true
     else diskMissRun = 0
   }
+  const storage: CapsuleView['storage'] = metrics.storage
+    ? { letter: metrics.storage.letter, usedPercent: metrics.storage.usedPercent, alert }
+    : { letter: alertDisk?.letter ?? 'C', usedPercent: null, alert }
   return {
-    view: { cpuPercent: metrics.cpuPercent, ramPercent: ram, battery, alerts, disk },
+    view: { cpuPercent: metrics.cpuPercent, ramPercent: ram, battery, alerts, storage },
     unavailableRun: 0,
     batteryMissRun,
     diskMissRun,

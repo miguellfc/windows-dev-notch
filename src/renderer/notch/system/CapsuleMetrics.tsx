@@ -15,14 +15,14 @@ import { formatPercent } from './format'
 /** Below this charge the battery icon turns to its low variant; the colour follows the alert only. */
 const LOW_BATTERY = 20
 
-/** Widest drive letter in the capsule font, so the disk block keeps its width whatever the drive. */
+/** Widest drive letter in the capsule font, so the storage block keeps its width whatever the drive. */
 const WIDEST_DRIVE_LETTER = 'W'
 
-/** CPU, RAM, battery and (only while space is low) disk for the compact capsule, after time and date. */
+/** CPU, RAM, battery and storage for the compact capsule, after time and date. */
 export function CapsuleMetrics({ view }: { view: CapsuleView }) {
   const t = useT()
   const language = useLanguage()
-  const { battery, alerts, disk } = view
+  const { battery, alerts, storage } = view
   const cpuText = formatPercent(view.cpuPercent, language)
   const ramText = formatPercent(view.ramPercent, language)
   const full = formatPercent(100, language)
@@ -64,14 +64,17 @@ export function CapsuleMetrics({ view }: { view: CapsuleView }) {
           testId="metric-battery"
         />
       )}
-      {disk && (
+      {storage && (
         <Metric
           icon={HardDrive}
-          text={`${disk.letter}: ${formatPercent(disk.freePercent, language)}`}
+          text={`${storage.letter}: ${formatPercent(storage.usedPercent, language)}`}
           reserve={`${WIDEST_DRIVE_LETTER}: ${full}`}
-          alert
-          label={t('system.capsule.diskLow', { letter: disk.letter, value: formatPercent(disk.freePercent, language) })}
-          testId="metric-disk"
+          alert={storage.alert}
+          label={t(storage.alert ? 'system.capsule.storageLow' : 'system.capsule.storage', {
+            letter: storage.letter,
+            value: formatPercent(storage.usedPercent, language),
+          })}
+          testId="metric-storage"
         />
       )}
     </span>

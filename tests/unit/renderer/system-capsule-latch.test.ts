@@ -7,13 +7,14 @@ const light = (
   battery: { percent: number; charging: boolean; pluggedIn: boolean } | null,
   cpuPercent: number | null = 30,
   alerts: SystemAlerts = NO_ALERTS,
+  storage: { letter: string; usedPercent: number } | null = null,
 ): SystemMetrics => ({
   kind: 'light',
   cpuPercent,
   ram: { usedBytes: 8 * GB, totalBytes: 16 * GB },
   battery: battery && { ...battery, secondsLeft: null },
   alerts,
-  storage: null,
+  storage,
 })
 const QUIET = { cpu: false, ram: false, battery: false }
 const ON_BATTERY = { percent: 12, charging: false, pluggedIn: false }
@@ -29,7 +30,7 @@ describe('nextCapsule', () => {
       ramPercent: 50,
       battery: { percent: 82, charging: true, pluggedIn: true },
       alerts: QUIET,
-      disk: null,
+      storage: { letter: 'C', usedPercent: null, alert: false },
     })
   })
 
@@ -44,7 +45,7 @@ describe('nextCapsule', () => {
       alerts: NO_ALERTS,
       storage: null,
     }
-    expect(feed([full]).view).toEqual({ cpuPercent: 30, ramPercent: 50, battery: null, alerts: QUIET, disk: null })
+    expect(feed([full]).view).toEqual({ cpuPercent: 30, ramPercent: 50, battery: null, alerts: QUIET, storage: { letter: 'C', usedPercent: null, alert: false } })
   })
 
   it('never shows a battery slot on a machine that never reported one', () => {
@@ -72,7 +73,7 @@ describe('nextCapsule', () => {
       ramPercent: 50,
       battery: { percent: 82, charging: false, pluggedIn: false },
       alerts: QUIET,
-      disk: null,
+      storage: { letter: 'C', usedPercent: null, alert: false },
     })
   })
 
@@ -82,7 +83,7 @@ describe('nextCapsule', () => {
 
   it('treats an empty RAM total as unknown', () => {
     const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null, alerts: NO_ALERTS, storage: null }
-    expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null, alerts: QUIET, disk: null })
+    expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null, alerts: QUIET, storage: { letter: 'C', usedPercent: null, alert: false } })
   })
 
   it('carries the CPU, RAM and battery alerts of each sample, unlatched', () => {
@@ -99,30 +100,36 @@ describe('nextCapsule', () => {
     expect(feed([light(null)], held).view?.alerts.battery).toBe(false)
   })
 
-  it('shows the disk block with the first low-disk sample and follows its value', () => {
-    const shown = feed([light(null, 30, lowDisk('C', 6))])
-    expect(shown.view?.disk).toEqual({ letter: 'C', freePercent: 6 })
-    expect(feed([light(null, 30, lowDisk('D', 4))], shown).view?.disk).toEqual({ letter: 'D', freePercent: 4 })
+  it('shows the storage of the sample, without alert', () => {
+    expect(feed([light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 62 })]).view?.storage).toEqual({ letter: 'C', usedPercent: 62, alert: false })
   })
 
-  it('keeps the disk block until the disk alert is gone in 3 samples in a row', () => {
-    const shown = feed([light(null, 30, lowDisk())])
-    expect(feed([light(null), light(null)], shown).view?.disk).toEqual({ letter: 'C', freePercent: 6 })
-    expect(feed([light(null), light(null), light(null)], shown).view?.disk).toBeNull()
+  it('flags the storage while the disk alert points at it', () => {
+    const view = feed([light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })]).view
+    expect(view?.storage).toEqual({ letter: 'C', usedPercent: 95, alert: true })
   })
 
-  it('resets the disk miss count when the disk alert comes back', () => {
-    const latch = feed([light(null, 30, lowDisk()), light(null), light(null), light(null, 30, lowDisk('C', 5)), light(null), light(null)])
-    expect(latch.view?.disk).toEqual({ letter: 'C', freePercent: 5 })
+  it('keeps the storage alert until the disk alert is gone in 3 samples in a row', () => {
+    const shown = feed([light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })])
+    const quiet = light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 90 })
+    expect(feed([quiet, quiet], shown).view?.storage).toEqual({ letter: 'C', usedPercent: 90, alert: true })
+    expect(feed([quiet, quiet, quiet], shown).view?.storage).toEqual({ letter: 'C', usedPercent: 90, alert: false })
   })
 
-  it('never shows a disk block without a disk alert', () => {
-    expect(feed([light(null), light(null)]).view?.disk).toBeNull()
+  it('resets the storage miss count when the disk alert comes back', () => {
+    const q = light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 90 })
+    const a = light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })
+    expect(feed([a, q, q, a, q, q]).view?.storage?.alert).toBe(true)
   })
 
-  it('drops the disk block with the rest of the metrics when the monitor is lost', () => {
-    const shown = feed([light(null, 30, lowDisk())])
-    expect(feed([UNAVAILABLE, UNAVAILABLE], shown).view?.disk).toEqual({ letter: 'C', freePercent: 6 })
+  it('without storage in the sample, usedPercent is null and the letter follows the alert', () => {
+    expect(feed([light(null, 30, lowDisk('D', 4))]).view?.storage).toEqual({ letter: 'D', usedPercent: null, alert: true })
+    expect(feed([light(null)]).view?.storage).toEqual({ letter: 'C', usedPercent: null, alert: false })
+  })
+
+  it('drops the storage with the rest of the metrics when the monitor is lost', () => {
+    const shown = feed([light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 62 })])
+    expect(feed([UNAVAILABLE, UNAVAILABLE], shown).view?.storage).toEqual({ letter: 'C', usedPercent: 62, alert: false })
     expect(feed([UNAVAILABLE, UNAVAILABLE, UNAVAILABLE], shown).view).toBeNull()
   })
 })

@@ -42,7 +42,7 @@ import {
 import { NotesView } from './notes/NotesView'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
-import { EMPTY_REVIEW_BLOCKS, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
+import { EMPTY_REVIEW_BLOCKS, capsuleSlots, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
 import { CapsuleMail, CapsuleMetrics, CapsuleRedmine, CapsuleReview } from './system/CapsuleMetrics'
 import { SystemView } from './system/SystemView'
 
@@ -263,7 +263,7 @@ export function NotchApp() {
   const settings = useSettings((state) => state.settings)
   const blocks = useCapsuleBlocks()
   const compactWidth = useSystem((state) =>
-    compactWidthFor(state.capsule.view, blocks.unread !== null, reviewBlockCount(blocks.reviews), blocks.hours !== null),
+    compactWidthFor(capsuleSlots(state.capsule.view), blocks.unread !== null, reviewBlockCount(blocks.reviews), blocks.hours !== null),
   )
   const sessionCount = useSessionCount()
   const reduceMotion = useReducedMotion() ?? false
@@ -404,7 +404,7 @@ interface CompactContent {
 function useCompactContent(compactWidth: number): CompactContent {
   const view = useSystem((state) => state.capsule.view)
   const { unread, reviews, hours } = useCapsuleBlocks()
-  const matches = compactWidthFor(view, unread !== null, reviewBlockCount(reviews), hours !== null) === compactWidth
+  const matches = compactWidthFor(capsuleSlots(view), unread !== null, reviewBlockCount(reviews), hours !== null) === compactWidth
   const [kept, setKept] = useState<CompactContent>({ view, unread, reviews, hours })
   if (matches && (kept.view !== view || kept.unread !== unread || kept.reviews !== reviews || kept.hours !== hours)) {
     setKept({ view, unread, reviews, hours })
