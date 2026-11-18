@@ -14,7 +14,7 @@ const NOTICES: Readonly<Record<GmailNotice, { icon: LucideIcon; title: MessageKe
 }
 
 const button =
-  'flex h-8 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover'
+  'btn h-8 px-3'
 
 /**
  * Everything the view shows instead of the list: no client, no session, waiting for the browser,

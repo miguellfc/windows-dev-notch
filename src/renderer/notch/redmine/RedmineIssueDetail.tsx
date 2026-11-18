@@ -368,11 +368,11 @@ export function RedmineIssueDetail({
               <FieldError id={`${ids}-estimate-error`} messageKey={errors.estimate} />
             </Row>
           </div>
-          {taskFeedback && (
-            <div className="flex min-h-6 shrink-0 items-center px-1.5">
-              <WriteFeedback feedback={taskFeedback} onRetry={retryTask} testId="redmine-detail-task" />
-            </div>
-          )}
+          {/* Always mounted (24 px reserved), so saving never shifts the log card. Aligned with the
+              fields inside the cards: 1 border + 12 padding + 84 label column + 12 gap = 109 px. */}
+          <div className="flex min-h-6 shrink-0 items-center pl-[109px] pr-1.5">
+            <WriteFeedback feedback={taskFeedback} onRetry={retryTask} testId="redmine-detail-task" />
+          </div>
 
           <div onKeyDown={onLogKeyDown} data-testid="redmine-log" className="card flex shrink-0 flex-col px-3 pb-2 pt-1">
             <h4 className={caps}>{t('redmine.detail.logTime')}</h4>

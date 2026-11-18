@@ -183,7 +183,7 @@ export function ClaudePage() {
           </>
         ) : step === 'confirm-uninstall' ? (
           <>
-            <button type="button" disabled={busy} onClick={() => void write(window.notch.claude.hooksUninstall, 'cc.claude.uninstalled')} className={primaryClass}>
+            <button type="button" disabled={busy} onClick={() => void write(window.notch.claude.hooksUninstall, 'cc.claude.uninstalled')} className={`${buttonClass} btn-danger`}>
               {t('cc.claude.confirmUninstall')}
             </button>
             <button type="button" disabled={busy} onClick={cancel} className={buttonClass}>

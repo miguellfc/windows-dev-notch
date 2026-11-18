@@ -33,7 +33,7 @@ function AttentionRow({ reminder, now, run, busy }: { reminder: Reminder; now: D
   const language = useLanguage()
   const snoozeMinutes = useSettings((state) => state.settings?.reminders.snoozeMinutes ?? 10)
   return (
-    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="flex items-center gap-2 rounded-tile bg-wait/10 px-2.5 py-1.5">
+    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="flex items-center gap-2 rounded-tile px-2.5 py-1.5">
       <span className="status-dot" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-body text-chalk">{reminder.text}</p>

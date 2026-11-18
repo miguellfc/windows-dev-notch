@@ -467,7 +467,7 @@ function Panel({ time, date }: { time: string; date: string }) {
       className={`flex h-full flex-col px-3 pt-3.5 ${hasSessions ? 'pb-2' : 'pb-3'}`}
     >
       <motion.header variants={PANEL_ITEM} className="flex items-center justify-between pl-2">
-        <span className="digits text-[20px]">{time}</span>
+        <span className="digits text-digits-md">{time}</span>
         <span className="flex items-center gap-1">
           <span className="mr-1 text-small text-graphite">{date}</span>
           <button

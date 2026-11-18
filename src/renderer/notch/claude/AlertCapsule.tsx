@@ -9,9 +9,9 @@ import { ReminderAlert } from '../reminders/ReminderAlert'
 import { questionFirst } from './question-form'
 
 /**
- * The amber capsule: the earliest pending Claude item, a permission (session and tool) or a question
+ * The coral capsule: the earliest pending Claude item, a permission (session and tool) or a question
  * ("Claude asks · project"), plus how many more Claude items wait. Claude wins when reminders are due
- * too; a small amber dot then says so. With nothing pending from Claude, the reminders alert shows.
+ * too; a small coral dot then says so. With nothing pending from Claude, the reminders alert shows.
  */
 export function AlertCapsule() {
   const t = useT()
@@ -42,7 +42,7 @@ export function AlertCapsule() {
         aria-label={`${t('claude.alert.questionLabel')}: ${question.project}`}
         className="flex h-full items-center gap-2 px-3.5"
       >
-        {/* Claude's icon (as in Control Center) in amber: Claude waits for the user. */}
+        {/* Claude's icon (as in Control Center) in coral: Claude waits for the user. */}
         <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-wait" />
         {/* Claude's texts are always plain text: React escapes them. */}
         <span className="min-w-0 flex-1 truncate text-body text-chalk">

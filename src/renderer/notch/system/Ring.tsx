@@ -13,17 +13,20 @@ export function Ring({ percent, alert = false, size = 40 }: { percent: number | 
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#222226" strokeWidth={STROKE} />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={alert ? 'var(--color-fail)' : 'var(--int, var(--color-int-default))'}
-        strokeWidth={STROKE}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference * (1 - clamped / 100)}
-      />
+      {/* No arc at 0 % or before the first sample: the round cap would still draw a dot. */}
+      {clamped > 0 && (
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={alert ? 'var(--color-fail)' : 'var(--int, var(--color-int-default))'}
+          strokeWidth={STROKE}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - clamped / 100)}
+        />
+      )}
     </svg>
   )
 }

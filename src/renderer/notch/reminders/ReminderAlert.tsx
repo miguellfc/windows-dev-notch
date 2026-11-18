@@ -4,8 +4,8 @@ import { useT } from '../../shared/use-t'
 import { attentionReminders } from '../../shared/reminders/format'
 
 /**
- * The amber capsule for reminders: the oldest due/missed text, or "N reminders". Same layout and
- * type scale as the Claude alert: an amber 13 px marker, then chalk text.
+ * The coral capsule for reminders: the oldest due/missed text, or "N reminders". Same layout and
+ * type scale as the Claude alert: a coral 13 px marker, then chalk text.
  */
 export function ReminderAlert() {
   const t = useT()

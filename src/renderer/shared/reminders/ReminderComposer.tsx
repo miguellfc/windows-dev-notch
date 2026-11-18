@@ -125,7 +125,7 @@ export function ReminderComposer({
           setErrorKey(null)
         }}
         onKeyDown={onKeyDown}
-        className="h-9 w-full rounded-control border border-line bg-veil px-3 text-body text-chalk transition-colors duration-150 placeholder:text-graphite focus:border-select/60"
+        className="field h-9 w-full px-3 text-body text-chalk transition-colors duration-150 placeholder:text-graphite focus:border-select/60"
       />
       {/* One line under the field: the error from the last attempt, else the live reading. */}
       {errorKey ? (
@@ -145,7 +145,7 @@ export function ReminderComposer({
             data-testid={`reminder-chip-${preset}`}
             disabled={!hasVisibleText(text) || busy}
             onClick={() => createWithPreset(preset)}
-            className="tabular h-7 cursor-pointer rounded-full border border-line bg-veil-tile px-3 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-default disabled:opacity-40 disabled:hover:bg-veil-tile"
+            className="btn tabular h-7 text-label disabled:cursor-default"
           >
             {t(labelKey, { time: formatTime(NINE_AM, language) })}
           </button>
