@@ -50,8 +50,9 @@ export function AlertCapsule() {
         className="flex h-full items-center gap-2 px-3.5"
         style={integrations ? integrationStyle(integrations.claude.color) : undefined}
       >
-        {/* Claude's icon in its integration color; the coral "more" badge and reminder dot still say it waits. */}
-        <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-[color:var(--int,var(--color-wait))]" />
+        {/* Needs you: the pulsing coral dot, then Claude's icon in its integration color. */}
+        <span aria-hidden="true" className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
+        <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-[color:var(--int,var(--color-int-default))]" />
         {/* Claude's texts are always plain text: React escapes them. */}
         <span className="min-w-0 flex-1 truncate text-body text-chalk">
           <span className="font-semibold">{t('claude.alert.question')}</span>
@@ -73,8 +74,11 @@ export function AlertCapsule() {
       role="status"
       aria-label={`${t('claude.alert.label')}: ${oldest.sessionName}, ${oldest.toolName}`}
       className="flex h-full items-center gap-2 px-3.5"
+      style={integrations ? integrationStyle(integrations.claude.color) : undefined}
     >
-      <span className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
+      {/* Needs you: the pulsing coral dot, then Claude's icon in its integration color. */}
+      <span aria-hidden="true" className="status-dot pulse-wait" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} />
+      <ClaudeMark size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-[color:var(--int,var(--color-int-default))]" />
       <span className="min-w-0 flex-1 truncate text-body text-chalk">
         <span className="font-semibold">{oldest.sessionName}</span>
         <span className="text-graphite-glass"> · </span>

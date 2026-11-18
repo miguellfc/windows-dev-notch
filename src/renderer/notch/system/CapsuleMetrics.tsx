@@ -23,13 +23,12 @@ export function CapsuleMetrics({ view }: { view: CapsuleView }) {
   const t = useT()
   const language = useLanguage()
   const { battery, alerts, disk } = view
-  const { color } = useIntegration('system')
   const cpuText = formatPercent(view.cpuPercent, language)
   const ramText = formatPercent(view.ramPercent, language)
   const full = formatPercent(100, language)
 
   return (
-    <span data-testid="capsule-metrics" className="flex shrink-0 items-center gap-2.5" style={integrationStyle(color)}>
+    <span data-testid="capsule-metrics" className="flex shrink-0 items-center gap-2.5">
       <Metric
         icon={Cpu}
         text={cpuText}
@@ -175,7 +174,7 @@ function Metric({
   align?: 'left' | 'right'
   label: string
   testId: string
-  /** The block's own integration color for its icon; the system metrics inherit `--int` from their group. Red wins while alerting. */
+  /** The block's integration color for its icon (mail, reviews, Redmine). System metrics pass none and stay grey; red wins while alerting. */
   color?: IntegrationColor
 }) {
   return (
@@ -187,7 +186,7 @@ function Metric({
       className={`flex items-center gap-1 ${alert ? 'text-fail' : 'text-graphite-glass'}`}
       style={color ? integrationStyle(color) : undefined}
     >
-      <Icon size={12} strokeWidth={2} aria-hidden="true" className={`shrink-0 ${alert ? '' : 'text-[color:var(--int)]'}`} />
+      <Icon size={12} strokeWidth={2} aria-hidden="true" className={`shrink-0 ${color && !alert ? 'text-[color:var(--int)]' : ''}`} />
       {/* Both texts share one grid cell: the invisible widest value fixes the width, so the capsule
           never jitters as digits change. Right-aligned like a column of figures unless told otherwise. */}
       <span className="tabular grid whitespace-nowrap text-small font-medium" aria-hidden="true">
