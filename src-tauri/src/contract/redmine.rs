@@ -580,6 +580,16 @@ impl Validate for RedmineIdInput {
     }
 }
 
+/// `redmineFindIssueResultSchema`: output of `redmine:find-issue`; false for an issue that does
+/// not exist or the key cannot see (the renderer cannot tell them apart).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RedmineFindIssueResult {
+    pub found: bool,
+}
+
+impl Validate for RedmineFindIssueResult {}
+
 /// `redmineViewInputSchema`: the Redmine view opened or closed.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

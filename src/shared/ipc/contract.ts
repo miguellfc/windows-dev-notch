@@ -33,6 +33,7 @@ import {
   logTimeInputSchema,
   redmineActivitySchema,
   redmineAlertSchema,
+  redmineFindIssueResultSchema,
   redmineIdInputSchema,
   redmineIssueDetailSchema,
   redmineIssueListSchema,
@@ -253,6 +254,7 @@ export const contract = {
   'redmine:issues': { input: none, output: redmineIssueListSchema },
   /** One issue with the statuses it may move to. */
   'redmine:issue': { input: redmineIdInputSchema, output: redmineIssueDetailSchema },
+  'redmine:find-issue': { input: redmineIdInputSchema, output: redmineFindIssueResultSchema },
   'redmine:activities': { input: none, output: z.array(redmineActivitySchema) },
   /** Redmine's refusals (403/404/422) come back as data for the form; the session stays as it is. */
   'redmine:update-issue': { input: updateIssueInputSchema, output: redmineWriteResultSchema },

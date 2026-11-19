@@ -671,6 +671,7 @@ describe('redmine contract', () => {
       getState: 'redmine:get-state',
       issues: 'redmine:issues',
       issue: 'redmine:issue',
+      findIssue: 'redmine:find-issue',
       activities: 'redmine:activities',
       updateIssue: 'redmine:update-issue',
       logTime: 'redmine:log-time',
@@ -719,6 +720,15 @@ describe('redmine contract', () => {
     for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(detail.input.safeParse(bad).success).toBe(false)
     expect(detail.output.safeParse({ ...issue, allowedStatuses: [{ id: 3, name: 'Done' }] }).success).toBe(true)
     expect(detail.output.safeParse(issue).success).toBe(false)
+  })
+
+  it('finds an issue by a positive integer id and answers only whether it exists', () => {
+    const find = contract['redmine:find-issue']
+    expect(find.input.safeParse({ id: 12 }).success).toBe(true)
+    for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(find.input.safeParse(bad).success).toBe(false)
+    expect(find.output.safeParse({ found: true }).success).toBe(true)
+    expect(find.output.safeParse({ found: false }).success).toBe(true)
+    for (const bad of [{}, { found: 'yes' }, { found: true, url: 'https://x' }, { found: true, issue: {} }]) expect(find.output.safeParse(bad).success).toBe(false)
   })
 
   it('lists activities', () => {

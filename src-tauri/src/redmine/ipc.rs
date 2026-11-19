@@ -16,9 +16,9 @@ use serde_json::Value;
 
 use super::integration::{RedmineIntegration, LOG_TARGET};
 use crate::contract::redmine::{
-    LogTimeInput, RedmineActivity, RedmineIdInput, RedmineIssueDetail, RedmineIssueList,
-    RedmineSetKeyResult, RedmineState, RedmineSummaryResult, RedmineViewInput, RedmineWriteResult,
-    SetKeyInput, UpdateIssueInput,
+    LogTimeInput, RedmineActivity, RedmineFindIssueResult, RedmineIdInput, RedmineIssueDetail,
+    RedmineIssueList, RedmineSetKeyResult, RedmineState, RedmineSummaryResult, RedmineViewInput,
+    RedmineWriteResult, SetKeyInput, UpdateIssueInput,
 };
 use crate::contract::{check, Direction};
 use crate::ipc::{no_input, BoxFuture, Channel, Ctx, ExposedError, IpcErrorCode, Registry};
@@ -31,6 +31,8 @@ pub trait RedmineApi: Send + Sync {
     fn issues(&self) -> BoxFuture<'_, RedmineIssueList>;
     /// UNAVAILABLE when there is no usable session.
     fn issue(&self, id: u64) -> BoxFuture<'_, Result<RedmineIssueDetail, ExposedError>>;
+    /// UNAVAILABLE when there is no usable session; `false` for a missing or hidden issue.
+    fn find_issue(&self, id: u64) -> BoxFuture<'_, Result<bool, ExposedError>>;
     /// UNAVAILABLE when there is no usable session.
     fn activities(&self) -> BoxFuture<'_, Result<Vec<RedmineActivity>, ExposedError>>;
     fn update_issue(&self, input: UpdateIssueInput) -> BoxFuture<'_, RedmineWriteResult>;
@@ -63,6 +65,10 @@ where
 
     fn issue(&self, id: u64) -> BoxFuture<'_, Result<RedmineIssueDetail, ExposedError>> {
         Box::pin(RedmineIntegration::issue(self, id))
+    }
+
+    fn find_issue(&self, id: u64) -> BoxFuture<'_, Result<bool, ExposedError>> {
+        Box::pin(RedmineIntegration::find_issue(self, id))
     }
 
     fn activities(&self) -> BoxFuture<'_, Result<Vec<RedmineActivity>, ExposedError>> {
@@ -110,6 +116,7 @@ enum Op {
     GetState,
     Issues,
     Issue,
+    FindIssue,
     Activities,
     UpdateIssue,
     LogTime,
@@ -122,10 +129,11 @@ enum Op {
 }
 
 /// Every `redmine:*` channel with its operation.
-const CHANNELS: [(&str, Op); 12] = [
+const CHANNELS: [(&str, Op); 13] = [
     ("redmine:get-state", Op::GetState),
     ("redmine:issues", Op::Issues),
     ("redmine:issue", Op::Issue),
+    ("redmine:find-issue", Op::FindIssue),
     ("redmine:activities", Op::Activities),
     ("redmine:update-issue", Op::UpdateIssue),
     ("redmine:log-time", Op::LogTime),
@@ -172,6 +180,12 @@ async fn handle(
         Op::Issue => {
             let RedmineIdInput { id } = RedmineIdInput::from_input(input)?;
             json(api.issue(id).await?)?
+        }
+        Op::FindIssue => {
+            let RedmineIdInput { id } = RedmineIdInput::from_input(input)?;
+            json(RedmineFindIssueResult {
+                found: api.find_issue(id).await?,
+            })?
         }
         Op::Activities => {
             no_input(&input)?;

@@ -56,6 +56,7 @@
     "notes:update",
     "redmine:activities",
     "redmine:clear",
+    "redmine:find-issue",
     "redmine:get-state",
     "redmine:issue",
     "redmine:issues",

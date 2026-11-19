@@ -94,6 +94,7 @@ export const channels = {
     getState: 'redmine:get-state',
     issues: 'redmine:issues',
     issue: 'redmine:issue',
+    findIssue: 'redmine:find-issue',
     activities: 'redmine:activities',
     updateIssue: 'redmine:update-issue',
     logTime: 'redmine:log-time',

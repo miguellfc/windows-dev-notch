@@ -96,6 +96,7 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("redmine:get-state", Guard::Any),
     ("redmine:issues", Guard::NotchOnly),
     ("redmine:issue", Guard::NotchOnly),
+    ("redmine:find-issue", Guard::NotchOnly),
     ("redmine:activities", Guard::NotchOnly),
     ("redmine:update-issue", Guard::NotchOnly),
     ("redmine:log-time", Guard::NotchOnly),

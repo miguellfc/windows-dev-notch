@@ -311,7 +311,10 @@ pub fn check(
         ) => none(value),
         ("redmine:get-state", Output) => required::<redmine::RedmineState>(value),
         ("redmine:issues", Output) => required::<redmine::RedmineIssueList>(value),
-        ("redmine:issue" | "redmine:open", Input) => required::<redmine::RedmineIdInput>(value),
+        ("redmine:issue" | "redmine:find-issue" | "redmine:open", Input) => {
+            required::<redmine::RedmineIdInput>(value)
+        }
+        ("redmine:find-issue", Output) => required::<redmine::RedmineFindIssueResult>(value),
         ("redmine:issue", Output) => required::<redmine::RedmineIssueDetail>(value),
         ("redmine:activities", Output) => required::<Vec<redmine::RedmineActivity>>(value),
         ("redmine:update-issue", Input) => required::<redmine::UpdateIssueInput>(value),

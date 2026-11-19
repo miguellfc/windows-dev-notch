@@ -271,6 +271,7 @@ const portedChannels = [
   'redmine:get-state',
   'redmine:issues',
   'redmine:issue',
+  'redmine:find-issue',
   'redmine:activities',
   'redmine:update-issue',
   'redmine:log-time',

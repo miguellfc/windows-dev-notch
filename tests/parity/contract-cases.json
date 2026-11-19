@@ -19969,6 +19969,62 @@
     "accept": false
   },
   {
+    "channel": "redmine:find-issue",
+    "direction": "input",
+    "value": {
+      "id": 5
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:find-issue",
+    "direction": "input",
+    "value": {
+      "id": 5,
+      "url": "https://evil.example/issues/5"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:find-issue",
+    "direction": "input",
+    "value": {
+      "id": 0
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:find-issue",
+    "direction": "output",
+    "value": {
+      "found": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:find-issue",
+    "direction": "output",
+    "value": {
+      "found": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:find-issue",
+    "direction": "output",
+    "value": {
+      "found": true,
+      "url": "https://redmine.example.test/issues/5"
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:find-issue",
+    "direction": "output",
+    "value": {},
+    "accept": false
+  },
+  {
     "channel": "redmine:open",
     "direction": "input",
     "value": {

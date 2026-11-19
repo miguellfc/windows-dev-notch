@@ -129,6 +129,10 @@ export type SetKeyInput = z.infer<typeof setKeyInputSchema>
 export const redmineIdInputSchema = z.strictObject({ id: z.int().min(1) })
 export type RedmineIdInput = z.infer<typeof redmineIdInputSchema>
 
+/** Output of `redmine:find-issue`: false for an issue that does not exist or the key cannot see. */
+export const redmineFindIssueResultSchema = z.strictObject({ found: z.boolean() })
+export type RedmineFindIssueResult = z.infer<typeof redmineFindIssueResultSchema>
+
 /** The Redmine view opened or closed: the month summary is queried only while it is open. */
 export const redmineViewInputSchema = z.strictObject({ open: z.boolean() })
 
