@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CODE_REVIEW_LIST_LIMIT,
   clearInputSchema,
   codeReviewAlertSchema,
   codeReviewStateSchema,
@@ -10,7 +9,6 @@ import {
   openProfileInputSchema,
   platformSchema,
   platformStateSchema,
-  reviewStateSchema,
   setTokenInputSchema,
   setTokenResultSchema,
 } from '../../../src/shared/code-review/schema'
@@ -21,15 +19,6 @@ describe('code review enums', () => {
   it('accepts only the two platforms', () => {
     expect(platformSchema.options).toEqual(['github', 'gitlab'])
     expect(platformSchema.safeParse('bitbucket').success).toBe(false)
-  })
-
-  it('accepts the review states', () => {
-    for (const s of ['none', 'approved', 'changes', 'commented']) expect(reviewStateSchema.safeParse(s).success).toBe(true)
-    expect(reviewStateSchema.safeParse('dismissed').success).toBe(false)
-  })
-
-  it('keeps the own PR/MR limit main reads', () => {
-    expect(CODE_REVIEW_LIST_LIMIT).toBe(20)
   })
 })
 

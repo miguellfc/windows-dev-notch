@@ -429,6 +429,7 @@ struct T {
     contribution_events: Arc<Mutex<Vec<ContributionsChanged>>>,
     alerts: Arc<Mutex<Vec<CodeReviewAlert>>>,
     opened: Arc<Mutex<Vec<String>>>,
+    retracted: Arc<Mutex<u32>>,
 }
 
 fn alert_settings(enabled: bool) -> CodeReviewAlertSettings {
@@ -463,6 +464,7 @@ fn setup(options: Setup) -> T {
     let contribution_events: Arc<Mutex<Vec<ContributionsChanged>>> = Arc::default();
     let alerts: Arc<Mutex<Vec<CodeReviewAlert>>> = Arc::default();
     let opened: Arc<Mutex<Vec<String>>> = Arc::default();
+    let retracted: Arc<Mutex<u32>> = Arc::default();
 
     let build = {
         let clients = Arc::clone(&clients);
@@ -516,6 +518,10 @@ fn setup(options: Setup) -> T {
             let alerts = Arc::clone(&alerts);
             Arc::new(move |alert: &CodeReviewAlert| alerts.lock().unwrap().push(alert.clone()))
         },
+        retract_alert: {
+            let retracted = Arc::clone(&retracted);
+            Arc::new(move || *retracted.lock().unwrap() += 1)
+        },
     };
     let integration = CodeReviewIntegration::new(deps);
     *settings.listener.lock().unwrap() = Arc::downgrade(&integration);
@@ -535,6 +541,7 @@ fn setup(options: Setup) -> T {
         contribution_events,
         alerts,
         opened,
+        retracted,
     }
 }
 
@@ -591,6 +598,10 @@ impl T {
             Platform::Github => state.github,
             Platform::Gitlab => state.gitlab,
         }
+    }
+
+    fn retracted(&self) -> u32 {
+        *self.retracted.lock().unwrap()
     }
 
     fn alerts(&self) -> Vec<CodeReviewAlert> {
@@ -1298,6 +1309,30 @@ async fn single_alert_keeps_its_url_and_open_alert_opens_it() {
     );
     // The other platform never had an alert.
     assert!(!t.integration.open_alert(GITHUB));
+}
+
+#[tokio::test]
+async fn opening_the_alert_retracts_it_and_a_second_click_opens_nothing() {
+    let t = single_alert(GITHUB, None).await;
+    assert_eq!(t.retracted(), 0);
+    assert!(t.integration.open_alert(GITHUB));
+    t.flush(0).await;
+    assert_eq!(t.retracted(), 1);
+    assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
+    // The URL was consumed: another click opens no second tab and retracts nothing again.
+    assert!(!t.integration.open_alert(GITHUB));
+    t.flush(0).await;
+    assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
+    assert_eq!(t.retracted(), 1);
+}
+
+#[tokio::test]
+async fn a_refused_open_alert_does_not_retract() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    assert!(!t.integration.open_alert(GITHUB));
+    assert_eq!(t.retracted(), 0);
 }
 
 #[tokio::test]

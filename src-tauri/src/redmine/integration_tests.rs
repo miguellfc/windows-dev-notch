@@ -1612,6 +1612,26 @@ async fn find_issue_network_failure_is_unavailable_and_keeps_the_session() {
     assert_eq!(t.status(), RedmineStatus::Ok);
 }
 
+#[tokio::test]
+async fn issue_the_key_can_no_longer_see_keeps_the_session() {
+    // The client answers a plain 403 on the detail as a non-auth error.
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.last()
+        .issue
+        .lock()
+        .unwrap()
+        .once(Err(ApiError::InvalidResponse));
+    let error = t.integration.issue(99).await.unwrap_err();
+    expect_error(
+        &error,
+        IpcErrorCode::Unavailable,
+        "Redmine request failed: invalid-response",
+    );
+    assert_eq!(t.status(), RedmineStatus::Ok);
+}
+
 // ---------------------------------------------------------------------------------------------
 // open
 

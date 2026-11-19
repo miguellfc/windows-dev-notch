@@ -5,7 +5,7 @@ import type { MessageKey } from '../../../shared/i18n/messages'
 import type { RedmineIssueList as IssueList } from '../../../shared/redmine/schema'
 import { RedmineMark } from '../../shared/brand-icons'
 import { formatUpdated } from '../../shared/gmail/format'
-import { searchStep, settleSearch, type SearchResult, type SettledSearch } from '../../shared/redmine/search'
+import { searchStep, settleSearch, truncatedSearchHint, type SearchResult, type SettledSearch } from '../../shared/redmine/search'
 import { loadSummary, setRedmineSearching, useRedmine } from '../../shared/redmine-store'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
@@ -352,7 +352,7 @@ export function RedmineView() {
         ) : result.kind === 'many' ? (
           <RedmineIssueList ref={scroller} issues={result.issues} more={result.more} dimmed={offline} onOpen={pickRow} />
         ) : result.kind === 'none' || (result.kind === 'lookup' && answer === 'missing') ? (
-          <RedmineIssueList ref={scroller} issues={[]} more={0} dimmed={offline} onOpen={pickRow} />
+          <RedmineIssueList ref={scroller} issues={[]} more={0} dimmed={offline} truncatedHint={truncatedSearchHint(query, result, list?.truncated ?? false)} onOpen={pickRow} />
         ) : result.kind === 'lookup' && answer === 'failed' ? (
           <RedmineStatus notice="error" onRetry={() => setLookupAttempt((n) => n + 1)} />
         ) : result.kind === 'lookup' ? (

@@ -515,14 +515,28 @@ impl RedmineClient {
     }
 
     /// `GET issues/{id}.json?include=allowed_statuses`; without `allowed_statuses` (absent or
-    /// `null`, older Redmine) every status is offered. An empty list is kept.
+    /// `null`, older Redmine) every status is offered. An empty list is kept. A plain 403 (an
+    /// issue the key can no longer see) is `InvalidResponse`, never `Auth`: it must not end the
+    /// session, as in [`Self::find_issue`]. 401 stays `Auth`, a rate-limit 403 `RateLimited`.
     pub async fn issue(&self, id: u64) -> Result<RedmineIssueDetail, ApiError> {
-        let body = self
-            .get(
+        let url = self
+            .url(
                 &format!("issues/{id}.json"),
                 &[("include", "allowed_statuses")],
             )
-            .await?;
+            .ok_or(ApiError::Network)?;
+        let response = send_raw(
+            self.transport.as_ref(),
+            self.with_headers(HttpRequest::get(url)),
+        )
+        .await?;
+        if !response.is_ok() {
+            return Err(match status_error(&response) {
+                ApiError::Auth if response.status == 403 => ApiError::InvalidResponse,
+                error => error,
+            });
+        }
+        let body: Value = read_json(&response)?;
         let RawIssue {
             issue,
             allowed_statuses,

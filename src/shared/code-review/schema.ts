@@ -1,13 +1,9 @@
 import { z } from 'zod'
 
-/** Main reads at most this many own PR/MRs per platform. */
-export const CODE_REVIEW_LIST_LIMIT = 20
 /** Unreviewed counts are capped here; the UI shows 100 as "99+". */
 export const CODE_REVIEW_COUNT_CAP = 100
 /** Titles, refs and authors are cut to this many characters before they leave the client. */
 export const CODE_REVIEW_TEXT_MAX = 1000
-/** Item ids (GitHub node ids, `projectId!iid` on GitLab) are short; main bounds them when it reads them. */
-export const CODE_REVIEW_ID_MAX = 256
 /** A personal access token is never longer than this. */
 export const CODE_REVIEW_TOKEN_MAX = 255
 /** The GitLab server URL is never longer than this. */
@@ -15,9 +11,6 @@ export const GITLAB_URL_MAX = 512
 
 export const platformSchema = z.enum(['github', 'gitlab'])
 export type Platform = z.infer<typeof platformSchema>
-
-export const reviewStateSchema = z.enum(['none', 'approved', 'changes', 'commented'])
-export type ReviewState = z.infer<typeof reviewStateSchema>
 
 /** A review that counts as "reviewed" (what an alert announces). */
 export const reviewKindSchema = z.enum(['approved', 'changes', 'commented'])

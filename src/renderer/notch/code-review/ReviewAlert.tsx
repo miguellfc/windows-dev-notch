@@ -14,7 +14,7 @@ import { PLATFORM_ICONS } from './icons'
  * after 6 s). One PR/MR shows "**Aprobado** · acme/web#12 · título" (or Cambios pedidos / Revisado),
  * several "**2 PR revisados** · GitHub"; without a payload (already spent while main still shows the
  * alert) the plain verdict "Revisado". It never takes focus. A click on a single PR/MR asks main to
- * open it in the browser (the alert then goes away); several, or one main no longer knows, open the
+ * open it in the browser (main then retracts the alert at once); several, or one main no longer knows, open the
  * reviews view on that platform.
  */
 export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
@@ -35,8 +35,8 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
     if (alert?.count !== 1) return openView()
     void window.notch.codeReview.openAlert({ platform: alert.platform }).then(
       (result) => {
-        if (result.ok && result.data.opened) void window.notch.notch.request({ intent: 'dismiss' })
-        else openView()
+        // Main retracts the alert itself once it opened the page.
+        if (!(result.ok && result.data.opened)) openView()
       },
       openView,
     )

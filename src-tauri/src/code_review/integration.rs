@@ -92,6 +92,8 @@ pub struct CodeReviewDeps {
     pub open_external: OpenExternal,
     /// Own PR/MRs got their first review while that platform's alerts are on.
     pub on_alert: Arc<dyn Fn(&CodeReviewAlert) + Send + Sync>,
+    /// `open_alert` really opened the PR/MR: the alert has done its job and goes away now.
+    pub retract_alert: Arc<dyn Fn() + Send + Sync>,
 }
 
 /// `parseCodeReviewBaseOverrides`: the API base per platform in dev/E2E.
@@ -256,8 +258,6 @@ struct Runtime {
     account: Option<String>,
     unreviewed: Option<u32>,
     updated_at: Option<String>,
-    /// The user's own open PR/MRs of the last query.
-    mine: Vec<ClientItem>,
     /// URL of the PR/MR of the last first-review alert, only while that alert was for exactly one
     /// (`open_alert` opens it, on the platform's origin). Never sent to the renderer.
     last_alert_url: Option<String>,
@@ -616,7 +616,6 @@ impl CodeReviewIntegration {
         rt.account = None;
         rt.unreviewed = None;
         rt.updated_at = None;
-        rt.mine.clear();
         rt.last_alert_url = None;
         rt.remembered.clear();
         rt.detector.reset();
@@ -638,7 +637,6 @@ impl CodeReviewIntegration {
         self.clear_timer(inner, platform, Rhythm::Contributions);
         let rt = inner.rt(platform);
         rt.unreviewed = None;
-        rt.mine.clear();
         rt.status = Status(PlatformStatus::AuthError);
         self.publish(inner, effects);
     }
@@ -725,7 +723,6 @@ impl CodeReviewIntegration {
                     // known state, for both the detector and the count.
                     let observation = merge_uncertain(&snapshot, &rt.remembered);
                     rt.account = Some(account);
-                    rt.mine = snapshot.mine;
                     rt.unreviewed = Some(observation.unreviewed);
                     rt.remembered = observation.remembered;
                     rt.updated_at = Some(updated_at);
@@ -735,7 +732,7 @@ impl CodeReviewIntegration {
                     self.schedule(&mut inner, platform, TICK_MS);
                     let rt = inner.rt(platform);
                     let fresh = rt.detector.observe(&observation.observed);
-                    if let Some((alert, url)) = announcement(platform, &rt.mine, &fresh) {
+                    if let Some((alert, url)) = announcement(platform, &snapshot.mine, &fresh) {
                         effects.push(Effect::Alert(alert, url));
                     }
                 }
@@ -842,7 +839,7 @@ impl CodeReviewIntegration {
                     return;
                 }
                 Err(error) => {
-                    // Lists, status and the rest of the state stay: only the chart shows it.
+                    // The status and the rest of the state stay: only the chart shows it.
                     log::warn!(target: LOG_TARGET, "Code review contributions query failed platform={} code={}", platform.as_str(), error_code(error));
                     inner.rt(platform).contributions_error = true;
                 }
@@ -1016,9 +1013,12 @@ impl CodeReviewIntegration {
                 log::warn!(target: LOG_TARGET, "Refused to open an alert outside the allowed origin platform={}", platform.as_str());
                 return false;
             }
+            // Consumed: a second click on the same alert must not open another tab.
+            inner.rt(platform).last_alert_url = None;
             url
         };
         self.open_in_browser(platform, url);
+        (self.deps.retract_alert)();
         true
     }
 
@@ -1435,6 +1435,7 @@ pub fn install(
         // it after 6 s.
         on_alert: {
             let app = app.clone();
+            let controller = Arc::clone(&controller);
             Arc::new(move |alert: &CodeReviewAlert| {
                 if app.get_webview_window(ipc::NOTCH).is_none() {
                     return;
@@ -1442,6 +1443,11 @@ pub fn install(
                 ipc::emit_event(&app, &[ipc::NOTCH], "code-review:alert", alert);
                 controller.dispatch(NotchEvent::Review { on: true });
             })
+        },
+        // Opening the PR/MR from the alert puts the alert away at once.
+        retract_alert: {
+            let controller = Arc::clone(&controller);
+            Arc::new(move || controller.dispatch(NotchEvent::Review { on: false }))
         },
     };
     let integration = CodeReviewIntegration::new(deps);

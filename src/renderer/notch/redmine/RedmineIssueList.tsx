@@ -91,6 +91,7 @@ export function RedmineIssueList({
   issues,
   more,
   dimmed,
+  truncatedHint = false,
   onOpen,
   ref,
 }: {
@@ -99,6 +100,8 @@ export function RedmineIssueList({
   more: number
   /** Offline: the last data, faded. */
   dimmed: boolean
+  /** No match over a list main cut at 300: the issue may be older, so say how to reach it. */
+  truncatedHint?: boolean
   onOpen: (id: number) => void
   ref?: Ref<HTMLDivElement>
 }) {
@@ -121,6 +124,11 @@ export function RedmineIssueList({
             <Row key={issue.id} issue={issue} onOpen={() => onOpen(issue.id)} />
           ))}
         </ul>
+      )}
+      {issues.length === 0 && truncatedHint && (
+        <p data-testid="redmine-truncated-hint" className="flex min-h-8 shrink-0 items-center px-2.5 text-label text-graphite">
+          {t('redmine.search.truncatedHint')}
+        </p>
       )}
       {more > 0 && (
         <p data-testid="redmine-search-more" className="flex h-8 shrink-0 items-center px-2.5 text-label text-graphite">

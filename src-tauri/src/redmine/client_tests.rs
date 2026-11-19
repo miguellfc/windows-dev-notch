@@ -600,6 +600,26 @@ async fn issue_404_on_read_is_invalid_response() {
     assert_eq!(setup.client.issue(5).await, Err(ApiError::InvalidResponse));
 }
 
+#[tokio::test]
+async fn issue_403_is_an_error_but_never_a_rejected_key() {
+    let hidden = harness(|_, _| json_status(&json!({}), 403));
+    let error = hidden.client.issue(5).await.unwrap_err();
+    assert_ne!(error, ApiError::Auth);
+    assert_eq!(error, ApiError::InvalidResponse);
+}
+
+#[tokio::test]
+async fn issue_401_is_still_auth_and_a_rate_limited_403_stays_rate_limited() {
+    let unauthorized = harness(|_, _| json_status(&json!({}), 401));
+    assert_eq!(unauthorized.client.issue(5).await, Err(ApiError::Auth));
+    let limited = harness(|_, _| {
+        Ok(HttpResponse::new(403)
+            .with_header("retry-after", "60")
+            .with_header("x-ratelimit-remaining", "0"))
+    });
+    assert_eq!(limited.client.issue(5).await, Err(ApiError::RateLimited));
+}
+
 // --- find_issue ----------------------------------------------------------------------------------
 
 #[tokio::test]

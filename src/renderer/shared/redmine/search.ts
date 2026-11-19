@@ -33,6 +33,15 @@ export function redmineSearch(query: string, issues: readonly RedmineIssue[]): S
   return askable ? { kind: 'lookup', id } : { kind: 'none' }
 }
 
+/**
+ * Whether the empty result of a text search should say the list was cut: main reads at most the 300
+ * most recently updated assigned issues, so an older one may exist. A `#number` is always asked of
+ * Redmine, so it never needs the hint.
+ */
+export function truncatedSearchHint(query: string, result: SearchResult, truncated: boolean): boolean {
+  return truncated && result.kind === 'none' && !query.trim().startsWith('#')
+}
+
 /** A query with what it resolved to. */
 export interface SettledSearch {
   readonly query: string

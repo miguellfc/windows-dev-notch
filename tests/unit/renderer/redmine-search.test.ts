@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RedmineIssue, RedmineSummary } from '../../../src/shared/redmine/schema'
 import { summaryLine } from '../../../src/renderer/shared/redmine/format'
-import { redmineSearch, searchStep, settleSearch, type LookupState } from '../../../src/renderer/shared/redmine/search'
+import { redmineSearch, searchStep, truncatedSearchHint, settleSearch, type LookupState } from '../../../src/renderer/shared/redmine/search'
 
 const issue = (id: number, subject = `Tarea ${'x'.repeat(3)}`, project = 'Portal'): RedmineIssue => ({
   id,
@@ -171,5 +171,21 @@ describe('summaryLine', () => {
 
   it('shows a dash for each figure until the summary arrives', () => {
     expect(summaryLine(null, 'es')).toBe('Hoy — · Semana — · Mes —')
+  })
+})
+
+describe('truncatedSearchHint', () => {
+  const none = { kind: 'none' } as const
+  it('shows only for a text search without matches over a truncated list', () => {
+    expect(truncatedSearchHint('vacaciones', none, true)).toBe(true)
+    expect(truncatedSearchHint('vacaciones', none, false)).toBe(false)
+  })
+
+  it('stays away when the number was asked of Redmine, the query is a #number or something matched', () => {
+    expect(truncatedSearchHint('#412', { kind: 'lookup', id: 412 }, true)).toBe(false)
+    expect(truncatedSearchHint('#99999999999999999999', none, true)).toBe(false)
+    expect(truncatedSearchHint('vacaciones', { kind: 'one', id: 1 }, true)).toBe(false)
+    expect(truncatedSearchHint('vacaciones', { kind: 'many', issues: [], more: 0 }, true)).toBe(false)
+    expect(truncatedSearchHint('', { kind: 'idle' }, true)).toBe(false)
   })
 })

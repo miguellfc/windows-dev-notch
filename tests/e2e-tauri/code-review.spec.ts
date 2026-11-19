@@ -713,12 +713,17 @@ describe('Code review (Tauri)', () => {
     await advanceClock(TICK_MS)
     await expectMode('alert')
     await expect(byTestId('review-alert')).toHaveText(`Aprobado · web-app#${firstPr!.number} · ${firstPr!.title}`)
+    const clickedAt = Date.now()
     await byTestId('review-alert').click()
     await eventually(openedUrls, (urls) => urls.length === 1, 'the PR opened')
     expect(await openedUrls()).toEqual([githubPrUrl(firstPr!)])
     await pointer(false)
-    await expectMode('peek')
+    // Main retracts the alert when it opens the page: it is gone well before its 6 s expiry.
+    await expectMode('peek', 4_000)
+    expect(Date.now() - clickedAt).toBeLessThan(5_000)
     expect(await $$('[data-testid="review-alert"]')).toHaveLength(0)
+    // Exactly one tab for that PR.
+    expect(await openedUrls()).toEqual([githubPrUrl(firstPr!)])
 
     // The same on GitLab: the MR opens on the configured server.
     const [firstMr] = GITLAB_MINE
