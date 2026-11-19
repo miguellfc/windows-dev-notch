@@ -116,7 +116,7 @@ export function RedmineIssueList({
           {t('redmine.view.noMatch')}
         </p>
       ) : (
-        <ul aria-label={t('redmine.view.list')} className="flex flex-col">
+        <ul aria-label={t('redmine.search.results')} className="flex flex-col">
           {issues.map((issue) => (
             <Row key={issue.id} issue={issue} onOpen={() => onOpen(issue.id)} />
           ))}

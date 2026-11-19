@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RedmineIssue, RedmineSummary } from '../../../src/shared/redmine/schema'
 import { summaryLine } from '../../../src/renderer/shared/redmine/format'
-import { redmineSearch, searchStep, type LookupState } from '../../../src/renderer/shared/redmine/search'
+import { redmineSearch, searchStep, settleSearch, type LookupState } from '../../../src/renderer/shared/redmine/search'
 
 const issue = (id: number, subject = `Tarea ${'x'.repeat(3)}`, project = 'Portal'): RedmineIssue => ({
   id,
@@ -38,6 +38,17 @@ describe('redmineSearch', () => {
     expect(redmineSearch('#9999', [])).toEqual({ kind: 'lookup', id: 9999 })
   })
 
+  it('looks up an explicit #number outside the list before reading any text', () => {
+    const mentions = [issue(5, 'Seguimiento de #9999')]
+    expect(redmineSearch('#9999', mentions)).toEqual({ kind: 'lookup', id: 9999 })
+  })
+
+  it('reads bare digits as text first, and looks them up only without a text match', () => {
+    const mentions = [issue(5, 'Seguimiento de 9999')]
+    expect(redmineSearch('9999', mentions)).toEqual({ kind: 'one', id: 5 })
+    expect(redmineSearch('8888', mentions)).toEqual({ kind: 'lookup', id: 8888 })
+  })
+
   it('never looks up a number no issue can have', () => {
     expect(redmineSearch('#0', issues)).toEqual({ kind: 'none' })
     expect(redmineSearch('#99999999999999999999', issues)).toEqual({ kind: 'none' })
@@ -64,6 +75,51 @@ describe('redmineSearch', () => {
 
   it('answers none when no text matches', () => {
     expect(redmineSearch('zzz', issues)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('settleSearch', () => {
+  const design = issue(412, 'Diseño de la pantalla')
+  const other = issue(7, 'Migrar datos')
+
+  it('keeps the open detail when its issue leaves the list', () => {
+    const byText = settleSearch(null, 'diseño', [design, other])
+    expect(byText?.result).toEqual({ kind: 'one', id: 412 })
+    expect(settleSearch(byText, 'diseño', [other])).toBe(byText)
+
+    const byNumber = settleSearch(null, '#412', [design, other])
+    expect(settleSearch(byNumber, '#412', [other])).toBe(byNumber)
+  })
+
+  it('keeps the open detail when a new matching issue arrives', () => {
+    const settled = settleSearch(null, 'diseño', [design])
+    expect(settleSearch(settled, 'diseño', [design, issue(8, 'Diseño del informe')])).toBe(settled)
+  })
+
+  it('resolves again when the query changes', () => {
+    const settled = settleSearch(null, 'diseño', [design, other])
+    expect(settleSearch(settled, 'migrar', [design, other])).toEqual({ query: 'migrar', result: { kind: 'one', id: 7 } })
+  })
+
+  it('does not count spaces around the query as a change', () => {
+    const settled = settleSearch(null, 'diseño', [design])
+    expect(settleSearch(settled, 'diseño ', [])).toBe(settled)
+  })
+
+  it('waits for the list before resolving a query', () => {
+    expect(settleSearch(null, 'diseño', null)).toBeNull()
+    expect(settleSearch(null, 'diseño', [design])?.result).toEqual({ kind: 'one', id: 412 })
+  })
+
+  it('keeps the rows of several matches but shows their latest data', () => {
+    const first = issue(1, 'Informe')
+    const second = issue(2, 'Informe')
+    const settled = settleSearch(null, 'informe', [first, second])
+    const logged = { ...first, spentHours: 3 }
+    const next = settleSearch(settled, 'informe', [logged, issue(3, 'Informe')])
+    expect(next?.result).toEqual({ kind: 'many', issues: [logged, second], more: 0 })
+    // Settled: nothing new, so rendering again changes nothing.
+    expect(settleSearch(next, 'informe', [logged, issue(3, 'Informe')])).toBe(next)
   })
 })
 

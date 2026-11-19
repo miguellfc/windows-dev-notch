@@ -5,7 +5,7 @@ import type { MessageKey } from '../../../shared/i18n/messages'
 import type { RedmineIssueList as IssueList } from '../../../shared/redmine/schema'
 import { RedmineMark } from '../../shared/brand-icons'
 import { formatUpdated } from '../../shared/gmail/format'
-import { redmineSearch, searchStep } from '../../shared/redmine/search'
+import { searchStep, settleSearch, type SearchResult, type SettledSearch } from '../../shared/redmine/search'
 import { loadSummary, setRedmineSearching, useRedmine } from '../../shared/redmine-store'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
@@ -150,7 +150,11 @@ export function RedmineView() {
     setPickedId(null)
   }, [live])
 
-  const result = list ? redmineSearch(query, list.issues) : ({ kind: 'idle' } as const)
+  // A query stays resolved until its text changes: a new list never replaces the open detail.
+  const [settled, setSettled] = useState<SettledSearch | null>(null)
+  const nextSettled = settleSearch(settled, query, list?.issues ?? null)
+  if (nextSettled !== settled) setSettled(nextSettled)
+  const result: SearchResult = nextSettled?.result ?? { kind: 'idle' }
   const lookupId = result.kind === 'lookup' ? result.id : null
 
   // Only the newest number counts (`searchStep`): a slower answer to an earlier one is dropped.
