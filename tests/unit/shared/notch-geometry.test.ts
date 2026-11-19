@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
+import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, REDMINE_SIZES, redmineSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -280,8 +280,16 @@ describe('reviews panel geometry', () => {
 })
 
 describe('Redmine panel geometry', () => {
-  it('is 520×560, inside the window width', () => {
-    expect(CAPSULE_SIZES.redmine).toEqual({ width: 520, height: 560 })
+  it('rests shorter than it searches, at the same width', () => {
+    expect(REDMINE_SIZES.search).toEqual({ width: 520, height: 560 })
+    // Measured in WebView2 with the hours error line and the offline footer.
+    expect(REDMINE_SIZES.rest).toEqual({ width: 520, height: 272 })
+    expect(redmineSizeFor(false)).toEqual(REDMINE_SIZES.rest)
+    expect(redmineSizeFor(true)).toEqual(REDMINE_SIZES.search)
+  })
+
+  it('sizes the window for the search, so searching never resizes it', () => {
+    expect(CAPSULE_SIZES.redmine).toEqual(REDMINE_SIZES.search)
     expect(windowBoundsFor('redmine', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 560 + SHADOW_MARGIN.bottom })
     expect(resizeOrder('expanded', 'redmine')).toBe('resize-first')
     expect(resizeOrder('redmine', 'expanded')).toBe('animate-first')

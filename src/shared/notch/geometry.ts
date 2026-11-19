@@ -52,11 +52,23 @@ export const QUESTION_SIZE = { width: 520, height: 504 } as const
 export const REVIEWS_SIZE = { width: 520, height: 324 } as const
 
 /**
- * The Redmine view, the tallest panel (the window is sized for it):
- * the 32 px header, the hours summary (the month chart beside Hoy · Semana · Mes), the search box,
- * then the assigned issues (50 px rows) or one issue's detail in their own scroll.
+ * The Redmine view. At rest, the 32 px header, the hours summary (the month chart beside
+ * Hoy · Semana · Mes) and the search box. While searching, the summary shrinks to one line and the
+ * matches or one issue's detail take the room below the box. Both are the `redmine` mode: the window
+ * is sized for the search, the tallest panel, and the rest is a shorter capsule inside it. The rest
+ * was measured in WebView2 (built debug app, ES and EN) with the worst case, the hours error line and
+ * the offline footer: 8 + 32 + 6 + 154 (summary) + 6 + 28 (search) + 6 + 20 (footer) + 10, plus the
+ * capsule's 2 px border.
  */
-export const REDMINE_SIZE = { width: 520, height: 560 } as const
+export const REDMINE_SIZES = {
+  rest: { width: 520, height: 272 },
+  search: { width: 520, height: 560 },
+} as const
+
+/** Size of the Redmine panel: the search while there is something under the box, else the rest. */
+export function redmineSizeFor(searching: boolean): { width: number; height: number } {
+  return searching ? REDMINE_SIZES.search : REDMINE_SIZES.rest
+}
 
 /**
  * The zones of the compact capsule (time and date | integration blocks | system), in px, measured
@@ -135,7 +147,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   notes: { width: 420, height: 320 },
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
-  redmine: REDMINE_SIZE,
+  redmine: REDMINE_SIZES.search,
   mini: { width: 96, height: 4 },
 }
 

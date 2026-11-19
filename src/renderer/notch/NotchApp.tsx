@@ -1,7 +1,7 @@
 import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
-import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
+import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, gmailSizeFor, growsWindow, redmineSizeFor, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode, type NotchView } from '../../shared/notch/state'
 import type { IntegrationsSettings } from '../../shared/settings/schema'
 import { setRedmineAlert, setRedmineAlertPayload, useRedmine } from '../shared/redmine-store'
@@ -281,6 +281,7 @@ export function NotchApp() {
   useRedmineAlert(mode)
   useCloseDisabledView(mode, settings?.integrations ?? null)
   const gmailReading = useGmail((state) => state.reading !== null)
+  const redmineSearching = useRedmine((state) => state.searching)
   const capsuleRect = useCapsuleRect()
 
   useEffect(() => {
@@ -306,7 +307,9 @@ export function NotchApp() {
       ? { ...CAPSULE_SIZES.compact, width: compactWidth }
       : mode === 'gmail'
         ? gmailSizeFor(gmailReading)
-        : CAPSULE_SIZES[mode]
+        : mode === 'redmine'
+          ? redmineSizeFor(redmineSearching)
+          : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
   // Left click: the pill goes back to compact (then peek once the pointer leaves); peek and compact

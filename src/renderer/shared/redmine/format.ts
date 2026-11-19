@@ -18,6 +18,16 @@ export function hoursLong(hours: number, language: Language): string {
   return `${hoursNumber(hours, language)} h`
 }
 
+/** The hours summary in one line, while searching: "Hoy 5,5H · Semana 21H · Mes 38,5H"; a dash until it arrives. */
+export function summaryLine(summary: RedmineSummary | null, language: Language): string {
+  const figure = (hours: number | undefined) => (hours === undefined ? '—' : hoursText(hours, language).toUpperCase())
+  return [
+    `${translate(language, 'redmine.summary.today')} ${figure(summary?.today)}`,
+    `${translate(language, 'redmine.summary.week')} ${figure(summary?.week)}`,
+    `${translate(language, 'redmine.summary.month')} ${figure(summary?.monthTotal)}`,
+  ].join(' · ')
+}
+
 /** Lower case without accents, so "diseno" finds "Diseño". */
 const fold = (text: string): string => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
