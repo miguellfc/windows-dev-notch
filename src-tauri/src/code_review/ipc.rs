@@ -27,11 +27,12 @@ pub trait CodeReviewApi: Send + Sync {
     fn ready(&self) -> BoxFuture<'_, ()>;
     fn state(&self) -> CodeReviewState;
     fn refresh(&self);
-    /// Opens the account's page on the platform; `false` without a known account.
-    fn open_profile(&self, platform: Platform) -> bool;
+    /// Opens the account's page on the platform; `false` without a known account or when the
+    /// browser could not be launched.
+    fn open_profile(&self, platform: Platform) -> BoxFuture<'_, bool>;
     /// Opens the single PR/MR of the last alert; `false` when there is none or its origin is not
-    /// the platform's.
-    fn open_alert(&self, platform: Platform) -> bool;
+    /// the platform's, or the browser could not be launched.
+    fn open_alert(&self, platform: Platform) -> BoxFuture<'_, bool>;
     fn set_token(
         &self,
         platform: Platform,
@@ -108,14 +109,14 @@ async fn handle(
             let PlatformInput { platform } = PlatformInput::from_input(input)?;
             api.ready().await;
             json(OpenedResult {
-                opened: api.open_profile(platform),
+                opened: api.open_profile(platform).await,
             })?
         }
         Op::OpenAlert => {
             let PlatformInput { platform } = PlatformInput::from_input(input)?;
             api.ready().await;
             json(OpenedResult {
-                opened: api.open_alert(platform),
+                opened: api.open_alert(platform).await,
             })?
         }
         Op::SetToken => {

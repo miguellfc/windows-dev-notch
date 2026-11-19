@@ -430,6 +430,10 @@ struct T {
     alerts: Arc<Mutex<Vec<CodeReviewAlert>>>,
     opened: Arc<Mutex<Vec<String>>>,
     retracted: Arc<Mutex<u32>>,
+    /// While set, the opener fails like a refused `ShellExecute`.
+    fail_open: Arc<std::sync::atomic::AtomicBool>,
+    /// Every launch the opener was asked for, failed or not.
+    launches: Arc<Mutex<u32>>,
 }
 
 fn alert_settings(enabled: bool) -> CodeReviewAlertSettings {
@@ -465,6 +469,8 @@ fn setup(options: Setup) -> T {
     let alerts: Arc<Mutex<Vec<CodeReviewAlert>>> = Arc::default();
     let opened: Arc<Mutex<Vec<String>>> = Arc::default();
     let retracted: Arc<Mutex<u32>> = Arc::default();
+    let fail_open: Arc<std::sync::atomic::AtomicBool> = Arc::default();
+    let launches: Arc<Mutex<u32>> = Arc::default();
 
     let build = {
         let clients = Arc::clone(&clients);
@@ -509,9 +515,25 @@ fn setup(options: Setup) -> T {
         },
         open_external: {
             let opened = Arc::clone(&opened);
+            let fail_open = Arc::clone(&fail_open);
+            let launches = Arc::clone(&launches);
             Arc::new(move |url: String| {
-                opened.lock().unwrap().push(url);
-                Box::pin(async { Ok(()) }) as BoxFuture<'static, Result<(), String>>
+                *launches.lock().unwrap() += 1;
+                let failing = fail_open.load(std::sync::atomic::Ordering::SeqCst);
+                if !failing {
+                    opened.lock().unwrap().push(url);
+                }
+                Box::pin(async move {
+                    // A launch takes a while: other calls run before it answers.
+                    for _ in 0..5 {
+                        tokio::task::yield_now().await;
+                    }
+                    if failing {
+                        Err("ShellExecute".to_owned())
+                    } else {
+                        Ok(())
+                    }
+                }) as BoxFuture<'static, Result<(), String>>
             })
         },
         on_alert: {
@@ -542,6 +564,8 @@ fn setup(options: Setup) -> T {
         alerts,
         opened,
         retracted,
+        fail_open,
+        launches,
     }
 }
 
@@ -598,6 +622,15 @@ impl T {
             Platform::Github => state.github,
             Platform::Gitlab => state.gitlab,
         }
+    }
+
+    fn fail_launches(&self, failing: bool) {
+        self.fail_open
+            .store(failing, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn launches(&self) -> u32 {
+        *self.launches.lock().unwrap()
     }
 
     fn retracted(&self) -> u32 {
@@ -1297,33 +1330,75 @@ async fn single_alert(platform: Platform, url: Option<&'static str>) -> T {
 async fn single_alert_keeps_its_url_and_open_alert_opens_it() {
     let t = single_alert(GITHUB, None).await;
     assert_eq!(t.alerts().len(), 1);
-    assert!(t.integration.open_alert(GITHUB));
+    assert!(t.integration.open_alert(GITHUB).await);
     t.flush(0).await;
     assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
     let t = single_alert(GITLAB_P, None).await;
-    assert!(t.integration.open_alert(GITLAB_P));
+    assert!(t.integration.open_alert(GITLAB_P).await);
     t.flush(0).await;
     assert_eq!(
         t.opened(),
         [format!("{GITLAB}/grp/proj/-/merge_requests/1")]
     );
     // The other platform never had an alert.
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
 }
 
 #[tokio::test]
 async fn opening_the_alert_retracts_it_and_a_second_click_opens_nothing() {
     let t = single_alert(GITHUB, None).await;
     assert_eq!(t.retracted(), 0);
-    assert!(t.integration.open_alert(GITHUB));
+    assert!(t.integration.open_alert(GITHUB).await);
     t.flush(0).await;
     assert_eq!(t.retracted(), 1);
     assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
     // The URL was consumed: another click opens no second tab and retracts nothing again.
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
     t.flush(0).await;
     assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
     assert_eq!(t.retracted(), 1);
+}
+
+#[tokio::test]
+async fn a_failed_launch_keeps_the_url_does_not_retract_and_a_later_click_opens_it() {
+    let t = single_alert(GITHUB, None).await;
+    t.fail_launches(true);
+    assert!(!t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.launches(), 1);
+    assert_eq!(t.retracted(), 0);
+    assert!(t.opened().is_empty());
+    // Still there: the next click opens it and only then the alert goes away.
+    t.fail_launches(false);
+    assert!(t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
+    assert_eq!(t.retracted(), 1);
+    assert!(!t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.launches(), 2);
+}
+
+#[tokio::test]
+async fn two_concurrent_clicks_launch_once() {
+    let t = single_alert(GITHUB, None).await;
+    let (first, second) = tokio::join!(
+        t.integration.open_alert(GITHUB),
+        t.integration.open_alert(GITHUB)
+    );
+    assert_eq!([first, second].iter().filter(|opened| **opened).count(), 1);
+    assert_eq!(t.launches(), 1);
+    assert_eq!(t.retracted(), 1);
+    assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
+}
+
+#[tokio::test]
+async fn a_failed_launch_of_the_profile_is_not_opened() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.fail_launches(true);
+    assert!(!t.integration.open_profile(GITHUB).await);
+    assert_eq!(t.launches(), 1);
+    t.fail_launches(false);
+    assert!(t.integration.open_profile(GITHUB).await);
 }
 
 #[tokio::test]
@@ -1331,7 +1406,7 @@ async fn a_refused_open_alert_does_not_retract() {
     let t = setup(Setup::default());
     t.ready().await;
     t.flush(0).await;
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
     assert_eq!(t.retracted(), 0);
 }
 
@@ -1340,8 +1415,8 @@ async fn open_alert_without_an_alert_returns_false() {
     let t = setup(Setup::default());
     t.ready().await;
     t.flush(0).await;
-    assert!(!t.integration.open_alert(GITHUB));
-    assert!(!t.integration.open_alert(GITLAB_P));
+    assert!(!t.integration.open_alert(GITHUB).await);
+    assert!(!t.integration.open_alert(GITLAB_P).await);
     assert!(t.opened().is_empty());
 }
 
@@ -1371,7 +1446,7 @@ async fn many_alerts_clear_the_url_and_open_alert_returns_false() {
     assert_eq!(t.alerts().len(), 1);
     t.flush(TICK_MS).await;
     assert_eq!(t.alerts()[1], count_alert(GITHUB, 2));
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
     t.flush(0).await;
     assert!(t.opened().is_empty());
 }
@@ -1392,7 +1467,7 @@ async fn open_alert_refuses_another_origin() {
     ] {
         let t = single_alert(platform, Some(url)).await;
         assert_eq!(t.alerts().len(), 1);
-        assert!(!t.integration.open_alert(platform), "{url}");
+        assert!(!t.integration.open_alert(platform).await, "{url}");
         t.flush(0).await;
         assert!(t.opened().is_empty(), "{url}");
     }
@@ -1402,10 +1477,10 @@ async fn open_alert_refuses_another_origin() {
 async fn disabling_a_platform_forgets_its_alert_url() {
     let t = single_alert(GITHUB, None).await;
     t.integration.set_enabled(GITHUB, false);
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
     t.integration.set_enabled(GITHUB, true);
     t.flush(0).await;
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
     assert!(t.opened().is_empty());
 }
 
@@ -1413,7 +1488,7 @@ async fn disabling_a_platform_forgets_its_alert_url() {
 async fn open_alert_allows_any_path_of_the_gitlab_server() {
     let url = "https://gitlab.example.com/other/-/merge_requests/1";
     let t = single_alert(GITLAB_P, Some(url)).await;
-    assert!(t.integration.open_alert(GITLAB_P));
+    assert!(t.integration.open_alert(GITLAB_P).await);
     t.flush(0).await;
     assert_eq!(t.opened(), [url]);
 }
@@ -1424,7 +1499,7 @@ async fn a_server_change_forgets_the_alert_url() {
     let mut next = t.settings();
     next.gitlab_url = "https://elsewhere.example.com".into();
     t.change_settings(next);
-    assert!(!t.integration.open_alert(GITLAB_P));
+    assert!(!t.integration.open_alert(GITLAB_P).await);
     assert!(t.opened().is_empty());
 }
 
@@ -1432,7 +1507,7 @@ async fn a_server_change_forgets_the_alert_url() {
 async fn closing_the_session_forgets_the_alert_url() {
     let t = single_alert(GITHUB, None).await;
     t.integration.clear(GITHUB).await;
-    assert!(!t.integration.open_alert(GITHUB));
+    assert!(!t.integration.open_alert(GITHUB).await);
     assert!(t.opened().is_empty());
 }
 
@@ -1441,8 +1516,8 @@ async fn open_profile_builds_the_platform_url() {
     let t = setup(both());
     t.ready().await;
     t.flush(0).await;
-    assert!(t.integration.open_profile(GITHUB));
-    assert!(t.integration.open_profile(GITLAB_P));
+    assert!(t.integration.open_profile(GITHUB).await);
+    assert!(t.integration.open_profile(GITLAB_P).await);
     t.flush(0).await;
     assert_eq!(
         t.opened(),
@@ -1461,8 +1536,8 @@ async fn open_profile_without_account_returns_false() {
     });
     t.ready().await;
     t.flush(0).await;
-    assert!(!t.integration.open_profile(GITHUB));
-    assert!(!t.integration.open_profile(GITLAB_P));
+    assert!(!t.integration.open_profile(GITHUB).await);
+    assert!(!t.integration.open_profile(GITLAB_P).await);
     t.flush(0).await;
     assert!(t.opened().is_empty());
 }
@@ -1473,7 +1548,7 @@ async fn open_profile_encodes_the_account_as_one_path_segment() {
     t.set_prepare(|c, _, _| c.set_viewer(Ok("a/b?c#d".into())));
     t.ready().await;
     t.flush(0).await;
-    assert!(t.integration.open_profile(GITHUB));
+    assert!(t.integration.open_profile(GITHUB).await);
     t.flush(0).await;
     assert_eq!(t.opened(), ["https://github.com/a%2Fb%3Fc%23d"]);
 }
@@ -1498,8 +1573,8 @@ async fn never_logs_tokens_titles_refs_or_authors() {
     t.integration
         .set_token(GITHUB, "ghp_SECRETTOKEN", None)
         .await;
-    t.integration.open_profile(GITHUB);
-    t.integration.open_alert(GITHUB);
+    t.integration.open_profile(GITHUB).await;
+    t.integration.open_alert(GITHUB).await;
     t.integration.clear(GITLAB_P).await;
     let log = code_review_log();
     assert!(!log.is_empty());

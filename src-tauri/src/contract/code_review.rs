@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 use super::claude::{BoolLiteral, False, True};
 use super::{len_in, max_len, nullable, present, safe_int_min, Validate};
 
-/// `CODE_REVIEW_LIST_LIMIT`: main reads at most this many own PR/MRs per platform.
+/// Main reads at most this many own PR/MRs per platform.
 pub const LIST_LIMIT: usize = 20;
 /// `CODE_REVIEW_COUNT_CAP`: unreviewed counts are capped here (the UI shows "99+").
 pub const COUNT_CAP: u32 = 100;
 /// `CODE_REVIEW_TEXT_MAX`: titles, refs, authors and accounts.
 pub const TEXT_MAX: usize = 1000;
-/// `CODE_REVIEW_ID_MAX`: item ids (GitHub node ids, `projectId!iid` on GitLab).
+/// Item ids (GitHub node ids, `projectId!iid` on GitLab).
 pub const ID_MAX: usize = 256;
 /// `CODE_REVIEW_TOKEN_MAX`: a personal access token is never longer.
 pub const TOKEN_MAX: usize = 255;
@@ -35,7 +35,7 @@ string_enum! {
 }
 
 string_enum! {
-    /// `reviewStateSchema`.
+    /// The review state of an own PR/MR.
     pub enum ReviewState {
         None = "none",
         Approved = "approved",

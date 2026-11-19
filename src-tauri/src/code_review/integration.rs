@@ -990,20 +990,23 @@ impl CodeReviewIntegration {
         }
     }
 
-    /// Opens a URL main built or kept, in the background (returns at once).
-    fn open_in_browser(&self, platform: Platform, url: String) {
-        let opening = (self.deps.open_external)(url);
-        (self.deps.spawn)(Box::pin(async move {
-            if let Err(error) = opening.await {
+    /// Opens a URL main built or kept and waits for the launch: `false` when the system could not
+    /// start the browser.
+    async fn open_in_browser(&self, platform: Platform, url: String) -> bool {
+        match (self.deps.open_external)(url).await {
+            Ok(()) => true,
+            Err(error) => {
                 log::warn!(target: LOG_TARGET, "Could not open the page in the browser platform={} error={error}", platform.as_str());
+                false
             }
-        }));
+        }
     }
 
     /// Opens the PR/MR of the last alert, if that alert was for exactly one and its URL is still
-    /// on the platform's origin. `false`: nothing opened (the view of the platform is the way out).
-    pub fn open_alert(&self, platform: Platform) -> bool {
-        let url = {
+    /// on the platform's origin. `false`: nothing opened (the view of the platform is the way out),
+    /// also when the browser could not be launched (the URL is kept for another click).
+    pub async fn open_alert(&self, platform: Platform) -> bool {
+        let (url, generation) = {
             let mut inner = self.lock();
             let allowed = Self::allowed_origin(&inner, platform);
             let Some(url) = inner.rt(platform).last_alert_url.clone() else {
@@ -1013,18 +1016,29 @@ impl CodeReviewIntegration {
                 log::warn!(target: LOG_TARGET, "Refused to open an alert outside the allowed origin platform={}", platform.as_str());
                 return false;
             }
-            // Consumed: a second click on the same alert must not open another tab.
-            inner.rt(platform).last_alert_url = None;
-            url
+            // Taken while the launch is in flight: a second click meanwhile finds nothing and
+            // opens no second tab.
+            let rt = inner.rt(platform);
+            rt.last_alert_url = None;
+            (url, rt.generation)
         };
-        self.open_in_browser(platform, url);
+        if !self.open_in_browser(platform, url.clone()).await {
+            // Not opened: the alert stays and the URL with it, unless the session or a newer alert
+            // took over meanwhile.
+            let mut inner = self.lock();
+            let rt = inner.rt(platform);
+            if rt.generation == generation && rt.last_alert_url.is_none() {
+                rt.last_alert_url = Some(url);
+            }
+            return false;
+        }
         (self.deps.retract_alert)();
         true
     }
 
     /// Opens the account's page (`https://github.com/<account>` or `<gitlab url>/<account>`).
-    /// `false` without a known account (or GitLab server).
-    pub fn open_profile(&self, platform: Platform) -> bool {
+    /// `false` without a known account (or GitLab server) or when the browser could not be launched.
+    pub async fn open_profile(&self, platform: Platform) -> bool {
         let url = {
             let mut inner = self.lock();
             let allowed = Self::allowed_origin(&inner, platform);
@@ -1039,8 +1053,7 @@ impl CodeReviewIntegration {
                 _ => return false,
             }
         };
-        self.open_in_browser(platform, url);
-        true
+        self.open_in_browser(platform, url).await
     }
 
     /// Validates the token (and GitLab URL) against the API before saving anything.
@@ -1259,12 +1272,12 @@ impl CodeReviewApi for CodeReviewIntegration {
         CodeReviewIntegration::refresh(self);
     }
 
-    fn open_profile(&self, platform: Platform) -> bool {
-        CodeReviewIntegration::open_profile(self, platform)
+    fn open_profile(&self, platform: Platform) -> BoxFuture<'_, bool> {
+        Box::pin(CodeReviewIntegration::open_profile(self, platform))
     }
 
-    fn open_alert(&self, platform: Platform) -> bool {
-        CodeReviewIntegration::open_alert(self, platform)
+    fn open_alert(&self, platform: Platform) -> BoxFuture<'_, bool> {
+        Box::pin(CodeReviewIntegration::open_alert(self, platform))
     }
 
     fn set_token(

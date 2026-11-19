@@ -86,14 +86,14 @@ impl CodeReviewApi for FakeApi {
         self.record("refresh".into());
     }
 
-    fn open_profile(&self, platform: Platform) -> bool {
+    fn open_profile(&self, platform: Platform) -> BoxFuture<'_, bool> {
         self.record(format!("open-profile:{}", platform.as_str()));
-        self.opens
+        Box::pin(async move { self.opens })
     }
 
-    fn open_alert(&self, platform: Platform) -> bool {
+    fn open_alert(&self, platform: Platform) -> BoxFuture<'_, bool> {
         self.record(format!("open-alert:{}", platform.as_str()));
-        self.opens
+        Box::pin(async move { self.opens })
     }
 
     fn set_token(
