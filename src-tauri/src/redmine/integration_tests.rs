@@ -281,6 +281,7 @@ struct FakeClient {
     viewer: Mutex<Mock<(), Res<Viewer>>>,
     issues: Mutex<Mock<(), Res<RedmineIssueList>>>,
     issue: Mutex<Mock<u64, Res<RedmineIssueDetail>>>,
+    find_issue: Mutex<Mock<u64, Res<bool>>>,
     activities: Mutex<Mock<(), Res<Vec<RedmineActivity>>>>,
     update_issue: Mutex<Mock<(u64, IssuePatch), RedmineWriteResult>>,
     log_time: Mutex<Mock<TimeEntryInput, RedmineWriteResult>>,
@@ -302,6 +303,7 @@ impl FakeClient {
             })),
             issues: Mutex::new(Mock::new(network(), |_| Ok(list(&[12, 13])))),
             issue: Mutex::new(Mock::new(network(), |id| Ok(detail(*id, done_status())))),
+            find_issue: Mutex::new(Mock::new(network(), |_| Ok(true))),
             activities: Mutex::new(Mock::new(network(), |_| Ok(dev_activity()))),
             update_issue: Mutex::new(Mock::new(refused_write(RedmineWriteError::Network), |_| {
                 RedmineWriteResult::Done
@@ -358,6 +360,11 @@ impl RedmineApiClient for FakeClient {
 
     fn issue(&self, id: u64) -> BoxFuture<'_, Res<RedmineIssueDetail>> {
         let reply = self.issue.lock().unwrap().call(id);
+        Box::pin(resolve(reply))
+    }
+
+    fn find_issue(&self, id: u64) -> BoxFuture<'_, Res<bool>> {
+        let reply = self.find_issue.lock().unwrap().call(id);
         Box::pin(resolve(reply))
     }
 
@@ -1513,6 +1520,114 @@ async fn a_failed_query_keeps_the_last_summary_and_flags_the_error() {
     assert_eq!(
         t.summary_events().last(),
         Some(&RedmineSummaryChanged { error: true })
+    );
+    assert_eq!(t.status(), RedmineStatus::Ok);
+}
+
+// ---------------------------------------------------------------------------------------------
+// find_issue
+
+#[tokio::test]
+async fn find_issue_found_marks_it_readable() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    // Not in the list sent and never read: not openable yet.
+    expect_error(
+        &t.integration.open(99).unwrap_err(),
+        IpcErrorCode::InvalidInput,
+        "Unknown issue",
+    );
+    assert!(t.integration.find_issue(99).await.unwrap());
+    t.integration.open(99).unwrap();
+    t.flush(0).await;
+    assert_eq!(t.opened(), [format!("{URL_A}/issues/99")]);
+    // The detail loads afterwards through the existing read.
+    assert_eq!(t.integration.issue(99).await.unwrap().id, 99);
+}
+
+#[tokio::test]
+async fn find_issue_forbidden_is_not_found_and_keeps_the_session() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.last().find_issue.lock().unwrap().once(Ok(false));
+    assert!(!t.integration.find_issue(99).await.unwrap());
+    assert_eq!(t.status(), RedmineStatus::Ok);
+    // Not marked readable, and the session still serves reads.
+    expect_error(
+        &t.integration.open(99).unwrap_err(),
+        IpcErrorCode::InvalidInput,
+        "Unknown issue",
+    );
+    assert_eq!(t.integration.issue(12).await.unwrap().id, 12);
+}
+
+#[tokio::test]
+async fn find_issue_missing_is_not_found() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.last().find_issue.lock().unwrap().once(Ok(false));
+    assert!(!t.integration.find_issue(404).await.unwrap());
+    assert_eq!(t.status(), RedmineStatus::Ok);
+    expect_error(
+        &t.integration.open(404).unwrap_err(),
+        IpcErrorCode::InvalidInput,
+        "Unknown issue",
+    );
+}
+
+#[tokio::test]
+async fn find_issue_unauthorized_ends_the_session() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.last()
+        .find_issue
+        .lock()
+        .unwrap()
+        .once(Err(ApiError::Auth));
+    let error = t.integration.find_issue(99).await.unwrap_err();
+    expect_error(&error, IpcErrorCode::Unavailable, "Redmine key rejected");
+    assert_eq!(t.status(), RedmineStatus::AuthError);
+}
+
+#[tokio::test]
+async fn find_issue_network_failure_is_unavailable_and_keeps_the_session() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.last()
+        .find_issue
+        .lock()
+        .unwrap()
+        .once(Err(ApiError::Network));
+    let error = t.integration.find_issue(99).await.unwrap_err();
+    expect_error(
+        &error,
+        IpcErrorCode::Unavailable,
+        "Redmine request failed: network",
+    );
+    assert_eq!(t.status(), RedmineStatus::Ok);
+}
+
+#[tokio::test]
+async fn issue_the_key_can_no_longer_see_keeps_the_session() {
+    // The client answers a plain 403 on the detail as a non-auth error.
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    t.last()
+        .issue
+        .lock()
+        .unwrap()
+        .once(Err(ApiError::InvalidResponse));
+    let error = t.integration.issue(99).await.unwrap_err();
+    expect_error(
+        &error,
+        IpcErrorCode::Unavailable,
+        "Redmine request failed: invalid-response",
     );
     assert_eq!(t.status(), RedmineStatus::Ok);
 }

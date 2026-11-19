@@ -1,12 +1,10 @@
 import { create } from 'zustand'
 import type { CodeReviewAlert, CodeReviewState, ContributionsResult, Platform } from '../../shared/code-review/schema'
 import { EMPTY_REVIEW_BLOCKS, nextReviewBlocks, type ReviewBlocks } from '../notch/system/capsule-latch'
-import type { ReviewSection } from './code-review/format'
 
-/** Where the reviews view opens: a platform and, optionally, the section whose first row takes focus. */
+/** Where the reviews view opens: the platform the alert or tile stands for. */
 export interface ReviewsTarget {
   platform: Platform
-  section?: ReviewSection
 }
 
 interface CodeReviewStoreState {
@@ -18,7 +16,7 @@ interface CodeReviewStoreState {
   alert: CodeReviewAlert | null
   /** Main says the alert capsule shows the first-review alert (`notch:review-alert`). */
   reviewAlert: boolean
-  /** Set by the alert's click: the view opens on this platform and section, then forgets it. */
+  /** Set by the alert's click: the view opens on this platform, then forgets it. */
   target: ReviewsTarget | null
   /** The last `code-review:contributions` answer per platform (kept across openings); never repositories or titles. */
   contributions: Partial<Record<Platform, ContributionsResult>>

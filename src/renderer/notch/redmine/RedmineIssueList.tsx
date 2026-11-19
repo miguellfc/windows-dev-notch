@@ -84,21 +84,24 @@ function Row({ issue, onOpen }: { issue: RedmineIssue; onOpen: () => void }) {
 }
 
 /**
- * The assigned open issues (already filtered by the search), most recently updated first, in their
- * own scroll. A click or Enter opens the issue's detail; "Se muestran las 300 más recientes" closes
- * the list when Redmine has more.
+ * The matches of the search (5 rows at most), most recently updated first. A click or Enter opens
+ * the issue's detail; "2 más · afina la búsqueda" closes the list when more issues match.
  */
 export function RedmineIssueList({
   issues,
-  truncated,
+  more,
   dimmed,
+  truncatedHint = false,
   onOpen,
   ref,
 }: {
   issues: readonly RedmineIssue[]
-  truncated: boolean
+  /** Matches left out of the rows. */
+  more: number
   /** Offline: the last data, faded. */
   dimmed: boolean
+  /** No match over a list main cut at 300: the issue may be older, so say how to reach it. */
+  truncatedHint?: boolean
   onOpen: (id: number) => void
   ref?: Ref<HTMLDivElement>
 }) {
@@ -109,22 +112,27 @@ export function RedmineIssueList({
       data-testid="redmine-list"
       data-dimmed={dimmed || undefined}
       onKeyDown={onListKeyDown}
-      className={`card flex min-h-0 flex-1 flex-col overflow-y-auto p-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
+      className={`card flex min-h-0 flex-col overflow-y-auto p-1 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}
     >
       {issues.length === 0 ? (
         <p data-testid="redmine-no-match" className="flex h-10 shrink-0 items-center px-2.5 text-small text-graphite">
           {t('redmine.view.noMatch')}
         </p>
       ) : (
-        <ul aria-label={t('redmine.view.list')} className="flex flex-col">
+        <ul aria-label={t('redmine.search.results')} className="flex flex-col">
           {issues.map((issue) => (
             <Row key={issue.id} issue={issue} onOpen={() => onOpen(issue.id)} />
           ))}
         </ul>
       )}
-      {truncated && (
-        <p data-testid="redmine-truncated" className="flex h-8 shrink-0 items-center px-2.5 text-label text-graphite">
-          {t('redmine.view.truncated')}
+      {issues.length === 0 && truncatedHint && (
+        <p data-testid="redmine-truncated-hint" className="flex min-h-8 shrink-0 items-center px-2.5 text-label text-graphite">
+          {t('redmine.search.truncatedHint')}
+        </p>
+      )}
+      {more > 0 && (
+        <p data-testid="redmine-search-more" className="flex h-8 shrink-0 items-center px-2.5 text-label text-graphite">
+          {t('redmine.search.more', { count: more })}
         </p>
       )}
     </div>

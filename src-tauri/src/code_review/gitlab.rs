@@ -1,5 +1,5 @@
 //! Self-hosted GitLab REST client (0.1.0's `gitlab-client.ts`): `/api/v4` with the
-//! `private-token` header, 3 + 2N requests per refresh (N = own non-draft MRs), every response
+//! `private-token` header, 2 + 2N requests per refresh (N = own non-draft MRs), every response
 //! validated as the zod schemas do.
 //!
 //! As in the GitHub client, bodies are parsed to a [`serde_json::Value`] and checked by hand with
@@ -13,8 +13,8 @@ use serde_json::Value;
 use url::Url;
 
 use super::client::{
-    clip, clip_text, map_pool, read_json, send_ok, send_raw, snapshot, status_error, ClientItem,
-    CodeReviewClient, CodeReviewError, CodeReviewSnapshot,
+    clip_text, map_pool, read_json, send_ok, send_raw, snapshot, status_error, ClientItem,
+    CodeReviewClient, CodeReviewError, CodeReviewSnapshot, ReviewItem,
 };
 use super::contributions::{
     classify_gitlab_event, date_key, summarize, ContributionRange, GitlabEventClass,
@@ -25,8 +25,7 @@ use super::zod::{
     array, boolean, count, int, invalid, nullish, object, optional, required, string, Obj, Parsed,
 };
 use crate::contract::code_review::{
-    Checks, ContributionSummary, ContributionTotals, ReviewItem, ReviewState, LIST_LIMIT,
-    UPDATED_AT_MAX,
+    ContributionSummary, ContributionTotals, ReviewState, LIST_LIMIT,
 };
 use crate::ipc::BoxFuture;
 use crate::settings::validate::normalize_gitlab_url;
@@ -114,12 +113,8 @@ struct Mr<'a> {
     project_id: i64,
     title: &'a str,
     web_url: &'a str,
-    updated_at: &'a str,
     reference: Option<&'a str>,
-    author: Option<&'a str>,
     draft: bool,
-    conflicts: bool,
-    pipeline: Option<&'a str>,
 }
 
 impl Mr<'_> {
@@ -152,19 +147,13 @@ fn mr(value: &Value) -> Parsed<Mr<'_>> {
     let node = object(value)?;
     let draft = nullish_bool(node, "draft")? == Some(true)
         || nullish_bool(node, "work_in_progress")? == Some(true);
-    let conflicts = nullish_bool(node, "has_conflicts")? == Some(true)
-        || nullish_string(node, "detailed_merge_status")? == Some("conflict");
     Ok(Mr {
         iid: positive(required(node, "iid")?)?,
         project_id: positive(required(node, "project_id")?)?,
         title: string(required(node, "title")?)?,
         web_url: string(required(node, "web_url")?)?,
-        updated_at: string(required(node, "updated_at")?)?,
         reference: nullish_field(node, "references", "full")?,
-        author: nullish_field(node, "author", "username")?,
         draft,
-        conflicts,
-        pipeline: nullish_field(node, "head_pipeline", "status")?,
     })
 }
 
@@ -173,26 +162,6 @@ fn mr_list(body: &Value) -> Parsed<Vec<Mr<'_>>> {
     let mut mrs = array(body)?.iter().map(mr).collect::<Parsed<Vec<_>>>()?;
     mrs.truncate(LIST_LIMIT);
     Ok(mrs)
-}
-
-const RUNNING: [&str; 7] = [
-    "created",
-    "waiting_for_resource",
-    "preparing",
-    "pending",
-    "running",
-    "scheduled",
-    "waiting_for_callback",
-];
-
-/// `checksOf`: the head pipeline's status.
-fn checks_of(mr: &Mr<'_>) -> Option<Checks> {
-    match mr.pipeline? {
-        "success" => Some(Checks::Pass),
-        "failed" => Some(Checks::Fail),
-        status if RUNNING.contains(&status) => Some(Checks::Running),
-        _ => None,
-    }
 }
 
 /// What others did on an own MR: approvals (by anyone but the user) and reviewer states.
@@ -226,12 +195,8 @@ fn to_item(mr: &Mr<'_>, review: &OwnReview<'_>) -> ClientItem {
             id: mr.id(),
             reference,
             title: clip_text(mr.title),
-            author: clip_text(mr.author.unwrap_or("")),
-            updated_at: clip(mr.updated_at, UPDATED_AT_MAX),
             draft: mr.draft,
             review: review_of(review),
-            checks: checks_of(mr),
-            conflicts: mr.conflicts,
         },
         url: mr.web_url.to_owned(),
     }
@@ -444,17 +409,10 @@ impl GitlabClient {
         Ok(self.user().await?.username)
     }
 
-    /// `fetch()`: the user, both lists, then the approvals and reviewers of each own non-draft MR.
+    /// `fetch()`: the user, the own MRs, then the approvals and reviewers of each own non-draft MR.
     pub async fn list(&self) -> Result<CodeReviewSnapshot, CodeReviewError> {
         let me = self.user().await?;
-        let me_id = me.id.to_string();
-        let to_review_query = [("reviewer_id", me_id.as_str()), ("scope", "all")];
-        let mine_query = [("scope", "created_by_me")];
-        let (to_review_body, mine_body) = tokio::try_join!(
-            self.list_body(&to_review_query),
-            self.list_body(&mine_query),
-        )?;
-        let to_review = mr_list(&to_review_body)?;
+        let mine_body = self.list_body(&[("scope", "created_by_me")]).await?;
         let mine = mr_list(&mine_body)?;
         // Drafts are never "unreviewed" nor alerted: no per-MR calls for them.
         let open: Vec<&Mr<'_>> = mine.iter().filter(|mr| !mr.draft).collect();
@@ -501,11 +459,7 @@ impl GitlabClient {
                 to_item(mr, &review)
             })
             .collect();
-        let to_review_items = to_review
-            .iter()
-            .map(|mr| to_item(mr, &OwnReview::default()))
-            .collect();
-        Ok(snapshot(to_review_items, mine_items, &uncertain))
+        Ok(snapshot(mine_items, &uncertain))
     }
 
     /// The month's chart squares and the totals of the month, week and day (`contributions(now)`

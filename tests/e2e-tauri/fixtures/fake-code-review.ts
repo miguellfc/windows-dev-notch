@@ -450,9 +450,8 @@ export const SENSITIVE_DATA: readonly string[] = [
   ...Object.values(GITLAB_EVENT_TEXTS),
 ]
 
-/** The search strings the notch must send (see github-client.ts). */
+/** The search strings the notch must send (see github.rs): since 0.3.0 only the own PRs, no review-requested list. */
 const GITHUB_SEARCHES = {
-  toReview: 'is:open is:pr review-requested:@me archived:false',
   mine: 'is:open is:pr author:@me archived:false',
   unreviewed: 'is:open is:pr author:@me archived:false draft:false review:none',
 }
@@ -574,7 +573,7 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
     if (/query CodeReview\b/.test(query)) {
       hit('github fetch')
       const v = body.variables ?? {}
-      if (v['toReview'] !== GITHUB_SEARCHES.toReview || v['mine'] !== GITHUB_SEARCHES.mine || v['unreviewed'] !== GITHUB_SEARCHES.unreviewed) {
+      if ('toReview' in v || v['mine'] !== GITHUB_SEARCHES.mine || v['unreviewed'] !== GITHUB_SEARCHES.unreviewed) {
         return refuse(res, 400, 'github: unexpected search strings')
       }
       if (v['first'] !== 20) return refuse(res, 400, 'github: list limit is not 20')
@@ -582,7 +581,6 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
       return json(res, 200, {
         data: {
           viewer: { login: FAKE_GITHUB_LOGIN },
-          toReview: { issueCount: GITHUB_TO_REVIEW.length, nodes: GITHUB_TO_REVIEW.map(prNode) },
           mine: { issueCount: githubMine.length, nodes: githubMine.map(prNode) },
           unreviewed: { issueCount: unreviewed },
         },
@@ -696,13 +694,10 @@ export async function startFakeCodeReview(): Promise<FakeCodeReview> {
     }
     if (path === 'merge_requests') {
       if (q.get('state') !== 'opened' || q.get('per_page') !== '20') return refuse(res, 400, 'gitlab: list not opened/20')
+      // Only the own MRs: the review-requested list (`reviewer_id`) is no longer asked for.
       if (q.get('scope') === 'created_by_me' && !q.has('reviewer_id')) {
         hit('gitlab mine')
         return json(res, 200, gitlabMine.map(mrJson))
-      }
-      if (q.get('scope') === 'all' && q.get('reviewer_id') === String(FAKE_GITLAB_USER.id)) {
-        hit('gitlab toReview')
-        return json(res, 200, GITLAB_TO_REVIEW.map(mrJson))
       }
       return refuse(res, 400, `gitlab: unexpected merge_requests query ${q.toString()}`)
     }

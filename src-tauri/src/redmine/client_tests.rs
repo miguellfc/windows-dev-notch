@@ -601,6 +601,63 @@ async fn issue_404_on_read_is_invalid_response() {
 }
 
 #[tokio::test]
+async fn issue_403_is_an_error_but_never_a_rejected_key() {
+    let hidden = harness(|_, _| json_status(&json!({}), 403));
+    let error = hidden.client.issue(5).await.unwrap_err();
+    assert_ne!(error, ApiError::Auth);
+    assert_eq!(error, ApiError::InvalidResponse);
+}
+
+#[tokio::test]
+async fn issue_401_is_still_auth_and_a_rate_limited_403_stays_rate_limited() {
+    let unauthorized = harness(|_, _| json_status(&json!({}), 401));
+    assert_eq!(unauthorized.client.issue(5).await, Err(ApiError::Auth));
+    let limited = harness(|_, _| {
+        Ok(HttpResponse::new(403)
+            .with_header("retry-after", "60")
+            .with_header("x-ratelimit-remaining", "0"))
+    });
+    assert_eq!(limited.client.issue(5).await, Err(ApiError::RateLimited));
+}
+
+// --- find_issue ----------------------------------------------------------------------------------
+
+#[tokio::test]
+async fn find_issue_200_is_found_and_asks_for_the_issue_without_extras() {
+    let setup = harness(|_, _| json_ok(&json!({ "issue": raw_issue(5) })));
+    assert_eq!(setup.client.find_issue(5).await, Ok(true));
+    let requests = setup.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].url, format!("{BASE}/issues/5.json"));
+}
+
+#[tokio::test]
+async fn find_issue_403_and_404_are_not_found_not_an_error() {
+    for status in [403, 404] {
+        let setup = harness(move |_, _| json_status(&json!({}), status));
+        assert_eq!(setup.client.find_issue(5).await, Ok(false), "{status}");
+    }
+}
+
+#[tokio::test]
+async fn find_issue_401_is_auth_and_a_rate_limited_403_is_not_hidden() {
+    let unauthorized = harness(|_, _| json_status(&json!({}), 401));
+    assert_eq!(unauthorized.client.find_issue(5).await, Err(ApiError::Auth));
+    let limited = harness(|_, _| {
+        Ok(HttpResponse::new(403)
+            .with_header("retry-after", "60")
+            .with_header("x-ratelimit-remaining", "0"))
+    });
+    assert_eq!(
+        limited.client.find_issue(5).await,
+        Err(ApiError::RateLimited)
+    );
+    let server = harness(|_, _| empty(503));
+    assert_eq!(server.client.find_issue(5).await, Err(ApiError::Server));
+    assert_eq!(failing().find_issue(5).await, Err(ApiError::Network));
+}
+
+#[tokio::test]
 async fn issue_keeps_an_empty_allowed_statuses_and_falls_back_on_null() {
     // Only an absent or `null` list falls back; `[]` is kept (no status change allowed).
     let setup = harness(|request, _| {

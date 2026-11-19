@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
+import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, REDMINE_SIZES, redmineSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -244,35 +244,33 @@ describe('question panel geometry', () => {
     expect(windowBoundsFor('question', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 504 + SHADOW_MARGIN.bottom })
   })
 
-  it('is taller than every panel but "Revisiones": it grows the window from them and shrinks it back', () => {
+  it('is taller than every panel but Redmine: it grows the window from them and shrinks it back', () => {
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
-      if (mode === 'reviews' || mode === 'redmine') continue
+      if (mode === 'redmine') continue
       expect(CAPSULE_SIZES.question.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
     }
-    for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'reminders'] as const) {
+    for (const from of ['alert', 'mini', 'expanded', 'permission', 'gmail', 'reminders', 'reviews'] as const) {
       expect(resizeOrder(from, 'question')).toBe('resize-first')
       expect(resizeOrder('question', from)).toBe('animate-first')
     }
-    expect(resizeOrder('reviews', 'question')).toBe('animate-first')
   })
 })
 
+/** Measured in WebView2 with the worst case (see REVIEWS_SIZE). */
+const REVIEWS_HEIGHT = 324
+
 describe('reviews panel geometry', () => {
-  it('is the 520×560 panel measured with Playwright (contributions over the lists), inside the window width', () => {
-    expect(CAPSULE_SIZES.reviews).toEqual({ width: 520, height: 560 })
+  it('is the 520 px wide panel measured in WebView2 (contributions and the profile row), inside the window width', () => {
+    expect(CAPSULE_SIZES.reviews).toEqual({ width: 520, height: REVIEWS_HEIGHT })
     expect(CAPSULE_SIZES.reviews.width).toBeLessThanOrEqual(WINDOW_WIDTH - SHADOW_MARGIN.side * 2)
-    expect(windowBoundsFor('reviews', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 560 + SHADOW_MARGIN.bottom })
+    expect(windowBoundsFor('reviews', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + REVIEWS_HEIGHT + SHADOW_MARGIN.bottom })
   })
 
-  it('is the tallest panel: it grows the window from every other mode (resize first) and shrinks it back (animate first)', () => {
+  it('is shorter than the Redmine view, which is now the tallest panel', () => {
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
-      expect(CAPSULE_SIZES.reviews.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
-      // The Redmine view is as tall: moving between the two never resizes the window.
-      if (mode === 'reviews' || mode === 'redmine') continue
-      expect(growsWindow(mode, 'reviews')).toBe(true)
-      expect(resizeOrder(mode, 'reviews')).toBe('resize-first')
-      expect(resizeOrder('reviews', mode)).toBe('animate-first')
+      expect(CAPSULE_SIZES.redmine.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
     }
+    expect(CAPSULE_SIZES.reviews.height).toBeLessThan(CAPSULE_SIZES.redmine.height)
   })
 
   it('keeps the window width: the widest panel is 712 px, so the compact capsule 819 px worst case (every block) sets it', () => {
@@ -282,10 +280,17 @@ describe('reviews panel geometry', () => {
 })
 
 describe('Redmine panel geometry', () => {
-  it('is 520×560 like "Revisiones" (summary over the issue list), inside the window width', () => {
-    expect(CAPSULE_SIZES.redmine).toEqual({ width: 520, height: 560 })
+  it('rests shorter than it searches, at the same width', () => {
+    expect(REDMINE_SIZES.search).toEqual({ width: 520, height: 560 })
+    // Measured in WebView2 with the hours error line and the offline footer.
+    expect(REDMINE_SIZES.rest).toEqual({ width: 520, height: 272 })
+    expect(redmineSizeFor(false)).toEqual(REDMINE_SIZES.rest)
+    expect(redmineSizeFor(true)).toEqual(REDMINE_SIZES.search)
+  })
+
+  it('sizes the window for the search, so searching never resizes it', () => {
+    expect(CAPSULE_SIZES.redmine).toEqual(REDMINE_SIZES.search)
     expect(windowBoundsFor('redmine', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + 560 + SHADOW_MARGIN.bottom })
-    expect(windowHeightFor('redmine')).toBe(windowHeightFor('reviews'))
     expect(resizeOrder('expanded', 'redmine')).toBe('resize-first')
     expect(resizeOrder('redmine', 'expanded')).toBe('animate-first')
   })

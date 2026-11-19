@@ -1,12 +1,12 @@
-import { ArrowLeft, CloudOff, KeyRound, ListTodo, RefreshCw, Search, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, CloudOff, KeyRound, RefreshCw, Search, type LucideIcon } from 'lucide-react'
 import { integrationStyle, useIntegration } from '../../shared/integration-color'
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useReducer, useRef, useState, type KeyboardEvent } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { RedmineIssueList as IssueList } from '../../../shared/redmine/schema'
 import { RedmineMark } from '../../shared/brand-icons'
 import { formatUpdated } from '../../shared/gmail/format'
-import { matchesIssue } from '../../shared/redmine/format'
-import { loadSummary, useRedmine } from '../../shared/redmine-store'
+import { searchStep, settleSearch, truncatedSearchHint, type SearchResult, type SettledSearch } from '../../shared/redmine/search'
+import { loadSummary, setRedmineSearching, useRedmine } from '../../shared/redmine-store'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
@@ -17,13 +17,15 @@ import { RedmineSummary } from './RedmineSummary'
 /** Main queries at most once per 5 s on a manual refresh; the button rests as long. */
 const REFRESH_REST_MS = 5_000
 
-type Notice = 'unconfigured' | 'auth' | 'empty' | 'error'
+/** A number outside the list is asked of Redmine once the typing pauses, not for each digit. */
+const LOOKUP_DELAY_MS = 300
+
+type Notice = 'unconfigured' | 'auth' | 'error'
 
 /** What each notice offers: Control Center (no session or a rejected key), Retry (the list could not be read), or nothing. */
 const NOTICES: Readonly<Record<Notice, { icon: LucideIcon; title: MessageKey; action: 'control-center' | 'retry' | null }>> = {
   unconfigured: { icon: RedmineMark, title: 'redmine.state.unconfigured', action: 'control-center' },
   auth: { icon: KeyRound, title: 'redmine.state.auth', action: 'control-center' },
-  empty: { icon: ListTodo, title: 'redmine.state.empty', action: null },
   error: { icon: CloudOff, title: 'redmine.state.listFailed', action: 'retry' },
 }
 
@@ -76,11 +78,13 @@ function RedmineSkeleton() {
 }
 
 /**
- * The Redmine mini tool: the hours summary (month chart and Hoy · Semana · Mes), the search box and
- * the assigned open issues; a row opens the issue's detail in place of all three. Keyboard: arrows
- * between rows, Enter opens the detail; Esc clears the search, then closes the detail (back to its
- * row), then goes back to the integrations row. Opening the view tells main (the month summary is
- * queried only while it is open) and asks for a query now; every new reading asks for the list again.
+ * The Redmine mini tool. At rest, the hours summary (month chart and Hoy · Semana · Mes) and the
+ * search box. While searching, the summary is one line and under the box comes the match's detail,
+ * the list of several matches or "no match"; a number outside the list is asked of Redmine. Keyboard:
+ * Down goes from the box to the rows, arrows move between them and Enter opens the detail; Esc closes
+ * a detail opened from a row (back to its row), then clears the search, then goes back to the
+ * integrations row. Opening the view tells main (the month summary is queried only while it is open)
+ * and asks for a query now; every new reading asks for the list again.
  */
 export function RedmineView() {
   const t = useT()
@@ -92,9 +96,13 @@ export function RedmineView() {
   const [listFailed, setListFailed] = useState(false)
   const [listAttempt, setListAttempt] = useState(0)
   const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState<number | null>(null)
+  // The row picked from several matches; a single match needs no picking.
+  const [pickedId, setPickedId] = useState<number | null>(null)
+  const [lookup, dispatchLookup] = useReducer(searchStep, { phase: 'idle' })
+  const [lookupAttempt, setLookupAttempt] = useState(0)
   const [resting, setResting] = useState(false)
-  const pendingFocus = useRef<number | 'detail' | null>(null)
+  const pendingFocus = useRef<number | 'detail' | 'search' | null>(null)
+  const searchBox = useRef<HTMLInputElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const { color } = useIntegration('redmine')
   const scroller = useRef<HTMLDivElement>(null)
@@ -134,11 +142,36 @@ export function RedmineView() {
     void loadSummary()
   }, [status])
 
-  // Without a session there is nothing to detail.
+  // Without a session there is nothing to search or detail.
   const live = status === 'ok' || status === 'offline'
   useEffect(() => {
-    if (!live) setOpenId(null)
+    if (live) return
+    setQuery('')
+    setPickedId(null)
   }, [live])
+
+  // A query stays resolved until its text changes: a new list never replaces the open detail.
+  const [settled, setSettled] = useState<SettledSearch | null>(null)
+  const nextSettled = settleSearch(settled, query, list?.issues ?? null)
+  if (nextSettled !== settled) setSettled(nextSettled)
+  const result: SearchResult = nextSettled?.result ?? { kind: 'idle' }
+  const lookupId = result.kind === 'lookup' ? result.id : null
+
+  // Only the newest number counts (`searchStep`): a slower answer to an earlier one is dropped.
+  useEffect(() => {
+    if (lookupId === null) {
+      dispatchLookup({ type: 'clear' })
+      return
+    }
+    dispatchLookup({ type: 'query', id: lookupId })
+    const timer = setTimeout(() => {
+      void window.notch.redmine.findIssue({ id: lookupId }).then(
+        (answer) => dispatchLookup(answer.ok ? { type: 'answer', id: lookupId, found: answer.data.found } : { type: 'failed', id: lookupId }),
+        () => dispatchLookup({ type: 'failed', id: lookupId }),
+      )
+    }, LOOKUP_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [lookupId, lookupAttempt])
 
   useEffect(() => {
     if (!resting) return
@@ -146,13 +179,18 @@ export function RedmineView() {
     return () => clearTimeout(timer)
   }, [resting])
 
-  // Opening the detail focuses it; closing it lands back on its row.
+  // Opening a row's detail focuses it; closing it lands back on its row. A detail that appears as
+  // the user types leaves the focus in the search box.
   useLayoutEffect(() => {
     const target = pendingFocus.current
     if (target === null) return
     pendingFocus.current = null
     if (target === 'detail') {
       detail.current?.focus()
+      return
+    }
+    if (target === 'search') {
+      searchBox.current?.focus()
       return
     }
     const row = issueRow(scroller.current, target)
@@ -176,22 +214,34 @@ export function RedmineView() {
     void window.notch.redmine.refresh()
   }
 
-  const openDetail = (id: number) => {
+  const pickRow = (id: number) => {
     pendingFocus.current = 'detail'
-    setOpenId(id)
+    setPickedId(id)
   }
 
-  const closeDetail = () => {
-    pendingFocus.current = openId
-    setOpenId(null)
+  const changeQuery = (next: string) => {
+    setQuery(next)
+    setPickedId(null)
+  }
+
+  /** One step back: the picked row's list, then an empty search, then the integrations row. */
+  const stepBack = () => {
+    if (pickedId !== null) {
+      pendingFocus.current = pickedId
+      setPickedId(null)
+    } else if (query !== '') {
+      pendingFocus.current = 'search'
+      changeQuery('')
+    } else {
+      void window.notch.notch.back()
+    }
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
-      if (openId !== null) closeDetail()
-      else void window.notch.notch.back()
+      stepBack()
       return
     }
     // The rows and the chart handle their own arrows (and mark the event handled).
@@ -206,14 +256,6 @@ export function RedmineView() {
     }
   }
 
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Escape' || query === '') return
-    // First Esc clears the search; the next one reaches the panel (back to the row).
-    event.preventDefault()
-    event.stopPropagation()
-    setQuery('')
-  }
-
   const offline = status === 'offline'
   const updated = offline && updatedAt !== null ? formatUpdated(new Date(updatedAt).toISOString(), now, language) : ''
   const body: 'loading' | Notice | 'list' =
@@ -223,13 +265,22 @@ export function RedmineView() {
         ? 'unconfigured'
         : status === 'auth-error'
           ? 'auth'
-          : list && list.issues.length > 0
-            ? 'list'
-            : list === null
-              ? 'error'
-              : 'empty'
-  const issues = list ? list.issues.filter((issue) => matchesIssue(issue, query)) : []
+          : list === null
+            ? 'error'
+            : 'list'
+  // The answer about the number in the box; until it comes (or for another number) it is still searching.
+  const answer = result.kind === 'lookup' && lookup.phase !== 'idle' && lookup.id === result.id ? lookup.phase : 'searching'
+  const openId = pickedId ?? (result.kind === 'one' || (result.kind === 'lookup' && answer === 'found') ? result.id : null)
   const opened = openId === null ? undefined : list?.issues.find((issue) => issue.id === openId)
+  const typed = live && body !== 'error' && query.trim() !== ''
+  // A list that failed to load needs the taller capsule for its notice under the full summary.
+  const searching = typed || (live && body === 'error')
+
+  // Before paint, so the capsule and its content change size together.
+  useLayoutEffect(() => {
+    setRedmineSearching(searching)
+    return () => setRedmineSearching(false)
+  }, [searching])
 
   return (
     // Focusable (not tabbable): a click on a blank area keeps focus in the panel, so Esc reaches
@@ -249,9 +300,9 @@ export function RedmineView() {
         <button
           type="button"
           data-testid="redmine-back"
-          onClick={() => (openId !== null ? closeDetail() : void window.notch.notch.back())}
-          aria-label={t(openId !== null ? 'redmine.view.backToList' : 'redmine.view.back')}
-          title={t(openId !== null ? 'redmine.view.backToList' : 'redmine.view.back')}
+          onClick={stepBack}
+          aria-label={t(pickedId !== null ? 'redmine.view.backToList' : 'redmine.view.back')}
+          title={t(pickedId !== null ? 'redmine.view.backToList' : 'redmine.view.back')}
           className={headerIconButton}
         >
           <ArrowLeft size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -274,37 +325,39 @@ export function RedmineView() {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+        {live && <RedmineSummary now={now} onRetry={refresh} retryResting={resting} compact={typed} />}
+        {live && body !== 'error' && (
+          <label className="relative flex h-7 shrink-0 items-center">
+            <span className="sr-only">{t('redmine.view.search')}</span>
+            <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 text-graphite" />
+            <input
+              ref={searchBox}
+              type="search"
+              data-testid="redmine-search"
+              value={query}
+              onChange={(event) => changeQuery(event.target.value)}
+              placeholder={t('redmine.view.searchPlaceholder')}
+              spellCheck={false}
+              autoComplete="off"
+              className="field h-7 w-full pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
+            />
+          </label>
+        )}
         {openId !== null ? (
           <RedmineIssueDetail key={openId} ref={detail} id={openId} issue={opened} now={now} dimmed={offline} />
-        ) : (
-          <>
-            {live && <RedmineSummary now={now} onRetry={refresh} retryResting={resting} />}
-            {body === 'list' && list ? (
-              <>
-                <label className="relative flex h-7 shrink-0 items-center">
-                  <span className="sr-only">{t('redmine.view.search')}</span>
-                  <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 text-graphite" />
-                  <input
-                    type="search"
-                    data-testid="redmine-search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={onSearchKeyDown}
-                    placeholder={t('redmine.view.searchPlaceholder')}
-                    spellCheck={false}
-                    autoComplete="off"
-                    className="field h-7 w-full pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
-                  />
-                </label>
-                <RedmineIssueList ref={scroller} issues={issues} truncated={list.truncated} dimmed={offline} onOpen={openDetail} />
-              </>
-            ) : body === 'loading' ? (
-              <RedmineSkeleton />
-            ) : (
-              <RedmineStatus notice={body === 'list' ? 'empty' : body} onRetry={() => setListAttempt((n) => n + 1)} />
-            )}
-          </>
-        )}
+        ) : body === 'loading' ? (
+          (!live || typed) && <RedmineSkeleton />
+        ) : body !== 'list' ? (
+          <RedmineStatus notice={body} onRetry={() => setListAttempt((n) => n + 1)} />
+        ) : result.kind === 'many' ? (
+          <RedmineIssueList ref={scroller} issues={result.issues} more={result.more} dimmed={offline} onOpen={pickRow} />
+        ) : result.kind === 'none' || (result.kind === 'lookup' && answer === 'missing') ? (
+          <RedmineIssueList ref={scroller} issues={[]} more={0} dimmed={offline} truncatedHint={truncatedSearchHint(query, result, list?.truncated ?? false)} onOpen={pickRow} />
+        ) : result.kind === 'lookup' && answer === 'failed' ? (
+          <RedmineStatus notice="error" onRetry={() => setLookupAttempt((n) => n + 1)} />
+        ) : result.kind === 'lookup' ? (
+          <RedmineSkeleton />
+        ) : null}
       </div>
 
       {offline && (

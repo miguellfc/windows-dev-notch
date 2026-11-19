@@ -106,8 +106,10 @@ pub fn gmail_size_for(reading: bool) -> Size {
 }
 
 pub const QUESTION_SIZE: Size = size(520.0, 504.0);
-pub const REVIEWS_SIZE: Size = size(520.0, 560.0);
-pub const REDMINE_SIZE: Size = size(520.0, 560.0);
+pub const REVIEWS_SIZE: Size = size(520.0, 324.0);
+
+/// The Redmine panel: the window is sized for the search (the painted rest size is the renderer's).
+pub const REDMINE_SEARCH_SIZE: Size = size(520.0, 560.0);
 
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).
 pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
@@ -122,7 +124,7 @@ pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
     (VisibleMode::Notes, size(420.0, 320.0)),
     (VisibleMode::Gmail, GMAIL_READER_SIZE),
     (VisibleMode::Reviews, REVIEWS_SIZE),
-    (VisibleMode::Redmine, REDMINE_SIZE),
+    (VisibleMode::Redmine, REDMINE_SEARCH_SIZE),
     (VisibleMode::Mini, size(96.0, 4.0)),
 ];
 

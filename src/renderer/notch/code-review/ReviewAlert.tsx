@@ -1,9 +1,9 @@
 import { GitPullRequest } from 'lucide-react'
-import type { MouseEvent } from 'react'
+import { useEffect, useRef, type MouseEvent } from 'react'
 import type { CodeReviewAlert } from '../../../shared/code-review/schema'
 import { translate } from '../../../shared/i18n/messages'
 import { setReviewsTarget } from '../../shared/code-review-store'
-import { reviewAlertContent, reviewAlertLabel } from '../../shared/code-review/format'
+import { alertStillShown, reviewAlertContent, reviewAlertLabel } from '../../shared/code-review/format'
 import { useLanguage } from '../../shared/use-t'
 import { useSettings } from '../../shared/settings-store'
 import { integrationStyle } from '../../shared/integration-color'
@@ -13,8 +13,9 @@ import { PLATFORM_ICONS } from './icons'
  * The first-review alert: the lowest-priority capsule alert, shared with new mail (main ends it
  * after 6 s). One PR/MR shows "**Aprobado** · acme/web#12 · título" (or Cambios pedidos / Revisado),
  * several "**2 PR revisados** · GitHub"; without a payload (already spent while main still shows the
- * alert) the plain verdict "Revisado". It never takes focus; a click opens the reviews view on that
- * platform, section "Míos".
+ * alert) the plain verdict "Revisado". It never takes focus. A click on a single PR/MR asks main to
+ * open it in the browser (main then retracts the alert at once); several, or one main no longer knows, open the
+ * reviews view on that platform.
  */
 export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
   const language = useLanguage()
@@ -24,11 +25,43 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
   // The platform's color; a spent payload no longer says the platform, so its generic icon stays chalk.
   const color = useSettings((state) => (alert && state.settings ? state.settings.integrations[alert.platform].color : null))
 
-  const open = (event: MouseEvent) => {
+  // The alert on screen right now (nothing once this component is gone): a late answer about an
+  // earlier one must not open the view unprompted.
+  const shown = useRef<CodeReviewAlert | null | undefined>(alert)
+  useEffect(() => {
+    shown.current = alert
+    return () => {
+      shown.current = undefined
+    }
+  }, [alert])
+  // A click on a single PR/MR is still being answered: repeat clicks wait for it.
+  const asking = useRef(false)
+
+  const open = (event: MouseEvent): void => {
     // The capsule's own click would expand; open the reviews view explicitly instead.
     event.stopPropagation()
-    setReviewsTarget(alert ? { platform: alert.platform, section: 'mine' } : null)
-    void window.notch.notch.openIntegration({ id: 'reviews' })
+    if (asking.current) return
+    const openView = () => {
+      setReviewsTarget(alert ? { platform: alert.platform } : null)
+      void window.notch.notch.openIntegration({ id: 'reviews' })
+    }
+    if (alert?.count !== 1) return openView()
+    const clicked = alert
+    const fallBack = () => {
+      if (alertStillShown(clicked, shown.current)) openView()
+    }
+    asking.current = true
+    void window.notch.codeReview.openAlert({ platform: clicked.platform }).then(
+      (result) => {
+        asking.current = false
+        // Main retracts the alert itself once it opened the page.
+        if (!(result.ok && result.data.opened)) fallBack()
+      },
+      () => {
+        asking.current = false
+        fallBack()
+      },
+    )
   }
 
   return (

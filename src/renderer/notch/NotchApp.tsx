@@ -1,7 +1,7 @@
 import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
-import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, gmailSizeFor, growsWindow, type VisibleMode } from '../../shared/notch/geometry'
+import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, gmailSizeFor, growsWindow, redmineSizeFor, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode, type NotchView } from '../../shared/notch/state'
 import type { IntegrationsSettings } from '../../shared/settings/schema'
 import { setRedmineAlert, setRedmineAlertPayload, useRedmine } from '../shared/redmine-store'
@@ -138,7 +138,7 @@ function useMailAlert(mode: NotchMode): void {
 
 /**
  * Forgets the alert's payload and the view target it set. A reviews view opened from the alert has
- * already read the target while rendering (before this effect runs), so it still lands on "Míos".
+ * already read the target while rendering (before this effect runs), so it still lands on that platform.
  */
 function spendReviewAlert(): void {
   setReviewAlertPayload(null)
@@ -160,8 +160,8 @@ function useReviewAlert(mode: NotchMode): void {
       const integrations = currentIntegrations()
       if (integrations && !alertAllowed(alert.platform === 'github' ? 'review-github' : 'review-gitlab', integrations)) return
       setReviewAlertPayload(alert)
-      // Opening the panel while the alert shows (click, shortcut or tray) lands on that platform's "Míos".
-      setReviewsTarget({ platform: alert.platform, section: 'mine' })
+      // Opening the panel while the alert shows (click, shortcut or tray) lands on that platform.
+      setReviewsTarget({ platform: alert.platform })
       if (timer !== null) clearTimeout(timer)
       timer = setTimeout(() => {
         timer = null
@@ -281,6 +281,7 @@ export function NotchApp() {
   useRedmineAlert(mode)
   useCloseDisabledView(mode, settings?.integrations ?? null)
   const gmailReading = useGmail((state) => state.reading !== null)
+  const redmineSearching = useRedmine((state) => state.searching)
   const capsuleRect = useCapsuleRect()
 
   useEffect(() => {
@@ -306,7 +307,9 @@ export function NotchApp() {
       ? { ...CAPSULE_SIZES.compact, width: compactWidth }
       : mode === 'gmail'
         ? gmailSizeFor(gmailReading)
-        : CAPSULE_SIZES[mode]
+        : mode === 'redmine'
+          ? redmineSizeFor(redmineSearching)
+          : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
   // Left click: the pill goes back to compact (then peek once the pointer leaves); peek and compact

@@ -786,7 +786,7 @@ where
         &self,
         what: &'static str,
         run: F,
-        keep: impl FnOnce(&mut Inner),
+        keep: impl FnOnce(&mut Inner, &T),
     ) -> Result<T, ExposedError>
     where
         F: FnOnce(Arc<dyn RedmineApiClient>) -> Fut,
@@ -811,7 +811,7 @@ where
             } else {
                 match result {
                     Ok(value) => {
-                        keep(&mut inner);
+                        keep(&mut inner, &value);
                         Ok(value)
                     }
                     Err(ApiError::Auth) => {
@@ -836,8 +836,24 @@ where
         self.read(
             "issue",
             |client| async move { client.issue(id).await },
-            |inner| {
+            |inner, _| {
                 inner.read_issues.insert(id);
+            },
+        )
+        .await
+    }
+
+    /// Whether an issue exists for the search by number. A 403 or 404 is `false` and leaves the
+    /// session alone (the client already told them apart from a rejected key); a 401 ends the
+    /// session like any read. A found id stays openable, so the detail can load afterwards.
+    pub async fn find_issue(&self, id: u64) -> Result<bool, ExposedError> {
+        self.read(
+            "find-issue",
+            |client| async move { client.find_issue(id).await },
+            |inner, found| {
+                if *found {
+                    inner.read_issues.insert(id);
+                }
             },
         )
         .await
@@ -847,7 +863,7 @@ where
         self.read(
             "activities",
             |client| async move { client.activities().await },
-            |_| {},
+            |_, _| {},
         )
         .await
     }

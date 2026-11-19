@@ -25,7 +25,7 @@ use crate::http::zod::{
     array, boolean, count, int, invalid, non_negative, nullish, object, required, string, Parsed,
 };
 use crate::http::{
-    clip, read_json, send, send_raw, ApiError, HttpRequest, HttpResponse, Transport,
+    clip, read_json, send, send_raw, status_error, ApiError, HttpRequest, HttpResponse, Transport,
 };
 use crate::ipc::BoxFuture;
 use crate::settings::validate::normalize_redmine_url;
@@ -491,15 +491,52 @@ impl RedmineClient {
         })
     }
 
+    /// `GET issues/{id}.json` as an existence check for the search by number. 200 is `true`;
+    /// 404 and a plain 403 (an issue the key cannot see) are `false`, not an error, so the
+    /// caller never mistakes them for a rejected key. 401 stays `Auth`, a rate-limit 403 stays
+    /// `RateLimited`, and the rest follow [`status_error`].
+    pub async fn find_issue(&self, id: u64) -> Result<bool, ApiError> {
+        let url = self
+            .url(&format!("issues/{id}.json"), &[])
+            .ok_or(ApiError::Network)?;
+        let response = send_raw(
+            self.transport.as_ref(),
+            self.with_headers(HttpRequest::get(url)),
+        )
+        .await?;
+        if response.is_ok() {
+            return Ok(true);
+        }
+        match status_error(&response) {
+            ApiError::Auth if response.status == 403 => Ok(false),
+            _ if response.status == 404 => Ok(false),
+            error => Err(error),
+        }
+    }
+
     /// `GET issues/{id}.json?include=allowed_statuses`; without `allowed_statuses` (absent or
-    /// `null`, older Redmine) every status is offered. An empty list is kept.
+    /// `null`, older Redmine) every status is offered. An empty list is kept. A plain 403 (an
+    /// issue the key can no longer see) is `InvalidResponse`, never `Auth`: it must not end the
+    /// session, as in [`Self::find_issue`]. 401 stays `Auth`, a rate-limit 403 `RateLimited`.
     pub async fn issue(&self, id: u64) -> Result<RedmineIssueDetail, ApiError> {
-        let body = self
-            .get(
+        let url = self
+            .url(
                 &format!("issues/{id}.json"),
                 &[("include", "allowed_statuses")],
             )
-            .await?;
+            .ok_or(ApiError::Network)?;
+        let response = send_raw(
+            self.transport.as_ref(),
+            self.with_headers(HttpRequest::get(url)),
+        )
+        .await?;
+        if !response.is_ok() {
+            return Err(match status_error(&response) {
+                ApiError::Auth if response.status == 403 => ApiError::InvalidResponse,
+                error => error,
+            });
+        }
+        let body: Value = read_json(&response)?;
         let RawIssue {
             issue,
             allowed_statuses,
@@ -606,6 +643,8 @@ pub trait RedmineApiClient: Send + Sync {
     fn viewer(&self) -> BoxFuture<'_, Result<Viewer, ApiError>>;
     fn issues(&self) -> BoxFuture<'_, Result<RedmineIssueList, ApiError>>;
     fn issue(&self, id: u64) -> BoxFuture<'_, Result<RedmineIssueDetail, ApiError>>;
+    /// Whether the key can read the issue (a 403 or 404 is `false`).
+    fn find_issue(&self, id: u64) -> BoxFuture<'_, Result<bool, ApiError>>;
     fn statuses(&self) -> BoxFuture<'_, Result<Vec<Named>, ApiError>>;
     fn activities(&self) -> BoxFuture<'_, Result<Vec<RedmineActivity>, ApiError>>;
     fn time_entries<'a>(
@@ -629,6 +668,10 @@ impl RedmineApiClient for RedmineClient {
 
     fn issue(&self, id: u64) -> BoxFuture<'_, Result<RedmineIssueDetail, ApiError>> {
         Box::pin(Self::issue(self, id))
+    }
+
+    fn find_issue(&self, id: u64) -> BoxFuture<'_, Result<bool, ApiError>> {
+        Box::pin(Self::find_issue(self, id))
     }
 
     fn statuses(&self) -> BoxFuture<'_, Result<Vec<Named>, ApiError>> {

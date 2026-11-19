@@ -1,20 +1,32 @@
 //! What the GitHub and GitLab clients share (0.1.0's `client-common.ts`): the
-//! snapshot built from the mapped lists and the code review texts. The generic half (error codes,
+//! snapshot built from the own PR/MRs and the code review texts. The generic half (error codes,
 //! status mapping, requests, JSON bodies, `clip`, the pool) lives in [`crate::http::common`] and
 //! is re-exported here under its part 4 names.
+//!
+//! Since 0.3.0 the notch shows no lists: the clients read only the user's own open PR/MRs, what the
+//! first-review detector and the unreviewed count need.
 
 use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
 
-use crate::contract::code_review::{
-    ContributionSummary, ReviewItem, ReviewState, LIST_LIMIT, TEXT_MAX,
-};
+use crate::contract::code_review::{ContributionSummary, ReviewState, LIST_LIMIT, TEXT_MAX};
 pub use crate::http::common::{
     clip, is_redirect, map_pool, read_json, send, send_ok, send_raw, status_error,
     ApiError as CodeReviewError,
 };
 use crate::ipc::BoxFuture;
+
+/// One own PR/MR: what the detector and the alerts read. Never leaves main.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReviewItem {
+    pub id: String,
+    /// `owner/repo#123` (GitHub) or `group/project!45` (GitLab).
+    pub reference: String,
+    pub title: String,
+    pub draft: bool,
+    pub review: ReviewState,
+}
 
 /// `ClientItem`: an item plus the URL main opens in the browser (never sent to the renderer).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,8 +45,6 @@ pub struct OwnReview {
 /// `CodeReviewSnapshot`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CodeReviewSnapshot {
-    /// PR/MRs that wait for the user's review (at most `LIST_LIMIT`).
-    pub to_review: Vec<ClientItem>,
     /// The user's open PR/MRs (at most `LIST_LIMIT`).
     pub mine: Vec<ClientItem>,
     /// Own open, non-draft PR/MRs without any review.
@@ -54,23 +64,14 @@ pub trait CodeReviewClient: Send + Sync {
     ) -> BoxFuture<'_, Result<ContributionSummary, CodeReviewError>>;
 }
 
-/// `toReviewItem`: drops the URL, what may cross IPC to the notch.
-pub fn to_review_item(item: &ClientItem) -> ReviewItem {
-    item.item.clone()
-}
-
 /// `clip(text)` with the default `CODE_REVIEW_TEXT_MAX`.
 pub fn clip_text(text: &str) -> String {
     clip(text, TEXT_MAX)
 }
 
-/// `snapshot`: limits, the unreviewed count and the own review states. `uncertain` own items (a
+/// `snapshot`: the limit, the unreviewed count and the own review states. `uncertain` own items (a
 /// per-item call failed) are left out of `own_review`.
-pub fn snapshot(
-    to_review: Vec<ClientItem>,
-    mine: Vec<ClientItem>,
-    uncertain: &HashSet<String>,
-) -> CodeReviewSnapshot {
+pub fn snapshot(mine: Vec<ClientItem>, uncertain: &HashSet<String>) -> CodeReviewSnapshot {
     let own: Vec<ClientItem> = mine.into_iter().take(LIST_LIMIT).collect();
     let open = || own.iter().filter(|client| !client.item.draft);
     let unreviewed = open()
@@ -84,7 +85,6 @@ pub fn snapshot(
         })
         .collect();
     CodeReviewSnapshot {
-        to_review: to_review.into_iter().take(LIST_LIMIT).collect(),
         unreviewed: u32::try_from(unreviewed).unwrap_or(u32::MAX),
         own_review,
         mine: own,
@@ -111,30 +111,15 @@ mod tests {
                 id: id.into(),
                 reference: format!("o/r#{id}"),
                 title: "t".into(),
-                author: "a".into(),
-                updated_at: "2026-11-12T10:00:00Z".into(),
                 draft,
                 review,
-                checks: None,
-                conflicts: false,
             },
             url: format!("https://github.com/o/r/pull/{id}"),
         }
     }
 
     #[test]
-    fn to_review_item_drops_the_url() {
-        let client = item("1", false, ReviewState::None);
-        let value = serde_json::to_value(to_review_item(&client)).unwrap();
-        assert!(value.get("url").is_none());
-        assert!(crate::contract::parse::<ReviewItem>(value).is_ok());
-    }
-
-    #[test]
     fn snapshot_limits_counts_and_leaves_uncertain_items_out() {
-        let to_review: Vec<ClientItem> = (0..25)
-            .map(|i| item(&format!("r{i}"), false, ReviewState::None))
-            .collect();
         let mut mine = vec![
             item("a", false, ReviewState::None),
             item("b", true, ReviewState::None),
@@ -144,8 +129,7 @@ mod tests {
         ];
         mine.extend((0..20).map(|i| item(&format!("m{i}"), false, ReviewState::None)));
         let uncertain: HashSet<String> = ["d".to_owned(), "e".to_owned()].into();
-        let result = snapshot(to_review, mine, &uncertain);
-        assert_eq!(result.to_review.len(), 20);
+        let result = snapshot(mine, &uncertain);
         assert_eq!(result.mine.len(), 20);
         // a, d and m0..m14 (the first 20 own items minus the draft b and the approved c).
         assert_eq!(result.unreviewed, 17);
@@ -166,7 +150,7 @@ mod tests {
             item("a", false, ReviewState::Changes),
             item("b", true, ReviewState::Approved),
         ];
-        let result = snapshot(Vec::new(), mine, &HashSet::new());
+        let result = snapshot(mine, &HashSet::new());
         assert_eq!(result.unreviewed, 0);
         assert_eq!(
             result.own_review,

@@ -2,7 +2,7 @@
 
 Developer Notch muestra tus tareas de **Redmine** y las horas que llevas imputadas con tu **clave de acceso API**. Se configura una vez, en un par de minutos.
 
-Qué verás después: en la cápsula, las **horas imputadas hoy**; en la vista "Redmine" del notch (se abre desde el tile de Redmine del panel), el **resumen de horas** del mes y tus **tareas asignadas abiertas**, con su estado; y, a la hora que elijas, un **aviso de fin de jornada** si vas corto de horas. Desde la vista puedes cambiar el estado de una tarea, ajustar su estimación e **imputar horas**; un clic en "Abrir en Redmine" la abre en el navegador.
+Qué verás después: en la cápsula, las **horas imputadas hoy**; en la vista "Redmine" del notch (se abre desde el tile de Redmine del panel), el **resumen de horas** del mes y un **buscador** de tus tareas asignadas abiertas (por asunto, proyecto o #número) que lleva a su detalle; y, a la hora que elijas, un **aviso de fin de jornada** si vas corto de horas. Desde la vista puedes cambiar el estado de una tarea, ajustar su estimación e **imputar horas**; un clic en "Abrir en Redmine" la abre en el navegador.
 
 El notch actúa con **tu usuario**: solo puede hacer lo que Redmine te deja hacer a ti.
 
@@ -65,6 +65,6 @@ Cómo se comporta el aviso:
 | "La URL debe empezar por https://" | La URL usa `http://` o tiene usuario, `?` o `#` | Escribe solo la dirección del servidor con `https://` |
 | "Sin conexión con Redmine" | No hay red, el servidor no responde o la URL no es de un Redmine | Comprueba la red y la URL; el notch reintenta solo |
 | "Revisa la clave" | La clave se restableció o se desactivó la API | Copia la clave nueva y pulsa **Comprobar y guardar** |
-| Falta una tarea | Solo salen las **abiertas asignadas a ti** (las 300 más recientes) | Comprueba su estado y su responsable en Redmine |
+| Falta una tarea | La búsqueda por texto solo mira tus tareas **abiertas asignadas a ti** (las 300 más recientes) | Busca por #número, que siempre se pregunta a Redmine; comprueba su estado y su responsable |
 | "Redmine no te deja hacer este cambio" | Tu rol no permite ese cambio o esa imputación | Pide el permiso en el proyecto |
 | El aviso no suena o no sale | Es fin de semana, ya llegaste al objetivo, el notch arrancó después de la hora, pasó la hora de margen o el aviso está apagado | Revisa **Aviso de fin de jornada** en Control Center |

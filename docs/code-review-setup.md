@@ -95,5 +95,5 @@ Los tokens caducan cuando tú decidiste al crearlos (o cuando los revocas). Si G
 | "Sin conexión con GitHub/GitLab" | No hay red, el servidor no responde o la URL no es de un GitLab | Comprueba la red y la URL; el notch reintenta solo |
 | "Revisa el token" | El token caducó o se revocó | Crea otro y pulsa **Comprobar y guardar** |
 | Falta un PR o un repositorio | El token detallado no incluye ese repositorio, o la organización aún no lo aprobó | Edita el token y añade el repositorio, o pide la aprobación |
-| La cápsula no muestra el bloque | No tienes PR/MR propios abiertos sin revisar (los borradores no cuentan) | Es lo esperado; la vista "Revisiones" (tile de GitHub o GitLab) sigue listando todo |
+| La cápsula no muestra el bloque | No tienes PR/MR propios abiertos sin revisar (los borradores no cuentan) | Es lo esperado; la vista "Revisiones" (tile de GitHub o GitLab) sigue mostrando tus contribuciones y el botón para abrir tu perfil; ya no lista PR/MR |
 | Un aviso tarda | El notch consulta cada 2 minutos | Espera o pulsa **Actualizar** en la vista |

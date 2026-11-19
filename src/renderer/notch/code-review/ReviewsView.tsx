@@ -1,36 +1,34 @@
-import { ArrowLeft, GitPullRequest, KeyRound, RefreshCw, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ExternalLink, GitPullRequest, KeyRound, RefreshCw, type LucideIcon } from 'lucide-react'
 import { integrationStyle } from '../../shared/integration-color'
 import { useSettings } from '../../shared/settings-store'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { localDate } from '../../../shared/code-review/contributions'
-import type { CodeReviewList, Platform } from '../../../shared/code-review/schema'
+import type { Platform } from '../../../shared/code-review/schema'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import { loadContributions, setReviewsTarget, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
 import { contributionsPhase, graphSummaryText, placeholderGrid } from '../../shared/code-review/contributions-format'
-import { configuredPlatforms, PLATFORM_NAMES, reviewsBody, reviewsPlatform, type ReviewSection } from '../../shared/code-review/format'
+import { configuredPlatforms, PLATFORM_NAMES, profileRow, reviewsBody, reviewsPlatform } from '../../shared/code-review/format'
 import { formatUpdated } from '../../shared/gmail/format'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
 import { ContributionGraph } from './ContributionGraph'
 import { ContributionSummary } from './ContributionSummary'
-import { firstRowOf, ReviewList, reviewRows } from './ReviewList'
 
 /** Main queries at most once per 5 s on a manual refresh; the button rests as long. */
 const REFRESH_REST_MS = 5_000
 
-type Notice = 'unconfigured' | 'auth' | 'empty'
+type Notice = 'unconfigured' | 'auth'
 
 const NOTICES: Readonly<Record<Notice, { icon: LucideIcon; title: MessageKey; action: boolean }>> = {
   unconfigured: { icon: GitPullRequest, title: 'codeReview.state.unconfigured', action: true },
   auth: { icon: KeyRound, title: 'codeReview.state.auth', action: true },
-  empty: { icon: GitPullRequest, title: 'codeReview.state.empty', action: false },
 }
 
 const button =
   'btn h-8 px-3'
 
-/** Everything the view shows instead of the lists, with a way to the Control Center page when it helps. */
+/** Everything the view shows instead of the contributions, with a way to the Control Center page when it helps. */
 function ReviewsStatus({ notice }: { notice: Notice }) {
   const t = useT()
   const { icon: Icon, title, action } = NOTICES[notice]
@@ -52,7 +50,7 @@ function ReviewsStatus({ notice }: { notice: Notice }) {
   )
 }
 
-/** Placeholder rows while the first lists load; the pulse stops with reduced motion. */
+/** Placeholder rows until the first state arrives; the pulse stops with reduced motion. */
 function ReviewsSkeleton() {
   const t = useT()
   return (
@@ -72,7 +70,7 @@ function ReviewsSkeleton() {
 
 /**
  * The month chart and the summary of one platform, side by side when they fit (else the summary
- * wraps below), over the PR/MR lists. Loading: the grey chart and "—"; a failed query keeps the last
+ * wraps below). Loading: the grey chart and "—"; a failed query keeps the last
  * data with "No se pudieron cargar las contribuciones · Reintentar".
  */
 function Contributions({ platform, now, onRetry, retryResting }: { platform: Platform; now: Date; onRetry: () => void; retryResting: boolean }) {
@@ -114,14 +112,31 @@ function Contributions({ platform, now, onRetry, retryResting }: { platform: Pla
   )
 }
 
-/** The lists last received per platform and the update they answer. */
-type Lists = Partial<Record<Platform, CodeReviewList>>
+/** The account (the server in front on GitLab) in mono, and the way to its page on the platform. */
+function ProfileRow({ platform, label }: { platform: Platform; label: string }) {
+  const t = useT()
+  return (
+    <div data-testid="reviews-profile" className="flex h-8 shrink-0 items-center gap-2 px-1">
+      <span data-testid="reviews-account" title={label} className="min-w-0 flex-1 truncate font-mono text-label text-graphite">
+        {label}
+      </span>
+      <button
+        type="button"
+        data-testid="reviews-open-profile"
+        onClick={() => void window.notch.codeReview.openProfile({ platform })}
+        className="btn h-6 shrink-0"
+      >
+        {t('codeReview.view.openProfile', { platform: PLATFORM_NAMES[platform] })}
+        <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" className="text-graphite" />
+      </button>
+    </div>
+  )
+}
 
 /**
  * The reviews mini tool for one platform, named in the header ("GitHub" / "GitLab", no tabs): the
- * tile (or the alert) that opened it picks the platform, then "Por revisar" and "Míos".
- * Keyboard: arrows between rows, Enter opens, Esc back to the integrations row.
- * Opening the view asks main for a query now; every new reading asks for the lists again.
+ * tile (or the alert) that opened it picks the platform. It shows the contributions and, under them, the account with a button to its page.
+ * Keyboard: Esc back to the integrations row. Opening the view asks main for a query now.
  */
 export function ReviewsView() {
   const t = useT()
@@ -130,11 +145,8 @@ export function ReviewsView() {
   const state = useCodeReview((store) => store.state)
   // Where the alert asked to land, read once: the store forgets it so the next opening is plain.
   const [target] = useState<ReviewsTarget | null>(() => useCodeReview.getState().target)
-  const [lists, setLists] = useState<Lists>({})
   const [resting, setResting] = useState(false)
-  const pendingFocus = useRef<ReviewSection | null>(target?.section ?? null)
   const panel = useRef<HTMLDivElement>(null)
-  const scroller = useRef<HTMLDivElement>(null)
 
   const integrations = useSettings((store) => store.settings?.integrations ?? null)
   // A platform turned off in Control Center is never shown: the view lands on the other one.
@@ -147,6 +159,7 @@ export function ReviewsView() {
   const platformState = state?.[platform] ?? null
   const status = platformState?.status
   const updatedAt = platformState?.updatedAt ?? null
+  const gitlabUrl = useSettings((store) => store.settings?.codeReview.gitlabUrl ?? '')
 
   useEffect(() => {
     setReviewsTarget(null)
@@ -158,18 +171,6 @@ export function ReviewsView() {
     void window.notch.codeReview.view({ open: true })
     return () => void window.notch.codeReview.view({ open: false })
   }, [])
-
-  // Every reading of this platform (a poll, a status change) may carry new lists: ask again.
-  useEffect(() => {
-    if (status !== 'ok' && status !== 'offline') return
-    let current = true
-    void window.notch.codeReview.list({ platform }).then((result) => {
-      if (current && result.ok) setLists((previous) => ({ ...previous, [platform]: result.data }))
-    })
-    return () => {
-      current = false
-    }
-  }, [platform, status, updatedAt])
 
   // The platform's status changed: read its contributions (main answers from its cache).
   useEffect(() => {
@@ -183,24 +184,11 @@ export function ReviewsView() {
     return () => clearTimeout(timer)
   }, [resting])
 
-  const list = lists[platform] ?? null
-  const body = state === null ? 'loading' : reviewsBody(platformState, list)
+  const body = state === null ? 'loading' : reviewsBody(platformState)
+  const profile = platformState && body === 'contributions' ? profileRow(platformState, platform === 'gitlab' ? gitlabUrl : '') : null
 
-  // The alert's click lands on the first row of "Míos" once its list is shown.
-  useLayoutEffect(() => {
-    const section = pendingFocus.current
-    if (section === null || body !== 'list') return
-    pendingFocus.current = null
-    const row = firstRowOf(scroller.current, section)
-    if (row) {
-      row.focus({ preventScroll: true })
-      row.scrollIntoView({ block: 'nearest' })
-      row.closest('section')?.scrollIntoView({ block: 'start' })
-    }
-  })
-
-  // The tile that opened the view unmounts, or a focused row went away: keep focus in the panel
-  // so Esc goes back to the row.
+  // The tile that opened the view unmounts, or the focused element went away: keep focus in the
+  // panel so Esc goes back to the row.
   useLayoutEffect(() => {
     const active = document.activeElement
     if (active && active !== document.body && active.isConnected) return
@@ -213,24 +201,11 @@ export function ReviewsView() {
     void window.notch.codeReview.refresh()
   }
 
-  const open = (id: string) => {
-    void window.notch.codeReview.open({ platform, id })
-  }
-
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
       void window.notch.notch.back()
-      return
-    }
-    // The rows and the chart handle their own arrows (and mark the event handled).
-    if (event.defaultPrevented) return
-    if ((event.key === 'ArrowDown' || event.key === 'Home') && !scroller.current?.contains(document.activeElement)) {
-      const first = reviewRows(scroller.current)[0]
-      if (!first) return
-      event.preventDefault()
-      first.focus()
     }
   }
 
@@ -281,12 +256,11 @@ export function ReviewsView() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5">
         {live && <Contributions platform={platform} now={now} onRetry={refresh} retryResting={resting} />}
+        {profile && <ProfileRow platform={platform} label={profile.label} />}
         {body === 'loading' ? (
           <ReviewsSkeleton />
-        ) : body === 'list' && list ? (
-          <ReviewList ref={scroller} list={list} dimmed={offline} onOpen={open} />
-        ) : (
-          <ReviewsStatus notice={body === 'list' ? 'empty' : body} />
+        ) : body === 'contributions' ? null : (
+          <ReviewsStatus notice={body} />
         )}
       </div>
 

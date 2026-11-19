@@ -42,7 +42,7 @@ import {
   FAKE_REDMINE_ACCOUNT,
   FAKE_REDMINE_KEY,
   FAKE_REDMINE_ORIGIN,
-  REDMINE_ISSUES,
+  REDMINE_OUTSIDE_ISSUE,
   REDMINE_LOG_COMMENT,
   SEEDED_TODAY_HOURS,
   SENSITIVE_DATA,
@@ -53,6 +53,7 @@ import {
 } from './fixtures/fake-redmine'
 import type { RedmineState } from '../../src/shared/redmine/schema'
 import {
+  capsuleBox,
   clickCard,
   DEFAULT_ALERTS,
   advanceClock,
@@ -293,10 +294,16 @@ const summaryCell = (column: 'today' | 'week' | 'monthTotal') => `[data-testid="
 const hoursEs = (hours: number): string => `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(hours)} h`
 
 const DETAIL = '[data-testid="redmine-detail"]'
+const SUMMARY_LINE = '[data-testid="redmine-summary-line"]'
+/** "5,5H" as the one-line summary writes hours. */
+const hoursLine = (hours: number): string => hoursEs(hours).replace(' h', 'H')
 const inDetail = (id: string) => `${DETAIL} [data-testid="${id}"]`
 
+const SEARCH = '[data-testid="redmine-search"]'
+
+/** The way to a detail: its number in the search box (the focus stays there). Waits for the detail to load. */
 async function openDetail(id: number): Promise<void> {
-  await $(row(id)).click()
+  await fillValue(SEARCH, String(id))
   await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === String(id), `the detail of #${id}`)
   // Loaded: the status select and the log form are there.
   await $(inDetail('redmine-detail-status')).waitForDisplayed()
@@ -430,17 +437,11 @@ describe('Redmine (Tauri)', () => {
     await setLanguage('es')
     await eventually(pageLang, (lang) => lang === 'es', 'lang=es (the panel is mounted)')
 
-    // The tile opens the view: the summary (today, week, month) and the assigned issues, newest first.
+    // The tile opens the view. At rest: the summary (today, week, month) and the search box, no list.
     await clickCard('integration-redmine')
     await expectMode('redmine')
     await expect(panel()).toHaveAttribute('data-body', 'list')
-    await expectCount(ROWS, REDMINE_ISSUES.length)
-    expect(await rowIds()).toEqual(REDMINE_ISSUES.map((issue) => issue.id))
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-subject"]`, 'Diseño de la pantalla de imputación')
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-status"]`, 'Nueva')
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-hours"]`, '1,5/6 h')
-    await expectText(`[data-issue-id="412"] [data-testid="redmine-issue-hours"]`, '3 h')
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-project"]`, 'Portal Ejemplo')
+    await expectCount(ROWS, 0)
     // Expected data from Windows' day (the app's, and the aligned worker's); see appDays.
     const days = await appDays()
     const seeded = expectedSeededSummary(new Date())
@@ -450,23 +451,30 @@ describe('Redmine (Tauri)', () => {
     await expectText(summaryCell('monthTotal'), hoursEs(seeded.month))
     await expectText('[data-testid="redmine-summary-target"]', 'Jornada de 8 h')
 
-    // Search: case and accents ignored; a number (with or without #) is that exact id only.
-    const search = '[data-testid="redmine-search"]'
-    await fillValue(search, 'DISENO')
-    await expectRowIds([4120])
+    // Search: case and accents ignored. Several matches are rows (newest first) with their data.
+    const search = SEARCH
+    await fillValue(search, 'portal')
+    await expectRowIds([4120, 4012])
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-subject"]`, 'Diseño de la pantalla de imputación')
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-status"]`, 'Nueva')
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-hours"]`, '1,5/6 h')
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-project"]`, 'Portal Ejemplo')
     await fillValue(search, 'nominas')
     await expectRowIds([412, 2875])
+    await expectText(`[data-issue-id="412"] [data-testid="redmine-issue-hours"]`, '3 h')
+    // One match goes straight to its detail; a number (with or without #) is that exact id only.
+    await fillValue(search, 'DISENO')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '4120', 'the detail of #4120')
     await fillValue(search, '#412')
-    await expectRowIds([412])
-    await fillValue(search, '4012')
-    await expectRowIds([4012])
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '412', 'the detail of #412')
     await fillValue(search, 'nada parecido')
     await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
-    // Esc clears the search first (the view stays open).
+    // Esc clears the search first (the view stays open, at rest).
     await focus(search)
     await browser.keys('Escape')
     await expectValue(search, '')
-    await expectCount(ROWS, REDMINE_ISSUES.length)
+    await expectCount(ROWS, 0)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
 
     // The detail of #4012: its status (the allowed ones) and its estimate.
     await openDetail(4012)
@@ -523,13 +531,19 @@ describe('Redmine (Tauri)', () => {
     await eventually(openedUrls, (urls) => JSON.stringify(urls) === JSON.stringify([`${FAKE_REDMINE_ORIGIN}/issues/4012`]), 'the issue opened')
     expect(await openedUrls()).toEqual([`${FAKE_REDMINE_ORIGIN}/issues/4012`])
 
-    // Back to the list: #4012 moved to the top with its new status and hours; the summary went up
-    // (by the hours of the day logged, counted in Windows' today, week and month).
+    // Back to the rest (the search is cleared): searching the project again lists #4012 first, with
+    // its new status and hours; the summary went up (by the hours of the day logged, counted in
+    // Windows' today, week and month).
     await byTestId('redmine-back').click()
     await expect(panel()).toHaveAttribute('data-body', 'list')
-    await expectRowIds([4012, 4120, 412, 3301, 2875])
+    await expectValue(search, '')
+    await fillValue(search, 'portal')
+    await expectRowIds([4012, 4120])
     await expectText(`[data-issue-id="4012"] [data-testid="redmine-issue-status"]`, 'Resuelta')
     await expectText(`[data-issue-id="4012"] [data-testid="redmine-issue-hours"]`, '1,5/3,5 h')
+    await focus(search)
+    await browser.keys('Escape')
+    await expectValue(search, '')
     const added = {
       today: logDay === days.windows ? 1.5 : 0,
       week: logDay >= mondayOf(days.windows) ? 1.5 : 0,
@@ -559,11 +573,13 @@ describe('Redmine (Tauri)', () => {
     await expectConnected()
     await useWindow('notch')
 
-    // Esc closes the detail (back to its row), then the view; the capsule shows today's new total.
+    // Esc clears the search that led to the detail (focus back in the box), then closes the view;
+    // the capsule shows today's new total.
     await focus(DETAIL)
     await browser.keys('Escape')
     await expect(panel()).toHaveAttribute('data-body', 'list')
-    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus on the row of #2875')
+    await expectValue(search, '')
+    await eventually(() => isFocused(search), (focused) => focused, 'the focus in the search box')
     await browser.keys('Escape')
     await panel().waitForExist({ reverse: true })
     // WebDriver's clicks left its virtual pointer over the capsule (docs/e2e.md).
@@ -585,11 +601,225 @@ describe('Redmine (Tauri)', () => {
     expectCleanLogs()
   })
 
+  it('at rest there is only the summary and the search box', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    // The month summary (chart, Hoy · Semana · Mes) and the search box, nothing else under the header.
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+    await expect(byTestId('redmine-summary')).not.toHaveAttribute('data-compact', 'true')
+    const seeded = expectedSeededSummary(new Date())
+    await expectText(summaryCell('today'), hoursEs(seeded.today))
+    await expect(byTestId('redmine-search')).toBeDisplayed()
+    // No assigned-issues list: no rows, no list, no empty-state line, no loading rows.
+    await expectCount(ROWS, 0)
+    await expectCount('[data-testid="redmine-list"]', 0)
+    await expectCount('[data-testid="redmine-no-match"]', 0)
+    await expectCount('[data-testid="redmine-loading"]', 0)
+    await expectCount(DETAIL, 0)
+    expect((await textOf(PANEL))!.toLowerCase()).not.toContain('asignadas')
+    // The list is still read (the search runs over it), but nothing shows it until something is typed.
+    await eventually(async () => server.hits['issues'] ?? 0, (hits) => hits >= 1, 'the assigned list read for the search')
+    // The painted capsule is the rest size (REDMINE_SIZES.rest).
+    await eventually(async () => (await capsuleBox()).height, (height) => Math.abs(height - 272) <= 2, 'the capsule at 272 px')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('a number in the list opens its detail', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    // The exact id of an assigned issue: its detail under the box, the focus stays in the box.
+    await fillValue(SEARCH, '4012')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '4012', 'the detail of #4012')
+    await expect(panel()).toHaveAttribute('data-body', 'detail')
+    await expectText(inDetail('redmine-detail-subject'), 'Revisar los permisos del informe mensual')
+    await $(inDetail('redmine-detail-status')).waitForDisplayed()
+    expect(await isFocused(SEARCH)).toBe(true)
+    // With `#` it is the same issue, found in the list, not asked of Redmine.
+    await fillValue(SEARCH, '#412')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '412', 'the detail of #412')
+    await expectText(inDetail('redmine-detail-subject'), 'Corregir el cálculo de las vacaciones')
+    await browser.pause(600)
+    expect(server.hits['find'] ?? 0).toBe(0)
+    expect(await isFocused(SEARCH)).toBe(true)
+    // Esc clears the search that led to the detail: the rest is back.
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await expectCount(DETAIL, 0)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('a number outside the list opens its detail', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+    const outside = REDMINE_OUTSIDE_ISSUE
+
+    // Typed digit by digit, quickly: Redmine is asked once, 300 ms after the typing pauses.
+    await focus(SEARCH)
+    await browser.keys(String(outside.id).split(''))
+    await expectValue(SEARCH, String(outside.id))
+    expect(server.hits['find'] ?? 0).toBe(0)
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === String(outside.id), `the detail of #${outside.id}`)
+    await $(inDetail('redmine-detail-status')).waitForDisplayed()
+    await expectText(inDetail('redmine-detail-subject'), outside.subject)
+    expect(server.hits['find']).toBe(1)
+    expect(await isFocused(SEARCH)).toBe(true)
+    // It is not in the assigned list: no row ever showed it.
+    await expectCount(ROWS, 0)
+
+    // With `#` the same number is always asked, whatever the texts say.
+    await fillValue(SEARCH, 'nada')
+    await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
+    await fillValue(SEARCH, `#${outside.id}`)
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === String(outside.id), `the detail of #${outside.id} with #`)
+    expect(server.hits['find']).toBe(2)
+    // The detail works as any other: the issue is read again with its allowed statuses.
+    await expectValue(inDetail('redmine-detail-status'), String(outside.statusId))
+
+    expect(server.violations).toEqual([])
+    expect((await redmineState()).status).toBe('ok')
+    expectCleanLogs()
+  })
+
+  it('a forbidden number shows no match and keeps the session', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    // 403: Redmine hides that issue from the key.
+    server.hiddenIssues.add(9403)
+    await fillValue(SEARCH, '9403')
+    await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
+    expect(server.hits['403']).toBe(1)
+    await expectCount(DETAIL, 0)
+    await expectCount('[data-testid="redmine-status"]', 0)
+    // 404: there is no such issue; the same answer.
+    await fillValue(SEARCH, '#9404')
+    await eventually(async () => server.hits['find'] ?? 0, (hits) => hits === 2, 'the second lookup')
+    await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
+
+    // The session is untouched: still connected here, in the Control Center and in the capsule,
+    // and the search keeps working.
+    expect((await redmineState()).status).toBe('ok')
+    await fillValue(SEARCH, '4012')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '4012', 'the detail of #4012')
+    await useWindow('control-center')
+    await expectConnected()
+    await useWindow('notch')
+    await focus(SEARCH)
+    await browser.keys('Escape')
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await pointer(false)
+    await requestIntent('dismiss')
+    await expectMode('peek')
+    await whileHovered(() => expectMetric('2,5 h imputadas hoy en Redmine').then(() => undefined))
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('several matches show a short list, and the keyboard goes through it', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    await fillValue(SEARCH, 'nominas')
+    await expectRowIds([412, 2875])
+    await expectCount('[data-testid="redmine-list"]', 1)
+    await expectCount(DETAIL, 0)
+    // Never more than five rows.
+    await fillValue(SEARCH, 'a')
+    await eventually(async () => (await rowIds()).length, (n) => n >= 2 && n <= 5, 'at most five rows')
+    await fillValue(SEARCH, 'nominas')
+    await expectRowIds([412, 2875])
+    // ↓ from the box goes into the results, ↓ again to the next row.
+    expect(await isFocused(SEARCH)).toBe(true)
+    await browser.keys('ArrowDown')
+    await eventually(() => isFocused(row(412)), (focused) => focused, 'the focus on the first row')
+    await browser.keys('ArrowDown')
+    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus on the second row')
+    // Enter opens the row's detail (the focus goes to it).
+    await browser.keys('Enter')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '2875', 'the detail of #2875')
+    await expect(panel()).toHaveAttribute('data-body', 'detail')
+    // Esc layers: the picked row's detail closes first (back to its row, the list intact) ...
+    await browser.keys('Escape')
+    await expectRowIds([412, 2875])
+    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus back on the row of #2875')
+    await expectValue(SEARCH, 'nominas')
+    // ... then the query (the rest, the focus in the box) ...
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await expectCount(ROWS, 0)
+    await eventually(() => isFocused(SEARCH), (focused) => focused, 'the focus in the search box')
+    expect(await mode()).toBe('redmine')
+    // ... then the panel.
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await expectMode('expanded')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('the summary compresses while searching', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+    const seeded = expectedSeededSummary(new Date())
+    // At rest: the full summary, in the rest capsule.
+    await expectText(summaryCell('today'), hoursEs(seeded.today))
+    await expectCount(SUMMARY_LINE, 0)
+    await eventually(async () => (await capsuleBox()).height, (height) => Math.abs(height - 272) <= 2, 'the capsule at 272 px')
+
+    // Searching: one line, "Hoy 2,5H · Semana … · Mes …", in the tall capsule.
+    await fillValue(SEARCH, 'nominas')
+    await expectRowIds([412, 2875])
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-compact', 'true')
+    await expectText(SUMMARY_LINE, `Hoy ${hoursLine(seeded.today)} · Semana ${hoursLine(seeded.week)} · Mes ${hoursLine(seeded.month)}`)
+    await expectCount(summaryCell('today'), 0)
+    await eventually(async () => (await capsuleBox()).height, (height) => Math.abs(height - 560) <= 2, 'the capsule at 560 px')
+
+    // The line follows the language.
+    await setLanguage('en')
+    const en = (hours: number) => hoursLine(hours).replace(',', '.')
+    await expectText(SUMMARY_LINE, `Today ${en(seeded.today)} · Week ${en(seeded.week)} · Month ${en(seeded.month)}`)
+    await setLanguage('es')
+    await expectText(SUMMARY_LINE, `Hoy ${hoursLine(seeded.today)} · Semana ${hoursLine(seeded.week)} · Mes ${hoursLine(seeded.month)}`)
+
+    // Clearing the search: the full summary and the rest capsule are back.
+    await focus(SEARCH)
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await expectText(summaryCell('today'), hoursEs(seeded.today))
+    await expectCount(SUMMARY_LINE, 0)
+    await eventually(async () => (await capsuleBox()).height, (height) => Math.abs(height - 272) <= 2, 'the capsule back at 272 px')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
   it('a key Redmine later rejects (401) asks to check the key, hides the capsule block and stops querying', async () => {
     const server = fake!
     await connected(server)
     await openRedmineView()
-    await expectCount(ROWS, REDMINE_ISSUES.length)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
 
     // The key is revoked (or the REST API turned off); the next 5 min query finds out.
     server.unauthorized = true
@@ -597,7 +827,7 @@ describe('Redmine (Tauri)', () => {
     const notice = `${PANEL} [data-testid="redmine-status"]`
     await eventually(() => $(notice).getAttribute('data-notice'), (value) => value === 'auth', 'the auth notice')
     await expectTextContaining(notice, 'Revisa la clave API en Control Center')
-    await expectCount(ROWS, 0)
+    await expectCount(SEARCH, 0)
     await expect(byTestId('redmine-open-control-center')).toBeDisplayed()
     await useWindow('control-center')
     await eventually(() => byTestId('redmine-status').getAttribute('data-status'), (value) => value === 'auth-error', 'the Control Center in auth-error')

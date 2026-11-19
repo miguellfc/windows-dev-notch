@@ -42,22 +42,33 @@ export function gmailSizeFor(reading: boolean): { width: number; height: number 
 export const QUESTION_SIZE = { width: 520, height: 504 } as const
 
 /**
- * The "Revisiones" panel, measured with Playwright in ES and EN (built app, 6-column month, worst
- * case with the partial-data, private-contributions and error lines): a fixed 32 px header (back,
- * title, the platform name, refresh); under it the contributions block (the 114 px month chart
- * column beside the summary table, 199-235 px tall) and then "Por revisar" and "Míos" in their own
- * scroll (28 px heading, 50 px rows), which keeps 297 px (a heading and five rows) in the usual case and about
- * four rows in the worst one; the header and the chart never clip. The tallest panel (taller than
- * the question card): the window grows before it opens (resize first) and shrinks after it closes.
+ * The "Revisiones" panel, measured in WebView2 (built debug app, ES and EN, GitHub and GitLab) with
+ * the worst case: the 114 px month chart beside the summary table, with the private-contributions,
+ * partial-data and error lines and the offline footer. A fixed 32 px header (back, platform name,
+ * refresh), the contributions block (202 px), the 32 px account row and the 20 px footer come to
+ * 322 px of content, plus the capsule's 2 px border. It is no longer the tallest panel (Redmine is):
+ * the window grows before it opens (resize first) from the shorter ones and shrinks after it closes.
  */
-export const REVIEWS_SIZE = { width: 520, height: 560 } as const
+export const REVIEWS_SIZE = { width: 520, height: 324 } as const
 
 /**
- * The Redmine view, the same size as "Revisiones" (so moving between them never resizes the window):
- * the 32 px header, the hours summary (the month chart beside Hoy · Semana · Mes), the search box,
- * then the assigned issues (50 px rows) or one issue's detail in their own scroll.
+ * The Redmine view. At rest, the 32 px header, the hours summary (the month chart beside
+ * Hoy · Semana · Mes) and the search box. While searching, the summary shrinks to one line and the
+ * matches or one issue's detail take the room below the box. Both are the `redmine` mode: the window
+ * is sized for the search, the tallest panel, and the rest is a shorter capsule inside it. The rest
+ * was measured in WebView2 (built debug app, ES and EN) with the worst case, the hours error line and
+ * the offline footer: 8 + 32 + 6 + 154 (summary) + 6 + 28 (search) + 6 + 20 (footer) + 10, plus the
+ * capsule's 2 px border.
  */
-export const REDMINE_SIZE = { width: 520, height: 560 } as const
+export const REDMINE_SIZES = {
+  rest: { width: 520, height: 272 },
+  search: { width: 520, height: 560 },
+} as const
+
+/** Size of the Redmine panel: the search while there is something under the box, else the rest. */
+export function redmineSizeFor(searching: boolean): { width: number; height: number } {
+  return searching ? REDMINE_SIZES.search : REDMINE_SIZES.rest
+}
 
 /**
  * The zones of the compact capsule (time and date | integration blocks | system), in px, measured
@@ -136,7 +147,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   notes: { width: 420, height: 320 },
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
-  redmine: REDMINE_SIZE,
+  redmine: REDMINE_SIZES.search,
   mini: { width: 96, height: 4 },
 }
 

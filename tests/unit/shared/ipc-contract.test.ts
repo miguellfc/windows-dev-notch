@@ -496,24 +496,12 @@ describe('gmail contract', () => {
 describe('code review contract', () => {
   const platform = { status: 'ok', account: 'me', unreviewed: 3, updatedAt: '2026-11-13T10:00:00.000Z', persistent: true }
   const state = { github: platform, gitlab: { ...platform, status: 'unconfigured', account: null, unreviewed: null, updatedAt: null } }
-  const item = {
-    id: 'n1',
-    ref: 'o/r#1',
-    title: 'T',
-    author: 'a',
-    updatedAt: '2026-11-13T09:00:00.000Z',
-    draft: false,
-    review: 'none',
-    checks: null,
-    conflicts: false,
-  }
-
   it('exposes the code-review channels and events', () => {
     expect(channels.codeReview).toEqual({
       getState: 'code-review:get-state',
-      list: 'code-review:list',
       refresh: 'code-review:refresh',
-      open: 'code-review:open',
+      openProfile: 'code-review:open-profile',
+      openAlert: 'code-review:open-alert',
       setToken: 'code-review:set-token',
       clear: 'code-review:clear',
       view: 'code-review:view',
@@ -579,21 +567,20 @@ describe('code review contract', () => {
     }
   })
 
-  it('lists at most 20 strict items per list, without URLs', () => {
-    const list = contract['code-review:list']
-    expect(list.input.safeParse({ platform: 'gitlab' }).success).toBe(true)
-    expect(list.input.safeParse({ platform: 'bitbucket' }).success).toBe(false)
-    expect(list.output.safeParse({ toReview: Array.from({ length: 20 }, () => item), mine: [] }).success).toBe(true)
-    expect(list.output.safeParse({ toReview: Array.from({ length: 21 }, () => item), mine: [] }).success).toBe(false)
-    expect(list.output.safeParse({ toReview: [{ ...item, url: 'https://github.com/o/r/pull/1' }], mine: [] }).success).toBe(false)
-  })
-
-  it('opens by platform and id, never by URL', () => {
-    const open = contract['code-review:open']
-    expect(open.input.safeParse({ platform: 'github', id: 'n1' }).success).toBe(true)
-    expect(open.input.safeParse({ platform: 'github', id: '' }).success).toBe(false)
-    expect(open.input.safeParse({ platform: 'github', id: 'n1', url: 'https://github.com' }).success).toBe(false)
-    expect(open.output.safeParse(null).success).toBe(true)
+  it('opens the profile and the alert by platform only, and answers a boolean, never a URL', () => {
+    for (const channel of ['code-review:open-profile', 'code-review:open-alert'] as const) {
+      const open = contract[channel]
+      expect(open.input.safeParse({ platform: 'github' }).success).toBe(true)
+      expect(open.input.safeParse({ platform: 'bitbucket' }).success).toBe(false)
+      expect(open.input.safeParse({ platform: 'github', id: 'n1' }).success).toBe(false)
+      expect(open.input.safeParse({ platform: 'github', url: 'https://github.com' }).success).toBe(false)
+      expect(open.output.safeParse({ opened: true }).success).toBe(true)
+      expect(open.output.safeParse({ opened: false }).success).toBe(true)
+      expect(open.output.safeParse({ opened: true, url: 'https://github.com' }).success).toBe(false)
+      expect(open.output.safeParse(null).success).toBe(false)
+    }
+    expect('code-review:list' in contract).toBe(false)
+    expect('code-review:open' in contract).toBe(false)
   })
 
   it('takes a bounded token and never returns it', () => {
@@ -684,6 +671,7 @@ describe('redmine contract', () => {
       getState: 'redmine:get-state',
       issues: 'redmine:issues',
       issue: 'redmine:issue',
+      findIssue: 'redmine:find-issue',
       activities: 'redmine:activities',
       updateIssue: 'redmine:update-issue',
       logTime: 'redmine:log-time',
@@ -732,6 +720,15 @@ describe('redmine contract', () => {
     for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(detail.input.safeParse(bad).success).toBe(false)
     expect(detail.output.safeParse({ ...issue, allowedStatuses: [{ id: 3, name: 'Done' }] }).success).toBe(true)
     expect(detail.output.safeParse(issue).success).toBe(false)
+  })
+
+  it('finds an issue by a positive integer id and answers only whether it exists', () => {
+    const find = contract['redmine:find-issue']
+    expect(find.input.safeParse({ id: 12 }).success).toBe(true)
+    for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(find.input.safeParse(bad).success).toBe(false)
+    expect(find.output.safeParse({ found: true }).success).toBe(true)
+    expect(find.output.safeParse({ found: false }).success).toBe(true)
+    for (const bad of [{}, { found: 'yes' }, { found: true, url: 'https://x' }, { found: true, issue: {} }]) expect(find.output.safeParse(bad).success).toBe(false)
   })
 
   it('lists activities', () => {
