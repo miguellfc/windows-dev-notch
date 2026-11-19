@@ -45,6 +45,8 @@ export interface FakeIssue {
   spentHours: number
   /** Minutes before the fake started: the list is sorted by it (newest first). */
   minutesAgo: number
+  /** False: the issue exists but is not assigned to the user, so it is never in the list. */
+  assigned?: boolean
 }
 
 /** The user's open assigned issues, newest first. */
@@ -56,6 +58,21 @@ export const REDMINE_ISSUES: readonly FakeIssue[] = [
   { id: 2875, subject: 'Documentar la API de clientes', project: 'Nóminas Ficticias', statusId: 3, estimatedHours: 4, spentHours: 4.25, minutesAgo: 4 * 24 * 60 },
 ]
 
+/**
+ * An issue the user can read but that is not assigned to them: outside the list, so only the
+ * search by number reaches it (`GET issues/{id}.json`).
+ */
+export const REDMINE_OUTSIDE_ISSUE: FakeIssue = {
+  id: 5150,
+  subject: 'Preparar la demostración para el cliente',
+  project: 'Portal Ejemplo',
+  statusId: 2,
+  estimatedHours: null,
+  spentHours: 0,
+  minutesAgo: 5 * 24 * 60,
+  assigned: false,
+}
+
 /** The statuses Redmine lets the user move each issue to (current one included). */
 const ALLOWED_STATUS_IDS = [1, 2, 3]
 
@@ -64,7 +81,7 @@ export const REDMINE_LOG_COMMENT = 'Reunión de seguimiento con el equipo fictic
 
 /** Every subject, project, name, comment and the key: none may reach a log file. */
 export const SENSITIVE_DATA: readonly string[] = [
-  ...REDMINE_ISSUES.flatMap((issue) => [issue.subject, issue.project]),
+  ...[...REDMINE_ISSUES, REDMINE_OUTSIDE_ISSUE].flatMap((issue) => [issue.subject, issue.project]),
   FAKE_REDMINE_KEY,
   FAKE_REDMINE_ACCOUNT,
   FAKE_REDMINE_USER.login,
@@ -118,9 +135,11 @@ export interface FakeRedmine {
   unauthorized: boolean
   /** Issues whose writes (status, estimate, time entries) answer 403. */
   readonly forbiddenIssues: Set<number>
+  /** Issue numbers the key cannot see: reading one answers 403 (whether or not it exists). */
+  readonly hiddenIssues: Set<number>
   /** Protocol mistakes seen so far (refused requests); a correct client leaves this empty. */
   readonly violations: string[]
-  /** Requests per route ("viewer", "issues", "issue", "statuses", "activities", "update", "log", "time entries", "401", "403"). */
+  /** Requests per route ("viewer", "issues", "issue", "find" (the search by number), "statuses", "activities", "update", "log", "time entries", "401", "403"). */
   readonly hits: Record<string, number>
   /** Every request (any route, 401s included). */
   readonly requests: { count: number }
@@ -160,7 +179,8 @@ export async function startFakeRedmine(): Promise<FakeRedmine> {
   const hits: Record<string, number> = {}
   const requests = { count: 0 }
   const forbiddenIssues = new Set<number>()
-  const issues: FakeIssue[] = REDMINE_ISSUES.map((issue) => ({ ...issue }))
+  const hiddenIssues = new Set<number>()
+  const issues: FakeIssue[] = [...REDMINE_ISSUES, REDMINE_OUTSIDE_ISSUE].map((issue) => ({ ...issue }))
   const entries: FakeTimeEntry[] = seedEntries(new Date(startedAt))
   let nextEntryId = 9100
   const state = { unauthorized: false }
@@ -243,7 +263,7 @@ export async function startFakeRedmine(): Promise<FakeRedmine> {
       const offset = page(q, res, 'issues')
       if (offset === null) return
       hit('issues')
-      const open = issues.filter((issue) => !status(issue.statusId).closed).sort((a, b) => a.minutesAgo - b.minutesAgo)
+      const open = issues.filter((issue) => issue.assigned !== false && !status(issue.statusId).closed).sort((a, b) => a.minutesAgo - b.minutesAgo)
       return json(res, 200, {
         issues: open.slice(offset, offset + PAGE_SIZE).map((issue) => issueJson(issue, false)),
         total_count: open.length,
@@ -256,10 +276,17 @@ export async function startFakeRedmine(): Promise<FakeRedmine> {
     if (one) {
       const issue = issues.find((i) => i.id === Number(one[1]))
       if (method === 'GET') {
-        if (queryNames(q) !== 'include' || q.get('include') !== 'allowed_statuses') return refuse(res, 400, 'issue: not include=allowed_statuses')
-        hit('issue')
+        // The search by number asks whether the issue exists: a bare GET. The detail asks for its
+        // allowed statuses. Anything else is a protocol mistake.
+        const find = queryNames(q) === ''
+        if (!find && (queryNames(q) !== 'include' || q.get('include') !== 'allowed_statuses')) return refuse(res, 400, 'issue: not a bare GET or include=allowed_statuses')
+        hit(find ? 'find' : 'issue')
+        if (hiddenIssues.has(Number(one[1]))) {
+          hit('403')
+          return json(res, 403, {})
+        }
         if (!issue) return json(res, 404, {})
-        return json(res, 200, { issue: issueJson(issue, true) })
+        return json(res, 200, { issue: issueJson(issue, !find) })
       }
       if (method === 'PUT') {
         if (queryNames(q) !== '') return refuse(res, 400, 'update: unexpected query')
@@ -394,6 +421,7 @@ export async function startFakeRedmine(): Promise<FakeRedmine> {
       state.unauthorized = value
     },
     forbiddenIssues,
+    hiddenIssues,
     violations,
     hits,
     requests,
