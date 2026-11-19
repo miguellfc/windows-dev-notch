@@ -238,9 +238,9 @@ export const contract = {
   'gmail:close-message': { input: none, output: ack },
   'code-review:get-state': { input: none, output: codeReviewStateSchema },
   'code-review:refresh': { input: none, output: ack },
-  /** Main opens the account's page (`github.com/<account>` or the GitLab server's); `opened: false` without an account. */
+  /** Main opens the account's page (`github.com/<account>` or the GitLab server's); `opened: false` without an account or when the browser could not be launched. */
   'code-review:open-profile': { input: openProfileInputSchema, output: openedResultSchema },
-  /** Main opens the single PR/MR of the last alert, on github.com or the configured GitLab origin only; `opened: false` when there is none. */
+  /** Main opens the single PR/MR of the last alert, on github.com or the configured GitLab origin only; `opened: false` when there is none or the browser could not be launched (the alert and its address stay). */
   'code-review:open-alert': { input: openAlertInputSchema, output: openedResultSchema },
   /** Validates the token against the API before saving; the token never comes back. */
   'code-review:set-token': { input: setTokenInputSchema, output: setTokenResultSchema },

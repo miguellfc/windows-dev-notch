@@ -8,6 +8,11 @@ import {
 import { translate } from '../../../shared/i18n/messages'
 import type { Language } from '../../../shared/settings/schema'
 
+/** Whether the alert a click was about is still the one on screen (not spent, replaced or unmounted). */
+export function alertStillShown(clicked: CodeReviewAlert | null, current: CodeReviewAlert | null | undefined): boolean {
+  return clicked !== null && clicked === current
+}
+
 /** Platforms in capsule order. */
 export const PLATFORMS: readonly Platform[] = ['github', 'gitlab']
 

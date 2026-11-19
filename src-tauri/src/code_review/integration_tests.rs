@@ -434,6 +434,8 @@ struct T {
     fail_open: Arc<std::sync::atomic::AtomicBool>,
     /// Every launch the opener was asked for, failed or not.
     launches: Arc<Mutex<u32>>,
+    /// While set, a launch does not answer yet.
+    hold_open: Arc<std::sync::atomic::AtomicBool>,
 }
 
 fn alert_settings(enabled: bool) -> CodeReviewAlertSettings {
@@ -471,6 +473,7 @@ fn setup(options: Setup) -> T {
     let retracted: Arc<Mutex<u32>> = Arc::default();
     let fail_open: Arc<std::sync::atomic::AtomicBool> = Arc::default();
     let launches: Arc<Mutex<u32>> = Arc::default();
+    let hold_open: Arc<std::sync::atomic::AtomicBool> = Arc::default();
 
     let build = {
         let clients = Arc::clone(&clients);
@@ -517,15 +520,20 @@ fn setup(options: Setup) -> T {
             let opened = Arc::clone(&opened);
             let fail_open = Arc::clone(&fail_open);
             let launches = Arc::clone(&launches);
+            let hold_open = Arc::clone(&hold_open);
             Arc::new(move |url: String| {
                 *launches.lock().unwrap() += 1;
                 let failing = fail_open.load(std::sync::atomic::Ordering::SeqCst);
+                let hold_open = Arc::clone(&hold_open);
                 if !failing {
                     opened.lock().unwrap().push(url);
                 }
                 Box::pin(async move {
                     // A launch takes a while: other calls run before it answers.
                     for _ in 0..5 {
+                        tokio::task::yield_now().await;
+                    }
+                    while hold_open.load(std::sync::atomic::Ordering::SeqCst) {
                         tokio::task::yield_now().await;
                     }
                     if failing {
@@ -566,6 +574,7 @@ fn setup(options: Setup) -> T {
         retracted,
         fail_open,
         launches,
+        hold_open,
     }
 }
 
@@ -627,6 +636,11 @@ impl T {
     fn fail_launches(&self, failing: bool) {
         self.fail_open
             .store(failing, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn hold_launches(&self, held: bool) {
+        self.hold_open
+            .store(held, std::sync::atomic::Ordering::SeqCst);
     }
 
     fn launches(&self) -> u32 {
@@ -1374,6 +1388,101 @@ async fn a_failed_launch_keeps_the_url_does_not_retract_and_a_later_click_opens_
     assert_eq!(t.retracted(), 1);
     assert!(!t.integration.open_alert(GITHUB).await);
     assert_eq!(t.launches(), 2);
+}
+
+/// An alert for PR 1, then (one tick later) `later` reviews on top of it: PR 2 alone (a newer single
+/// alert) or PRs 2 and 3 (a newer alert for several).
+async fn alert_then_newer(later: &[&str]) -> T {
+    let t = setup(Setup::default());
+    let later: Vec<String> = later.iter().map(|id| (*id).to_owned()).collect();
+    t.set_prepare(move |c, _, _| {
+        let round = |reviewed: &[&str]| {
+            snap(
+                ["1", "2", "3"]
+                    .into_iter()
+                    .map(|id| {
+                        let review = if reviewed.contains(&id) {
+                            ReviewState::Approved
+                        } else {
+                            ReviewState::None
+                        };
+                        item(GITHUB, id, review)
+                    })
+                    .collect(),
+            )
+        };
+        let mut all = vec!["1"];
+        all.extend(later.iter().map(String::as_str));
+        c.fetch_once(Ok(round(&[])));
+        c.fetch_once(Ok(round(&["1"])));
+        c.set_fetch(Ok(round(&all)));
+    });
+    t.ready().await;
+    t.flush(0).await;
+    t.flush(TICK_MS).await;
+    assert_eq!(t.alerts().len(), 1);
+    t
+}
+
+/// Runs `open_alert` while `during` happens inside the launch, which only answers afterwards.
+async fn open_alert_during<F: std::future::Future<Output = ()>>(t: &T, during: F) -> bool {
+    t.hold_launches(true);
+    let (opened, ()) = tokio::join!(t.integration.open_alert(GITHUB), async {
+        during.await;
+        t.hold_launches(false);
+    });
+    opened
+}
+
+#[tokio::test]
+async fn a_failed_launch_does_not_restore_the_url_of_a_platform_disabled_meanwhile() {
+    let t = single_alert(GITHUB, None).await;
+    t.fail_launches(true);
+    let opened = open_alert_during(&t, async {
+        t.integration.set_enabled(GITHUB, false);
+    })
+    .await;
+    assert!(!opened);
+    t.fail_launches(false);
+    assert!(!t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.launches(), 1);
+}
+
+#[tokio::test]
+async fn a_failed_launch_does_not_restore_the_url_over_a_newer_alert_for_several() {
+    let t = alert_then_newer(&["2", "3"]).await;
+    t.fail_launches(true);
+    let opened = open_alert_during(&t, async { t.flush(TICK_MS).await }).await;
+    assert!(!opened);
+    assert_eq!(t.alerts().len(), 2);
+    t.fail_launches(false);
+    assert!(!t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.launches(), 1);
+    assert!(t.opened().is_empty());
+}
+
+#[tokio::test]
+async fn a_failed_launch_keeps_the_url_of_a_newer_single_alert() {
+    let t = alert_then_newer(&["2"]).await;
+    t.fail_launches(true);
+    let opened = open_alert_during(&t, async { t.flush(TICK_MS).await }).await;
+    assert!(!opened);
+    assert_eq!(t.alerts().len(), 2);
+    t.fail_launches(false);
+    assert!(t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/2"]);
+}
+
+#[tokio::test]
+async fn a_slow_successful_launch_does_not_retract_a_newer_alert() {
+    let t = alert_then_newer(&["2"]).await;
+    let opened = open_alert_during(&t, async { t.flush(TICK_MS).await }).await;
+    assert!(opened);
+    assert_eq!(t.opened(), ["https://github.com/acme/repo/pull/1"]);
+    assert_eq!(t.retracted(), 0);
+    // The newer alert is still there to open.
+    assert!(t.integration.open_alert(GITHUB).await);
+    assert_eq!(t.retracted(), 1);
 }
 
 #[tokio::test]

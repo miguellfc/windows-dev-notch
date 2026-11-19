@@ -1,9 +1,9 @@
 import { GitPullRequest } from 'lucide-react'
-import type { MouseEvent } from 'react'
+import { useEffect, useRef, type MouseEvent } from 'react'
 import type { CodeReviewAlert } from '../../../shared/code-review/schema'
 import { translate } from '../../../shared/i18n/messages'
 import { setReviewsTarget } from '../../shared/code-review-store'
-import { reviewAlertContent, reviewAlertLabel } from '../../shared/code-review/format'
+import { alertStillShown, reviewAlertContent, reviewAlertLabel } from '../../shared/code-review/format'
 import { useLanguage } from '../../shared/use-t'
 import { useSettings } from '../../shared/settings-store'
 import { integrationStyle } from '../../shared/integration-color'
@@ -25,20 +25,42 @@ export function ReviewAlert({ alert }: { alert: CodeReviewAlert | null }) {
   // The platform's color; a spent payload no longer says the platform, so its generic icon stays chalk.
   const color = useSettings((state) => (alert && state.settings ? state.settings.integrations[alert.platform].color : null))
 
+  // The alert on screen right now (nothing once this component is gone): a late answer about an
+  // earlier one must not open the view unprompted.
+  const shown = useRef<CodeReviewAlert | null | undefined>(alert)
+  useEffect(() => {
+    shown.current = alert
+    return () => {
+      shown.current = undefined
+    }
+  }, [alert])
+  // A click on a single PR/MR is still being answered: repeat clicks wait for it.
+  const asking = useRef(false)
+
   const open = (event: MouseEvent): void => {
     // The capsule's own click would expand; open the reviews view explicitly instead.
     event.stopPropagation()
+    if (asking.current) return
     const openView = () => {
       setReviewsTarget(alert ? { platform: alert.platform } : null)
       void window.notch.notch.openIntegration({ id: 'reviews' })
     }
     if (alert?.count !== 1) return openView()
-    void window.notch.codeReview.openAlert({ platform: alert.platform }).then(
+    const clicked = alert
+    const fallBack = () => {
+      if (alertStillShown(clicked, shown.current)) openView()
+    }
+    asking.current = true
+    void window.notch.codeReview.openAlert({ platform: clicked.platform }).then(
       (result) => {
+        asking.current = false
         // Main retracts the alert itself once it opened the page.
-        if (!(result.ok && result.data.opened)) openView()
+        if (!(result.ok && result.data.opened)) fallBack()
       },
-      openView,
+      () => {
+        asking.current = false
+        fallBack()
+      },
     )
   }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alertStillShown,
   configuredPlatforms,
   profileRow,
   reviewAlertContent,
@@ -117,5 +118,16 @@ describe('profileRow', () => {
   it('is null without an account or when unconfigured', () => {
     expect(profileRow({ ...platform('ok'), account: null }, '')).toBeNull()
     expect(profileRow(platform('unconfigured'), '')).toBeNull()
+  })
+})
+
+describe('alertStillShown', () => {
+  const alert = { platform: 'github', count: 1, kind: 'approved', reference: 'a/b#1', title: 't' } as const
+  it('is true only for the very alert that was clicked', () => {
+    expect(alertStillShown(alert, alert)).toBe(true)
+    expect(alertStillShown(alert, { ...alert })).toBe(false)
+    expect(alertStillShown(alert, null)).toBe(false)
+    expect(alertStillShown(alert, undefined)).toBe(false)
+    expect(alertStillShown(null, null)).toBe(false)
   })
 })

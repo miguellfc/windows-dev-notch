@@ -261,6 +261,9 @@ struct Runtime {
     /// URL of the PR/MR of the last first-review alert, only while that alert was for exactly one
     /// (`open_alert` opens it, on the platform's origin). Never sent to the renderer.
     last_alert_url: Option<String>,
+    /// Bumped whenever `last_alert_url` is written or cleared by anything but `open_alert`'s own
+    /// take: a launch that ends later restores or retracts only while it is unchanged.
+    alert_epoch: u64,
     detector: ReviewDetector,
     /// Last known review state of each own open PR/MR (kept for items uncertain in a round).
     remembered: HashMap<String, ReviewState>,
@@ -528,7 +531,12 @@ impl CodeReviewIntegration {
                     }
                     log::info!(target: LOG_TARGET, "Code review first reviews platform={} count={}", alert.platform.as_str(), alert.count);
                     // One PR/MR keeps its URL for the click; several (or none) forget the last one.
-                    self.lock().rt(alert.platform).last_alert_url = url;
+                    {
+                        let mut inner = self.lock();
+                        let rt = inner.rt(alert.platform);
+                        rt.last_alert_url = url;
+                        rt.alert_epoch += 1;
+                    }
                     *self
                         .last_alert
                         .lock()
@@ -617,6 +625,7 @@ impl CodeReviewIntegration {
         rt.unreviewed = None;
         rt.updated_at = None;
         rt.last_alert_url = None;
+        rt.alert_epoch += 1;
         rt.remembered.clear();
         rt.detector.reset();
         rt.failures = 0;
@@ -891,6 +900,7 @@ impl CodeReviewIntegration {
             let rt = inner.rt(platform);
             rt.detector.reset();
             rt.last_alert_url = None;
+            rt.alert_epoch += 1;
             rt.last_panel_refresh = None;
         }
     }
@@ -1006,7 +1016,7 @@ impl CodeReviewIntegration {
     /// on the platform's origin. `false`: nothing opened (the view of the platform is the way out),
     /// also when the browser could not be launched (the URL is kept for another click).
     pub async fn open_alert(&self, platform: Platform) -> bool {
-        let (url, generation) = {
+        let (url, epoch) = {
             let mut inner = self.lock();
             let allowed = Self::allowed_origin(&inner, platform);
             let Some(url) = inner.rt(platform).last_alert_url.clone() else {
@@ -1020,19 +1030,23 @@ impl CodeReviewIntegration {
             // opens no second tab.
             let rt = inner.rt(platform);
             rt.last_alert_url = None;
-            (url, rt.generation)
+            (url, rt.alert_epoch)
         };
         if !self.open_in_browser(platform, url.clone()).await {
-            // Not opened: the alert stays and the URL with it, unless the session or a newer alert
-            // took over meanwhile.
+            // Not opened: the alert stays and the URL with it, unless anything wrote or cleared it
+            // meanwhile (a newer alert, the platform turned off, the session ended).
             let mut inner = self.lock();
             let rt = inner.rt(platform);
-            if rt.generation == generation && rt.last_alert_url.is_none() {
+            if rt.alert_epoch == epoch {
                 rt.last_alert_url = Some(url);
             }
             return false;
         }
-        (self.deps.retract_alert)();
+        // A newer alert may have replaced the one opened (the launch was slow): leave it be.
+        let unchanged = self.lock().rt(platform).alert_epoch == epoch;
+        if unchanged {
+            (self.deps.retract_alert)();
+        }
         true
     }
 
