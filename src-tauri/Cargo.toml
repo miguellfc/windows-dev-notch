@@ -1,6 +1,6 @@
 [package]
 name = "developer-notch"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 publish = false
 
@@ -46,6 +46,8 @@ html5ever = "0.39.0"
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_NetworkManagement_IpHelper",
+  "Win32_Networking_WinSock",
   "Win32_Security",
   "Win32_Security_Cryptography",
   "Win32_Storage_FileSystem",
@@ -55,9 +57,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_Memory",
   "Win32_System_Ole",
-  "Win32_System_Performance",
   "Win32_System_Power",
-  "Win32_System_ProcessStatus",
   "Win32_System_RemoteDesktop",
   "Win32_System_SystemInformation",
   "Win32_System_Threading",

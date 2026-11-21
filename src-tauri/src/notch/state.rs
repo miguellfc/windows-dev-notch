@@ -7,12 +7,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use crate::contract::notch::{IntegrationId, NotchMode};
 
 /// Modes that show the panel and therefore own the keyboard focus.
-pub const PANEL_MODES: [NotchMode; 9] = [
+pub const PANEL_MODES: [NotchMode; 8] = [
     NotchMode::Expanded,
     NotchMode::Permission,
     NotchMode::Question,
     NotchMode::Reminders,
-    NotchMode::System,
     NotchMode::Notes,
     NotchMode::Gmail,
     NotchMode::Reviews,
@@ -171,13 +170,13 @@ pub enum NotchEvent {
     Question { on: bool },
     ClaudeFirst { kind: ClaudeItem },
     Next,
+    OpenPending,
 }
 
 /// The mode of an integration's view (same names).
 fn integration_mode(id: IntegrationId) -> NotchMode {
     match id {
         IntegrationId::Reminders => NotchMode::Reminders,
-        IntegrationId::System => NotchMode::System,
         IntegrationId::Notes => NotchMode::Notes,
         IntegrationId::Gmail => NotchMode::Gmail,
         IntegrationId::Reviews => NotchMode::Reviews,
@@ -445,6 +444,14 @@ fn apply_event(state: &NotchState, event: &NotchEvent) -> NotchState {
                 }
             }
         }
+        // Only from the integrations row, and only Claude items: a late click never moves another view.
+        NotchEvent::OpenPending => {
+            if state.expanded && state.view == NotchView::Home {
+                if let Some(claude) = first_claude_item(state) {
+                    next.view = claude.into();
+                }
+            }
+        }
         NotchEvent::Back => {
             if state.expanded {
                 next.view = NotchView::Home;
@@ -452,4 +459,76 @@ fn apply_event(state: &NotchState, event: &NotchEvent) -> NotchState {
         }
     }
     next
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run(events: &[NotchEvent]) -> NotchState {
+        events.iter().fold(NotchState::default(), |state, event| {
+            reduce_notch(&state, event)
+        })
+    }
+
+    const ATTENTION: NotchEvent = NotchEvent::Attention { on: true };
+    const QUESTION: NotchEvent = NotchEvent::Question { on: true };
+
+    #[test]
+    fn open_pending_goes_from_home_to_a_pending_permission() {
+        let state = run(&[NotchEvent::Expand, ATTENTION, NotchEvent::OpenPending]);
+        assert_eq!(state.view, NotchView::Permission);
+        assert_eq!(notch_mode(&state), NotchMode::Permission);
+    }
+
+    #[test]
+    fn open_pending_goes_from_home_to_a_pending_question() {
+        let state = run(&[NotchEvent::Expand, QUESTION, NotchEvent::OpenPending]);
+        assert_eq!(state.view, NotchView::Question);
+        assert_eq!(notch_mode(&state), NotchMode::Question);
+    }
+
+    #[test]
+    fn open_pending_lands_on_the_oldest_item() {
+        for (kind, view) in [
+            (ClaudeItem::Question, NotchView::Question),
+            (ClaudeItem::Permission, NotchView::Permission),
+        ] {
+            let state = run(&[
+                NotchEvent::Expand,
+                ATTENTION,
+                QUESTION,
+                NotchEvent::ClaudeFirst { kind },
+                NotchEvent::OpenPending,
+            ]);
+            assert_eq!(state.view, view);
+        }
+    }
+
+    #[test]
+    fn open_pending_changes_nothing_with_no_claude_item_pending() {
+        let idle = run(&[NotchEvent::Expand]);
+        assert_eq!(reduce_notch(&idle, &NotchEvent::OpenPending), idle);
+        // Only Claude items count: the card never jumps to a due reminder.
+        let reminder = run(&[NotchEvent::Expand, NotchEvent::Reminders { due: true }]);
+        assert_eq!(reduce_notch(&reminder, &NotchEvent::OpenPending), reminder);
+    }
+
+    #[test]
+    fn open_pending_changes_nothing_outside_the_open_home_view() {
+        let peek = NotchState::default();
+        assert_eq!(reduce_notch(&peek, &NotchEvent::OpenPending), peek);
+        let alert = run(&[ATTENTION]);
+        assert_eq!(reduce_notch(&alert, &NotchEvent::OpenPending), alert);
+        let integration = run(&[
+            NotchEvent::OpenIntegration {
+                id: IntegrationId::Notes,
+            },
+            ATTENTION,
+        ]);
+        assert_eq!(
+            reduce_notch(&integration, &NotchEvent::OpenPending),
+            integration
+        );
+    }
 }

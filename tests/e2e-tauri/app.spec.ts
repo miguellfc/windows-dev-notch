@@ -100,7 +100,7 @@ describe('Developer Notch (Tauri)', () => {
       process: 'undefined',
       frozen: true,
       writable: false,
-      keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'system', 'usage'],
+      keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'usage'],
     })
 
     const csp = await $('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
@@ -194,6 +194,9 @@ describe('Developer Notch (Tauri)', () => {
     // test could only reach by moving the user's real cursor.
     await settle()
     const peekBox = await capsuleBox()
+    // The peek fits its time and date: their own width plus the 28 px padding and 2 px border, no spare room.
+    const zoneWidth = await $('[data-testid="capsule-zone-left"]').getSize('width')
+    expect(Math.abs(peekBox.width - Math.ceil(zoneWidth + 30))).toBeLessThanOrEqual(1)
     const hitAt = (x: number, y: number) =>
       inPage(
         (px, py) =>
@@ -339,44 +342,45 @@ describe('Developer Notch (Tauri)', () => {
     await eventually(() => e2e<boolean>('foreground-is-ours'), (ours) => !ours, 'the foreground handed back')
   })
 
-  it('nine tiles fit in ES and EN', async () => {
+  it('cards and quick access fit the panel in ES and EN', async () => {
     await request('expand')
     await expectMode('expanded')
+    await settle()
     for (const language of ['es', 'en'] as const) {
       await setLanguage(language)
       await expectPageLang(language)
       const measureFit = () =>
         inPage(() => {
           interface El {
-            querySelector(selector: string): El | null
             scrollWidth: number
             clientWidth: number
-            parentElement: El | null
-            getBoundingClientRect(): { left: number; right: number }
+            scrollHeight: number
+            clientHeight: number
+            getBoundingClientRect(): { left: number; right: number; top: number; bottom: number }
             dataset: Record<string, string | undefined>
           }
-          const doc = (globalThis as unknown as { document: { querySelectorAll(selector: string): ArrayLike<El> } }).document
-          const tiles = Array.from(doc.querySelectorAll('[data-testid^="integration-"]:not([data-testid$="-badge"])'))
-          const row = tiles[0]?.parentElement
+          const doc = (globalThis as unknown as { document: { querySelector(s: string): El | null; querySelectorAll(s: string): ArrayLike<El> } }).document
+          const panel = doc.querySelector('[data-notch-panel]')
+          const capsuleBox = doc.querySelector('[data-testid="notch-capsule"]')?.getBoundingClientRect()
+          const quick = Array.from(doc.querySelectorAll('[data-testid="integration-claude"], [data-testid="integration-terminal"]'))
           return {
-            count: tiles.length,
-            cut: tiles
-              .filter((tile) => {
-                const label = tile.querySelector('span')
-                return !label || label.scrollWidth > label.clientWidth
-              })
-              .map((tile) => tile.dataset['testid']),
-            // Rects, not scrollWidth: sub-pixel tile widths round the row's scrollWidth up by 1 px.
-            rowOverflows: row
-              ? tiles.some((tile) => tile.getBoundingClientRect().right > row.getBoundingClientRect().right + 0.5)
-              : true,
+            cards: doc.querySelectorAll('[data-card-index]').length,
+            quick: quick.length,
+            // Every title whole: only foreign text may end in an ellipsis.
+            cut: Array.from(doc.querySelectorAll('[data-card-index] [data-testid$="-label"]'))
+              .filter((label) => label.scrollWidth > label.clientWidth)
+              .map((label) => label.dataset['testid']),
+            // The row scrolls sideways; nothing else may spill out of the panel.
+            panelOverflows: !panel || panel.scrollHeight > panel.clientHeight || panel.scrollWidth > panel.clientWidth,
+            quickOutside:
+              !capsuleBox || quick.some((button) => button.getBoundingClientRect().left < capsuleBox.left || button.getBoundingClientRect().bottom > capsuleBox.bottom),
           }
         })
       // Polled: the labels re-render with the language a frame after `lang` changes.
       await eventually(
         measureFit,
-        (fit) => fit.count === 9 && fit.cut.length === 0 && !fit.rowOverflows,
-        `nine tiles fitting in ${language}`,
+        (fit) => fit.cards === 7 && fit.quick === 2 && fit.cut.length === 0 && !fit.panelOverflows && !fit.quickOutside,
+        `the cards fitting in ${language}`,
       )
     }
   })

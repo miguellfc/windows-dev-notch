@@ -86,9 +86,12 @@ describe('data schemas', () => {
   })
 
   it('parses state and write results', () => {
-    const state = { status: 'ok', account: 'ana', todayHours: 0, updatedAt: 1, persistent: true }
+    const state = { status: 'ok', account: 'ana', todayHours: 0, monthHours: 12.5, updatedAt: 1, persistent: true }
     expect(redmineStateSchema.parse(state)).toEqual(state)
     expect(redmineStateSchema.safeParse({ ...state, status: 'nope' }).success).toBe(false)
+    expect(redmineStateSchema.safeParse({ ...state, monthHours: null }).success).toBe(true)
+    expect(redmineStateSchema.safeParse({ ...state, monthHours: -1 }).success).toBe(false)
+    expect(redmineStateSchema.safeParse({ ...state, monthHours: undefined }).success).toBe(false)
     expect(redmineWriteResultSchema.safeParse({ ok: true }).success).toBe(true)
     expect(redmineWriteResultSchema.safeParse({ ok: false, reason: 'validation', messages: ['x'] }).success).toBe(true)
     expect(redmineWriteResultSchema.safeParse({ ok: false, reason: 'bad' }).success).toBe(false)

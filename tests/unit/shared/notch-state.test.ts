@@ -318,20 +318,6 @@ describe('reminderDue (a reminder is due)', () => {
     expect(run(attention(true), { type: 'expand' }, attention(false)).view).toBe('home')
   })
 
-  it('opens the system integration and goes back to the integrations row', () => {
-    const open = run({ type: 'open-integration', id: 'system' })
-    expect(open).toMatchObject({ expanded: true, view: 'system' })
-    expect(notchMode(open)).toBe('system')
-    const back = reduceNotch(open, { type: 'back' })
-    expect(back.view).toBe('home')
-    expect(notchMode(back)).toBe('expanded')
-  })
-
-  it('treats system as a panel mode that dismisses to compact', () => {
-    expect(PANEL_MODES.has('system')).toBe(true)
-    expect(notchMode(run({ type: 'open-integration', id: 'system' }, { type: 'dismiss' }))).toBe('peek')
-  })
-
   it('opens the notes integration, goes back to the integrations row, and dismisses to compact', () => {
     const open = run({ type: 'open-integration', id: 'notes' })
     expect(open).toMatchObject({ expanded: true, view: 'notes' })
@@ -673,5 +659,45 @@ describe('redmineAlert (end-of-day hours, same priority as mail and reviews)', (
   it('the other alerts are not shown for a Redmine alert alone', () => {
     expect(mailAlertShown(run(redmine(true)))).toBe(false)
     expect(reviewAlertShown(run(redmine(true)))).toBe(false)
+  })
+})
+
+describe('open-pending intent', () => {
+  const openPending: NotchEvent = { type: 'open-pending' }
+  const attention: NotchEvent = { type: 'attention', on: true }
+  const question: NotchEvent = { type: 'question', on: true }
+
+  it('goes from the integrations row to a pending permission', () => {
+    const state = reduceNotch(run({ type: 'expand' }, attention), openPending)
+    expect(state.view).toBe('permission')
+    expect(notchMode(state)).toBe('permission')
+  })
+
+  it('goes from the integrations row to a pending question', () => {
+    const state = reduceNotch(run({ type: 'expand' }, question), openPending)
+    expect(state.view).toBe('question')
+    expect(notchMode(state)).toBe('question')
+  })
+
+  it('lands on the oldest item when a permission and a question both wait', () => {
+    const waiting = run({ type: 'expand' }, attention, question)
+    expect(reduceNotch(reduceNotch(waiting, { type: 'claude-first', kind: 'question' }), openPending).view).toBe('question')
+    expect(reduceNotch(reduceNotch(waiting, { type: 'claude-first', kind: 'permission' }), openPending).view).toBe('permission')
+  })
+
+  it('changes nothing with no Claude item pending', () => {
+    const idle = run({ type: 'expand' })
+    expect(reduceNotch(idle, openPending)).toBe(idle)
+    // Only Claude items count: the card never jumps to a due reminder.
+    const reminder = run({ type: 'expand' }, { type: 'reminders', due: true })
+    expect(reduceNotch(reminder, openPending)).toBe(reminder)
+  })
+
+  it('changes nothing outside the open integrations row', () => {
+    expect(reduceNotch(initialNotchState, openPending)).toBe(initialNotchState)
+    const alert = run(attention)
+    expect(reduceNotch(alert, openPending)).toBe(alert)
+    const integration = run({ type: 'open-integration', id: 'notes' }, attention)
+    expect(reduceNotch(integration, openPending)).toBe(integration)
   })
 })

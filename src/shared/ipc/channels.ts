@@ -60,10 +60,6 @@ export const channels = {
   usage: {
     summary: 'usage:summary',
   },
-  system: {
-    view: 'system:view',
-    killProcess: 'system:kill-process',
-  },
   gmail: {
     getState: 'gmail:get-state',
     recent: 'gmail:recent',
@@ -82,9 +78,9 @@ export const channels = {
   },
   codeReview: {
     getState: 'code-review:get-state',
-    list: 'code-review:list',
     refresh: 'code-review:refresh',
-    open: 'code-review:open',
+    openProfile: 'code-review:open-profile',
+    openAlert: 'code-review:open-alert',
     setToken: 'code-review:set-token',
     clear: 'code-review:clear',
     view: 'code-review:view',
@@ -94,6 +90,7 @@ export const channels = {
     getState: 'redmine:get-state',
     issues: 'redmine:issues',
     issue: 'redmine:issue',
+    findIssue: 'redmine:find-issue',
     activities: 'redmine:activities',
     updateIssue: 'redmine:update-issue',
     logTime: 'redmine:log-time',
@@ -119,7 +116,6 @@ export const eventChannels = {
   remindersFired: 'reminders:fired',
   notesChanged: 'notes:changed',
   systemMetrics: 'system:metrics',
-  systemProcesses: 'system:processes',
   gmailState: 'gmail:state',
   gmailNewMail: 'gmail:new-mail',
   codeReviewState: 'code-review:state',

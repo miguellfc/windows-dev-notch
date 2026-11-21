@@ -14,7 +14,6 @@ string_enum! {
         Permission = "permission",
         Question = "question",
         Reminders = "reminders",
-        System = "system",
         Notes = "notes",
         Gmail = "gmail",
         Reviews = "reviews",
@@ -33,6 +32,7 @@ string_enum! {
         Next = "next",
         PinMini = "pin-mini",
         UnpinMini = "unpin-mini",
+        OpenPending = "open-pending",
     }
 }
 
@@ -56,7 +56,6 @@ string_enum! {
     /// `viewIntegrationIds`: integrations with a view of their own in the notch.
     pub enum IntegrationId {
         Reminders = "reminders",
-        System = "system",
         Notes = "notes",
         Gmail = "gmail",
         Reviews = "reviews",

@@ -15,6 +15,7 @@ import {
 import { useClaude } from '../shared/claude-store'
 import { useT } from '../shared/use-t'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 
 const ICONS: Record<StatusIcon, LucideIcon> = {
   check: Check,
@@ -41,9 +42,9 @@ type Step = 'idle' | 'confirm-install' | 'confirm-uninstall'
 type Notice = { tone: 'info' | 'error'; key: MessageKey; params?: Record<string, string> } | null
 
 const buttonClass =
-  'h-8 cursor-pointer rounded-control border border-line bg-veil px-3 text-small text-chalk transition-colors duration-150 hover:bg-veil-tile disabled:cursor-default disabled:opacity-50'
+  'btn h-8'
 const primaryClass =
-  'h-8 cursor-pointer rounded-control bg-ice px-3 text-small font-medium text-abyss transition-opacity duration-150 hover:opacity-90 disabled:cursor-default disabled:opacity-50'
+  'btn btn-primary h-8'
 
 function StatusValue({ view }: { view: StatusView }) {
   const t = useT()
@@ -71,7 +72,7 @@ function DiffView({ diff }: { diff: readonly DiffLine[] }) {
         tabIndex={0}
         role="region"
         aria-labelledby="claude-diff-title"
-        className="max-h-64 overflow-auto rounded-control border border-line bg-veil p-3 font-mono text-small leading-5"
+        className="max-h-64 overflow-auto rounded-tile border border-line bg-veil p-3 font-mono text-small leading-5"
       >
         {diff.map((line, index) => (
           <div key={index} className={`whitespace-pre ${DIFF_CLASS[line.kind]}`}>
@@ -149,11 +150,12 @@ export function ClaudePage() {
 
   return (
     <div>
+      <IntegrationDisabledNotice integration="claude" />
       {portInUse(state) ? (
         <div
           role="alert"
           data-testid="claude-port-in-use"
-          className="mb-2 flex items-start gap-3 rounded-control border border-fail/40 bg-veil p-3"
+          className="mb-2 flex items-start gap-3 rounded-tile border border-fail/40 bg-veil p-3"
         >
           <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0 text-fail" />
           <div className="min-w-0 flex-1">
@@ -183,7 +185,7 @@ export function ClaudePage() {
           </>
         ) : step === 'confirm-uninstall' ? (
           <>
-            <button type="button" disabled={busy} onClick={() => void write(window.notch.claude.hooksUninstall, 'cc.claude.uninstalled')} className={primaryClass}>
+            <button type="button" disabled={busy} onClick={() => void write(window.notch.claude.hooksUninstall, 'cc.claude.uninstalled')} className={`${buttonClass} btn-danger`}>
               {t('cc.claude.confirmUninstall')}
             </button>
             <button type="button" disabled={busy} onClick={cancel} className={buttonClass}>

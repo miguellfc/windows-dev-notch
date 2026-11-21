@@ -109,6 +109,9 @@ pub struct RedmineState {
     /// Hours logged today; `None` until the first read.
     #[serde(deserialize_with = "nullable")]
     pub today_hours: Option<f64>,
+    /// Hours logged from the 1st of the current month to today; `None` until the first read.
+    #[serde(deserialize_with = "nullable")]
+    pub month_hours: Option<f64>,
     /// Epoch milliseconds of the last successful query (a number, not an ISO string).
     #[serde(deserialize_with = "nullable")]
     pub updated_at: Option<f64>,
@@ -123,6 +126,9 @@ impl Validate for RedmineState {
         }
         if let Some(hours) = self.today_hours {
             non_negative("todayHours", hours)?;
+        }
+        if let Some(hours) = self.month_hours {
+            non_negative("monthHours", hours)?;
         }
         Ok(())
     }
@@ -580,6 +586,16 @@ impl Validate for RedmineIdInput {
     }
 }
 
+/// `redmineFindIssueResultSchema`: output of `redmine:find-issue`; false for an issue that does
+/// not exist or the key cannot see (the renderer cannot tell them apart).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RedmineFindIssueResult {
+    pub found: bool,
+}
+
+impl Validate for RedmineFindIssueResult {}
+
 /// `redmineViewInputSchema`: the Redmine view opened or closed.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -793,7 +809,7 @@ mod tests {
     #[test]
     fn parses_state_and_write_results() {
         let state = json!({
-            "status": "ok", "account": "ana", "todayHours": 0, "updatedAt": 1, "persistent": true,
+            "status": "ok", "account": "ana", "todayHours": 0, "monthHours": 12.5, "updatedAt": 1, "persistent": true,
         });
         assert_eq!(
             parse::<RedmineState>(state.clone()).unwrap(),
@@ -801,6 +817,7 @@ mod tests {
                 status: RedmineStatus::Ok,
                 account: Some("ana".into()),
                 today_hours: Some(0.0),
+                month_hours: Some(12.5),
                 updated_at: Some(1.0),
                 persistent: true,
             }

@@ -7,7 +7,7 @@ import { useT } from '../../shared/use-t'
 export const UNDO_MS = 5000
 
 const undoButton =
-  'h-6 shrink-0 cursor-pointer rounded-control-sm px-2 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-tile focus-inset aria-disabled:cursor-default aria-disabled:opacity-40'
+  'btn h-6 shrink-0 focus-inset aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:[filter:none]'
 
 /**
  * "Nota borrada · Deshacer" for 5 s after a delete. A newer delete takes the bar over with its own 5 s;
@@ -62,7 +62,7 @@ export function UndoBar({
     <div
       role="status"
       data-testid="notes-undo"
-      className="flex h-8 shrink-0 items-center gap-2 rounded-tile border border-line bg-veil pl-2.5 pr-1"
+      className="card flex h-8 shrink-0 items-center gap-2 pl-2.5 pr-1"
     >
       <span className="min-w-0 truncate text-small text-graphite">{t(failedKey ?? 'notes.undo.deleted')}</span>
       {!failedKey && (

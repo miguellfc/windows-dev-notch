@@ -56,6 +56,8 @@ pub type SettingsListener = Box<dyn Fn(&RedmineSettings) + Send + Sync>;
 pub trait EndOfDaySettings: Send + Sync {
     fn get(&self) -> RedmineSettings;
     fn on_change(&self, listener: SettingsListener);
+    /// `integrations.redmine.enabled`: with the integration off there is no end of day.
+    fn integration_enabled(&self) -> bool;
 }
 
 /// The app's settings store (managed `SettingsStore`), for the wiring.
@@ -75,6 +77,16 @@ impl EndOfDaySettings for AppEndOfDaySettings {
         self.0
             .state::<crate::settings::SettingsStore>()
             .on_change(move |next| listener(&next.redmine));
+    }
+
+    fn integration_enabled(&self) -> bool {
+        use tauri::Manager;
+        self.0
+            .state::<crate::settings::SettingsStore>()
+            .get()
+            .integrations
+            .redmine
+            .enabled
     }
 }
 
@@ -108,6 +120,9 @@ struct State {
     /// The `endOfDay` block the last decision saw; a different `time` or `enabled` moves
     /// `not_before` to now.
     last_settings: RedmineEndOfDaySettings,
+    /// `integrations.redmine.enabled` as the last decision saw it; a change moves `not_before`
+    /// to now too (turned on after the time, it does not alert that day).
+    last_integration_enabled: bool,
     /// An alert is out to `on_alert`: no other check offers one until it returns.
     offering: bool,
 }
@@ -160,6 +175,7 @@ where
 {
     pub fn new(options: EndOfDayOptions, tz: Tz) -> Arc<Self> {
         let last_settings = options.settings.get().end_of_day;
+        let last_integration_enabled = options.settings.integration_enabled();
         Arc::new_cyclic(|me| Self {
             me: me.clone(),
             tz,
@@ -179,6 +195,7 @@ where
                 settled_day: None,
                 not_before: 0,
                 last_settings,
+                last_integration_enabled,
                 offering: false,
             }),
         })
@@ -242,6 +259,17 @@ where
         let Some(offer) = offer else {
             return;
         };
+        // Redmine turned off since `decide` read it: no alert (the day stays open).
+        if !self.settings.integration_enabled() {
+            let _serial = lock(&self.serial);
+            let end_of_day = self.settings.get().end_of_day;
+            let mut state = lock(&self.state);
+            state.offering = false;
+            // Seen off: turned on again after the time, it does not alert that day.
+            state.last_integration_enabled = false;
+            self.reschedule_locked(&mut state, &end_of_day, false);
+            return;
+        }
         // No lock held: `on_alert` may dispatch to the notch, and a nested check skips the
         // alert because `offering` is set.
         let shown =
@@ -251,18 +279,20 @@ where
             });
         let _serial = lock(&self.serial);
         let end_of_day = self.settings.get().end_of_day;
+        let integration_enabled = self.settings.integration_enabled();
         let mut state = lock(&self.state);
         state.offering = false;
         if shown {
             state.settled_day = Some(offer.day);
         }
-        self.reschedule_locked(&mut state, &end_of_day);
+        self.reschedule_locked(&mut state, &end_of_day, integration_enabled);
     }
 
     /// The decision of `check()`, under `serial`. Settles the day when it is long past or the
     /// target is reached; returns the alert to offer otherwise. Re-aims the timer either way.
     fn decide(&self) -> Option<Offer> {
         let settings = self.settings.get();
+        let integration_enabled = self.settings.integration_enabled();
         let now = self.now();
         let now_ms = now.timestamp_millis();
         let date = now.with_timezone(&self.tz).date_naive();
@@ -277,11 +307,14 @@ where
             let end_of_day = &settings.end_of_day;
             if state.last_settings.time != end_of_day.time
                 || state.last_settings.enabled != end_of_day.enabled
+                || state.last_integration_enabled != integration_enabled
             {
                 state.not_before = now_ms;
                 state.last_settings = end_of_day.clone();
+                state.last_integration_enabled = integration_enabled;
             }
-            let open = settings.end_of_day.enabled
+            let open = integration_enabled
+                && settings.end_of_day.enabled
                 && is_weekday(date)
                 && state.settled_day.as_deref() != Some(day.as_str());
             match self.due_on(date, &settings.end_of_day.time) {
@@ -318,19 +351,28 @@ where
                 }
             }
         }
-        self.reschedule_locked(&mut lock(&self.state), &settings.end_of_day);
+        self.reschedule_locked(
+            &mut lock(&self.state),
+            &settings.end_of_day,
+            integration_enabled,
+        );
         offer
     }
 
     /// Arms the timer for the next due moment still ahead (7-day scan, weekdays, not the settled
     /// day, not before `notBefore`); today's pending one, already past, is left to the safety
     /// interval. `set_timeout` never runs its callback synchronously, so arming under the lock
-    /// is safe.
-    fn reschedule_locked(&self, state: &mut State, end_of_day: &RedmineEndOfDaySettings) {
+    /// is safe. Nothing is armed with the end of day or the Redmine integration off.
+    fn reschedule_locked(
+        &self,
+        state: &mut State,
+        end_of_day: &RedmineEndOfDaySettings,
+        integration_enabled: bool,
+    ) {
         if let Some((timer, _)) = state.timeout.take() {
             self.timers.clear(timer);
         }
-        if state.disposed || !end_of_day.enabled {
+        if state.disposed || !end_of_day.enabled || !integration_enabled {
             return;
         }
         let now = self.now();

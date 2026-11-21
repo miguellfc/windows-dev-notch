@@ -16,6 +16,10 @@ interface RedmineStoreState {
   summary: RedmineSummary | null
   /** Whether the last summary query failed; the view shows its retry line. */
   summaryError: boolean
+  /** The view has something under the search box: the capsule takes its taller size. */
+  searching: boolean
+  /** The view's own height at rest with the summary and the box (the capsule fits it); null: the full rest size. */
+  viewHeight: number | null
 }
 
 export const useRedmine = create<RedmineStoreState>(() => ({
@@ -25,6 +29,8 @@ export const useRedmine = create<RedmineStoreState>(() => ({
   redmineAlert: false,
   summary: null,
   summaryError: false,
+  searching: false,
+  viewHeight: null,
 }))
 
 let summaryRequest = 0
@@ -41,6 +47,12 @@ export const setRedmineAlertPayload = (alert: RedmineAlert | null): void => useR
 
 /** Whether main's pending alert is the end-of-day alert (`notch:redmine-alert`). */
 export const setRedmineAlert = (redmineAlert: boolean): void => useRedmine.setState({ redmineAlert })
+
+/** Whether the Redmine view needs the capsule's taller size. */
+export const setRedmineSearching = (searching: boolean): void => useRedmine.setState({ searching })
+
+/** The Redmine view reports its content height at rest (null: it fills the full panel). */
+export const setRedmineViewHeight = (viewHeight: number | null): void => useRedmine.setState({ viewHeight })
 
 /**
  * Asks main for the cached month summary and keeps the answer. An answer that arrives after a newer

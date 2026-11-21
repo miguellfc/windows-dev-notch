@@ -145,17 +145,20 @@ mod tests {
             );
         }
         let widths = geometry["compactWidths"].as_array().unwrap();
-        assert_eq!(widths.len(), 5 * 2 * 3 * 2);
+        assert_eq!(widths.len(), 3 * 2 * 2 * 3 * 2);
         for case in widths {
-            let content = case["content"].as_object().map(|content| CompactContent {
-                battery: content["battery"].as_bool().unwrap(),
-                disk: content["disk"].as_bool().unwrap(),
+            let system = case["system"].as_object().map(|system| SystemZone {
+                battery: system["battery"].as_bool().unwrap(),
             });
+            let blocks = &case["blocks"];
             let actual = compact_width_for(
-                content,
-                case["mail"].as_bool().unwrap(),
-                case["reviews"].as_i64().unwrap(),
-                case["redmine"].as_bool().unwrap(),
+                system,
+                CapsuleBlocks {
+                    claude: blocks["claude"].as_bool().unwrap(),
+                    mail: blocks["mail"].as_bool().unwrap(),
+                    reviews: blocks["reviews"].as_i64().unwrap(),
+                    redmine: blocks["redmine"].as_bool().unwrap(),
+                },
             );
             assert_number(actual, &case["width"], &format!("compact width {case}"));
         }

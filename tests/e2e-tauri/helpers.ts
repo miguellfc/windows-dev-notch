@@ -214,8 +214,8 @@ export async function launch({ fresh, env = {}, files = {} }: LaunchOptions): Pr
 
 /**
  * `settings.json` as the Electron specs seed it (Spanish, reminders without sound, these system
- * alerts). GAP: Electron writes a version 3 file and its store migrates it; the Rust store has no
- * migrations (an older version is quarantined), so the same values go into a current-version file.
+ * alerts), as a valid current-version (v9) file. Electron wrote a version 3 file and migrated it;
+ * the Rust store only migrates v7 and v8 (anything older is quarantined), so the seed is already current.
  */
 export const seededSettings = (systemAlerts: Settings['systemAlerts']): Settings => ({
   ...createDefaultSettings('es'),
@@ -393,17 +393,26 @@ export const rectOf = (selector: string): Promise<Rect | null> =>
     return { x, y, width, height }
   }, selector)
 
-/** The bottom of the panel's clock (the first element whose whole text is HH:mm), in page px. */
-export const clockBottom = (): Promise<number | null> =>
-  inPage(() => {
-    const doc = (
-      globalThis as unknown as {
-        document: { querySelectorAll(s: string): ArrayLike<{ textContent: string | null; getBoundingClientRect(): { bottom: number } }> }
-      }
-    ).document
-    const el = Array.from(doc.querySelectorAll('span, time, div, p')).find((node) => /^[0-9]{2}:[0-9]{2}$/.test(node.textContent ?? ''))
-    return el ? el.getBoundingClientRect().bottom : null
-  })
+/**
+ * Clicks a card of the panel's row. WebDriver scrolls a card only as far as "in view", which can leave
+ * it half shown with its centre (where it clicks) on the row's clipped edge, so the card comes to the
+ * start of the row first.
+ */
+export async function clickCard(testId: string): Promise<void> {
+  const selector = `[data-testid="${testId}"]`
+  // Right after `requestIntent('expand')` the card may not be committed: scrolling it would do nothing.
+  await $(selector).waitForExist()
+  await settle()
+  await inPage(async (sel: string) => {
+    const w = globalThis as unknown as {
+      document: { querySelector(s: string): { scrollIntoView(options: unknown): void } | null }
+      requestAnimationFrame(callback: () => void): void
+    }
+    w.document.querySelector(sel)?.scrollIntoView({ block: 'nearest', inline: 'start' })
+    for (let frame = 0; frame < 3; frame++) await new Promise<void>((done) => w.requestAnimationFrame(done))
+  }, selector)
+  await $(selector).click()
+}
 
 // --- Claude Code (part 3) -----------------------------------------------------------------
 //
@@ -455,11 +464,13 @@ let claudeProof = ''
  * `proof` (the marker by default) before the install is confirmed, so a wrong path fails before
  * any write.
  */
-export async function launchClaude(options: { seed?: string; proof?: string; env?: Record<string, string> } = {}): Promise<void> {
+export async function launchClaude(
+  options: { seed?: string; proof?: string; env?: Record<string, string>; files?: Record<string, unknown> } = {},
+): Promise<void> {
   const marker = `notch-e2e-${randomUUID()}`
   const seed = options.seed ?? `${JSON.stringify({ notchE2eMarker: marker }, null, 2)}\n`
   claudeProof = options.proof ?? marker
-  await launch({ fresh: true, env: { ...claudeEnv(), ...options.env }, files: { [CLAUDE_SETTINGS]: seed } })
+  await launch({ fresh: true, env: { ...claudeEnv(), ...options.env }, files: { ...options.files, [CLAUDE_SETTINGS]: seed } })
 }
 
 const ccButton = (...names: string[]) => $(`//button[${names.map((name) => `normalize-space()="${name}"`).join(' or ')}]`)

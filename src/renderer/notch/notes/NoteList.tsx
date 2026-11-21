@@ -42,17 +42,18 @@ function NoteRow({ note, now, run, busy, copied, onCopied, onEdit, onDeleted }: 
       data-testid="note-item"
       data-note-id={note.id}
       data-pinned={note.pinned}
-      className="group flex shrink-0 flex-col gap-0.5 rounded-tile px-2.5 pb-1 pt-1.5 transition-colors duration-150 hover:bg-veil has-[:focus-visible]:bg-veil"
+      className="group flex shrink-0 flex-col gap-0.5 rounded-tile px-2.5 pb-1 pt-1.5 transition-colors duration-150 hover:bg-veil-tile has-[:focus-visible]:bg-veil-tile"
     >
       <p className="line-clamp-2 whitespace-pre-wrap break-words text-body text-chalk">{note.text}</p>
       <div className="flex h-6 items-center gap-1.5">
         {note.pinned && (
-          <Pin size={12} strokeWidth={1.8} role="img" aria-label={t('notes.pinned')} className="shrink-0 text-chalk" />
+          <Pin size={12} strokeWidth={1.8} role="img" aria-label={t('notes.pinned')} className="shrink-0 text-[color:var(--int,var(--color-chalk))]" />
         )}
         <span className="min-w-0 truncate text-label text-graphite">
           {copied ? (
             <span className="flex items-center gap-1 text-chalk">
-              <Check size={12} strokeWidth={2} aria-hidden="true" />
+              {/* Success check in the notes' color (--int from the view); the text stays chalk. */}
+              <Check size={12} strokeWidth={2} aria-hidden="true" className="text-[color:var(--int,var(--color-chalk))]" />
               {t('notes.action.copied')}
             </span>
           ) : (
@@ -230,7 +231,7 @@ export function NoteList({ query, onEdit, onDeleted, onFocusLost }: NoteListProp
           data-testid="note-list"
           onFocus={onListFocus}
           onBlur={onListBlur}
-          className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1"
+          className="card flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1"
         >
           {visible.map((note) => (
             <NoteRow

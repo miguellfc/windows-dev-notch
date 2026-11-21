@@ -5,7 +5,7 @@
 // this process on 127.0.0.1 and passed per launch as `--e2e-env-NOTCH_CODE_REVIEW_BASE_URLS` (the
 // settings still hold the https GitLab URL). Every test asserts the fake saw the requests and no
 // protocol violation. URLs main would open are recorded (`NOTCH_OPEN_URL_LOG=1`, read with
-// `__e2e:opened-urls`), never opened: the recorder is checked to be on before any row is clicked.
+// `__e2e:opened-urls`), never opened: the recorder is checked to be on before anything is clicked.
 // The 120 s and 15 min rhythms move with `__e2e:advance-clock`; the queries it fires run after it
 // answers, so their effects are polled with `eventually`.
 //
@@ -38,9 +38,7 @@ import {
   FAKE_GITLAB_TOKEN,
   FAKE_GITLAB_USER,
   GITHUB_MINE,
-  GITHUB_TO_REVIEW,
   GITLAB_MINE,
-  GITLAB_TO_REVIEW,
   GITHUB_TODAY_COUNT,
   GITLAB_BIG_PUSH_COMMITS,
   SENSITIVE_DATA,
@@ -50,14 +48,13 @@ import {
   localDay,
   parseLocalDay,
   githubPrUrl,
-  githubRef,
   gitlabMrUrl,
-  gitlabRef,
   startFakeCodeReview,
   type ExpectedContributions,
   type FakeCodeReview,
 } from './fixtures/fake-code-review'
 import {
+  clickCard,
   DEFAULT_ALERTS,
   advanceClock,
   alignZoneWithWindows,
@@ -86,6 +83,8 @@ import {
 const TICK_MS = 120_000
 /** The contributions rhythm while the "Revisiones" view is open. */
 const CONTRIBUTIONS_TICK_MS = 15 * 60_000
+/** The minimum gap between two contributions queries started by opening the main panel. */
+const PANEL_REFRESH_MS = 60_000
 /** The minimum gap between two manual refreshes (Actualizar, Reintentar). */
 const REFRESH_REST_MS = 5_000
 
@@ -110,7 +109,7 @@ async function start(server: FakeCodeReview): Promise<void> {
     env: { NOTCH_CODE_REVIEW_BASE_URLS: `github=${server.base},gitlab=${server.base}`, NOTCH_OPEN_URL_LOG: '1' },
     files: { 'settings.json': settings() },
   })
-  // The recorder must be on before any row is clicked (UNAVAILABLE otherwise): never a real browser.
+  // The recorder must be on before anything is clicked (UNAVAILABLE otherwise): never a real browser.
   expect(await openedUrls()).toEqual([])
 }
 
@@ -146,8 +145,32 @@ const reviewMetric = async (platform: 'github' | 'gitlab'): Promise<string | nul
 const expectMetric = (platform: 'github' | 'gitlab', label: string | null) =>
   eventually(() => reviewMetric(platform), (value) => value === label, `the ${platform} block ${label ?? 'absent'}`)
 
-/** Launch, connect both platforms from the Control Center; the capsule shows GitHub 2 and GitLab 1. WebDriver ends on the notch. */
-async function connected(server: FakeCodeReview): Promise<void> {
+/** The fake's contributions this month for `platform`, from Windows' day (the app's; see appDays). */
+const monthTotal = async (platform: 'github' | 'gitlab'): Promise<number> => {
+  const today = await appToday()
+  return (platform === 'github' ? expectedGithubContributions(today) : expectedGitlabContributions(today)).monthTotal
+}
+
+/** The capsule block's accessible name: the platform's contributions this month ("143 contribuciones en noviembre en GitHub"). */
+async function contributionsMetric(platform: 'github' | 'gitlab', language: 'es' | 'en' = 'es'): Promise<string> {
+  const total = await monthTotal(platform)
+  const month = monthNameText(localDay(await appToday()), language)
+  const name = platform === 'github' ? 'GitHub' : 'GitLab'
+  if (language === 'es') return `${total === 1 ? '1 contribución' : `${total} contribuciones`} en ${month} en ${name}`
+  return `${total === 1 ? '1 contribution' : `${total} contributions`} in ${month} on ${name}`
+}
+
+/** Both capsule blocks show the platform's contributions this month (WebDriver on the notch, hovered). */
+async function expectContributionMetrics(): Promise<void> {
+  await expectMetric('github', await contributionsMetric('github'))
+  await expectMetric('gitlab', await contributionsMetric('gitlab'))
+}
+
+/**
+ * Launch, connect both platforms from the Control Center; the capsule shows each one's contributions
+ * this month (unless `blocks` is false: no summary yet, say the contributions fail). WebDriver ends on the notch.
+ */
+async function connected(server: FakeCodeReview, blocks = true): Promise<void> {
   await start(server)
   await openCodeReviewPage()
   await saveToken('github', FAKE_GITHUB_TOKEN)
@@ -155,10 +178,7 @@ async function connected(server: FakeCodeReview): Promise<void> {
   await saveToken('gitlab', FAKE_GITLAB_TOKEN, FAKE_GITLAB_ORIGIN)
   await expectConnected('gitlab')
   await useWindow('notch')
-  await whileHovered(async () => {
-    await expectMetric('github', '2 PR tuyos sin revisar en GitHub')
-    await expectMetric('gitlab', '1 MR tuyo sin revisar en GitLab')
-  })
+  if (blocks) await whileHovered(expectContributionMetrics)
 }
 
 const panel = () => byTestId('reviews-panel')
@@ -204,7 +224,7 @@ async function expandPanel(): Promise<void> {
 
 async function openReviewsView(platform: 'github' | 'gitlab' = 'github'): Promise<void> {
   await expandPanel()
-  await byTestId(`integration-${platform}`).click()
+  await clickCard(`integration-${platform}`)
   await expectMode('reviews')
   await panel().waitForDisplayed()
   await expect(panel()).toHaveAttribute('data-platform', platform)
@@ -232,7 +252,7 @@ async function closeReviewsView(): Promise<void> {
 /** The view has no tabs: Esc back to the tile row, then the other platform's tile. */
 async function switchReviewsPlatform(platform: 'github' | 'gitlab'): Promise<void> {
   await closeReviewsView()
-  await byTestId(`integration-${platform}`).click()
+  await clickCard(`integration-${platform}`)
   await eventually(() => panel().getAttribute('data-platform'), (value) => value === platform, `the ${platform} view`)
 }
 
@@ -244,60 +264,17 @@ async function expectNoTabs(name: 'GitHub' | 'GitLab'): Promise<void> {
   await expect(panel()).toHaveAttribute('aria-label', name)
 }
 
-const ROW = (section: 'toReview' | 'mine') => `[data-section="${section}"] [data-testid="review-item"]`
+/** What the GitLab row writes for the account: the server without `https://` in front. */
+const GITLAB_ACCOUNT = `${FAKE_GITLAB_ORIGIN.replace('https://', '')} · ${FAKE_GITLAB_USER.username}`
 
-interface RowInfo {
-  title: string
-  ref: string
-  text: string
-  badges: (string | null)[]
-  /** The title's bottom is at or above the ref's top (title on line 1, ref on line 2). */
-  titleAboveRef: boolean
+/** The account row under the contributions: the account (the server in front on GitLab) and the platform's button. */
+async function expectProfile(name: 'GitHub' | 'GitLab', account: string, button: string): Promise<void> {
+  const row = byTestId('reviews-profile')
+  await row.waitForDisplayed()
+  await expect(row.$('[data-testid="reviews-account"]')).toHaveText(account)
+  await expect(byTestId('reviews-open-profile')).toHaveText(button)
+  await expect(panel()).toHaveAttribute('data-platform', name.toLowerCase())
 }
-
-/** The rows of a section as the page has them (`textContent`, like Playwright's text checks). */
-const rowsOf = (section: 'toReview' | 'mine'): Promise<RowInfo[]> =>
-  inPage((sel: string) => {
-    type El = {
-      textContent: string | null
-      querySelector(s: string): El | null
-      querySelectorAll(s: string): ArrayLike<El>
-      getAttribute(name: string): string | null
-      getBoundingClientRect(): { y: number; height: number }
-    }
-    const rows = Array.from((globalThis as unknown as { document: { querySelectorAll(s: string): ArrayLike<El> } }).document.querySelectorAll(sel))
-    return rows.map((row) => {
-      const title = row.querySelector('[data-testid="review-title"]')
-      const ref = row.querySelector('[data-testid="review-ref"]')
-      const t = title?.getBoundingClientRect()
-      const r = ref?.getBoundingClientRect()
-      return {
-        title: title?.textContent ?? '',
-        ref: ref?.textContent ?? '',
-        text: row.textContent ?? '',
-        badges: Array.from(row.querySelectorAll('[data-badge]')).map((el) => el.getAttribute('data-badge')),
-        titleAboveRef: !!t && !!r && t.y + t.height <= r.y + 1,
-      }
-    })
-  }, ROW(section))
-
-/**
- * A section heading's `textContent` (Playwright's `toHaveText`; WebDriver's visible text applies
- * the heading's `text-transform: uppercase`).
- */
-const expectSectionText = (selector: string, pattern: RegExp) =>
-  eventually(
-    () =>
-      inPage(
-        (sel: string) => (globalThis as unknown as { document: { querySelector(s: string): { textContent: string | null } | null } }).document.querySelector(sel)?.textContent ?? null,
-        selector,
-      ),
-    (text) => text !== null && pattern.test(text),
-    `${selector} matching ${String(pattern)}`,
-  )
-
-const expectRowCount = (section: 'toReview' | 'mine', count: number) =>
-  eventually(async () => (await rowsOf(section)).length, (n) => n === count, `${count} rows in ${section}`)
 
 /** The token never stays in the current window: not in the markup, not in any field's value. */
 async function expectNoTokenInDom(): Promise<void> {
@@ -486,7 +463,7 @@ describe('Code review (Tauri)', () => {
     await quitApp()
   })
 
-  it('save tokens in Control Center, counts in the capsule, the GitHub and GitLab tiles open the view with sections, open in the browser', async () => {
+  it('save tokens in Control Center, counts in the capsule, the GitHub and GitLab tiles open the contributions view', async () => {
     const server = fake!
     await start(server)
     await openCodeReviewPage()
@@ -533,84 +510,43 @@ describe('Code review (Tauri)', () => {
     await eventually(async () => readSettingsFile().codeReview.gitlabUrl, (url) => url === FAKE_GITLAB_ORIGIN, 'the GitLab URL in settings.json')
     await expectNoTokenInDom()
 
-    // The capsule: one block per platform with its own unreviewed PR/MRs (drafts and reviewed ones left out).
+    // The capsule: one block per platform with its contributions this month, queried as soon as the
+    // token works (the "Revisiones" view was never opened). In English too.
     await useWindow('notch')
+    const totals = { github: await monthTotal('github'), gitlab: await monthTotal('gitlab') }
+    // The figure as the block writes it ("999+" from 1000 up).
+    const shown = (total: number) => (total >= 1000 ? '999+' : String(total))
     await whileHovered(async () => {
-      await expectMetric('github', '2 PR tuyos sin revisar en GitHub')
-      await expectMetric('gitlab', '1 MR tuyo sin revisar en GitLab')
-      await expect($(present('metric-review-github'))).toHaveText(expect.stringContaining('2'))
-      await expect($(present('metric-review-gitlab'))).toHaveText(expect.stringContaining('1'))
+      await expectContributionMetrics()
+      await expect($(present('metric-review-github'))).toHaveText(expect.stringContaining(shown(totals.github)))
+      await expect($(present('metric-review-gitlab'))).toHaveText(expect.stringContaining(shown(totals.gitlab)))
     })
+    await setLanguage('en')
+    await whileHovered(async () => {
+      await expectMetric('github', await contributionsMetric('github', 'en'))
+      await expectMetric('gitlab', await contributionsMetric('gitlab', 'en'))
+    })
+    await setLanguage('es')
 
-    // The view from the GitHub tile: no tabs, the header says GitHub, "Por revisar" (3) and "Míos" (4).
+    // The view from the GitHub tile: no tabs, the header says GitHub, the contributions and the account row.
     await openReviewsView('github')
     await expectNoTabs('GitHub')
-    await expectRowCount('toReview', 3)
-    await expectRowCount('mine', 4)
-    await expectSectionText('#reviews-section-toReview', /^Por revisar\s*3$/)
-    await expectSectionText('#reviews-section-mine', /^Míos\s*4$/)
-
-    // Rows: title on line 1; ref, author (to review only) and labels on line 2.
-    const toReview = await rowsOf('toReview')
-    for (const [index, pr] of GITHUB_TO_REVIEW.entries()) {
-      const row = toReview[index]!
-      expect(row.title).toBe(pr.title)
-      expect(row.ref).toBe(githubRef(pr))
-      expect(row.text).toContain(`de ${pr.author}`)
-      expect(row.titleAboveRef).toBe(true)
-    }
-    expect(toReview.map((row) => row.badges)).toEqual([['checksPass'], ['conflicts', 'checksFail'], ['checksRunning']])
-    const mine = await rowsOf('mine')
-    for (const [index, pr] of GITHUB_MINE.entries()) {
-      const row = mine[index]!
-      expect(row.title).toBe(pr.title)
-      expect(row.ref).toBe(githubRef(pr))
-      expect(row.text).not.toContain(`de ${pr.author}`)
-    }
-    expect(mine.map((row) => row.badges)).toEqual([['unreviewed', 'checksPass'], ['unreviewed', 'checksRunning'], ['approved', 'checksPass'], ['draft']])
-    expect(mine[0]!.text).toContain('Sin revisar')
-    expect(mine[3]!.text).toContain('Borrador')
+    await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
+    await expectProfile('GitHub', FAKE_GITHUB_LOGIN, 'Abrir GitHub')
 
     await setLanguage('en')
-    await expectSectionText('#reviews-section-toReview', /^To review\s*3$/)
-    await eventually(async () => (await rowsOf('mine'))[0]?.text ?? '', (text) => text.includes('Unreviewed'), 'the English badge')
+    await expectProfile('GitHub', FAKE_GITHUB_LOGIN, 'Open GitHub')
     await setLanguage('es')
-    await expectSectionText('#reviews-section-toReview', /^Por revisar\s*3$/)
+    await expectProfile('GitHub', FAKE_GITHUB_LOGIN, 'Abrir GitHub')
 
-    // A row opens the PR in the browser: main looks the URL up by id (the renderer never has it).
-    await $$(ROW('toReview'))[0]!.click()
-    await eventually(openedUrls, (urls) => urls.includes(githubPrUrl(GITHUB_TO_REVIEW[0]!)), 'the first PR opened')
-    // Enter on a focused row opens it too.
-    await focus(ROW('mine'), 1)
-    await browser.keys('Enter')
-    await eventually(openedUrls, (urls) => urls.includes(githubPrUrl(GITHUB_MINE[1]!)), 'the second own PR opened')
-
-    // The GitLab tile: the header says GitLab, "Por revisar" (2) and "Míos" (3); refs with `!`, the draft labelled.
+    // The GitLab tile: the header says GitLab, the server in front of the account.
     await switchReviewsPlatform('gitlab')
     await expectNoTabs('GitLab')
-    await expectRowCount('toReview', 2)
-    await expectRowCount('mine', 3)
-    const gitlabToReview = await rowsOf('toReview')
-    for (const [index, mr] of GITLAB_TO_REVIEW.entries()) {
-      const row = gitlabToReview[index]!
-      expect(row.title).toBe(mr.title)
-      expect(row.ref).toBe(gitlabRef(mr))
-      expect(row.text).toContain(`de ${mr.author}`)
-    }
-    expect(gitlabToReview.map((row) => row.badges)).toEqual([['checksPass'], ['conflicts', 'checksRunning']])
-    const gitlabMine = await rowsOf('mine')
-    for (const [index, mr] of GITLAB_MINE.entries()) {
-      expect(gitlabMine[index]!.ref).toBe(gitlabRef(mr))
-      expect(gitlabMine[index]!.title).toContain(mr.title)
-    }
-    expect(gitlabMine.map((row) => row.badges)).toEqual([['unreviewed', 'checksPass'], ['approved', 'checksFail'], ['draft']])
-    await $$(ROW('mine'))[0]!.click()
-    await eventually(openedUrls, (urls) => urls.includes(gitlabMrUrl(GITLAB_MINE[0]!)), 'the own MR opened')
+    await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
+    await expectProfile('GitLab', GITLAB_ACCOUNT, 'Abrir GitLab')
 
-    // Only PR/MR pages on github.com and the configured GitLab origin were ever opened.
-    const opened = await openedUrls()
-    expect(opened).toHaveLength(3)
-    for (const url of opened) expect({ url, allowed: url.startsWith('https://github.com/') || url.startsWith(`${FAKE_GITLAB_ORIGIN}/`) }).toEqual({ url, allowed: true })
+    // Nothing was opened by looking at the views: only the buttons and the alerts open pages.
+    expect(await openedUrls()).toEqual([])
 
     // No token in any window; the protocol was spoken right (headers, queries, no per-MR call for the draft).
     await expectNoTokenInDom()
@@ -623,7 +559,7 @@ describe('Code review (Tauri)', () => {
     expectCleanLogs()
   })
 
-  it('a first review shows the alert (also over a capsule hidden with "Ocultar") and lowers the count', async () => {
+  it('a first review shows the alert (also over a capsule hidden with "Ocultar"); the capsule keeps the contributions', async () => {
     const server = fake!
     await connected(server)
     await expectMode('peek')
@@ -637,13 +573,11 @@ describe('Code review (Tauri)', () => {
     const shownAt = Date.now()
     await expect(alert).toHaveText(`Aprobado · web-app#${first!.number} · ${first!.title}`)
     await expect(alert).toHaveAttribute('aria-live', 'polite')
-    // It ends on its own after about 6 s of real time (the clock is not moved meanwhile); the GitHub count went down by one.
+    // It ends on its own after about 6 s of real time (the clock is not moved meanwhile); the
+    // capsule blocks are the month's contributions, which a review does not change.
     await expectMode('peek', 12_000)
     expect(Date.now() - shownAt).toBeGreaterThan(4_000)
-    await whileHovered(async () => {
-      await expectMetric('github', '1 PR tuyo sin revisar en GitHub')
-      await expectMetric('gitlab', '1 MR tuyo sin revisar en GitLab')
-    })
+    await whileHovered(expectContributionMetrics)
 
     // The user hides the notch ("Ocultar"): the window leaves the screen, the queries go on.
     await expandPanel()
@@ -661,22 +595,22 @@ describe('Code review (Tauri)', () => {
     await capsule().waitForExist({ reverse: true, timeout: 12_000 })
     await eventually(notchWindowVisible, (visible) => !visible, 'the notch window hidden again')
 
-    // Shown again: GitHub still has one unreviewed PR.
+    // Shown again: both blocks are still there.
     await expandPanel()
     await pointer(false)
     await requestIntent('dismiss')
     await pointer(false)
     await expectMode('peek')
-    await whileHovered(() => expectMetric('github', '1 PR tuyo sin revisar en GitHub').then(() => undefined))
+    await whileHovered(expectContributionMetrics)
 
-    // A later query with nothing new alerts nothing; GitLab has nothing unreviewed left, so its block
-    // is gone at once (a live 0 does not linger).
+    // A later query with nothing new alerts nothing; GitLab has nothing unreviewed left, and its block
+    // stays (a connected platform turned on for the capsule always shows its contributions).
     const gitlabBefore = server.requests.gitlab
     await advanceClock(TICK_MS)
     await eventually(async () => server.requests.gitlab, (n) => n > gitlabBefore, 'the next GitLab query')
     await browser.pause(500)
     await expectMode('peek')
-    await whileHovered(() => expectMetric('gitlab', null).then(() => undefined))
+    await whileHovered(expectContributionMetrics)
     expect(await $$('[data-testid="review-alert"]')).toHaveLength(0)
 
     expect(server.violations).toEqual([])
@@ -687,7 +621,7 @@ describe('Code review (Tauri)', () => {
     const server = fake!
     await connected(server)
     await openReviewsView()
-    await expectRowCount('toReview', 3)
+    await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
 
     // GitHub now refuses the token (expired or revoked); the next query finds out.
     server.unauthorized.github = true
@@ -695,15 +629,16 @@ describe('Code review (Tauri)', () => {
     const status = byTestId('reviews-status')
     await expect(status).toHaveAttribute('data-notice', 'auth')
     await expect(status).toHaveText(expect.stringContaining('Revisa el token en Control Center'))
-    await eventually(async () => (await $$('[data-testid="review-item"]')).length, (n) => n === 0, 'no rows')
+    await contributionsBlock().waitForExist({ reverse: true })
+    expect(await $$('[data-testid="reviews-profile"]')).toHaveLength(0)
     await expect(byTestId('reviews-open-control-center')).toBeDisplayed()
     await useWindow('control-center')
     await expect(byTestId('code-review-github-status')).toHaveAttribute('data-status', 'auth-error')
     await expect(byTestId('code-review-github-status')).toHaveText(expect.stringContaining('Revisa el token'))
-    // GitLab is unaffected: its tile still lists.
+    // GitLab is unaffected: its tile still shows its contributions.
     await useWindow('notch')
     await switchReviewsPlatform('gitlab')
-    await expectRowCount('toReview', 2)
+    await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
 
     // No more GitHub requests: not on the rhythm, not on a refresh. GitLab keeps going.
     const githubBefore = server.requests.github
@@ -741,22 +676,158 @@ describe('Code review (Tauri)', () => {
     await saveToken('github', FAKE_GITHUB_TOKEN)
     await expectConnected('github')
     await useWindow('notch')
-    await whileHovered(() => expectMetric('github', '2 PR tuyos sin revisar en GitHub').then(() => undefined))
+    await whileHovered(async () => expectMetric('github', await contributionsMetric('github')).then(() => undefined))
 
     expect(server.violations).toEqual([])
     expectCleanLogs()
   })
 
-  it('contributions: the month chart and summary per platform, keyboard, and queries only while the view is open', async () => {
+  it('the view shows contributions and no review lists', async () => {
     const server = fake!
     await connected(server)
-    // Both platforms connected, the view closed: no contributions asked yet.
-    expect(contributionHits(server)).toEqual({ github: 0, gitlab: 0 })
+    for (const platform of ['github', 'gitlab'] as const) {
+      if (platform === 'github') await openReviewsView('github')
+      else await switchReviewsPlatform('gitlab')
+      await expectNoTabs(platform === 'github' ? 'GitHub' : 'GitLab')
+      await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
+      // The chart and the summary, then the account row: that is all the view holds.
+      await expect(byTestId('contribution-graph')).toBeDisplayed()
+      await expect(byTestId('contribution-summary')).toBeDisplayed()
+      await expect(byTestId('reviews-profile')).toBeDisplayed()
+      expect(await $$('[data-testid="review-item"]')).toHaveLength(0)
+      expect(await $$('[data-section]')).toHaveLength(0)
+      expect(await $$('[id^="reviews-section-"]')).toHaveLength(0)
+      expect(await $$('[data-testid="reviews-loading"]')).toHaveLength(0)
+      const text = await panel().getText()
+      for (const gone of ['Por revisar', 'Míos', 'POR REVISAR', 'MÍOS']) expect({ gone, shown: text.includes(gone) }).toEqual({ gone, shown: false })
+      // The capsule fits the view: no empty room under the account row (the view plus the 2 px border).
+      await browser.waitUntil(
+        async () => {
+          const [capsule, view] = await Promise.all([$('[data-testid="notch-capsule"]').getSize('height'), panel().getSize('height')])
+          return Math.abs(capsule - (view + 2)) <= 1
+        },
+        { timeout: 3000, timeoutMsg: 'the reviews capsule does not fit its view' },
+      )
+    }
+    // Neither platform was asked for "pending my review": the fake refuses those queries.
+    expect(server.violations).toEqual([])
+    expect(await openedUrls()).toEqual([])
+    expectCleanLogs()
+  })
 
-    // Opening "Revisiones" asks each platform once (GitLab: two pages of events).
-    await openReviewsView()
-    await expectContributionHits(server, { github: 1, gitlab: 1 })
+  it('open profile opens the platform in the browser', async () => {
+    const server = fake!
+    await connected(server)
+    await openReviewsView('github')
+    await expectProfile('GitHub', FAKE_GITHUB_LOGIN, 'Abrir GitHub')
+    await byTestId('reviews-open-profile').click()
+    // Main builds the page from the account it knows: github.com, never anything the renderer sent.
+    await eventually(openedUrls, (urls) => urls.length === 1, 'the GitHub profile opened')
+    expect(await openedUrls()).toEqual([`https://github.com/${FAKE_GITHUB_LOGIN}`])
+
+    await switchReviewsPlatform('gitlab')
+    await expectProfile('GitLab', GITLAB_ACCOUNT, 'Abrir GitLab')
+    await byTestId('reviews-open-profile').click()
+    await eventually(openedUrls, (urls) => urls.length === 2, 'the GitLab profile opened')
+    // The configured https server (never the fake's loopback address).
+    expect(await openedUrls()).toEqual([`https://github.com/${FAKE_GITHUB_LOGIN}`, `${FAKE_GITLAB_ORIGIN}/${FAKE_GITLAB_USER.username}`])
+    // The view stays where it was after opening the page.
+    await expect(panel()).toHaveAttribute('data-platform', 'gitlab')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('a single review alert opens the pull request', async () => {
+    const server = fake!
+    await connected(server)
+    await expectMode('peek')
+
+    // One own PR is reviewed: the alert names it, and a click opens that PR and puts the alert away.
+    const [firstPr] = GITHUB_MINE
+    server.reviewPr(firstPr!.id, 'approved')
+    await advanceClock(TICK_MS)
+    await expectMode('alert')
+    await expect(byTestId('review-alert')).toHaveText(`Aprobado · web-app#${firstPr!.number} · ${firstPr!.title}`)
+    const clickedAt = Date.now()
+    await byTestId('review-alert').click()
+    await eventually(openedUrls, (urls) => urls.length === 1, 'the PR opened')
+    expect(await openedUrls()).toEqual([githubPrUrl(firstPr!)])
+    await pointer(false)
+    // Main retracts the alert when it opens the page: it is gone well before its 6 s expiry.
+    await expectMode('peek', 4_000)
+    expect(Date.now() - clickedAt).toBeLessThan(5_000)
+    expect(await $$('[data-testid="review-alert"]')).toHaveLength(0)
+    // Exactly one tab for that PR.
+    expect(await openedUrls()).toEqual([githubPrUrl(firstPr!)])
+
+    // The same on GitLab: the MR opens on the configured server.
+    const [firstMr] = GITLAB_MINE
+    server.reviewMr(firstMr!.iid, 'changes')
+    await advanceClock(TICK_MS)
+    await expectMode('alert')
+    await expect(byTestId('review-alert')).toHaveText(`Cambios pedidos · frontend!${firstMr!.iid} · ${firstMr!.title}`)
+    await byTestId('review-alert').click()
+    await eventually(openedUrls, (urls) => urls.length === 2, 'the MR opened')
+    expect(await openedUrls()).toEqual([githubPrUrl(firstPr!), gitlabMrUrl(firstMr!)])
+    await pointer(false)
+    await expectMode('peek')
+
+    // Only pull request pages ever opened, and no view.
+    for (const url of await openedUrls()) expect({ url, allowed: url.startsWith('https://github.com/') || url.startsWith(`${FAKE_GITLAB_ORIGIN}/`) }).toEqual({ url, allowed: true })
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('several review alerts open the contributions view', async () => {
+    const server = fake!
+    await connected(server)
+    await expectMode('peek')
+
+    // Both unreviewed PRs are reviewed before the next query: one alert for the two.
+    for (const pr of GITHUB_MINE.slice(0, 2)) server.reviewPr(pr.id, 'approved')
+    await advanceClock(TICK_MS)
+    await expectMode('alert')
+    await expect(byTestId('review-alert')).toHaveText('2 PR revisados · GitHub')
+    await byTestId('review-alert').click()
+    // Not a page: the contributions view of that platform opens, and nothing went to the browser.
+    await expectMode('reviews')
+    await panel().waitForDisplayed()
+    await expect(panel()).toHaveAttribute('data-platform', 'github')
+    await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
+    expect(await openedUrls()).toEqual([])
+
+    await closeReviewsView()
+    await pointer(false)
+    await requestIntent('dismiss')
+    await expectMode('peek')
+    expect(await openedUrls()).toEqual([])
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('contributions: the month chart and summary per platform, keyboard, and queries with the view open or closed', async () => {
+    const server = fake!
+    await connected(server)
+    // Both platforms connected, the view closed: each asked once when its token was saved (the
+    // capsule shows the month's total; GitLab: two pages of events).
+    expect(contributionHits(server)).toEqual({ github: 1, gitlab: 1 })
     await eventually(async () => server.hits['gitlab events'], (n) => n === 2, 'two pages of GitLab events')
+
+    // Opening the panel asks each platform once for its card. Waiting for both cards keeps the
+    // view's query apart: one started during the panel's would share it.
+    await expandPanel()
+    await expectContributionHits(server, { github: 2, gitlab: 2 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 4, 'four pages of GitLab events')
+    await $('[data-testid="integration-github"] .digits').waitForExist()
+    await $('[data-testid="integration-gitlab"] .digits').waitForExist()
+    // Opening "Revisiones" asks again, whatever the panel just did.
+    await clickCard('integration-github')
+    await expectMode('reviews')
+    await panel().waitForDisplayed()
+    await expectContributionHits(server, { github: 3, gitlab: 3 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 6, 'six pages of GitLab events')
 
     // GitHub: the month's calendar (today 12, the rest 0/3/6/9/2), the totals and the merged searches.
     await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
@@ -770,9 +841,8 @@ describe('Code review (Tauri)', () => {
     await expect(byTestId('contributions-restricted')).toHaveText('Incluye contribuciones privadas que no se detallan')
     expect(await $$('[data-testid="contributions-partial"]')).toHaveLength(0)
     expect(await $$('[data-testid="contributions-error"]')).toHaveLength(0)
-    // The lists still below the chart.
-    await expectRowCount('toReview', 3)
-    await expectRowCount('mine', 4)
+    // Under the chart only the account row: no review list.
+    await expectProfile('GitHub', FAKE_GITHUB_LOGIN, 'Abrir GitHub')
 
     // Keyboard: Tab from the last header button lands on today; the day line shows its date and count.
     // The Tab stop is the renderer's today: skipped only in the known divergence hour (logged by appDays).
@@ -807,10 +877,17 @@ describe('Code review (Tauri)', () => {
       await expect(byTestId('contributions-updated')).toBeDisplayed()
     }
 
+    // Back on the panel a minute later: its 60 s minimum is over, so it asks once more.
+    await advanceClock(PANEL_REFRESH_MS)
+    await closeReviewsView()
+    await expectContributionHits(server, { github: 4, gitlab: 4 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 8, 'eight pages of GitLab events')
+    await browser.pause(300)
+
     // GitLab: one square per event (a push is 1), the summary's commits are the pushes' commit_count.
-    await switchReviewsPlatform('gitlab')
-    await expectRowCount('toReview', 2)
-    await expectRowCount('mine', 3)
+    await clickCard('integration-gitlab')
+    await eventually(() => panel().getAttribute('data-platform'), (value) => value === 'gitlab', 'the gitlab view')
+    await expectProfile('GitLab', GITLAB_ACCOUNT, 'Abrir GitLab')
     const gitlab = expectedGitlabContributions(today)
     // Today in the fixture: pushes of 1-3 commits plus one of GITLAB_BIG_PUSH_COMMITS, an MR opened,
     // approved, commented on and accepted, an issue opened and commented on, and a "joined".
@@ -828,53 +905,61 @@ describe('Code review (Tauri)', () => {
     expect(await $$('[data-testid="contributions-partial"]')).toHaveLength(0)
 
     await setLanguage('en')
-    await expectSectionText('#reviews-section-toReview', /^To review\s*2$/)
+    await expectProfile('GitLab', GITLAB_ACCOUNT, 'Open GitLab')
     await expectContributions(gitlab, 'en')
     await setLanguage('es')
-    await expectSectionText('#reviews-section-toReview', /^Por revisar\s*2$/)
+    await expectProfile('GitLab', GITLAB_ACCOUNT, 'Abrir GitLab')
 
-    // Each opening asks again (the GitLab tile reopened the view): one for GitHub, one for GitLab.
-    expect(contributionHits(server)).toEqual({ github: 2, gitlab: 2 })
-    // While open: one more query per platform every 15 min (test clock).
+    // Each opening of the view asks again (the GitLab card reopened it): one for GitHub, one for GitLab.
+    expect(contributionHits(server)).toEqual({ github: 5, gitlab: 5 })
+    // One more query per platform every 15 min (test clock).
     await advanceClock(CONTRIBUTIONS_TICK_MS)
-    await expectContributionHits(server, { github: 3, gitlab: 3 })
-    await eventually(async () => server.hits['gitlab events'], (n) => n === 6, 'six pages of GitLab events')
+    await expectContributionHits(server, { github: 6, gitlab: 6 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 12, 'twelve pages of GitLab events')
 
-    // Closed: no contributions query across two more 15-min steps (the 120 s lists keep going).
+    // Back on the panel: its own query. With the view closed the 15 min rhythm goes on (the capsule
+    // shows the month's total): one per platform and step, no more (the 120 s lists keep going).
     await closeReviewsView()
     expect(await mode()).not.toBe('reviews')
+    await expectContributionHits(server, { github: 7, gitlab: 7 })
     const fetches = server.hits['github fetch'] ?? 0
     await advanceClock(CONTRIBUTIONS_TICK_MS)
+    await expectContributionHits(server, { github: 8, gitlab: 8 })
     await advanceClock(CONTRIBUTIONS_TICK_MS)
+    await expectContributionHits(server, { github: 9, gitlab: 9 })
     await eventually(async () => server.hits['github fetch'] ?? 0, (n) => n > fetches, 'more GitHub list queries')
     await browser.pause(1_000)
-    expect(contributionHits(server)).toEqual({ github: 3, gitlab: 3 })
+    expect(contributionHits(server)).toEqual({ github: 9, gitlab: 9 })
 
     expect(server.violations).toEqual([])
     // No event title, branch, commit or note text in the log (only counts and codes).
     expectCleanLogs()
   })
 
-  it('a contributions failure shows "No se pudieron cargar las contribuciones · Reintentar" while the lists still show; Reintentar recovers', async () => {
+  it('a contributions failure shows "No se pudieron cargar las contribuciones · Reintentar" while the account row still shows; Reintentar recovers', async () => {
     const server = fake!
-    await connected(server)
+    // Failing from the start: the queries made when each token is saved get no summary either, so
+    // the capsule has no contributions block and the view has nothing to fall back on.
     server.contributionsFail.github = true
     server.contributionsFail.gitlab = true
+    await connected(server, false)
+    await whileHovered(async () => {
+      await expectMetric('github', null)
+      await expectMetric('gitlab', null)
+    })
 
     await openReviewsView()
     const error = byTestId('contributions-error')
     await expect(error).toHaveText(/^No se pudieron cargar las contribuciones\s*·\s*Reintentar$/)
     await expect(contributionsBlock()).toHaveAttribute('data-phase', 'error')
-    // The grey chart without data (not a grid) and "—" in the summary; the lists are all there.
+    // The grey chart without data (not a grid) and "—" in the summary; the account row is there.
     expect(await graph().$$('[role="grid"]')).toHaveLength(0)
     await expect($('[data-row="commits"] [data-column="today"]')).toHaveText('—')
-    await expectRowCount('toReview', 3)
-    await expectRowCount('mine', 4)
+    await expectProfile('GitHub', FAKE_GITHUB_LOGIN, 'Abrir GitHub')
     expect(await $$('[data-testid="reviews-status"]')).toHaveLength(0)
     await switchReviewsPlatform('gitlab')
     await expect(error).toBeDisplayed()
-    await expectRowCount('toReview', 2)
-    await expectRowCount('mine', 3)
+    await expectProfile('GitLab', GITLAB_ACCOUNT, 'Abrir GitLab')
     expect(server.hits['github contributions 500']).toBeGreaterThanOrEqual(1)
     expect(server.hits['gitlab contributions 500']).toBeGreaterThanOrEqual(1)
     await switchReviewsPlatform('github')
@@ -894,7 +979,6 @@ describe('Code review (Tauri)', () => {
     await switchReviewsPlatform('gitlab')
     await error.waitForExist({ reverse: true })
     await expectContributions(expectedGitlabContributions(today), 'es')
-    await expectRowCount('toReview', 2)
 
     expect(server.violations).toEqual([])
     expectCleanLogs()

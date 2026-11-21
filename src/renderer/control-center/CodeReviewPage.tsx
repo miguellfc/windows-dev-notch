@@ -8,6 +8,7 @@ import { useSettings } from '../shared/settings-store'
 import { useT } from '../shared/use-t'
 import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
+import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 import { createCodeReviewUpdater } from './code-review-settings-patch'
 import { createLatestRequests } from './latest-request'
 
@@ -23,11 +24,11 @@ const updateCodeReview = createCodeReviewUpdater(
 const requests = createLatestRequests<Platform>()
 
 const input =
-  'h-8 w-full min-w-0 rounded-control border border-line bg-veil px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-ice/60'
+  'field h-8 w-full min-w-0 px-2.5 font-mono text-body text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60'
 const button =
-  'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-line bg-veil-tile px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-veil-tile'
+  'btn h-8 shrink-0'
 const primary =
-  'flex h-8 shrink-0 cursor-pointer items-center rounded-control border border-ice/40 bg-ice/25 px-3 text-small font-medium text-chalk transition-colors duration-150 hover:bg-ice/35 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ice/25'
+  'btn btn-primary h-8 shrink-0'
 
 type SaveError = 'auth' | 'network' | 'url' | 'save'
 
@@ -44,7 +45,7 @@ const ALERT_LABEL: Record<Platform, MessageKey> = { github: 'cc.codeReview.alert
 
 function Card({ title, testId, children }: { title: string; testId: string; children: ReactNode }) {
   return (
-    <section data-testid={testId} className="mb-6 rounded-card border border-line p-4">
+    <section data-testid={testId} className="mb-6 card p-4">
       <h2 className="mb-3 text-body font-medium text-chalk">{title}</h2>
       {children}
     </section>
@@ -191,7 +192,7 @@ function PlatformCard({ platform, settings, state }: { platform: Platform; setti
       </form>
 
       {configured && state?.persistent === false && (
-        <p role="status" data-testid={`code-review-${platform}-not-persistent`} className="mt-3 rounded-control border border-wait/40 bg-veil px-3 py-2 text-small text-wait">
+        <p role="status" data-testid={`code-review-${platform}-not-persistent`} className="mt-3 rounded-tile border border-wait/40 bg-veil px-3 py-2 text-small text-wait">
           {t('cc.codeReview.notPersistent')}
         </p>
       )}
@@ -221,6 +222,8 @@ export function CodeReviewPage({ settings }: { settings: Settings }) {
   const state = useCodeReview((store) => store.state)
   return (
     <div data-testid="code-review-page">
+      <IntegrationDisabledNotice integration="github" prefix={t('integration.github')} />
+      <IntegrationDisabledNotice integration="gitlab" prefix={t('integration.gitlab')} />
       <PlatformCard platform="github" settings={settings} state={state?.github} />
       <PlatformCard platform="gitlab" settings={settings} state={state?.gitlab} />
       <p className="text-small text-graphite">{t('cc.codeReview.guide', { path: GUIDE_PATH })}</p>

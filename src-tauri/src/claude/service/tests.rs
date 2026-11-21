@@ -1915,3 +1915,73 @@ fn quit_cleanup_on_a_thread_without_a_runtime_releases_everything_within_the_mai
     assert!(fx.service.state().pending.is_empty());
     assert!(fx.service.questions().is_empty());
 }
+
+// ---------------------------------------------------------------------------------------------
+// Integration switch: not intercepting (Claude disabled in Integrations)
+
+#[tokio::test]
+async fn permission_passes_through_when_not_intercepting() {
+    let fx = setup();
+    fx.service.start().await;
+    fx.service.set_intercept(false);
+    let r = FakeReply::new();
+    fx.send_held(permission_request("session-1", "Bash", None), &r);
+    assert_eq!(r.sends(), [None]);
+    assert!(fx.service.state().pending.is_empty());
+    assert!(lock(&fx.new_pending).is_empty());
+    assert_ne!(fx.status(), Some(ClaudeSessionStatus::Waiting));
+}
+
+#[tokio::test]
+async fn question_passes_through_when_not_intercepting() {
+    let fx = setup();
+    fx.service.start().await;
+    fx.service.set_intercept(false);
+    let r = FakeReply::new();
+    fx.ask(Some(&r), "session-1", HookRoute::Question);
+    assert_eq!(r.sends(), [Some("{}".to_string())]);
+    assert!(fx.service.questions().is_empty());
+    assert!(lock(&fx.new_questions).is_empty());
+}
+
+#[tokio::test]
+async fn turning_off_releases_pending() {
+    let fx = setup();
+    fx.service.start().await;
+    let p = FakeReply::new();
+    let q = FakeReply::new();
+    fx.send_held(permission_request("session-1", "Bash", None), &p);
+    fx.ask(Some(&q), "session-1", HookRoute::Question);
+    assert_eq!(fx.service.state().pending.len(), 1);
+    assert_eq!(fx.service.questions().len(), 1);
+
+    fx.service.set_intercept(false);
+    assert_eq!(p.sends(), [None]);
+    assert_eq!(q.sends(), [Some("{}".to_string())]);
+    assert!(fx.service.state().pending.is_empty());
+    assert!(fx.service.questions().is_empty());
+    assert!(fx.last_state().pending.is_empty());
+    assert_ne!(fx.status(), Some(ClaudeSessionStatus::Waiting));
+}
+
+#[tokio::test]
+async fn turning_on_holds_again() {
+    let fx = setup();
+    fx.service.start().await;
+    fx.service.set_intercept(false);
+    fx.service.set_intercept(true);
+    let r = FakeReply::new();
+    fx.send_held(permission_request("session-1", "Bash", None), &r);
+    assert!(r.sends().is_empty());
+    assert_eq!(fx.service.state().pending.len(), 1);
+    assert_eq!(lock(&fx.new_pending).len(), 1);
+}
+
+#[tokio::test]
+async fn not_intercepting_still_observes_session_events() {
+    let fx = setup();
+    fx.service.start().await;
+    fx.service.set_intercept(false);
+    fx.send(e(HookEventName::UserPromptSubmit));
+    assert_eq!(fx.status(), Some(ClaudeSessionStatus::Working));
+}

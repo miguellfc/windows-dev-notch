@@ -1,5 +1,6 @@
-import '@fontsource-variable/geist'
+import '@fontsource-variable/nunito'
 import '@fontsource-variable/geist-mono'
+import '@fontsource/jersey-10'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'

@@ -9,11 +9,14 @@ use crate::contract::system::{DiskAlert, SystemAlerts};
 /// An alert clears only once the metric is this many points back on the safe side.
 const HYSTERESIS: f64 = 5.0;
 
-/// Free space of one fixed drive, in percent.
+/// Free space of one fixed drive: in percent (what the disk alert compares) and in bytes (what the
+/// capsule's whole-computer storage figure adds up). `free_bytes` never exceeds `total_bytes`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DiskFree {
     pub letter: String,
     pub free_percent: f64,
+    pub free_bytes: u64,
+    pub total_bytes: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,6 +53,7 @@ fn finite(value: Option<f64>) -> Option<f64> {
     value.filter(|value| value.is_finite())
 }
 
+/// The fixed drive with the least free space (the disk alert's drive).
 fn worst_disk(disks: &[DiskFree]) -> Option<&DiskFree> {
     let mut worst: Option<&DiskFree> = None;
     for disk in disks {

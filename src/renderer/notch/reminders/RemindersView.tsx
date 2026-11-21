@@ -1,4 +1,5 @@
 import { ArrowLeft, Plus } from 'lucide-react'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { NoticeBanner } from '../../shared/reminders/RemindersNotice'
 import { useT } from '../../shared/use-t'
@@ -25,6 +26,7 @@ export function RemindersView() {
   const [screen, setScreen] = useState<'list' | 'form'>('list')
   const addButton = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
+  const { color } = useIntegration('reminders')
 
   // The tile that opened the view unmounts, and so does the form on its way back: keep focus in
   // the panel (on "+") so the keyboard, and the panel's Esc, keep working.
@@ -37,6 +39,7 @@ export function RemindersView() {
     // onPanelKeyDown (back to the row) instead of NotchApp's window-level dismiss.
     <div
       ref={panel}
+      style={integrationStyle(color)}
       data-testid="reminders-panel"
       tabIndex={-1}
       onKeyDown={onPanelKeyDown}
@@ -70,7 +73,7 @@ export function RemindersView() {
               type="button"
               data-testid="reminders-see-all"
               onClick={() => void window.notch.app.openControlCenter()}
-              className="ml-auto cursor-pointer rounded-control-sm px-2 py-1 text-label font-medium text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk"
+              className="btn ml-auto h-6"
             >
               {t('reminders.view.seeAll')}
             </button>

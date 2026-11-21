@@ -6,8 +6,8 @@ use std::collections::HashSet;
 
 use super::*;
 use crate::code_review::client::snapshot;
-use crate::code_review::client::ClientItem;
-use crate::contract::code_review::{ReviewItem, COUNT_CAP};
+use crate::code_review::client::{ClientItem, ReviewItem};
+use crate::contract::code_review::COUNT_CAP;
 
 use ReviewState::{Approved, Changes, Commented, None as Unreviewed};
 
@@ -184,12 +184,8 @@ fn item(id: &str, review: ReviewState, draft: bool) -> ClientItem {
             id: id.to_owned(),
             reference: format!("grp/proj!{id}"),
             title: format!("MR {id}"),
-            author: "me".into(),
-            updated_at: "2026-11-12T10:00:00Z".into(),
             draft,
             review,
-            checks: None,
-            conflicts: false,
         },
         url: format!("https://gitlab.example.test/grp/proj/-/merge_requests/{id}"),
     }
@@ -203,7 +199,7 @@ fn snap(mine: &[(&str, ReviewState)], uncertain: &[&str]) -> CodeReviewSnapshot 
         .map(|(id, review)| item(id, *review, false))
         .collect();
     let uncertain: HashSet<String> = uncertain.iter().map(|id| (*id).to_owned()).collect();
-    snapshot(Vec::new(), mine, &uncertain)
+    snapshot(mine, &uncertain)
 }
 
 /// One `runPoll` round: merge, then observe; returns the alerts and the count.
@@ -298,7 +294,7 @@ fn drafts_are_skipped_and_the_count_is_clamped() {
     // A draft is neither observed nor remembered.
     let mut mine: Vec<ClientItem> = vec![item("d", Unreviewed, true)];
     mine.push(item("1", Approved, false));
-    let snapshot = snapshot(Vec::new(), mine, &HashSet::new());
+    let snapshot = snapshot(mine, &HashSet::new());
     let observation = merge_uncertain(&snapshot, &HashMap::new());
     assert_eq!(observation.observed, own(&[("1", Approved)]));
     assert!(!observation.remembered.contains_key("d"));

@@ -1,9 +1,18 @@
 import { z } from 'zod'
 import { GITLAB_URL_MAX, isStoredGitlabUrl } from '../code-review/schema'
 import { REDMINE_URL_MAX, isStoredRedmineUrl } from '../redmine/url'
+import {
+  DEFAULT_INTEGRATION_COLORS,
+  HEX_COLOR,
+  capsuleIntegrationKeys,
+  integrationColorIds,
+  integrationKeys,
+  type IntegrationKey,
+} from '../integrations/colors'
 import { isSafeAccelerator } from './accelerator'
 
-export const SETTINGS_VERSION = 7
+/** v9: `integrations.system` is gone (the System view was removed; its metrics need no switch). */
+export const SETTINGS_VERSION = 9
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
@@ -112,6 +121,39 @@ export const redmineSettingsSchema = z.strictObject({
 })
 export type RedmineSettings = z.infer<typeof redmineSettingsSchema>
 
+/** A palette id, or a custom color as uppercase `#RRGGBB`. */
+export const integrationColorSchema = z.union([
+  z.enum(integrationColorIds),
+  z.custom<`#${string}`>((value) => typeof value === 'string' && HEX_COLOR.test(value), 'Color must be a palette id or #RRGGBB'),
+])
+
+/** One integration: on/off, whether it shows in the capsule, and its color (palette id or hex). */
+export const integrationSettingsSchema = z.strictObject({
+  enabled: z.boolean(),
+  capsule: z.boolean(),
+  color: integrationColorSchema,
+})
+export type IntegrationSettings = z.infer<typeof integrationSettingsSchema>
+
+const capsuleKeySet: ReadonlySet<IntegrationKey> = new Set(capsuleIntegrationKeys)
+
+/** v9: the seven integrations (v8 also had `system`); only the capsule ones may have `capsule: true`. */
+export const integrationsSettingsSchema = z
+  .strictObject({
+    claude: integrationSettingsSchema,
+    github: integrationSettingsSchema,
+    gitlab: integrationSettingsSchema,
+    gmail: integrationSettingsSchema,
+    redmine: integrationSettingsSchema,
+    reminders: integrationSettingsSchema,
+    notes: integrationSettingsSchema,
+  })
+  .refine(
+    (integrations) => integrationKeys.every((key) => capsuleKeySet.has(key) || !integrations[key].capsule),
+    'Reminders and notes have no capsule block',
+  )
+export type IntegrationsSettings = z.infer<typeof integrationsSettingsSchema>
+
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
   language: languageSchema,
@@ -122,6 +164,7 @@ export const settingsSchema = z.strictObject({
   gmail: gmailSettingsSchema,
   codeReview: codeReviewSettingsSchema,
   redmine: redmineSettingsSchema,
+  integrations: integrationsSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -133,6 +176,18 @@ export const settingsPatchSchema = settingsSchema
   .extend({
     codeReview: codeReviewSettingsSchema.partial(),
     redmine: redmineSettingsSchema.extend({ endOfDay: redmineEndOfDaySettingsSchema.partial() }).partial(),
+    // Per integration and per field, so recoloring one never touches the others.
+    integrations: z
+      .strictObject({
+        claude: integrationSettingsSchema.partial(),
+        github: integrationSettingsSchema.partial(),
+        gitlab: integrationSettingsSchema.partial(),
+        gmail: integrationSettingsSchema.partial(),
+        redmine: integrationSettingsSchema.partial(),
+        reminders: integrationSettingsSchema.partial(),
+        notes: integrationSettingsSchema.partial(),
+      })
+      .partial(),
   })
   .partial()
   .refine((patch) => Object.values(patch).some((value) => value !== undefined), 'Empty settings patch')
@@ -168,6 +223,24 @@ export function cloneDefaultRedmineSettings(): RedmineSettings {
   }
 }
 
+/** A fresh, mutable copy of the integration defaults: all on, capsule only where it exists. */
+export function cloneDefaultIntegrations(): IntegrationsSettings {
+  const entry = (key: IntegrationKey): IntegrationSettings => ({
+    enabled: true,
+    capsule: capsuleKeySet.has(key),
+    color: DEFAULT_INTEGRATION_COLORS[key],
+  })
+  return {
+    claude: entry('claude'),
+    github: entry('github'),
+    gitlab: entry('gitlab'),
+    gmail: entry('gmail'),
+    redmine: entry('redmine'),
+    reminders: entry('reminders'),
+    notes: entry('notes'),
+  }
+}
+
 export function languageFromLocale(locale: string): Language {
   return locale.toLowerCase().startsWith('es') ? 'es' : 'en'
 }
@@ -183,5 +256,6 @@ export function createDefaultSettings(locale: string): Settings {
     gmail: { ...DEFAULT_GMAIL_SETTINGS, alerts: { ...DEFAULT_GMAIL_ALERTS } },
     codeReview: cloneDefaultCodeReviewSettings(),
     redmine: cloneDefaultRedmineSettings(),
+    integrations: cloneDefaultIntegrations(),
   }
 }

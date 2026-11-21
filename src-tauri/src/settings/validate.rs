@@ -5,9 +5,9 @@
 use url::Url;
 
 use crate::contract::settings::{
-    CodeReviewSettingsPatch, GmailSettings, RedmineEndOfDayPatch, RedmineSettingsPatch,
-    RemindersSettings, Settings, SettingsPatch, SystemAlertSettings, SETTINGS_VERSION,
-    SNOOZE_MINUTES_OPTIONS,
+    CodeReviewSettingsPatch, GmailSettings, IntegrationsSettings, RedmineEndOfDayPatch,
+    RedmineSettingsPatch, RemindersSettings, Settings, SettingsPatch, SystemAlertSettings,
+    SETTINGS_VERSION, SNOOZE_MINUTES_OPTIONS,
 };
 use crate::contract::text::js_trim;
 use crate::contract::{int_in, length};
@@ -182,6 +182,18 @@ fn validate_time(time: &str) -> Result<(), String> {
     }
 }
 
+/// Only the capsule integrations (claude, github, gitlab, gmail, redmine) may show a block in
+/// the capsule.
+fn validate_integrations(integrations: &IntegrationsSettings) -> Result<(), String> {
+    let IntegrationsSettings {
+        reminders, notes, ..
+    } = integrations;
+    if reminders.capsule || notes.capsule {
+        return Err("Reminders and notes have no capsule block".into());
+    }
+    Ok(())
+}
+
 /// Everything `settingsSchema` checks beyond the shape.
 pub fn validate_settings(settings: &Settings) -> Result<(), String> {
     if settings.version != SETTINGS_VERSION {
@@ -194,7 +206,8 @@ pub fn validate_settings(settings: &Settings) -> Result<(), String> {
     validate_gitlab_url(&settings.code_review.gitlab_url)?;
     validate_redmine_url(&settings.redmine.url)?;
     validate_daily_target(settings.redmine.daily_target_hours)?;
-    validate_time(&settings.redmine.end_of_day.time)
+    validate_time(&settings.redmine.end_of_day.time)?;
+    validate_integrations(&settings.integrations)
 }
 
 fn is_empty_patch(patch: &SettingsPatch) -> bool {
@@ -207,6 +220,7 @@ fn is_empty_patch(patch: &SettingsPatch) -> bool {
         gmail,
         code_review,
         redmine,
+        integrations,
     } = patch;
     language.is_none()
         && shortcut.is_none()
@@ -216,6 +230,7 @@ fn is_empty_patch(patch: &SettingsPatch) -> bool {
         && gmail.is_none()
         && code_review.is_none()
         && redmine.is_none()
+        && integrations.is_none()
 }
 
 /// Everything `settingsPatchSchema` checks beyond the shape, including "not empty".
@@ -402,6 +417,29 @@ mod tests {
         assert!(is_stored_redmine_url("https://redmine.example.com:8443"));
         assert!(!is_stored_redmine_url("https://redmine.example.com:443"));
         assert!(!is_stored_redmine_url("https://u@redmine.example.com"));
+    }
+
+    #[test]
+    fn validate_rejects_capsule_on_notes() {
+        let mut settings = crate::settings::default_settings("es");
+        assert!(validate_settings(&settings).is_ok());
+        settings.integrations.notes.capsule = true;
+        assert!(validate_settings(&settings).is_err());
+        let mut settings = crate::settings::default_settings("es");
+        settings.integrations.reminders.capsule = true;
+        assert!(validate_settings(&settings).is_err());
+        // The capsule integrations may turn it off and on.
+        let mut settings = crate::settings::default_settings("es");
+        settings.integrations.claude.capsule = false;
+        settings.integrations.redmine.capsule = false;
+        assert!(validate_settings(&settings).is_ok());
+    }
+
+    #[test]
+    fn integration_patches_count_as_non_empty() {
+        let patch: SettingsPatch =
+            serde_json::from_value(serde_json::json!({ "integrations": {} })).unwrap();
+        assert!(validate_patch(&patch).is_ok());
     }
 
     #[test]

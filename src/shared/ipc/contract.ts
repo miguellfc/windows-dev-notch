@@ -3,14 +3,14 @@ import { appInfoSchema } from '../app-info'
 import {
   clearInputSchema,
   codeReviewAlertSchema,
-  codeReviewListSchema,
   codeReviewStateSchema,
   codeReviewViewInputSchema,
   contributionsChangedSchema,
   contributionsInputSchema,
   contributionsResultSchema,
-  listInputSchema,
-  openInputSchema,
+  openAlertInputSchema,
+  openedResultSchema,
+  openProfileInputSchema,
   setTokenInputSchema,
   setTokenResultSchema,
 } from '../code-review/schema'
@@ -33,6 +33,7 @@ import {
   logTimeInputSchema,
   redmineActivitySchema,
   redmineAlertSchema,
+  redmineFindIssueResultSchema,
   redmineIdInputSchema,
   redmineIssueDetailSchema,
   redmineIssueListSchema,
@@ -47,7 +48,7 @@ import {
 } from '../redmine/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
-import { killInputSchema, killResultSchema, PROCESS_LIMIT, processRowSchema, systemMetricsSchema, viewInputSchema } from '../system/schema'
+import { systemMetricsSchema } from '../system/schema'
 import { usageSummaryInputSchema, usageSummarySchema } from '../usage/schema'
 import type { ChannelName, EventName } from './channels'
 
@@ -56,7 +57,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'notes', 'gmail', 'reviews', 'redmine', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
@@ -169,7 +170,7 @@ export const contract = {
   'settings:get': { input: none, output: settingsSchema },
   'settings:update': { input: settingsPatchSchema, output: settingsSchema },
   'notch:get-mode': { input: none, output: notchModeSchema },
-  'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle', 'next', 'pin-mini', 'unpin-mini']) }), output: ack },
+  'notch:request': { input: z.strictObject({ intent: z.enum(['expand', 'dismiss', 'toggle', 'next', 'pin-mini', 'unpin-mini', 'open-pending']) }), output: ack },
   'notch:pointer': { input: z.strictObject({ inside: z.boolean() }), output: ack },
   'notch:settled': { input: none, output: ack },
   'notch:open-integration': { input: z.strictObject({ id: z.enum(viewIntegrationIds) }), output: ack },
@@ -213,8 +214,6 @@ export const contract = {
   'notes:restore': { input: noteIdInputSchema, output: noteSchema },
   'notes:copy': { input: noteIdInputSchema, output: ack },
   'usage:summary': { input: usageSummaryInputSchema, output: usageSummarySchema },
-  'system:view': { input: viewInputSchema, output: ack },
-  'system:kill-process': { input: killInputSchema, output: killResultSchema },
   'gmail:get-state': { input: none, output: gmailStateSchema },
   'gmail:recent': { input: none, output: z.array(gmailMessageSchema).max(GMAIL_RECENT_LIMIT) },
   'gmail:view': { input: z.strictObject({ open: z.boolean() }), output: ack },
@@ -236,11 +235,11 @@ export const contract = {
   /** The reader closed: main forgets the open message (body and links); list ids stay shown. */
   'gmail:close-message': { input: none, output: ack },
   'code-review:get-state': { input: none, output: codeReviewStateSchema },
-  /** Lists of one platform without URLs (main keeps them); remembered as the ids `open` accepts. */
-  'code-review:list': { input: listInputSchema, output: codeReviewListSchema },
   'code-review:refresh': { input: none, output: ack },
-  /** Main opens the URL of an id from the last list, on github.com or the configured GitLab origin only. */
-  'code-review:open': { input: openInputSchema, output: ack },
+  /** Main opens the account's page (`github.com/<account>` or the GitLab server's); `opened: false` without an account or when the browser could not be launched. */
+  'code-review:open-profile': { input: openProfileInputSchema, output: openedResultSchema },
+  /** Main opens the single PR/MR of the last alert, on github.com or the configured GitLab origin only; `opened: false` when there is none or the browser could not be launched (the alert and its address stay). */
+  'code-review:open-alert': { input: openAlertInputSchema, output: openedResultSchema },
   /** Validates the token against the API before saving; the token never comes back. */
   'code-review:set-token': { input: setTokenInputSchema, output: setTokenResultSchema },
   'code-review:clear': { input: clearInputSchema, output: ack },
@@ -253,6 +252,7 @@ export const contract = {
   'redmine:issues': { input: none, output: redmineIssueListSchema },
   /** One issue with the statuses it may move to. */
   'redmine:issue': { input: redmineIdInputSchema, output: redmineIssueDetailSchema },
+  'redmine:find-issue': { input: redmineIdInputSchema, output: redmineFindIssueResultSchema },
   'redmine:activities': { input: none, output: z.array(redmineActivitySchema) },
   /** Redmine's refusals (403/404/422) come back as data for the form; the session stays as it is. */
   'redmine:update-issue': { input: updateIssueInputSchema, output: redmineWriteResultSchema },
@@ -287,8 +287,6 @@ export const eventContract = {
   'reminders:fired': z.strictObject({ count: z.int().positive() }),
   'notes:changed': notesSnapshotSchema,
   'system:metrics': systemMetricsSchema,
-  /** Top processes of the System view (at most PROCESS_LIMIT). */
-  'system:processes': z.array(processRowSchema).max(PROCESS_LIMIT),
   /** Gmail session and unread count, to the notch and the Control Center (never tokens or mail). */
   'gmail:state': gmailStateSchema,
   /** New unread mail, to the notch only; no sender or subject when the user hides them. */

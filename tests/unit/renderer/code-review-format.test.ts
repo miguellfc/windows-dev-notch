@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alertStillShown,
   configuredPlatforms,
-  itemBadges,
+  profileRow,
   reviewAlertContent,
   reviewAlertLabel,
-  reviewCountText,
   reviewsBody,
   reviewsPlatform,
   shortRef,
   splitRef,
-  unreviewedLabel,
 } from '../../../src/renderer/shared/code-review/format'
-import type { CodeReviewState, PlatformState, ReviewItem } from '../../../src/shared/code-review/schema'
+import type { CodeReviewState, PlatformState } from '../../../src/shared/code-review/schema'
 
 const platform = (status: PlatformState['status'], unreviewed: number | null = 0): PlatformState => ({
   status,
@@ -19,34 +18,6 @@ const platform = (status: PlatformState['status'], unreviewed: number | null = 0
   unreviewed,
   updatedAt: status === 'ok' ? '2026-11-13T12:00:00.000Z' : null,
   persistent: true,
-})
-const item = (patch: Partial<ReviewItem> = {}): ReviewItem => ({
-  id: 'i1',
-  ref: 'acme/web#12',
-  title: 'Fix login',
-  author: 'ana',
-  updatedAt: '2026-11-13T11:00:00.000Z',
-  draft: false,
-  review: 'none',
-  checks: null,
-  conflicts: false,
-  ...patch,
-})
-
-describe('reviewCountText / unreviewedLabel', () => {
-  it('caps at 99+', () => {
-    expect(reviewCountText(3)).toBe('3')
-    expect(reviewCountText(99)).toBe('99')
-    expect(reviewCountText(100)).toBe('99+')
-  })
-
-  it('names the platform and PR or MR, in ES and EN', () => {
-    expect(unreviewedLabel('github', 2, 'es')).toBe('2 PR tuyos sin revisar en GitHub')
-    expect(unreviewedLabel('gitlab', 2, 'es')).toBe('2 MR tuyos sin revisar en GitLab')
-    expect(unreviewedLabel('github', 1, 'es')).toBe('1 PR tuyo sin revisar en GitHub')
-    expect(unreviewedLabel('gitlab', 100, 'en')).toBe('99+ of your MRs unreviewed on GitLab')
-    expect(unreviewedLabel('github', 1, 'en')).toBe('1 of your PRs unreviewed on GitHub')
-  })
 })
 
 describe('reviewAlertContent / reviewAlertLabel', () => {
@@ -71,27 +42,6 @@ describe('reviewAlertContent / reviewAlertLabel', () => {
   })
 })
 
-describe('itemBadges', () => {
-  it('marks drafts, approvals, requested changes, conflicts and checks', () => {
-    expect(itemBadges(item({ draft: true }), 'toReview')).toEqual([{ key: 'draft', tone: 'neutral' }])
-    expect(itemBadges(item({ review: 'approved' }), 'toReview')).toEqual([{ key: 'approved', tone: 'ok' }])
-    expect(itemBadges(item({ review: 'changes' }), 'mine')).toEqual([{ key: 'changes', tone: 'wait' }])
-    expect(itemBadges(item({ conflicts: true, checks: 'fail' }), 'toReview')).toEqual([
-      { key: 'conflicts', tone: 'fail' },
-      { key: 'checksFail', tone: 'fail' },
-    ])
-    expect(itemBadges(item({ checks: 'pass' }), 'toReview')).toEqual([{ key: 'checksPass', tone: 'ok' }])
-    expect(itemBadges(item({ checks: 'running' }), 'toReview')).toEqual([{ key: 'checksRunning', tone: 'neutral' }])
-  })
-
-  it('says "Sin revisar" only on own, non-draft items without a review', () => {
-    expect(itemBadges(item(), 'mine')).toEqual([{ key: 'unreviewed', tone: 'ice' }])
-    expect(itemBadges(item(), 'toReview')).toEqual([])
-    expect(itemBadges(item({ draft: true }), 'mine')).toEqual([{ key: 'draft', tone: 'neutral' }])
-    expect(itemBadges(item({ review: 'commented' }), 'mine')).toEqual([])
-  })
-})
-
 describe('configuredPlatforms / reviewsBody', () => {
   const state = (github: PlatformState, gitlab: PlatformState): CodeReviewState => ({ github, gitlab })
 
@@ -102,18 +52,13 @@ describe('configuredPlatforms / reviewsBody', () => {
     expect(configuredPlatforms(state(platform('unconfigured'), platform('offline')))).toEqual(['gitlab'])
   })
 
-  it('picks the body for the platform', () => {
-    const list = { toReview: [item()], mine: [] }
-    const empty = { toReview: [], mine: [] }
-    expect(reviewsBody(null, null)).toBe('loading')
-    expect(reviewsBody(platform('unconfigured'), null)).toBe('unconfigured')
-    expect(reviewsBody(platform('auth-error'), list)).toBe('auth')
-    expect(reviewsBody(platform('ok'), null)).toBe('loading')
-    expect(reviewsBody(platform('ok'), list)).toBe('list')
-    expect(reviewsBody(platform('ok'), empty)).toBe('empty')
-    expect(reviewsBody(platform('offline'), list)).toBe('list')
-    // Offline before any successful query: nothing is known yet.
-    expect(reviewsBody(platform('offline'), empty)).toBe('loading')
+  it('picks the body for the platform: a notice, or its contributions', () => {
+    expect(reviewsBody(null)).toBe('loading')
+    expect(reviewsBody(platform('unconfigured'))).toBe('unconfigured')
+    expect(reviewsBody(platform('auth-error'))).toBe('auth')
+    expect(reviewsBody(platform('ok'))).toBe('contributions')
+    // Offline keeps the last contributions, however long ago they were read.
+    expect(reviewsBody(platform('offline'))).toBe('contributions')
   })
 })
 
@@ -139,5 +84,32 @@ describe('reviewsPlatform', () => {
   it('falls back to the first configured platform, then to GitHub', () => {
     expect(reviewsPlatform(null, ['gitlab'])).toBe('gitlab')
     expect(reviewsPlatform(null, [])).toBe('github')
+  })
+})
+
+describe('profileRow', () => {
+  it('is the account on GitHub', () => {
+    expect(profileRow(platform('ok'), '')).toEqual({ label: 'me' })
+  })
+
+  it('puts the server (no https://) before the account on GitLab', () => {
+    expect(profileRow(platform('ok'), 'https://gitlab.acme.com')).toEqual({ label: 'gitlab.acme.com · me' })
+    expect(profileRow(platform('ok'), 'https://git.acme.com/sub')).toEqual({ label: 'git.acme.com/sub · me' })
+  })
+
+  it('is null without an account or when unconfigured', () => {
+    expect(profileRow({ ...platform('ok'), account: null }, '')).toBeNull()
+    expect(profileRow(platform('unconfigured'), '')).toBeNull()
+  })
+})
+
+describe('alertStillShown', () => {
+  const alert = { platform: 'github', count: 1, kind: 'approved', reference: 'a/b#1', title: 't' } as const
+  it('is true only for the very alert that was clicked', () => {
+    expect(alertStillShown(alert, alert)).toBe(true)
+    expect(alertStillShown(alert, { ...alert })).toBe(false)
+    expect(alertStillShown(alert, null)).toBe(false)
+    expect(alertStillShown(alert, undefined)).toBe(false)
+    expect(alertStillShown(null, null)).toBe(false)
   })
 })

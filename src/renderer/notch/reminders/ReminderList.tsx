@@ -7,8 +7,9 @@ import { useReminders } from '../../shared/reminders-store'
 import { useSettings } from '../../shared/settings-store'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
-import { attentionReminders, formatDue, reminderErrorKey, pendingReminders } from '../../shared/reminders/format'
+import { attentionReminders, formatDue, nextReminder, reminderErrorKey, pendingReminders } from '../../shared/reminders/format'
 import { useInFlight } from '../../shared/reminders/use-in-flight'
+import { NextCard } from './NextCard'
 
 type Run = (id: string, call: () => Promise<Result<unknown>>) => void
 
@@ -17,7 +18,7 @@ type Run = (id: string, call: () => Promise<Result<unknown>>) => void
 const iconButton =
   'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-control-sm text-graphite transition-colors duration-150 hover:bg-veil-tile hover:text-chalk aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent aria-disabled:hover:text-graphite'
 const textButton =
-  'h-7 shrink-0 cursor-pointer rounded-control border border-line bg-veil-tile px-2.5 text-label font-medium text-chalk transition-colors duration-150 hover:bg-veil-hover aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-veil-tile'
+  'btn h-7 shrink-0 aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:[filter:none]'
 
 function RepeatMark({ repeat }: { repeat: Reminder['repeat'] }) {
   const t = useT()
@@ -32,7 +33,7 @@ function AttentionRow({ reminder, now, run, busy }: { reminder: Reminder; now: D
   const language = useLanguage()
   const snoozeMinutes = useSettings((state) => state.settings?.reminders.snoozeMinutes ?? 10)
   return (
-    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="flex items-center gap-2 rounded-tile bg-veil px-2.5 py-1.5">
+    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="flex items-center gap-2 rounded-tile px-2.5 py-1.5">
       <span className="status-dot" style={{ '--dot': 'var(--color-wait)' } as CSSProperties} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-body text-chalk">{reminder.text}</p>
@@ -68,7 +69,7 @@ function UpcomingRow({ reminder, now, run, busy }: { reminder: Reminder; now: Da
   const t = useT()
   const language = useLanguage()
   return (
-    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="group flex h-8 items-center gap-2 rounded-tile px-2.5 hover:bg-veil">
+    <li data-testid="reminder-item" data-reminder-id={reminder.id} data-state={reminder.state} className="group flex h-8 items-center gap-2 rounded-tile px-2.5 hover:bg-veil-tile has-[:focus-visible]:bg-veil-tile">
       <span className="tabular w-[118px] shrink-0 truncate text-small text-graphite">
         {formatDue(new Date(reminder.dueAt), now, language)}
       </span>
@@ -156,6 +157,7 @@ export function ReminderList({ onFocusLost }: { onFocusLost: () => void }) {
   if (!reminders) return null
   const attention = attentionReminders(reminders)
   const upcoming = pendingReminders(reminders)
+  const next = nextReminder(reminders)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -164,6 +166,7 @@ export function ReminderList({ onFocusLost }: { onFocusLost: () => void }) {
           {t(errorKey)}
         </p>
       )}
+      {next && <NextCard reminder={next} />}
       {attention.length + upcoming.length === 0 ? (
         <div data-testid="reminders-empty" className="flex flex-1 flex-col items-center justify-center gap-1 pb-6 text-center">
           <p className="text-body text-chalk">{t('reminders.list.empty')}</p>
@@ -176,7 +179,7 @@ export function ReminderList({ onFocusLost }: { onFocusLost: () => void }) {
           data-testid="reminder-list"
           onFocus={onListFocus}
           onBlur={onListBlur}
-          className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
+          className="card flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1">
           {attention.map((reminder) => (
             <AttentionRow key={reminder.id} reminder={reminder} now={now} run={run} busy={inFlight.has(reminder.id)} />
           ))}

@@ -406,7 +406,7 @@ mod tests {
         display.refresh(std::slice::from_ref(&a));
         assert_eq!(display.current().device, "A");
         assert_eq!(scale.get(), 1.0);
-        assert_eq!(surface.0.lock().unwrap().last().unwrap().x, 580.0);
+        assert_eq!(surface.0.lock().unwrap().last().unwrap().x, 533.0);
     }
 
     #[test]

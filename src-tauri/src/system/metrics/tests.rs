@@ -1,7 +1,5 @@
-//! Port of 0.1.0's `metrics-sampler.test.ts` (every case) plus
-//! `pdh_failure_only_nulls_disk_activity_and_network`. The Rust `SystemApi` reads integers for
-//! memory, disk space and the battery percent, so the TS cases that feed them NaN become the
-//! nearest reachable failure (the read returning `None`); "throws" is a panicking fake.
+//! Port of 0.1.0's `metrics-sampler.test.ts`, light sample and free disk space only (the full
+//! sample went with the System view).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -12,7 +10,7 @@ use super::*;
 use crate::contract::system::SystemMetrics;
 use crate::contract::{check, Direction};
 use crate::system::fake::{times, FakeSystemApi};
-use crate::system::{DiskSpace, MemoryStatus, NetworkRate, PowerStatus};
+use crate::system::{DiskSpace, MemoryStatus, PowerStatus};
 
 fn fake() -> (Arc<FakeSystemApi>, MetricsSampler) {
     let api = Arc::new(FakeSystemApi::new());
@@ -42,39 +40,19 @@ fn power(
     })
 }
 
-fn disk(
-    letter: &str,
-    used_percent: f64,
-    free_bytes: f64,
-    activity_percent: Option<f64>,
-) -> DiskSample {
-    DiskSample {
-        letter: letter.into(),
-        used_percent,
-        free_bytes,
-        activity_percent,
-    }
-}
-
-fn free(letter: &str, free_percent: f64) -> DiskFree {
+fn free(letter: &str, free_percent: f64, free_bytes: u64, total_bytes: u64) -> DiskFree {
     DiskFree {
         letter: letter.into(),
         free_percent,
+        free_bytes,
+        total_bytes,
     }
 }
 
-/// `lightSampleSchema` / `fullSampleSchema` with `NO_ALERTS`, through the event contract.
+/// `lightSampleSchema` with `NO_ALERTS`, through the event contract.
 fn light_parses(sample: MetricsLight) -> bool {
     let value = serde_json::to_value(SystemMetrics::Light(
-        sample.with_alerts(SystemAlerts::default()),
-    ))
-    .unwrap();
-    check("system:metrics", Direction::Event, Some(&value)) == Some(Ok(()))
-}
-
-fn full_parses(sample: MetricsFull) -> bool {
-    let value = serde_json::to_value(SystemMetrics::Full(
-        sample.with_alerts(SystemAlerts::default()),
+        sample.with_alerts(SystemAlerts::default(), None),
     ))
     .unwrap();
     check("system:metrics", Direction::Event, Some(&value)) == Some(Ok(()))
@@ -158,68 +136,17 @@ fn cpu_baseline_survives_a_nan_system_times_read() {
     assert_eq!(sampler.light().cpu_percent, Some(75.0));
 }
 
-// --- non-finite readings ---
+// --- unreadable readings ---
 
 #[test]
-fn a_nan_disk_idle_counter_nulls_only_disk_activity_and_the_sample_still_parses() {
-    let (api, mut sampler) = fake();
-    api.state().disk_idle = Some(f64::NAN);
-    let sample = sampler.full();
-    assert_eq!(sample.disks, [disk("C", 75.0, 250.0, None)]);
-    assert_eq!(
-        sample.network,
-        Some(NetworkSample {
-            up_bytes_per_sec: 100.0,
-            down_bytes_per_sec: 200.0
-        })
-    );
-    assert!(sample.ram.is_some());
-    assert!(full_parses(sample));
-}
-
-#[test]
-fn a_non_finite_network_rate_nulls_only_the_network() {
-    let (api, mut sampler) = fake();
-    api.state().network = Some(NetworkRate {
-        up: f64::INFINITY,
-        down: 3.0,
-    });
-    let sample = sampler.full();
-    assert_eq!(sample.network, None);
-    assert_eq!(sample.disks.len(), 1);
-    assert!(full_parses(sample));
-}
-
-#[test]
-fn unreadable_memory_or_disk_space_drops_only_that_metric() {
+fn unreadable_memory_drops_only_that_metric() {
     // TS feeds NaN; the Rust reads are integers, so an unreadable value is `None`.
     let (api, mut sampler) = fake();
     api.state().memory = None;
-    api.state().space = HashMap::from([('C', None)]);
-    let sample = sampler.full();
+    let sample = sampler.light();
     assert_eq!(sample.ram, None);
-    assert_eq!(sample.disks, []);
-    assert!(sample.network.is_some());
-    assert!(full_parses(sample));
-}
-
-#[test]
-fn pdh_failure_only_nulls_disk_activity_and_network() {
-    let (api, mut sampler) = fake();
-    sampler.light();
-    {
-        let mut state = api.state();
-        state.disk_idle = None;
-        state.network = None;
-        state.times = Some(times(50.0, 100.0, 100.0));
-    }
-    let sample = sampler.full();
-    assert_eq!(sample.cpu_percent, Some(75.0));
-    assert!(sample.ram.is_some());
     assert!(sample.battery.is_some());
-    assert_eq!(sample.disks, [disk("C", 75.0, 250.0, None)]);
-    assert_eq!(sample.network, None);
-    assert!(full_parses(sample));
+    assert!(light_parses(sample));
 }
 
 // --- ram ---
@@ -319,85 +246,6 @@ fn battery_clamps_the_percent_to_0_100() {
     assert_eq!(sampler.light().battery.map(|b| b.percent), Some(0.0));
 }
 
-// --- disks ---
-
-#[test]
-fn disks_lists_only_fixed_drives_with_a_rounded_used_percent_and_activity_100_minus_idle() {
-    let (api, mut sampler) = fake();
-    {
-        let mut state = api.state();
-        state.drives = Some(vec!['C', 'D']);
-        state.space = HashMap::from([
-            ('C', space(3, 1)),
-            ('D', space(1000, 1000)),
-            ('E', space(10, 0)),
-        ]);
-        state.disk_idle = Some(62.4);
-    }
-    assert_eq!(
-        sampler.full().disks,
-        [
-            disk("C", 67.0, 1.0, Some(38.0)),
-            disk("D", 0.0, 1000.0, Some(38.0))
-        ]
-    );
-}
-
-#[test]
-fn disks_use_0_used_percent_when_total_is_0_and_skip_drives_without_space_info() {
-    let (api, mut sampler) = fake();
-    {
-        let mut state = api.state();
-        state.drives = Some(vec!['C', 'D']);
-        state.space = HashMap::from([('C', space(0, 0)), ('D', None)]);
-    }
-    assert_eq!(sampler.full().disks, [disk("C", 0.0, 0.0, Some(10.0))]);
-}
-
-#[test]
-fn disks_have_null_activity_on_every_disk_when_disk_idle_percent_is_null() {
-    let (api, mut sampler) = fake();
-    {
-        let mut state = api.state();
-        state.drives = Some(vec!['C', 'D']);
-        state.space.insert('D', space(10, 5));
-        state.disk_idle = None;
-    }
-    let activity: Vec<_> = sampler
-        .full()
-        .disks
-        .iter()
-        .map(|d| d.activity_percent)
-        .collect();
-    assert_eq!(activity, [None, None]);
-}
-
-#[test]
-fn disks_clamp_activity_to_0_100() {
-    let (api, mut sampler) = fake();
-    api.state().disk_idle = Some(120.0);
-    assert_eq!(sampler.full().disks[0].activity_percent, Some(0.0));
-    api.state().disk_idle = Some(-10.0);
-    assert_eq!(sampler.full().disks[0].activity_percent, Some(100.0));
-}
-
-#[test]
-fn disks_degrade_to_an_empty_list_when_fixed_drives_or_disk_space_throw() {
-    let (api, mut sampler) = fake();
-    api.state().throwing.insert("fixedDrives");
-    assert_eq!(sampler.full().disks, []);
-    api.state().throwing.remove("fixedDrives");
-    api.state().throwing.insert("diskSpace");
-    assert_eq!(sampler.full().disks, []);
-}
-
-#[test]
-fn disks_keep_drives_but_null_activity_when_disk_idle_percent_throws() {
-    let (api, mut sampler) = fake();
-    api.state().throwing.insert("diskIdlePercent");
-    assert_eq!(sampler.full().disks, [disk("C", 75.0, 250.0, None)]);
-}
-
 // --- disks() (space only) ---
 
 #[test]
@@ -412,7 +260,7 @@ fn space_only_reports_rounded_free_percent_per_fixed_drive_without_touching_pdh(
     }
     assert_eq!(
         sampler.disks(),
-        Some(vec![free("C", 33.0), free("D", 100.0)])
+        Some(vec![free("C", 33.0, 1, 3), free("D", 100.0, 1000, 1000)])
     );
 }
 
@@ -433,7 +281,7 @@ fn space_only_skips_drives_with_total_0_or_no_space_info_and_clamps_to_0_100() {
     }
     assert_eq!(
         sampler.disks(),
-        Some(vec![free("F", 100.0), free("G", 10.0)])
+        Some(vec![free("F", 100.0, 10, 10), free("G", 10.0, 1, 10)])
     );
 }
 
@@ -459,34 +307,6 @@ fn space_only_does_not_disturb_the_cpu_baseline() {
     assert_eq!(sampler.light().cpu_percent, Some(75.0));
 }
 
-// --- network ---
-
-#[test]
-fn network_maps_up_down_to_rounded_integers() {
-    let (api, mut sampler) = fake();
-    api.state().network = Some(NetworkRate {
-        up: 10.6,
-        down: 2000.4,
-    });
-    assert_eq!(
-        sampler.full().network,
-        Some(NetworkSample {
-            up_bytes_per_sec: 11.0,
-            down_bytes_per_sec: 2000.0
-        })
-    );
-}
-
-#[test]
-fn network_is_null_when_unavailable_or_throwing() {
-    let (api, mut sampler) = fake();
-    api.state().network = None;
-    assert_eq!(sampler.full().network, None);
-    api.state().network = Some(NetworkRate { up: 1.0, down: 1.0 });
-    api.state().throwing.insert("networkBytesPerSec");
-    assert_eq!(sampler.full().network, None);
-}
-
 // --- shape ---
 
 fn keys(value: &Value) -> Vec<String> {
@@ -494,7 +314,7 @@ fn keys(value: &Value) -> Vec<String> {
         .as_object()
         .unwrap()
         .keys()
-        .filter(|key| *key != "alerts" && *key != "kind")
+        .filter(|key| !["alerts", "storage", "kind"].contains(&key.as_str()))
         .cloned()
         .collect();
     keys.sort();
@@ -502,15 +322,38 @@ fn keys(value: &Value) -> Vec<String> {
 }
 
 #[test]
-fn light_has_no_disks_or_network_and_full_extends_it() {
+fn light_has_no_disks_or_network() {
     let (_api, mut sampler) = fake();
-    let light = serde_json::to_value(sampler.light().with_alerts(SystemAlerts::default())).unwrap();
-    let full = serde_json::to_value(sampler.full().with_alerts(SystemAlerts::default())).unwrap();
-    assert_eq!(keys(&light), ["battery", "cpuPercent", "ram"]);
-    assert_eq!(
-        keys(&full),
-        ["battery", "cpuPercent", "disks", "network", "ram"]
-    );
+    let light =
+        serde_json::to_value(sampler.light().with_alerts(SystemAlerts::default(), None)).unwrap();
+    assert_eq!(keys(&light), ["battery", "cpuPercent", "online", "ram"]);
+}
+
+// --- connection ---
+
+#[test]
+fn online_follows_the_connectivity_read() {
+    let (api, mut sampler) = fake();
+    assert_eq!(sampler.light().online, Some(true));
+    api.state().online = Some(false);
+    assert_eq!(sampler.light().online, Some(false));
+    // Windows does not know: no value, so the renderer falls back to navigator.onLine.
+    api.state().online = None;
+    let sample = sampler.light();
+    assert_eq!(sample.online, None);
+    assert!(light_parses(sample));
+}
+
+#[test]
+fn a_throwing_connectivity_read_degrades_to_unknown_only() {
+    let (api, mut sampler) = fake();
+    sampler.light();
+    api.state().throwing.insert("online");
+    api.state().times = Some(times(50.0, 100.0, 100.0));
+    let sample = sampler.light();
+    assert_eq!(sample.online, None);
+    assert_eq!(sample.cpu_percent, Some(75.0));
+    assert!(sample.ram.is_some() && sample.battery.is_some());
 }
 
 #[test]
@@ -518,34 +361,23 @@ fn every_sample_passes_the_schemas() {
     let (api, mut sampler) = fake();
     let verify = |sampler: &mut MetricsSampler| {
         assert!(light_parses(sampler.light()));
-        assert!(full_parses(sampler.full()));
     };
     verify(&mut sampler);
     {
         let mut state = api.state();
         state.times = Some(times(70.0, 200.0, 100.0));
         state.power = power(Some(200), true, true, Some(120));
-        state.network = Some(NetworkRate { up: 5.5, down: 0.0 });
-        state.disk_idle = Some(150.0);
     }
     verify(&mut sampler);
     {
         let mut state = api.state();
         state.memory = None;
         state.power = None;
-        state.network = None;
-        state.disk_idle = None;
         state.drives = Some(vec![]);
     }
     verify(&mut sampler);
-    api.state().throwing.extend([
-        "systemTimes",
-        "memory",
-        "power",
-        "fixedDrives",
-        "diskSpace",
-        "diskIdlePercent",
-        "networkBytesPerSec",
-    ]);
+    api.state()
+        .throwing
+        .extend(["systemTimes", "memory", "power", "fixedDrives", "diskSpace"]);
     verify(&mut sampler);
 }

@@ -57,9 +57,6 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("reminders:delete", Guard::Any),
     // usage
     ("usage:summary", Guard::ControlCenterOnly),
-    // system
-    ("system:view", Guard::NotchOnly),
-    ("system:kill-process", Guard::NotchOnly),
     // notes
     ("notes:list", Guard::NotchOnly),
     ("notes:create", Guard::NotchOnly),
@@ -85,9 +82,9 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("gmail:pick-client-file", Guard::ControlCenterOnly),
     // code review
     ("code-review:get-state", Guard::Any),
-    ("code-review:list", Guard::NotchOnly),
     ("code-review:refresh", Guard::NotchOnly),
-    ("code-review:open", Guard::NotchOnly),
+    ("code-review:open-profile", Guard::NotchOnly),
+    ("code-review:open-alert", Guard::NotchOnly),
     ("code-review:set-token", Guard::ControlCenterOnly),
     ("code-review:clear", Guard::ControlCenterOnly),
     ("code-review:view", Guard::NotchOnly),
@@ -96,6 +93,7 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("redmine:get-state", Guard::Any),
     ("redmine:issues", Guard::NotchOnly),
     ("redmine:issue", Guard::NotchOnly),
+    ("redmine:find-issue", Guard::NotchOnly),
     ("redmine:activities", Guard::NotchOnly),
     ("redmine:update-issue", Guard::NotchOnly),
     ("redmine:log-time", Guard::NotchOnly),

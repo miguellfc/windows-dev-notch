@@ -42,7 +42,7 @@ import {
   FAKE_REDMINE_ACCOUNT,
   FAKE_REDMINE_KEY,
   FAKE_REDMINE_ORIGIN,
-  REDMINE_ISSUES,
+  REDMINE_OUTSIDE_ISSUE,
   REDMINE_LOG_COMMENT,
   SEEDED_TODAY_HOURS,
   SENSITIVE_DATA,
@@ -51,8 +51,11 @@ import {
   startFakeRedmine,
   type FakeRedmine,
 } from './fixtures/fake-redmine'
+import { CAPSULE_BLOCK } from '../../src/shared/notch/geometry'
 import type { RedmineState } from '../../src/shared/redmine/schema'
 import {
+  capsuleBox,
+  clickCard,
   DEFAULT_ALERTS,
   advanceClock,
   alignZoneWithWindows,
@@ -141,6 +144,15 @@ async function saveKey(url: string, key: string): Promise<void> {
 
 const expectConnected = () => expectText(CC_STATUS_TEXT, `Conectado como ${FAKE_REDMINE_ACCOUNT}`)
 
+/** "5,5 h" / "5.5 h" as the summary and the labels write hours. */
+const hoursIn = (language: 'es' | 'en', hours: number): string =>
+  `${new Intl.NumberFormat(language === 'es' ? 'es-ES' : 'en-US', { maximumFractionDigits: 2 }).format(hours)} h`
+/** The seeded hours of the month so far (today's and the 1st's), by the worker's aligned day. */
+const seededMonth = (): number => expectedSeededSummary(new Date()).month
+/** The capsule block's label for the month's hours. */
+const monthMetric = (hours: number, language: 'es' | 'en' = 'es'): string =>
+  language === 'es' ? `${hoursIn('es', hours)} imputadas este mes en Redmine` : `${hoursIn('en', hours)} logged this month in Redmine`
+
 /** The capsule's Redmine block (the present copy): its aria-label, or null when absent. */
 const redmineMetric = async (): Promise<string | null> => {
   const blocks = await $$(present('metric-redmine'))
@@ -178,15 +190,25 @@ function expectCleanLogs(): void {
 
 const readSettingsFile = (): { redmine: { url: string } } => JSON.parse(readFileSync(join(dataDir(), 'settings.json'), 'utf8')) as { redmine: { url: string } }
 
-/** Launch and connect from the Control Center; the capsule shows today's seeded hours. WebDriver ends on the notch. */
+/** Launch and connect from the Control Center; the capsule shows the month's seeded hours. WebDriver ends on the notch. */
 async function connected(server: FakeRedmine): Promise<void> {
   await start(server)
   await openRedminePage()
   await saveKey(FAKE_REDMINE_ORIGIN, FAKE_REDMINE_KEY)
   await expectConnected()
   await useWindow('notch')
-  await whileHovered(() => expectMetric('2,5 h imputadas hoy en Redmine').then(() => undefined))
+  await whileHovered(() => expectMetric(monthMetric(seededMonth())).then(() => undefined))
 }
+
+/**
+ * The Redmine block as WebView2 paints it (the present copy): its width plus the 10 px gap before
+ * it must fit CAPSULE_BLOCK.redmine, whatever the hours (it reserves "744,75h").
+ */
+const redmineBlockWidth = (): Promise<number> =>
+  inPage((selector: string) => {
+    const el = (globalThis as unknown as { document: { querySelector(s: string): { getBoundingClientRect(): { width: number } } | null } }).document.querySelector(selector)
+    return el ? el.getBoundingClientRect().width : -1
+  }, present('metric-redmine'))
 
 /** Panel openings lost to a focus-loss dismiss and retried in this worker (reported at the end). */
 let focusLossRetries = 0
@@ -227,7 +249,7 @@ const panel = () => $(PANEL)
 
 async function openRedmineView(): Promise<void> {
   await expandPanel()
-  await byTestId('integration-redmine').click()
+  await clickCard('integration-redmine')
   await expectMode('redmine')
   await panel().waitForDisplayed()
 }
@@ -292,9 +314,31 @@ const summaryCell = (column: 'today' | 'week' | 'monthTotal') => `[data-testid="
 const hoursEs = (hours: number): string => `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(hours)} h`
 
 const DETAIL = '[data-testid="redmine-detail"]'
+const SUMMARY_LINE = '[data-testid="redmine-summary-line"]'
+/** "5,5H" as the one-line summary writes hours. */
+const hoursLine = (hours: number): string => hoursEs(hours).replace(' h', 'H')
 const inDetail = (id: string) => `${DETAIL} [data-testid="${id}"]`
 
+const SEARCH = '[data-testid="redmine-search"]'
+
+/** The detail takes the whole view: its header "← #id subject", and no search box, summary or Refresh. */
+async function expectFullViewDetail(id: number, subject: string): Promise<void> {
+  await expect(panel()).toHaveAttribute('data-body', 'detail')
+  await expectText(inDetail('redmine-detail-id'), `#${id}`)
+  await expectText(inDetail('redmine-detail-subject'), subject)
+  await expectCount(inDetail('redmine-back'), 1)
+  await expectCount(SEARCH, 0)
+  await expectCount('[data-testid="redmine-summary"]', 0)
+  await expectCount('[data-testid="redmine-refresh"]', 0)
+}
+
+/**
+ * The way to a detail: its number in the search box gives one row, a click on it opens the detail,
+ * which takes the whole view. Waits for the detail to load.
+ */
 async function openDetail(id: number): Promise<void> {
+  await fillValue(SEARCH, String(id))
+  await expectRowIds([id])
   await $(row(id)).click()
   await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === String(id), `the detail of #${id}`)
   // Loaded: the status select and the log form are there.
@@ -379,7 +423,7 @@ describe('Redmine (Tauri)', () => {
     await quitApp()
   })
 
-  it('connect in Control Center, today’s hours in the capsule, the tile opens the view: search, status, estimate and log time; a 403 stays inline', async () => {
+  it('connect in Control Center, the month’s hours in the capsule and on the tile, the tile opens the view: search, status, estimate and log time; a 403 stays inline', async () => {
     const server = fake!
     await start(server)
     await openRedminePage()
@@ -409,37 +453,53 @@ describe('Redmine (Tauri)', () => {
     await eventually(async () => readSettingsFile().redmine.url, (url) => url === FAKE_REDMINE_ORIGIN, 'the Redmine URL in settings.json')
     await expectNoKeyInDom()
 
-    // The capsule: today's hours, "2,5h" in ES and "2.5h" in EN.
+    // The capsule: the month's hours so far (today's and the 1st's), "5,5h" in ES and "5.5h" in EN,
+    // in a block as wide as CAPSULE_BLOCK.redmine reserves.
+    const month = seededMonth()
     await useWindow('notch')
     await whileHovered(async () => {
-      await expectMetric('2,5 h imputadas hoy en Redmine')
-      await expectTextContaining(present('metric-redmine'), '2,5h')
+      await expectMetric(monthMetric(month))
+      await expectTextContaining(present('metric-redmine'), hoursIn('es', month).replace(' ', ''))
+      const width = await redmineBlockWidth()
+      console.log(`Redmine capsule block (es): ${width} px + 10 px gap`)
+      expect(width + 10).toBeLessThanOrEqual(CAPSULE_BLOCK.redmine + 0.5)
+      expect(width + 10).toBeGreaterThan(CAPSULE_BLOCK.redmine - 1)
     })
     // `<html lang>` follows the language only while a translated view is mounted (app.spec.ts
     // setLanguage), so the English labels below are what is waited for.
     await setLanguage('en')
     await whileHovered(async () => {
-      await expectMetric('2.5 h logged today in Redmine')
-      await expectTextContaining(present('metric-redmine'), '2.5h')
+      await expectMetric(monthMetric(month, 'en'))
+      await expectTextContaining(present('metric-redmine'), hoursIn('en', month).replace(' ', ''))
+      const width = await redmineBlockWidth()
+      console.log(`Redmine capsule block (en): ${width} px + 10 px gap`)
+      expect(width + 10).toBeLessThanOrEqual(CAPSULE_BLOCK.redmine + 0.5)
     })
 
-    // The panel with its nine tiles, EN then ES.
+    // The panel with its eight tiles, EN then ES.
     await expandPanel()
-    await expectCount('[data-testid^="integration-"]:not([data-testid$="-badge"])', 9)
+    await expectCount('[data-testid^="integration-"]:not([data-testid$="-badge"]):not([data-testid$="-label"])', 8)
     await setLanguage('es')
     await eventually(pageLang, (lang) => lang === 'es', 'lang=es (the panel is mounted)')
 
-    // The tile opens the view: the summary (today, week, month) and the assigned issues, newest first.
-    await byTestId('integration-redmine').click()
+    // The tile: the month's squares (today ringed, coloured by its 2,5 h of the 8 h target, from the
+    // summary main keeps with every poll, the view never opened), today's hours and the month's.
+    const tile = '[data-testid="integration-redmine"]'
+    await expectTextContaining(`${tile} [data-testid="redmine-card-today"]`, hoursIn('es', SEEDED_TODAY_HOURS).replace(' ', ''))
+    await expectTextContaining(`${tile} [data-testid="redmine-card-today"]`, 'de 8 h hoy')
+    await expectTextContaining(`${tile} [data-testid="redmine-card-month"]`, hoursIn('es', month).replace(' ', ''))
+    await expectTextContaining(`${tile} [data-testid="redmine-card-month"]`, 'en ')
+    await eventually(
+      () => $(`${tile} [data-today="true"]`).getAttribute('data-level'),
+      (level) => level === '2',
+      "today's square at level 2 (2,5 h of 8 h)",
+    )
+
+    // The tile opens the view. At rest: the summary (today, week, month) and the search box, no list.
+    await clickCard('integration-redmine')
     await expectMode('redmine')
     await expect(panel()).toHaveAttribute('data-body', 'list')
-    await expectCount(ROWS, REDMINE_ISSUES.length)
-    expect(await rowIds()).toEqual(REDMINE_ISSUES.map((issue) => issue.id))
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-subject"]`, 'Diseño de la pantalla de imputación')
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-status"]`, 'Nueva')
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-hours"]`, '1,5/6 h')
-    await expectText(`[data-issue-id="412"] [data-testid="redmine-issue-hours"]`, '3 h')
-    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-project"]`, 'Portal Ejemplo')
+    await expectCount(ROWS, 0)
     // Expected data from Windows' day (the app's, and the aligned worker's); see appDays.
     const days = await appDays()
     const seeded = expectedSeededSummary(new Date())
@@ -449,28 +509,39 @@ describe('Redmine (Tauri)', () => {
     await expectText(summaryCell('monthTotal'), hoursEs(seeded.month))
     await expectText('[data-testid="redmine-summary-target"]', 'Jornada de 8 h')
 
-    // Search: case and accents ignored; a number (with or without #) is that exact id only.
-    const search = '[data-testid="redmine-search"]'
-    await fillValue(search, 'DISENO')
-    await expectRowIds([4120])
+    // Search: case and accents ignored. Several matches are rows (newest first) with their data.
+    const search = SEARCH
+    await fillValue(search, 'portal')
+    await expectRowIds([4120, 4012])
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-subject"]`, 'Diseño de la pantalla de imputación')
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-status"]`, 'Nueva')
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-hours"]`, '1,5/6 h')
+    await expectText(`[data-issue-id="4120"] [data-testid="redmine-issue-project"]`, 'Portal Ejemplo')
     await fillValue(search, 'nominas')
     await expectRowIds([412, 2875])
+    await expectText(`[data-issue-id="412"] [data-testid="redmine-issue-hours"]`, '3 h')
+    // One match is a one-row list (the detail opens only from the row); a number (with or without #)
+    // is that exact id only.
+    await fillValue(search, 'DISENO')
+    await expectRowIds([4120])
+    await expectCount(DETAIL, 0)
     await fillValue(search, '#412')
     await expectRowIds([412])
-    await fillValue(search, '4012')
-    await expectRowIds([4012])
+    await expectCount(DETAIL, 0)
     await fillValue(search, 'nada parecido')
     await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
-    // Esc clears the search first (the view stays open).
+    // Esc clears the search first (the view stays open, at rest).
     await focus(search)
     await browser.keys('Escape')
     await expectValue(search, '')
-    await expectCount(ROWS, REDMINE_ISSUES.length)
+    await expectCount(ROWS, 0)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
 
     // The detail of #4012: its status (the allowed ones) and its estimate.
     await openDetail(4012)
-    await expect(panel()).toHaveAttribute('data-body', 'detail')
-    await expectText(inDetail('redmine-detail-subject'), 'Revisar los permisos del informe mensual')
+    await expectFullViewDetail(4012, 'Revisar los permisos del informe mensual')
+    // The hours already logged, under the estimate.
+    await expectText(inDetail('redmine-detail-spent'), '0 h imputadas de 2 h')
     const status = inDetail('redmine-detail-status')
     await expectValue(status, '2')
     const options = await inPage(
@@ -492,11 +563,23 @@ describe('Redmine (Tauri)', () => {
     await expectText(inDetail('redmine-detail-task-done'), 'Guardado')
     await eventually(async () => server.issue(4012).estimatedHours, (hours) => hours === 3.5, 'the estimate saved on the fake')
     await expectValue(estimate, '3,5')
+    await expectText(inDetail('redmine-detail-spent'), '0 h imputadas de 3,5 h')
 
     // Log time: today by default, Redmine's default activity preselected. The default is the
     // renderer's today: Windows' day, except in the known divergence hour (appDays), where the time
     // is logged on the earlier of the two days (main refuses a later one as a future date).
     const logDate = inDetail('redmine-log-date')
+    await expectValue(logDate, days.renderer)
+    // The field shows the day short, "dd/mm" in Spanish; ↓ goes back one day and ↑ returns (never past today).
+    const shortEs = (key: string) => `${key.slice(8, 10)}/${key.slice(5, 7)}`
+    const dateButton = inDetail('redmine-log-date-button')
+    await expectText(dateButton, shortEs(days.renderer))
+    await focus(dateButton)
+    await browser.keys('ArrowDown')
+    await eventually(() => valueOf(logDate), (value) => value !== null && value < days.renderer, 'the date one day back')
+    await browser.keys('ArrowUp')
+    await expectValue(logDate, days.renderer)
+    await browser.keys('ArrowUp')
     await expectValue(logDate, days.renderer)
     let logDay = days.renderer
     if (days.divergent && days.renderer > days.windows) {
@@ -508,12 +591,13 @@ describe('Redmine (Tauri)', () => {
       logDay = days.windows
     }
     await expectValue(inDetail('redmine-log-activity'), '9')
-    await fillValue(inDetail('redmine-log-hours'), '1,5')
+    await fillValue(inDetail('redmine-log-hours'), '1h 30m') // Redmine's own format: hours and minutes
     await fillValue(inDetail('redmine-log-comment'), REDMINE_LOG_COMMENT)
     await $(inDetail('redmine-log-submit')).click()
     await expectText(inDetail('redmine-log-done'), '1,5 h imputadas')
     await expectValue(inDetail('redmine-log-hours'), '')
-    await expectText(inDetail('redmine-detail-spent'), '1,5 h imputadas')
+    await expectText(inDetail('redmine-detail-spent'), '1,5 h imputadas de 3,5 h')
+    expect(await $(inDetail('redmine-detail-spent')).getAttribute('data-over')).toBeNull()
     const logged = server.entries.at(-1)!
     expect(logged).toMatchObject({ issueId: 4012, spentOn: logDay, hours: 1.5, activityId: 9, comments: REDMINE_LOG_COMMENT })
 
@@ -522,13 +606,22 @@ describe('Redmine (Tauri)', () => {
     await eventually(openedUrls, (urls) => JSON.stringify(urls) === JSON.stringify([`${FAKE_REDMINE_ORIGIN}/issues/4012`]), 'the issue opened')
     expect(await openedUrls()).toEqual([`${FAKE_REDMINE_ORIGIN}/issues/4012`])
 
-    // Back to the list: #4012 moved to the top with its new status and hours; the summary went up
-    // (by the hours of the day logged, counted in Windows' today, week and month).
+    // ← goes back to the search, its text intact and the focus on the issue's row (with its new
+    // hours). Searching the project lists #4012 first, with its new status and hours; the summary
+    // went up (by the hours of the day logged, counted in Windows' today, week and month).
     await byTestId('redmine-back').click()
     await expect(panel()).toHaveAttribute('data-body', 'list')
-    await expectRowIds([4012, 4120, 412, 3301, 2875])
+    await expectValue(search, '4012')
+    await expectRowIds([4012])
+    await eventually(() => isFocused(row(4012)), (focused) => focused, 'the focus back on the row of #4012')
+    await expectText(`[data-issue-id="4012"] [data-testid="redmine-issue-hours"]`, '1,5/3,5 h')
+    await fillValue(search, 'portal')
+    await expectRowIds([4012, 4120])
     await expectText(`[data-issue-id="4012"] [data-testid="redmine-issue-status"]`, 'Resuelta')
     await expectText(`[data-issue-id="4012"] [data-testid="redmine-issue-hours"]`, '1,5/3,5 h')
+    await focus(search)
+    await browser.keys('Escape')
+    await expectValue(search, '')
     const added = {
       today: logDay === days.windows ? 1.5 : 0,
       week: logDay >= mondayOf(days.windows) ? 1.5 : 0,
@@ -542,6 +635,9 @@ describe('Redmine (Tauri)', () => {
     server.forbiddenIssues.add(2875)
     const entriesBefore = server.entries.length
     await openDetail(2875)
+    // More hours logged than estimated: the line turns Rojo Fallo.
+    await expectText(inDetail('redmine-detail-spent'), '4,25 h imputadas de 4 h')
+    expect(await $(inDetail('redmine-detail-spent')).getAttribute('data-over')).toBe('true')
     await fillValue(inDetail('redmine-log-hours'), '1')
     await $(inDetail('redmine-log-submit')).click()
     await expectText(inDetail('redmine-log-error'), 'Redmine no te deja hacer este cambio')
@@ -558,21 +654,26 @@ describe('Redmine (Tauri)', () => {
     await expectConnected()
     await useWindow('notch')
 
-    // Esc closes the detail (back to its row), then the view; the capsule shows today's new total.
+    // Esc closes the detail (back to its row, the search intact), then clears the search (focus
+    // back in the box), then closes the view; the capsule shows today's new total.
     await focus(DETAIL)
     await browser.keys('Escape')
     await expect(panel()).toHaveAttribute('data-body', 'list')
-    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus on the row of #2875')
+    await expectValue(search, '2875')
+    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus back on the row of #2875')
+    await browser.keys('Escape')
+    await expectValue(search, '')
+    await eventually(() => isFocused(search), (focused) => focused, 'the focus in the search box')
     await browser.keys('Escape')
     await panel().waitForExist({ reverse: true })
     // WebDriver's clicks left its virtual pointer over the capsule (docs/e2e.md).
     await pointer(false)
     await requestIntent('dismiss')
     await expectMode('peek')
-    const todayTotal = SEEDED_TODAY_HOURS + added.today
+    const monthTotal = seeded.month + added.month
     await whileHovered(async () => {
-      await expectMetric(`${hoursEs(todayTotal)} imputadas hoy en Redmine`)
-      await expectTextContaining(present('metric-redmine'), `${hoursEs(todayTotal).replace(' ', '')}`)
+      await expectMetric(monthMetric(monthTotal))
+      await expectTextContaining(present('metric-redmine'), `${hoursEs(monthTotal).replace(' ', '')}`)
     })
 
     await expectNoKeyInDom()
@@ -584,11 +685,261 @@ describe('Redmine (Tauri)', () => {
     expectCleanLogs()
   })
 
+  it('at rest there is only the summary and the search box', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    // The month summary (chart, Hoy · Semana · Mes) and the search box, nothing else under the header.
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+    await expect(byTestId('redmine-summary')).not.toHaveAttribute('data-compact', 'true')
+    const seeded = expectedSeededSummary(new Date())
+    await expectText(summaryCell('today'), hoursEs(seeded.today))
+    await expect(byTestId('redmine-search')).toBeDisplayed()
+    // No assigned-issues list: no rows, no list, no empty-state line, no loading rows.
+    await expectCount(ROWS, 0)
+    await expectCount('[data-testid="redmine-list"]', 0)
+    await expectCount('[data-testid="redmine-no-match"]', 0)
+    await expectCount('[data-testid="redmine-loading"]', 0)
+    await expectCount(DETAIL, 0)
+    expect((await textOf(PANEL))!.toLowerCase()).not.toContain('asignadas')
+    // The list is still read (the search runs over it), but nothing shows it until something is typed.
+    await eventually(async () => server.hits['issues'] ?? 0, (hits) => hits >= 1, 'the assigned list read for the search')
+    // The painted capsule fits the view (plus its 2 px border): no empty room under the search box.
+    await eventually(async () => Math.abs((await capsuleBox()).height - ((await panel().getSize('height')) + 2)), (gap) => gap <= 1, 'the capsule fits the view')
+    expect((await capsuleBox()).height).toBeLessThan(272)
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('a number in the list is one row; Enter or a click opens its detail over the whole view', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    // The exact id of an assigned issue: one row under the box, no detail, the focus stays in the box.
+    await fillValue(SEARCH, '4012')
+    await expectRowIds([4012])
+    await expectCount(DETAIL, 0)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    expect(await isFocused(SEARCH)).toBe(true)
+    // Enter in the box opens the lone row: the detail takes the whole view and gets the focus.
+    await browser.keys('Enter')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '4012', 'the detail of #4012')
+    await expectFullViewDetail(4012, 'Revisar los permisos del informe mensual')
+    await $(inDetail('redmine-detail-status')).waitForDisplayed()
+    await eventually(() => isFocused(DETAIL), (focused) => focused, 'the focus on the detail')
+    await expectText(inDetail('redmine-detail-spent'), '0 h imputadas de 2 h')
+    // The capsule fits the detail (plus its 2 px border), never past the search size.
+    await eventually(async () => Math.abs((await capsuleBox()).height - ((await panel().getSize('height')) + 2)), (gap) => gap <= 1, 'the capsule fits the detail')
+    expect((await capsuleBox()).height).toBeLessThanOrEqual(560)
+    // Esc goes back to the search: the text intact, the focus on the row.
+    await browser.keys('Escape')
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expectValue(SEARCH, '4012')
+    await expectRowIds([4012])
+    await eventually(() => isFocused(row(4012)), (focused) => focused, 'the focus back on the row of #4012')
+    // With `#` it is the same kind of row, found in the list, not asked of Redmine; a click opens it.
+    await fillValue(SEARCH, '#412')
+    await expectRowIds([412])
+    await $(row(412)).click()
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '412', 'the detail of #412')
+    await expectFullViewDetail(412, 'Corregir el cálculo de las vacaciones')
+    // Without an estimate, only the hours logged.
+    await expectText(inDetail('redmine-detail-spent'), '3 h imputadas')
+    await browser.pause(600)
+    expect(server.hits['find'] ?? 0).toBe(0)
+    // ← in the header goes back the same way.
+    await byTestId('redmine-back').click()
+    await expectValue(SEARCH, '#412')
+    await eventually(() => isFocused(row(412)), (focused) => focused, 'the focus back on the row of #412')
+    // Esc then clears the search (the rest is back, the focus in the box), then closes the view.
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await expectCount(DETAIL, 0)
+    await expectCount(ROWS, 0)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await eventually(() => isFocused(SEARCH), (focused) => focused, 'the focus in the search box')
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await expectMode('expanded')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('a number outside the list is one row, and opens its detail', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+    const outside = REDMINE_OUTSIDE_ISSUE
+
+    // Typed digit by digit, quickly: Redmine is asked once, 300 ms after the typing pauses.
+    await focus(SEARCH)
+    await browser.keys(String(outside.id).split(''))
+    await expectValue(SEARCH, String(outside.id))
+    expect(server.hits['find'] ?? 0).toBe(0)
+    // Found: one row with what Redmine says of it, no detail yet; the focus stays in the box.
+    await expectRowIds([outside.id])
+    await expectText(`[data-issue-id="${outside.id}"] [data-testid="redmine-issue-subject"]`, outside.subject)
+    await expectCount(DETAIL, 0)
+    expect(server.hits['find']).toBe(1)
+    expect(await isFocused(SEARCH)).toBe(true)
+
+    // With `#` the same number is always asked, whatever the texts say.
+    await fillValue(SEARCH, 'nada')
+    await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
+    await fillValue(SEARCH, `#${outside.id}`)
+    await expectRowIds([outside.id])
+    expect(server.hits['find']).toBe(2)
+    // Enter opens it; the detail works as any other: the issue is read again with its allowed statuses.
+    await browser.keys('Enter')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === String(outside.id), `the detail of #${outside.id}`)
+    await expectFullViewDetail(outside.id, outside.subject)
+    await expectValue(inDetail('redmine-detail-status'), String(outside.statusId))
+    await expectText(inDetail('redmine-detail-spent'), '0 h imputadas')
+    // Esc: back to its row, the search intact.
+    await browser.keys('Escape')
+    await expectValue(SEARCH, `#${outside.id}`)
+    await eventually(() => isFocused(row(outside.id)), (focused) => focused, 'the focus back on the row')
+
+    expect(server.violations).toEqual([])
+    expect((await redmineState()).status).toBe('ok')
+    expectCleanLogs()
+  })
+
+  it('a forbidden number shows no match and keeps the session', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    // 403: Redmine hides that issue from the key.
+    server.hiddenIssues.add(9403)
+    await fillValue(SEARCH, '9403')
+    await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
+    expect(server.hits['403']).toBe(1)
+    await expectCount(DETAIL, 0)
+    await expectCount('[data-testid="redmine-status"]', 0)
+    // 404: there is no such issue; the same answer.
+    await fillValue(SEARCH, '#9404')
+    await eventually(async () => server.hits['find'] ?? 0, (hits) => hits === 2, 'the second lookup')
+    await expectText('[data-testid="redmine-no-match"]', 'Ninguna tarea coincide')
+
+    // The session is untouched: still connected here, in the Control Center and in the capsule,
+    // and the search keeps working.
+    expect((await redmineState()).status).toBe('ok')
+    await fillValue(SEARCH, '4012')
+    await expectRowIds([4012])
+    await useWindow('control-center')
+    await expectConnected()
+    await useWindow('notch')
+    await focus(SEARCH)
+    await browser.keys('Escape')
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await pointer(false)
+    await requestIntent('dismiss')
+    await expectMode('peek')
+    await whileHovered(() => expectMetric(monthMetric(seededMonth())).then(() => undefined))
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('several matches show a short list, and the keyboard goes through it', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    await fillValue(SEARCH, 'nominas')
+    await expectRowIds([412, 2875])
+    await expectCount('[data-testid="redmine-list"]', 1)
+    await expectCount(DETAIL, 0)
+    // Never more than five rows.
+    await fillValue(SEARCH, 'a')
+    await eventually(async () => (await rowIds()).length, (n) => n >= 2 && n <= 5, 'at most five rows')
+    await fillValue(SEARCH, 'nominas')
+    await expectRowIds([412, 2875])
+    // ↓ from the box goes into the results, ↓ again to the next row.
+    expect(await isFocused(SEARCH)).toBe(true)
+    await browser.keys('ArrowDown')
+    await eventually(() => isFocused(row(412)), (focused) => focused, 'the focus on the first row')
+    await browser.keys('ArrowDown')
+    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus on the second row')
+    // Enter opens the row's detail (the focus goes to it).
+    await browser.keys('Enter')
+    await eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === '2875', 'the detail of #2875')
+    await expectFullViewDetail(2875, 'Documentar la API de clientes')
+    // Esc layers: the picked row's detail closes first (back to its row, the list intact) ...
+    await browser.keys('Escape')
+    await expectRowIds([412, 2875])
+    await eventually(() => isFocused(row(2875)), (focused) => focused, 'the focus back on the row of #2875')
+    await expectValue(SEARCH, 'nominas')
+    // ... then the query (the rest, the focus in the box) ...
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await expectCount(ROWS, 0)
+    await eventually(() => isFocused(SEARCH), (focused) => focused, 'the focus in the search box')
+    expect(await mode()).toBe('redmine')
+    // ... then the panel.
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await expectMode('expanded')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
+  it('the summary compresses while searching', async () => {
+    const server = fake!
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+    const seeded = expectedSeededSummary(new Date())
+    // At rest: the full summary, in the rest capsule.
+    await expectText(summaryCell('today'), hoursEs(seeded.today))
+    await expectCount(SUMMARY_LINE, 0)
+    await eventually(async () => Math.abs((await capsuleBox()).height - ((await panel().getSize('height')) + 2)), (gap) => gap <= 1, 'the capsule fits the view')
+
+    // Searching: one line, "Hoy 2,5H · Semana … · Mes …"; the capsule fits the two matches (no empty room under them).
+    await fillValue(SEARCH, 'nominas')
+    await expectRowIds([412, 2875])
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-compact', 'true')
+    await expectText(SUMMARY_LINE, `Hoy ${hoursLine(seeded.today)} · Semana ${hoursLine(seeded.week)} · Mes ${hoursLine(seeded.month)}`)
+    await expectCount(summaryCell('today'), 0)
+    await eventually(async () => Math.abs((await capsuleBox()).height - ((await panel().getSize('height')) + 2)), (gap) => gap <= 1, 'the capsule fits the matches')
+    expect((await capsuleBox()).height).toBeLessThan(560)
+
+    // The line follows the language.
+    await setLanguage('en')
+    const en = (hours: number) => hoursLine(hours).replace(',', '.')
+    await expectText(SUMMARY_LINE, `Today ${en(seeded.today)} · Week ${en(seeded.week)} · Month ${en(seeded.month)}`)
+    await setLanguage('es')
+    await expectText(SUMMARY_LINE, `Hoy ${hoursLine(seeded.today)} · Semana ${hoursLine(seeded.week)} · Mes ${hoursLine(seeded.month)}`)
+
+    // Clearing the search: the full summary and the rest capsule are back.
+    await focus(SEARCH)
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await expectText(summaryCell('today'), hoursEs(seeded.today))
+    await expectCount(SUMMARY_LINE, 0)
+    await eventually(async () => Math.abs((await capsuleBox()).height - ((await panel().getSize('height')) + 2)), (gap) => gap <= 1, 'the capsule fits the view again')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
   it('a key Redmine later rejects (401) asks to check the key, hides the capsule block and stops querying', async () => {
     const server = fake!
     await connected(server)
     await openRedmineView()
-    await expectCount(ROWS, REDMINE_ISSUES.length)
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
 
     // The key is revoked (or the REST API turned off); the next 5 min query finds out.
     server.unauthorized = true
@@ -596,7 +947,7 @@ describe('Redmine (Tauri)', () => {
     const notice = `${PANEL} [data-testid="redmine-status"]`
     await eventually(() => $(notice).getAttribute('data-notice'), (value) => value === 'auth', 'the auth notice')
     await expectTextContaining(notice, 'Revisa la clave API en Control Center')
-    await expectCount(ROWS, 0)
+    await expectCount(SEARCH, 0)
     await expect(byTestId('redmine-open-control-center')).toBeDisplayed()
     await useWindow('control-center')
     await eventually(() => byTestId('redmine-status').getAttribute('data-status'), (value) => value === 'auth-error', 'the Control Center in auth-error')
@@ -626,7 +977,7 @@ describe('Redmine (Tauri)', () => {
     await saveKey(FAKE_REDMINE_ORIGIN, FAKE_REDMINE_KEY)
     await expectConnected()
     await useWindow('notch')
-    await whileHovered(() => expectMetric('2,5 h imputadas hoy en Redmine').then(() => undefined))
+    await whileHovered(() => expectMetric(monthMetric(seededMonth())).then(() => undefined))
 
     expect(server.violations).toEqual([])
     expectCleanLogs()

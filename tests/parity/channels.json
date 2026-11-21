@@ -21,8 +21,8 @@
     "code-review:clear",
     "code-review:contributions",
     "code-review:get-state",
-    "code-review:list",
-    "code-review:open",
+    "code-review:open-alert",
+    "code-review:open-profile",
     "code-review:refresh",
     "code-review:set-token",
     "code-review:view",
@@ -56,6 +56,7 @@
     "notes:update",
     "redmine:activities",
     "redmine:clear",
+    "redmine:find-issue",
     "redmine:get-state",
     "redmine:issue",
     "redmine:issues",
@@ -74,8 +75,6 @@
     "reminders:update",
     "settings:get",
     "settings:update",
-    "system:kill-process",
-    "system:view",
     "usage:summary"
   ],
   "events": [
@@ -97,7 +96,6 @@
     "reminders:changed",
     "reminders:fired",
     "settings:changed",
-    "system:metrics",
-    "system:processes"
+    "system:metrics"
   ]
 }

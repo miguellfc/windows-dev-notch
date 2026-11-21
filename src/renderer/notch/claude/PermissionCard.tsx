@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from
 import { canAllow, hiddenPreviewChars, permissionButtons } from '../../../shared/claude/view'
 import { useClaude } from '../../shared/claude-store'
 import { useT } from '../../shared/use-t'
+import { Kbd } from '../../ui/Kbd'
 
 const SETTLE_MS = 600
 
@@ -61,7 +62,7 @@ export function PermissionCard() {
     pointerDownId.current = request.id
   }
   const button =
-    'h-9 flex-1 cursor-pointer rounded-control px-4 text-body font-medium transition-colors duration-150 disabled:cursor-default disabled:opacity-50'
+    'btn h-9 flex-1 px-4 text-body'
 
   return (
     <div data-testid="claude-permission" className="flex h-full flex-col px-5 pb-4 pt-4">
@@ -80,7 +81,7 @@ export function PermissionCard() {
         role="region"
         aria-label={t('claude.permission.preview')}
         data-testid="claude-permission-preview"
-        className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-tile border border-line bg-veil px-3 py-2 font-mono text-small text-chalk"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words card px-3 py-2 font-mono text-small text-chalk"
       >
         {request.preview || <span className="text-graphite">{t('claude.permission.noPreview')}</span>}
         {request.previewTruncated && (
@@ -94,7 +95,12 @@ export function PermissionCard() {
           {t('claude.permission.error')}
         </p>
       )}
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex items-center gap-2">
+        <span className="flex shrink-0 items-center gap-1.5 text-label text-graphite">
+          <span className="sr-only">Esc </span>
+          <Kbd accelerator="Esc" size="sm" />
+          {t('hint.close')}
+        </span>
         <button
           type="button"
           data-testid="claude-deny"
@@ -103,7 +109,7 @@ export function PermissionCard() {
           onKeyUp={blockKey}
           onPointerDown={onPointerDown}
           onClick={decide('deny', enabled.deny)}
-          className={`${button} border border-line bg-veil-tile text-chalk hover:bg-veil-hover`}
+          className={button}
         >
           {t('claude.permission.deny')}
         </button>
@@ -117,7 +123,7 @@ export function PermissionCard() {
           onKeyUp={blockKey}
           onPointerDown={onPointerDown}
           onClick={decide('allow', enabled.allow)}
-          className={`${button} bg-ice text-abyss hover:brightness-110`}
+          className={`${button} btn-primary`}
         >
           {t('claude.permission.allow')}
         </button>

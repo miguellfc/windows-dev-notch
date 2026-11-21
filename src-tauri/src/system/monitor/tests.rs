@@ -1,4 +1,5 @@
-//! Port of 0.1.0's `system-monitor.test.ts` (every case). The vitest fake timers become
+//! Port of 0.1.0's `system-monitor.test.ts`, light rhythm only (the System view's full rhythm,
+//! warm-up, process order and close went with the view). The vitest fake timers become
 //! [`TestTimers`] moved one millisecond at a time (so an interval fires as often as in vitest),
 //! wrapped to count the armed timers (`vi.getTimerCount()`); the executor runs jobs inline, so
 //! every sample happens synchronously as in the single-threaded TS. "Throws" is a panicking spy.
@@ -7,8 +8,8 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::*;
-use crate::contract::system::{FullSample, LightSample, RamSample};
-use crate::services::timers::{TestTimers, TimerCallback};
+use crate::contract::system::{LightSample, RamSample, StorageSample};
+use crate::services::timers::{TestTimers, TimerCallback, TimerId};
 use crate::settings::default_settings;
 use crate::system::alerts::AlertEvaluator;
 
@@ -78,48 +79,42 @@ fn light() -> MetricsLight {
             total_bytes: 2.0,
         }),
         battery: None,
+        online: Some(true),
     }
 }
 
-fn full() -> MetricsFull {
-    let light = light();
-    MetricsFull {
-        cpu_percent: light.cpu_percent,
-        ram: light.ram,
-        battery: light.battery,
-        disks: Vec::new(),
-        network: None,
+/// One fixed drive read with `free_bytes` of `total_bytes` free.
+fn drive(letter: &str, free_bytes: u64, total_bytes: u64) -> DiskFree {
+    DiskFree {
+        letter: letter.into(),
+        free_percent: 100.0 * free_bytes as f64 / total_bytes as f64,
+        free_bytes,
+        total_bytes,
     }
 }
 
 fn disks() -> Vec<DiskFree> {
-    vec![DiskFree {
-        letter: "C".into(),
-        free_percent: 40.0,
-    }]
-}
-
-fn row(pid: u64) -> ProcessRow {
-    ProcessRow {
-        pid,
-        name: "x.exe".into(),
-        cpu_percent: Some(1.0),
-        private_bytes: Some(1.0),
-        start_time: "t".into(),
-        killable: true,
-    }
+    vec![drive("C", 40, 100)]
 }
 
 fn no_alerts() -> SystemAlerts {
     SystemAlerts::default()
 }
 
-fn light_metrics(sample: MetricsLight) -> SystemMetrics {
-    SystemMetrics::Light(sample.with_alerts(no_alerts()))
+fn storage(used_percent: f64) -> Option<StorageSample> {
+    Some(StorageSample { used_percent })
 }
 
-fn full_metrics(sample: MetricsFull) -> SystemMetrics {
-    SystemMetrics::Full(sample.with_alerts(no_alerts()))
+/// A light sample as emitted with the default [`disks`] reading (C: 40 % free).
+fn light_metrics(sample: MetricsLight) -> SystemMetrics {
+    SystemMetrics::Light(sample.with_alerts(no_alerts(), storage(60.0)))
+}
+
+fn storage_out(metrics: &SystemMetrics) -> Option<StorageSample> {
+    match metrics {
+        SystemMetrics::Light(sample) => sample.storage.clone(),
+        SystemMetrics::Unavailable(_) => panic!("unexpected unavailable"),
+    }
 }
 
 fn default_alert_settings() -> SystemAlertSettings {
@@ -129,20 +124,15 @@ fn default_alert_settings() -> SystemAlertSettings {
 struct Spy {
     calls: Vec<String>,
     light: MetricsLight,
-    full: MetricsFull,
     disks: Option<Vec<DiskFree>>,
     light_panics: usize,
-    full_panics: usize,
     evaluate_result: SystemAlerts,
     evaluate_panics: bool,
     settings_panics: bool,
     real: Option<AlertEvaluator>,
     inputs: Vec<(AlertInput, SystemAlertSettings)>,
     settings: SystemAlertSettings,
-    kill_result: KillResult,
-    kills: Vec<KillInput>,
     metrics_out: Vec<SystemMetrics>,
-    processes_out: Vec<Vec<ProcessRow>>,
 }
 
 type Shared = Arc<Mutex<Spy>>;
@@ -153,7 +143,6 @@ fn record(spy: &Shared, call: impl Into<String>) {
 }
 
 struct SpyMetrics(Shared);
-struct SpyProcesses(Shared);
 struct SpyAlerts(Shared);
 
 impl Metrics for SpyMetrics {
@@ -168,17 +157,6 @@ impl Metrics for SpyMetrics {
         spy.light.clone()
     }
 
-    fn full(&mut self) -> MetricsFull {
-        let mut spy = lock(&self.0);
-        spy.calls.push("full".into());
-        if spy.full_panics > 0 {
-            spy.full_panics -= 1;
-            drop(spy);
-            panic!("pdh");
-        }
-        spy.full.clone()
-    }
-
     fn disks(&mut self) -> Option<Vec<DiskFree>> {
         let mut spy = lock(&self.0);
         spy.calls.push("disks".into());
@@ -187,28 +165,6 @@ impl Metrics for SpyMetrics {
 
     fn reset(&mut self) {
         record(&self.0, "metrics.reset");
-    }
-}
-
-impl Processes for SpyProcesses {
-    fn top(&mut self, by: ProcessOrder, _limit: usize) -> Vec<ProcessRow> {
-        record(&self.0, format!("top:{}", by.as_str()));
-        vec![row(if by == ProcessOrder::Cpu { 1 } else { 2 })]
-    }
-
-    fn kill(&mut self, input: &KillInput) -> KillResult {
-        let mut spy = lock(&self.0);
-        spy.calls.push("kill".into());
-        spy.kills.push(input.clone());
-        spy.kill_result
-    }
-
-    fn reset(&mut self) {
-        record(&self.0, "processes.reset");
-    }
-
-    fn forget_list(&mut self) {
-        record(&self.0, "forget");
     }
 }
 
@@ -266,25 +222,12 @@ impl Fx {
             .collect()
     }
 
-    fn last_top(&self) -> Option<String> {
-        self.spy()
-            .calls
-            .iter()
-            .rev()
-            .find(|c| c.starts_with("top:"))
-            .cloned()
-    }
-
     fn metrics_out(&self) -> Vec<SystemMetrics> {
         self.spy().metrics_out.clone()
     }
 
     fn last_metrics(&self) -> Option<SystemMetrics> {
         self.spy().metrics_out.last().cloned()
-    }
-
-    fn processes_out(&self) -> Vec<Vec<ProcessRow>> {
-        self.spy().processes_out.clone()
     }
 
     fn inputs(&self) -> Vec<AlertInput> {
@@ -302,12 +245,6 @@ impl Fx {
     fn advance(&self, ms: u64) {
         self.clock.advance(ms);
     }
-
-    /// Enters `system` and lets the first-time warm-up finish: the full rhythm is running.
-    fn open_view(&self) {
-        self.monitor.set_mode(NotchMode::System);
-        self.advance(WARMUP_MS);
-    }
 }
 
 fn setup() -> Fx {
@@ -324,28 +261,20 @@ fn setup_with_executor(available: bool, executor: Executor) -> Fx {
     let spy: Shared = Arc::new(Mutex::new(Spy {
         calls: Vec::new(),
         light: light(),
-        full: full(),
         disks: Some(disks()),
         light_panics: 0,
-        full_panics: 0,
         evaluate_result: no_alerts(),
         evaluate_panics: false,
         settings_panics: false,
         real: None,
         inputs: Vec::new(),
         settings: default_alert_settings(),
-        kill_result: KillResult::Killed,
-        kills: Vec::new(),
         metrics_out: Vec::new(),
-        processes_out: Vec::new(),
     }));
     let clock = Arc::new(Clock::new());
-    let samplers = available.then(|| Samplers {
-        metrics: Box::new(SpyMetrics(Arc::clone(&spy))) as Box<dyn Metrics>,
-        processes: Box::new(SpyProcesses(Arc::clone(&spy))) as Box<dyn Processes>,
-    });
+    let metrics = available.then(|| Box::new(SpyMetrics(Arc::clone(&spy))) as Box<dyn Metrics>);
     let monitor = SystemMonitor::new(MonitorOptions {
-        samplers,
+        metrics,
         alerts: Box::new(SpyAlerts(Arc::clone(&spy))),
         alert_settings: {
             let spy = Arc::clone(&spy);
@@ -367,10 +296,6 @@ fn setup_with_executor(available: bool, executor: Executor) -> Fx {
         on_metrics: {
             let spy = Arc::clone(&spy);
             Box::new(move |metrics| lock(&spy).metrics_out.push(metrics.clone()))
-        },
-        on_processes: {
-            let spy = Arc::clone(&spy);
-            Box::new(move |rows| lock(&spy).processes_out.push(rows.to_vec()))
         },
         executor,
     });
@@ -408,8 +333,6 @@ fn light_modes_sample_at_once_and_then_every_3000_ms() {
         assert_eq!(fx.count("light"), 2);
         fx.advance(6000);
         assert_eq!(fx.count("light"), 4);
-        assert_eq!(fx.count("full"), 0);
-        assert_eq!(fx.last_top(), None);
     }
 }
 
@@ -445,208 +368,23 @@ fn keeps_sampling_in_peek_so_the_first_hover_into_compact_shows_current_values()
 }
 
 #[test]
-fn entering_system_mode_the_first_time_warms_up_silently_then_emits_full_and_processes() {
-    let fx = setup();
-    fx.monitor.set_mode(NotchMode::Compact);
-    fx.spy().metrics_out.clear();
-    fx.clear(&["light"]);
-    fx.monitor.set_mode(NotchMode::System);
-    // Baselines taken (CPU, PDH, per-process CPU) but nothing sent yet.
-    assert_eq!(fx.count("full"), 1);
-    assert_eq!(fx.count("top:cpu"), 1);
-    assert!(fx.count("forget") > 0);
-    assert!(fx.metrics_out().is_empty());
-    assert!(fx.processes_out().is_empty());
-    fx.advance(WARMUP_MS - 1);
-    assert!(fx.metrics_out().is_empty());
-    fx.advance(1);
-    assert_eq!(fx.last_metrics(), Some(full_metrics(full())));
-    assert_eq!(fx.processes_out().last(), Some(&vec![row(1)]));
-    assert_eq!(fx.count("full"), 2);
-    fx.advance(3000);
-    assert_eq!(fx.count("full"), 5);
-    assert_eq!(fx.count("top:cpu"), 5);
-    assert_eq!(fx.count("light"), 0);
-}
-
-#[test]
-fn a_quick_reopen_keeps_per_process_cpu_and_emits_at_once() {
-    let fx = setup();
-    fx.open_view();
-    fx.monitor.set_mode(NotchMode::Expanded);
-    fx.advance(LONG_PAUSE_MS - 1000);
-    fx.clear(&["processes.reset", "forget"]);
-    fx.spy().processes_out.clear();
-    fx.monitor.set_mode(NotchMode::System);
-    assert_eq!(fx.count("processes.reset"), 0);
-    assert_eq!(fx.count("forget"), 1);
-    assert_eq!(fx.processes_out().len(), 1);
-    assert_eq!(fx.last_metrics(), Some(full_metrics(full())));
-}
-
-#[test]
-fn a_reopen_after_a_long_close_resets_per_process_cpu_and_warms_up_again() {
-    let fx = setup();
-    fx.open_view();
-    fx.monitor.set_mode(NotchMode::Expanded);
-    fx.advance(LONG_PAUSE_MS);
-    fx.spy().calls.clear();
-    fx.spy().processes_out.clear();
-    fx.monitor.set_mode(NotchMode::System);
-    assert_eq!(
-        fx.order(&["processes.reset", "top:cpu"]),
-        ["processes.reset", "top:cpu"]
-    );
-    assert!(fx.processes_out().is_empty());
-    fx.advance(WARMUP_MS);
-    assert_eq!(fx.processes_out().len(), 1);
-}
-
-/// The app runs jobs on a worker thread: slow baselines (a cold PDH query, a long process list)
-/// must not eat into the warm-up, or the first full tick comes less than the sampler's minimum CPU
-/// interval after them and the first list shows no CPU values. The timer starts once they ran.
-#[test]
-fn the_warm_up_delay_starts_once_the_baselines_were_taken() {
-    type Jobs = Arc<Mutex<Vec<Box<dyn FnOnce() + Send>>>>;
-    let jobs: Jobs = Arc::new(Mutex::new(Vec::new()));
-    let deferred = Arc::clone(&jobs);
-    let fx = setup_with_executor(true, Arc::new(move |job| lock(&deferred).push(job)));
-    let run_jobs = || loop {
-        let next = lock(&jobs).pop();
-        match next {
-            Some(job) => job(),
-            None => break,
-        }
-    };
-    fx.monitor.set_mode(NotchMode::System);
-    // The baselines are still queued when the warm-up delay would have run out.
-    fx.advance(WARMUP_MS);
-    run_jobs();
-    assert_eq!(fx.count("top:cpu"), 1);
-    assert!(fx.processes_out().is_empty());
-    fx.advance(WARMUP_MS - 1);
-    run_jobs();
-    assert!(fx.processes_out().is_empty());
-    fx.advance(1);
-    run_jobs();
-    assert_eq!(fx.processes_out().len(), 1);
-    assert_eq!(fx.count("top:cpu"), 2);
-}
-
-/// A warm-up stopped while its baselines run never arms its timer.
-#[test]
-fn a_warm_up_stopped_before_its_baselines_ran_never_starts_the_full_rhythm() {
-    type Jobs = Arc<Mutex<Vec<Box<dyn FnOnce() + Send>>>>;
-    let jobs: Jobs = Arc::new(Mutex::new(Vec::new()));
-    let deferred = Arc::clone(&jobs);
-    let fx = setup_with_executor(true, Arc::new(move |job| lock(&deferred).push(job)));
-    fx.monitor.set_mode(NotchMode::System);
-    fx.monitor.set_mode(NotchMode::Mini);
-    loop {
-        let next = lock(&jobs).pop();
-        match next {
-            Some(job) => job(),
-            None => break,
-        }
-    }
-    fx.advance(WARMUP_MS * 2);
-    assert!(fx.processes_out().is_empty());
-    assert_eq!(fx.count("full"), 1);
-}
-
-#[test]
-fn leaving_system_mode_during_the_warm_up_cancels_it() {
-    let fx = setup();
-    fx.monitor.set_mode(NotchMode::System);
-    fx.monitor.set_mode(NotchMode::Expanded);
-    fx.clear(&["full"]);
-    fx.advance(WARMUP_MS * 2);
-    assert_eq!(fx.count("full"), 0);
-    assert_eq!(fx.last_metrics(), Some(light_metrics(light())));
-}
-
-#[test]
-fn leaving_system_mode_drops_to_the_light_rhythm() {
-    let fx = setup();
-    fx.open_view();
-    fx.clear(&["full"]);
-    fx.monitor.set_mode(NotchMode::Expanded);
-    fx.advance(3000);
-    assert_eq!(fx.count("full"), 0);
-    assert!(fx.count("light") > 0);
-}
-
-#[test]
-fn a_new_order_sorts_the_next_emission_processes_at_once_metrics_untouched() {
-    let fx = setup();
-    fx.open_view();
-    fx.clear(&["full"]);
-    fx.monitor.set_order(ProcessOrder::Ram);
-    assert_eq!(fx.last_top().as_deref(), Some("top:ram"));
-    assert_eq!(fx.processes_out().last(), Some(&vec![row(2)]));
-    assert_eq!(fx.count("full"), 0);
-    fx.advance(1000);
-    assert_eq!(fx.last_top().as_deref(), Some("top:ram"));
-    assert_eq!(fx.count("full"), 1);
-}
-
-#[test]
-fn the_same_order_again_does_not_re_emit() {
-    let fx = setup();
-    fx.open_view();
-    fx.clear(&["top:cpu", "top:ram"]);
-    fx.monitor.set_order(ProcessOrder::Cpu);
-    assert_eq!(fx.last_top(), None);
-}
-
-#[test]
-fn an_order_sent_before_system_mode_or_during_the_warm_up_is_used_by_the_first_emission() {
-    let fx = setup();
-    fx.monitor.set_order(ProcessOrder::Ram);
-    assert_eq!(fx.last_top(), None);
-    fx.monitor.set_mode(NotchMode::System);
-    fx.monitor.set_order(ProcessOrder::Cpu);
-    assert!(fx.processes_out().is_empty());
-    fx.advance(WARMUP_MS);
-    assert_eq!(fx.last_top().as_deref(), Some("top:cpu"));
-    assert_eq!(fx.processes_out().len(), 1);
-}
-
-#[test]
-fn the_order_survives_leaving_and_re_entering_system_mode() {
-    let fx = setup();
-    fx.open_view();
-    fx.monitor.set_order(ProcessOrder::Ram);
-    fx.monitor.set_mode(NotchMode::Expanded);
-    fx.monitor.set_mode(NotchMode::System);
-    assert_eq!(fx.last_top().as_deref(), Some("top:ram"));
-}
-
-#[test]
 fn paused_modes_stop_every_timer_and_reset_the_cpu_baseline_after_a_long_pause() {
     for paused in [NotchMode::Mini, NotchMode::Hidden, NotchMode::Alert] {
         let fx = setup();
-        fx.open_view();
-        fx.clear(&["metrics.reset", "full", "light"]);
+        fx.monitor.set_mode(NotchMode::Expanded);
+        fx.clear(&["metrics.reset", "light"]);
         fx.monitor.set_mode(paused);
         assert_eq!(fx.clock.count(), 0, "{paused:?}");
         fx.advance(LONG_PAUSE_MS);
-        assert_eq!(fx.count("full"), 0);
         assert_eq!(fx.count("light"), 0);
         assert_eq!(fx.count("metrics.reset"), 0);
 
         fx.spy().calls.clear();
-        // Back straight into 'system': fresh CPU baseline, fresh per-process CPU, silent warm-up.
-        fx.monitor.set_mode(NotchMode::System);
-        let names = ["metrics.reset", "processes.reset", "full"];
+        // Back into a panel: fresh CPU baseline, then a light sample at once.
+        fx.monitor.set_mode(NotchMode::Expanded);
         assert_eq!(
-            fx.order(&names),
-            ["metrics.reset", "processes.reset", "full"]
-        );
-        fx.advance(WARMUP_MS);
-        assert_eq!(
-            fx.order(&names),
-            ["metrics.reset", "processes.reset", "full", "full"]
+            fx.order(&["metrics.reset", "light"]),
+            ["metrics.reset", "light"]
         );
     }
 }
@@ -661,8 +399,6 @@ fn an_alert_over_a_hidden_capsule_samples_nothing() {
     fx.advance(LONG_PAUSE_MS);
     assert_eq!(fx.clock.count(), 0);
     assert_eq!(fx.count("light"), 0);
-    assert_eq!(fx.count("full"), 0);
-    assert_eq!(fx.last_top(), None);
 }
 
 #[test]
@@ -675,7 +411,6 @@ fn a_short_pause_keeps_the_cpu_baseline_and_resumes_light_at_once() {
     fx.clear(&["light"]);
     fx.monitor.set_mode(NotchMode::Compact);
     assert_eq!(fx.count("metrics.reset"), 0);
-    assert_eq!(fx.count("processes.reset"), 0);
     assert_eq!(fx.count("light"), 1);
 }
 
@@ -722,20 +457,6 @@ fn never_samples_while_starting_in_a_paused_mode() {
 }
 
 #[test]
-fn dispose_cancels_everything_the_warm_up_included() {
-    let fx = setup();
-    fx.monitor.set_mode(NotchMode::System);
-    fx.monitor.dispose();
-    assert_eq!(fx.clock.count(), 0);
-    fx.clear(&["full", "light"]);
-    fx.monitor.set_mode(NotchMode::Compact);
-    fx.monitor.set_order(ProcessOrder::Ram);
-    fx.advance(10_000);
-    assert_eq!(fx.count("full"), 0);
-    assert_eq!(fx.count("light"), 0);
-}
-
-#[test]
 fn a_failing_sample_is_logged_without_details_and_the_rhythm_continues() {
     let fx = setup();
     fx.spy().light_panics = 1;
@@ -760,23 +481,14 @@ fn fails_open_when_the_evaluator_or_the_alert_settings_panic() {
         }
         fx.monitor.set_mode(NotchMode::Compact);
         assert_eq!(fx.metrics_out(), [light_metrics(light())], "{which}");
-        fx.open_view();
-        assert_eq!(fx.last_metrics(), Some(full_metrics(full())));
+        fx.advance(LIGHT_INTERVAL_MS);
+        assert_eq!(fx.metrics_out().len(), 2, "{which}");
         let lines = log_lines();
         assert!(!lines.iter().any(|line| line.contains("secret")));
         assert!(lines
             .iter()
             .any(|line| line.starts_with("ERROR") && line.contains("Alert evaluation failed")));
     }
-}
-
-#[test]
-fn a_failing_warm_up_still_starts_the_full_rhythm() {
-    let fx = setup();
-    fx.spy().full_panics = 1;
-    fx.monitor.set_mode(NotchMode::System);
-    fx.advance(WARMUP_MS);
-    assert_eq!(fx.last_metrics(), Some(full_metrics(full())));
 }
 
 // --- alerts ---
@@ -808,6 +520,7 @@ fn every_light_sample_carries_the_evaluator_result_built_from_the_sample() {
                 plugged_in: false,
                 seconds_left: Some(60),
             }),
+            online: None,
         };
     }
     fx.monitor.set_mode(NotchMode::Compact);
@@ -842,6 +555,7 @@ fn passes_null_ram_and_battery_percent_when_the_sample_has_none() {
         cpu_percent: None,
         ram: None,
         battery: None,
+        online: None,
     };
     fx.monitor.set_mode(NotchMode::Compact);
     let first = &fx.inputs()[0];
@@ -868,78 +582,94 @@ fn reads_disk_space_on_the_first_light_tick_and_then_every_60000_ms_passing_null
 }
 
 #[test]
+fn light_sample_carries_the_whole_computer_storage_weighted_by_size() {
+    let fx = setup();
+    // C: 40 of 100 free, D: 100 of 1000 free -> 960 used of 1100, not the worst drive's 90 %.
+    fx.spy().disks = Some(vec![drive("C", 40, 100), drive("D", 100, 1000)]);
+    fx.monitor.set_mode(NotchMode::Compact);
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage(100.0 * 960.0 / 1100.0))
+    );
+}
+
+#[test]
+fn storage_ignores_drives_without_size_and_never_counts_more_free_than_total() {
+    let fx = setup();
+    fx.spy().disks = Some(vec![
+        drive("C", 25, 100),
+        DiskFree {
+            letter: "D".into(),
+            free_percent: 100.0,
+            free_bytes: 0,
+            total_bytes: 0,
+        },
+        DiskFree {
+            letter: "E".into(),
+            free_percent: 100.0,
+            free_bytes: 500,
+            total_bytes: 100,
+        },
+    ]);
+    fx.monitor.set_mode(NotchMode::Compact);
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage(75.0 / 2.0))
+    );
+}
+
+#[test]
+fn storage_is_null_when_every_drive_reads_size_0() {
+    let fx = setup();
+    fx.spy().disks = Some(vec![DiskFree {
+        letter: "C".into(),
+        free_percent: 100.0,
+        free_bytes: 0,
+        total_bytes: 0,
+    }]);
+    fx.monitor.set_mode(NotchMode::Compact);
+    assert_eq!(fx.last_metrics().as_ref().map(storage_out), Some(None));
+}
+
+#[test]
+fn storage_is_kept_between_disk_reads() {
+    let fx = setup();
+    fx.monitor.set_mode(NotchMode::Compact);
+    fx.advance(3000);
+    assert_eq!(fx.count("disks"), 1);
+    let sent: Vec<_> = fx.metrics_out().iter().map(storage_out).collect();
+    assert_eq!(sent, [storage(60.0), storage(60.0)]);
+    // A failed read (`None`) keeps the last value too.
+    fx.spy().disks = None;
+    fx.advance(57_000);
+    assert_eq!(fx.count("disks"), 2);
+    assert_eq!(
+        fx.last_metrics().as_ref().map(storage_out),
+        Some(storage(60.0))
+    );
+}
+
+#[test]
+fn storage_is_null_without_a_reading() {
+    for reading in [None, Some(Vec::new())] {
+        let fx = setup();
+        fx.spy().disks = reading.clone();
+        fx.monitor.set_mode(NotchMode::Compact);
+        fx.advance(3000);
+        assert!(
+            fx.metrics_out().iter().all(|m| storage_out(m).is_none()),
+            "{reading:?}"
+        );
+    }
+}
+
+#[test]
 fn a_resync_within_the_light_rhythm_does_not_re_read_disk_space_early() {
     let fx = setup();
     fx.monitor.set_mode(NotchMode::Compact);
     fx.advance(1000);
     fx.monitor.resync();
     assert_eq!(fx.count("disks"), 1);
-}
-
-#[test]
-fn the_full_rhythm_feeds_the_full_sample_disks_as_free_percent_and_never_calls_disks() {
-    let fx = setup();
-    fx.spy().full = MetricsFull {
-        disks: vec![
-            crate::contract::system::DiskSample {
-                letter: "C".into(),
-                used_percent: 93.0,
-                free_bytes: 7.0,
-                activity_percent: None,
-            },
-            crate::contract::system::DiskSample {
-                letter: "D".into(),
-                used_percent: 10.0,
-                free_bytes: 90.0,
-                activity_percent: Some(5.0),
-            },
-        ],
-        ..full()
-    };
-    fx.open_view();
-    fx.advance(1000);
-    assert_eq!(fx.count("disks"), 0);
-    let inputs = fx.inputs();
-    assert_eq!(inputs.len(), 2);
-    let expected = vec![
-        DiskFree {
-            letter: "C".into(),
-            free_percent: 7.0,
-        },
-        DiskFree {
-            letter: "D".into(),
-            free_percent: 90.0,
-        },
-    ];
-    for input in inputs {
-        assert_eq!(input.disks.as_ref(), Some(&expected));
-    }
-    assert!(fx
-        .metrics_out()
-        .iter()
-        .all(|metrics| matches!(metrics, SystemMetrics::Full(FullSample { .. }))));
-}
-
-#[test]
-fn the_silent_warm_up_sample_is_not_evaluated() {
-    let fx = setup();
-    fx.monitor.set_mode(NotchMode::System);
-    assert_eq!(fx.count("full"), 1);
-    assert_eq!(fx.count("evaluate"), 0);
-    fx.advance(WARMUP_MS);
-    assert_eq!(fx.count("evaluate"), 1);
-}
-
-#[test]
-fn back_to_light_after_the_view_reads_disk_space_again_on_its_first_tick() {
-    let fx = setup();
-    fx.monitor.set_mode(NotchMode::Compact);
-    fx.advance(3000);
-    fx.monitor.set_mode(NotchMode::System);
-    fx.advance(WARMUP_MS + 2000);
-    fx.monitor.set_mode(NotchMode::Compact);
-    assert_eq!(fx.count("disks"), 2);
-    assert_eq!(fx.inputs().last().unwrap().disks, Some(disks()));
 }
 
 #[test]
@@ -995,11 +725,9 @@ fn works_end_to_end_with_the_real_evaluator() {
                 total_bytes: 100.0,
             }),
             battery: None,
+            online: Some(false),
         };
-        spy.disks = Some(vec![DiskFree {
-            letter: "D".into(),
-            free_percent: 3.0,
-        }]);
+        spy.disks = Some(vec![drive("D", 3, 100)]);
     }
     fx.monitor.set_mode(NotchMode::Compact);
     fx.advance(3000);
@@ -1021,51 +749,10 @@ fn works_end_to_end_with_the_real_evaluator() {
                     free_percent: 3.0
                 }),
             },
+            storage: storage(97.0),
+            online: Some(false),
         }))
     );
-}
-
-// --- kill ---
-
-#[test]
-fn kill_forwards_to_the_sampler_and_refreshes_at_once_after_a_kill() {
-    // TS uses pid 1234; a more distinctive pid keeps the log check meaningful across the binary.
-    let fx = setup();
-    fx.open_view();
-    fx.clear(&["full", "top:cpu"]);
-    let input = KillInput {
-        pid: 4_242_421,
-        start_time: "t".into(),
-    };
-    assert_eq!(fx.monitor.kill(&input), KillResult::Killed);
-    assert_eq!(fx.spy().kills, [input]);
-    assert_eq!(fx.count("full"), 1);
-    assert_eq!(fx.count("top:cpu"), 1);
-    // The 1 s rhythm restarts from the kill refresh.
-    fx.advance(999);
-    assert_eq!(fx.count("full"), 1);
-    fx.advance(1);
-    assert_eq!(fx.count("full"), 2);
-    let lines = log_lines();
-    assert!(lines
-        .iter()
-        .any(|line| line.contains("Process close requested: killed")));
-    assert!(!lines.iter().any(|line| line.contains("4242421")));
-    assert!(!lines.iter().any(|line| line.contains("x.exe")));
-}
-
-#[test]
-fn kill_does_not_refresh_when_the_close_did_not_happen() {
-    let fx = setup();
-    fx.open_view();
-    fx.clear(&["full"]);
-    fx.spy().kill_result = KillResult::Denied;
-    let input = KillInput {
-        pid: 5,
-        start_time: "t".into(),
-    };
-    assert_eq!(fx.monitor.kill(&input), KillResult::Denied);
-    assert_eq!(fx.count("full"), 0);
 }
 
 // --- without SystemApi ---
@@ -1075,7 +762,7 @@ fn without_system_api_emits_unavailable_once_and_never_arms_a_timer() {
     let fx = setup_with(false);
     for mode in [
         NotchMode::Compact,
-        NotchMode::System,
+        NotchMode::Notes,
         NotchMode::Mini,
         NotchMode::Expanded,
     ] {
@@ -1086,25 +773,18 @@ fn without_system_api_emits_unavailable_once_and_never_arms_a_timer() {
         fx.metrics_out(),
         [SystemMetrics::Unavailable(Unavailable {})]
     );
-    assert!(fx.processes_out().is_empty());
     assert_eq!(fx.clock.count(), 0);
 }
 
 #[test]
-fn without_system_api_re_emits_unavailable_when_the_view_sends_its_order_or_the_notch_reloads() {
+fn without_system_api_re_emits_unavailable_when_the_notch_reloads() {
     let fx = setup_with(false);
-    fx.monitor.set_order(ProcessOrder::Cpu);
     fx.monitor.resync();
-    assert_eq!(fx.metrics_out().len(), 3);
+    assert_eq!(fx.metrics_out().len(), 2);
     assert_eq!(
         fx.last_metrics(),
         Some(SystemMetrics::Unavailable(Unavailable {}))
     );
-    let input = KillInput {
-        pid: 1,
-        start_time: "t".into(),
-    };
-    assert_eq!(fx.monitor.kill(&input), KillResult::NotKillable);
 }
 
 // --- threading (Rust only) ---
@@ -1118,10 +798,7 @@ fn an_interval_tick_is_skipped_while_another_tick_is_still_queued() {
     let spy = Arc::clone(&fx.spy);
     let clock = Arc::clone(&fx.clock);
     let monitor = SystemMonitor::new(MonitorOptions {
-        samplers: Some(Samplers {
-            metrics: Box::new(SpyMetrics(Arc::clone(&spy))),
-            processes: Box::new(SpyProcesses(Arc::clone(&spy))),
-        }),
+        metrics: Some(Box::new(SpyMetrics(Arc::clone(&spy)))),
         alerts: Box::new(SpyAlerts(Arc::clone(&spy))),
         alert_settings: Box::new(default_alert_settings),
         timers: Arc::clone(&clock) as Arc<dyn Timers>,
@@ -1130,7 +807,6 @@ fn an_interval_tick_is_skipped_while_another_tick_is_still_queued() {
             Arc::new(move || clock.now.load(Ordering::SeqCst))
         },
         on_metrics: Box::new(|_| {}),
-        on_processes: Box::new(|_| {}),
         executor: {
             let jobs = Arc::clone(&deferred);
             Arc::new(move |job| lock(&jobs).push(job))
@@ -1156,7 +832,7 @@ fn an_interval_tick_is_skipped_while_another_tick_is_still_queued() {
     assert_eq!(fx.count("light"), 2);
 }
 
-/// A monitor sharing the fixture's spy (its emissions land in `metrics_out` / `processes_out`)
+/// A monitor sharing the fixture's spy (its emissions land in `metrics_out`)
 /// with its own timers, clock and executor.
 fn monitor_with(
     spy: &Shared,
@@ -1165,10 +841,7 @@ fn monitor_with(
     executor: Executor,
 ) -> SystemMonitor {
     SystemMonitor::new(MonitorOptions {
-        samplers: Some(Samplers {
-            metrics: Box::new(SpyMetrics(Arc::clone(spy))),
-            processes: Box::new(SpyProcesses(Arc::clone(spy))),
-        }),
+        metrics: Some(Box::new(SpyMetrics(Arc::clone(spy)))),
         alerts: Box::new(SpyAlerts(Arc::clone(spy))),
         alert_settings: Box::new(default_alert_settings),
         timers,
@@ -1176,10 +849,6 @@ fn monitor_with(
         on_metrics: {
             let spy = Arc::clone(spy);
             Box::new(move |metrics| lock(&spy).metrics_out.push(metrics.clone()))
-        },
-        on_processes: {
-            let spy = Arc::clone(spy);
-            Box::new(move |rows| lock(&spy).processes_out.push(rows.to_vec()))
         },
         executor,
     })
@@ -1203,105 +872,6 @@ fn run_deferred(deferred: &Deferred) -> usize {
             ran += 1;
         }
     }
-}
-
-#[test]
-fn a_light_tick_queued_before_the_view_opens_does_not_become_a_full_sample() {
-    let deferred: Deferred = Arc::new(Mutex::new(Vec::new()));
-    let fx = setup();
-    let clock = Arc::clone(&fx.clock);
-    let monitor = monitor_with(
-        &fx.spy,
-        Arc::clone(&clock) as Arc<dyn Timers>,
-        {
-            let clock = Arc::clone(&clock);
-            Arc::new(move || clock.now.load(Ordering::SeqCst))
-        },
-        deferred_executor(&deferred),
-    );
-    // A light tick is queued behind a slow worker when the System view opens on stale data.
-    monitor.set_mode(NotchMode::Compact);
-    monitor.set_mode(NotchMode::System);
-    run_deferred(&deferred);
-    // Only the silent warm-up sampled: the stale light tick did not run as a full sample with
-    // stale baselines, and nothing reached the view before the warm-up.
-    assert_eq!(fx.count("light"), 0);
-    assert_eq!(fx.count("full"), 1);
-    assert!(fx.metrics_out().is_empty());
-    assert!(fx.processes_out().is_empty());
-    // The warm-up then starts the full rhythm as usual.
-    clock.advance(WARMUP_MS);
-    run_deferred(&deferred);
-    assert_eq!(fx.count("full"), 2);
-    assert_eq!(fx.metrics_out().len(), 1);
-}
-
-/// Timers whose `clear` comes too late: the callback was already in flight, so the test can
-/// still run it by hand.
-struct LateTimers {
-    ids: TestTimers,
-    callbacks: Mutex<Vec<(u64, TimerCallback)>>,
-}
-
-impl LateTimers {
-    fn new() -> Self {
-        Self {
-            ids: TestTimers::new(),
-            callbacks: Mutex::new(Vec::new()),
-        }
-    }
-
-    /// Takes every armed callback of `ms`, in arming order.
-    fn take(&self, ms: u64) -> Vec<TimerCallback> {
-        let mut callbacks = lock(&self.callbacks);
-        let (taken, kept): (Vec<_>, Vec<_>) = callbacks.drain(..).partition(|(at, _)| *at == ms);
-        *callbacks = kept;
-        taken.into_iter().map(|(_, f)| f).collect()
-    }
-}
-
-impl Timers for LateTimers {
-    fn set_timeout(&self, ms: u64, f: TimerCallback) -> TimerId {
-        lock(&self.callbacks).push((ms, f));
-        self.ids.set_timeout(ms, Box::new(|| {}))
-    }
-
-    fn clear(&self, _id: TimerId) {}
-}
-
-#[test]
-fn a_stale_warm_up_callback_does_not_cut_a_newer_warm_up_short() {
-    let fx = setup();
-    let timers = Arc::new(LateTimers::new());
-    let now = Arc::new(AtomicU64::new(0));
-    let monitor = monitor_with(
-        &fx.spy,
-        Arc::clone(&timers) as Arc<dyn Timers>,
-        {
-            let now = Arc::clone(&now);
-            Arc::new(move || now.load(Ordering::SeqCst))
-        },
-        Arc::new(|job| job()),
-    );
-    // First warm-up: its timer is armed, then the view closes before it fires.
-    monitor.set_mode(NotchMode::System);
-    let mut first = timers.take(WARMUP_MS);
-    assert_eq!(first.len(), 1);
-    monitor.set_mode(NotchMode::Compact);
-    // Long enough later the view opens again on stale data: a second warm-up.
-    now.fetch_add(LONG_PAUSE_MS, Ordering::SeqCst);
-    monitor.set_mode(NotchMode::System);
-    let mut second = timers.take(WARMUP_MS);
-    assert_eq!(second.len(), 1);
-    let fulls = fx.count("full");
-    // The first warm-up's callback was already in flight: it must not start the rhythm now,
-    // only 0 ms into the second warm-up.
-    (first.remove(0))();
-    assert_eq!(fx.count("full"), fulls);
-    assert_eq!(fx.count("top:cpu"), 2);
-    // The current warm-up's callback starts the full rhythm.
-    (second.remove(0))();
-    assert_eq!(fx.count("full"), fulls + 1);
 }
 
 #[test]

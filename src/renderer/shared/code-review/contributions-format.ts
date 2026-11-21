@@ -1,8 +1,9 @@
 import { buildGrid, localDate, monthRange } from '../../../shared/code-review/contributions'
-import type { ContributionDay, ContributionsResult, ContributionSummary } from '../../../shared/code-review/schema'
+import type { ContributionDay, ContributionsResult, ContributionSummary, Platform } from '../../../shared/code-review/schema'
 import { translate } from '../../../shared/i18n/messages'
 import type { Language } from '../../../shared/settings/schema'
 import { locale } from '../locale'
+import { PLATFORM_NAMES } from './format'
 
 /** A total the summary does not have (still loading, or the query failed). */
 export const NO_VALUE = '—'
@@ -47,6 +48,22 @@ export function weekdayNames(language: Language, style: 'narrow' | 'long'): stri
 export function dayCellLabel(day: ContributionDay, language: Language): string {
   const date = shortDate(day.date, language)
   return day.future ? date : `${date} · ${contributionsText(day.count, language)}`
+}
+
+/** From this month total up, the capsule block writes "999+": it reserves that width. */
+export const CAPSULE_CONTRIBUTIONS_CAP = 1000
+
+/** A month total as the compact capsule writes it: "143", "999+" from 1000 up. */
+export function capsuleContributionsText(total: number): string {
+  return total >= CAPSULE_CONTRIBUTIONS_CAP ? '999+' : String(total)
+}
+
+/** The capsule block's accessible name, with the exact total: "143 contribuciones en noviembre en GitHub". */
+export function capsuleContributionsLabel(platform: Platform, total: number, month: string, language: Language): string {
+  const values = { month: monthName(month, language), platform: PLATFORM_NAMES[platform] }
+  return total === 1
+    ? translate(language, 'codeReview.capsule.contributionsOne', values)
+    : translate(language, 'codeReview.capsule.contributions', { ...values, count: total })
 }
 
 /** "84 contribuciones en noviembre" / "84 contributions in November". */

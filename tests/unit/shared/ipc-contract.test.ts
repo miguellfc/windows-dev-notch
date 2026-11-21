@@ -3,7 +3,7 @@ import { buildApi } from '../../../src/shared/ipc/build-api'
 import { channels, eventChannels } from '../../../src/shared/ipc/channels'
 import { contract, eventContract } from '../../../src/shared/ipc/contract'
 import { err, ok } from '../../../src/shared/ipc/result'
-import { NO_ALERTS, PROCESS_LIMIT } from '../../../src/shared/system/schema'
+import { NO_ALERTS } from '../../../src/shared/system/schema'
 
 const channelNames = Object.values(channels).flatMap((group) => Object.values(group))
 
@@ -22,6 +22,7 @@ describe('IPC contract', () => {
     // Right click pins the thin pill; a left click on it unpins.
     expect(contract['notch:request'].input.safeParse({ intent: 'pin-mini' }).success).toBe(true)
     expect(contract['notch:request'].input.safeParse({ intent: 'unpin-mini' }).success).toBe(true)
+    expect(contract['notch:request'].input.safeParse({ intent: 'open-pending' }).success).toBe(true)
     expect(contract['notch:pointer'].input.safeParse({ inside: 'yes' }).success).toBe(false)
   })
 
@@ -318,48 +319,19 @@ describe('usage contract', () => {
 })
 
 describe('system monitor contract', () => {
-  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS }
-  const row = { pid: 42, name: 'node.exe', cpuPercent: 1.5, privateBytes: 1024, startTime: '2026-11-10T09:00:00.000Z', killable: true }
+  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS, storage: { usedPercent: 62 }, online: null }
 
-  it('exposes the system channels and events', () => {
-    expect(channels.system).toEqual({ view: 'system:view', killProcess: 'system:kill-process' })
-    expect(eventChannels.systemMetrics).toBe('system:metrics')
-    expect(eventChannels.systemProcesses).toBe('system:processes')
+  it('exposes only the metrics event (no view, process list or close channels)', () => {
+    expect(Object.values(channels).flatMap((group) => Object.values(group) as string[]).filter((name) => name.startsWith('system:'))).toEqual([])
+    expect(Object.values(eventChannels).filter((name) => name.startsWith('system:'))).toEqual(['system:metrics'])
   })
 
-  it('sets the view order to cpu or ram (open/close follows the notch mode)', () => {
-    const view = contract['system:view'].input
-    expect(view.safeParse({ by: 'cpu' }).success).toBe(true)
-    expect(view.safeParse({ by: 'ram' }).success).toBe(true)
-    expect(view.safeParse({}).success).toBe(false)
-    expect(view.safeParse({ open: true }).success).toBe(false)
-    expect(view.safeParse({ open: false, by: 'ram' }).success).toBe(false)
-    expect(view.safeParse({ by: 'disk' }).success).toBe(false)
-    expect(view.safeParse({ by: 'cpu', path: 'C:/' }).success).toBe(false)
-    expect(contract['system:view'].output.safeParse(null).success).toBe(true)
-  })
-
-  it('closes by pid and start time only, and returns a known result', () => {
-    const kill = contract['system:kill-process']
-    expect(kill.input.safeParse({ pid: 42, startTime: row.startTime }).success).toBe(true)
-    expect(kill.input.safeParse({ pid: -1, startTime: row.startTime }).success).toBe(false)
-    expect(kill.input.safeParse({ pid: 42, startTime: row.startTime, name: 'node.exe' }).success).toBe(false)
-    for (const result of ['killed', 'gone', 'denied', 'not-killable']) expect(kill.output.safeParse(result).success).toBe(true)
-    expect(kill.output.safeParse('maybe').success).toBe(false)
-  })
-
-  it('validates metrics and process events', () => {
+  it('validates the metrics event (light or unavailable)', () => {
     const metrics = eventContract['system:metrics']
     expect(metrics.safeParse({ kind: 'light', ...light }).success).toBe(true)
-    expect(metrics.safeParse({ kind: 'full', ...light, disks: [], network: null }).success).toBe(true)
+    expect(metrics.safeParse({ kind: 'full', ...light, disks: [], network: null }).success).toBe(false)
     expect(metrics.safeParse({ kind: 'unavailable' }).success).toBe(true)
     expect(metrics.safeParse({ kind: 'light', ...light, cpuPercent: 101 }).success).toBe(false)
-    const rows = eventContract['system:processes']
-    expect(rows.safeParse([row]).success).toBe(true)
-    expect(rows.safeParse(Array.from({ length: PROCESS_LIMIT }, (_, i) => ({ ...row, pid: i + 1 }))).success).toBe(true)
-    expect(rows.safeParse(Array.from({ length: PROCESS_LIMIT + 1 }, (_, i) => ({ ...row, pid: i + 1 }))).success).toBe(false)
-    expect(PROCESS_LIMIT).toBe(5)
-    expect(rows.safeParse([{ ...row, path: 'C:/x' }]).success).toBe(false)
   })
 })
 
@@ -495,24 +467,12 @@ describe('gmail contract', () => {
 describe('code review contract', () => {
   const platform = { status: 'ok', account: 'me', unreviewed: 3, updatedAt: '2026-11-13T10:00:00.000Z', persistent: true }
   const state = { github: platform, gitlab: { ...platform, status: 'unconfigured', account: null, unreviewed: null, updatedAt: null } }
-  const item = {
-    id: 'n1',
-    ref: 'o/r#1',
-    title: 'T',
-    author: 'a',
-    updatedAt: '2026-11-13T09:00:00.000Z',
-    draft: false,
-    review: 'none',
-    checks: null,
-    conflicts: false,
-  }
-
   it('exposes the code-review channels and events', () => {
     expect(channels.codeReview).toEqual({
       getState: 'code-review:get-state',
-      list: 'code-review:list',
       refresh: 'code-review:refresh',
-      open: 'code-review:open',
+      openProfile: 'code-review:open-profile',
+      openAlert: 'code-review:open-alert',
       setToken: 'code-review:set-token',
       clear: 'code-review:clear',
       view: 'code-review:view',
@@ -578,21 +538,20 @@ describe('code review contract', () => {
     }
   })
 
-  it('lists at most 20 strict items per list, without URLs', () => {
-    const list = contract['code-review:list']
-    expect(list.input.safeParse({ platform: 'gitlab' }).success).toBe(true)
-    expect(list.input.safeParse({ platform: 'bitbucket' }).success).toBe(false)
-    expect(list.output.safeParse({ toReview: Array.from({ length: 20 }, () => item), mine: [] }).success).toBe(true)
-    expect(list.output.safeParse({ toReview: Array.from({ length: 21 }, () => item), mine: [] }).success).toBe(false)
-    expect(list.output.safeParse({ toReview: [{ ...item, url: 'https://github.com/o/r/pull/1' }], mine: [] }).success).toBe(false)
-  })
-
-  it('opens by platform and id, never by URL', () => {
-    const open = contract['code-review:open']
-    expect(open.input.safeParse({ platform: 'github', id: 'n1' }).success).toBe(true)
-    expect(open.input.safeParse({ platform: 'github', id: '' }).success).toBe(false)
-    expect(open.input.safeParse({ platform: 'github', id: 'n1', url: 'https://github.com' }).success).toBe(false)
-    expect(open.output.safeParse(null).success).toBe(true)
+  it('opens the profile and the alert by platform only, and answers a boolean, never a URL', () => {
+    for (const channel of ['code-review:open-profile', 'code-review:open-alert'] as const) {
+      const open = contract[channel]
+      expect(open.input.safeParse({ platform: 'github' }).success).toBe(true)
+      expect(open.input.safeParse({ platform: 'bitbucket' }).success).toBe(false)
+      expect(open.input.safeParse({ platform: 'github', id: 'n1' }).success).toBe(false)
+      expect(open.input.safeParse({ platform: 'github', url: 'https://github.com' }).success).toBe(false)
+      expect(open.output.safeParse({ opened: true }).success).toBe(true)
+      expect(open.output.safeParse({ opened: false }).success).toBe(true)
+      expect(open.output.safeParse({ opened: true, url: 'https://github.com' }).success).toBe(false)
+      expect(open.output.safeParse(null).success).toBe(false)
+    }
+    expect('code-review:list' in contract).toBe(false)
+    expect('code-review:open' in contract).toBe(false)
   })
 
   it('takes a bounded token and never returns it', () => {
@@ -666,7 +625,7 @@ describe('code review in the notch contract', () => {
 })
 
 describe('redmine contract', () => {
-  const state = { status: 'ok', account: 'Alice Doe', todayHours: 5.5, updatedAt: 1_763_000_000_000, persistent: true }
+  const state = { status: 'ok', account: 'Alice Doe', todayHours: 5.5, monthHours: 60, updatedAt: 1_763_000_000_000, persistent: true }
   const issue = {
     id: 12,
     subject: 'Fix login',
@@ -683,6 +642,7 @@ describe('redmine contract', () => {
       getState: 'redmine:get-state',
       issues: 'redmine:issues',
       issue: 'redmine:issue',
+      findIssue: 'redmine:find-issue',
       activities: 'redmine:activities',
       updateIssue: 'redmine:update-issue',
       logTime: 'redmine:log-time',
@@ -731,6 +691,15 @@ describe('redmine contract', () => {
     for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(detail.input.safeParse(bad).success).toBe(false)
     expect(detail.output.safeParse({ ...issue, allowedStatuses: [{ id: 3, name: 'Done' }] }).success).toBe(true)
     expect(detail.output.safeParse(issue).success).toBe(false)
+  })
+
+  it('finds an issue by a positive integer id and answers only whether it exists', () => {
+    const find = contract['redmine:find-issue']
+    expect(find.input.safeParse({ id: 12 }).success).toBe(true)
+    for (const bad of [{ id: 0 }, { id: 1.5 }, { id: '12' }, {}, { id: 12, url: 'https://x' }]) expect(find.input.safeParse(bad).success).toBe(false)
+    expect(find.output.safeParse({ found: true }).success).toBe(true)
+    expect(find.output.safeParse({ found: false }).success).toBe(true)
+    for (const bad of [{}, { found: 'yes' }, { found: true, url: 'https://x' }, { found: true, issue: {} }]) expect(find.output.safeParse(bad).success).toBe(false)
   })
 
   it('lists activities', () => {

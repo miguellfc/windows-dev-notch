@@ -34,7 +34,7 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
       role="radiogroup"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className="inline-flex rounded-control border border-line bg-veil p-0.5"
+      className="field inline-flex p-0.5"
     >
       {options.map((option, index) => (
         <button
@@ -47,7 +47,7 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
           aria-checked={option.value === value}
           tabIndex={index === tabStop ? 0 : -1}
           onClick={() => onChange(option.value)}
-          className="h-7 cursor-pointer rounded-control-sm px-3 text-small text-graphite transition-colors duration-150 hover:text-chalk aria-checked:bg-veil-tile aria-checked:text-chalk"
+          className="h-7 cursor-pointer rounded-control-sm px-3 text-small text-graphite transition-colors duration-150 hover:text-chalk aria-checked:bg-select aria-checked:font-semibold aria-checked:text-on-select"
         >
           {option.label}
         </button>

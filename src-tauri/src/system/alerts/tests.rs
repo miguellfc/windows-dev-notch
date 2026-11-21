@@ -55,6 +55,8 @@ fn disk(letter: &str, free_percent: f64) -> DiskFree {
     DiskFree {
         letter: letter.into(),
         free_percent,
+        free_bytes: 0,
+        total_bytes: 0,
     }
 }
 

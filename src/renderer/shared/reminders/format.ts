@@ -42,6 +42,14 @@ export function formatDue(due: Date, now: Date, language: Language): string {
   return `${day} ${time}`
 }
 
+/** The day part of `formatDue` ("Mañana", "Vie", "20 nov"), capitalised; null when due today (only the time shows). */
+export function formatDueDay(due: Date, now: Date, language: Language): string | null {
+  if (dayOffset(due, now) === 0) return null
+  const time = formatTime(due, language)
+  const day = formatDue(due, now, language).replace(time, '').trim()
+  return day.charAt(0).toUpperCase() + day.slice(1)
+}
+
 const dueMs = (r: Reminder): number => new Date(r.dueAt).getTime()
 const byDue = (a: Reminder, b: Reminder): number => dueMs(a) - dueMs(b)
 
@@ -53,6 +61,11 @@ export function attentionReminders(reminders: readonly Reminder[]): Reminder[] {
 /** Every pending reminder, soonest first. */
 export function pendingReminders(reminders: readonly Reminder[]): Reminder[] {
   return reminders.filter((r) => r.state === 'pending').sort(byDue)
+}
+
+/** The next reminder to fire: the soonest pending one, or null when none is pending. */
+export function nextReminder(reminders: readonly Reminder[]): Reminder | null {
+  return pendingReminders(reminders)[0] ?? null
 }
 
 const ERROR_KEYS: Readonly<Record<string, MessageKey>> = {

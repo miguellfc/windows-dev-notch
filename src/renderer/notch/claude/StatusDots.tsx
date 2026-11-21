@@ -1,10 +1,12 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
-import { nextDoneExpiry, summarizeDots, type DotStatus } from '../../../shared/claude/view'
+import { useEffect, useState } from 'react'
+import { nextDoneExpiry, summarizeDots, type DotStatus, type DotSummary } from '../../../shared/claude/view'
+import { ClaudeMark } from '../../shared/brand-icons'
 import { useClaude } from '../../shared/claude-store'
+import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { useT } from '../../shared/use-t'
 
 export const DOT_COLOR: Readonly<Record<DotStatus | 'idle', string>> = {
-  working: 'var(--color-ice)',
+  working: 'var(--color-select)',
   waiting: 'var(--color-wait)',
   done: 'var(--color-ok)',
   error: 'var(--color-fail)',
@@ -25,27 +27,33 @@ function useNowUntilDoneExpires(): number {
   return Date.now()
 }
 
-/** Compact-capsule summary of Claude sessions; renders the fallback when no session has a dot. */
-export function StatusDots({ fallback = null }: { fallback?: ReactNode }) {
-  const t = useT()
+const NO_DOTS: DotSummary = { dots: [], extra: 0, counts: { working: 0, waiting: 0, done: 0, error: 0 } }
+
+/** The Claude sessions' dots right now (re-rendered when a done dot turns off). */
+export function useClaudeDots(): DotSummary {
   const sessions = useClaude((store) => store.state?.sessions)
   const now = useNowUntilDoneExpires()
-  if (!sessions) return fallback
-  const { dots, extra, counts } = summarizeDots(sessions, now)
-  if (dots.length === 0) return fallback
+  return sessions ? summarizeDots(sessions, now) : NO_DOTS
+}
+
+/**
+ * The Claude block of the compact capsule and the peek: its mark alone, in the integration color.
+ * The parent shows it only while some session has a dot (working, waiting, error, or done a moment
+ * ago); the accessible label still says how many sessions are in each state.
+ */
+export function StatusDots() {
+  const t = useT()
+  const { color } = useIntegration('claude')
+  const { counts } = useClaudeDots()
 
   const parts = (['working', 'waiting', 'error', 'done'] as const)
     .filter((status) => counts[status] > 0)
     .map((status) => t(`claude.dots.${status}`, { count: counts[status] }))
-  if (extra > 0) parts.push(t('claude.dots.more', { count: extra }))
   const label = `${t('claude.section.title')}: ${parts.join(', ')}`
 
   return (
-    <span role="img" aria-label={label} data-testid="claude-dots" className="flex items-center gap-1.5">
-      {dots.map((status, index) => (
-        <span key={index} className="status-dot" style={{ '--dot': DOT_COLOR[status] } as CSSProperties} />
-      ))}
-      {extra > 0 && <span className="tabular text-label font-medium text-graphite-glass">+{extra}</span>}
+    <span role="img" aria-label={label} data-testid="claude-dots" className="flex items-center" style={integrationStyle(color)}>
+      <ClaudeMark size={12} strokeWidth={2} aria-hidden="true" className="shrink-0 text-[color:var(--int)]" />
     </span>
   )
 }

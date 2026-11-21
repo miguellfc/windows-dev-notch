@@ -5,7 +5,7 @@ import { translate } from '../../../shared/i18n/messages'
 import type { RedmineSummary as Summary } from '../../../shared/redmine/schema'
 import type { Language } from '../../../shared/settings/schema'
 import { monthName, NO_VALUE, placeholderGrid, shortDate } from '../../shared/code-review/contributions-format'
-import { hoursLong, summaryGrid } from '../../shared/redmine/format'
+import { hoursLong, summaryGrid, summaryLine } from '../../shared/redmine/format'
 import { useRedmine } from '../../shared/redmine-store'
 import { useSettings } from '../../shared/settings-store'
 import { useLanguage, useT } from '../../shared/use-t'
@@ -43,9 +43,10 @@ const srSummary = (summary: Summary, language: Language): string => {
  * The hours summary over the issue list: the month chart (one square per day, its colour step by the
  * hours against the daily target) beside Hoy · Semana · Mes, then "38,5 h en noviembre" and the
  * daily target (the hovered day's hours take that line meanwhile). Loading: the grey chart and "—";
- * a failed query keeps the last data with "No se pudieron cargar las horas · Reintentar".
+ * a failed query keeps the last data with "No se pudieron cargar las horas · Reintentar". While
+ * searching (`compact`) it is one line: "Hoy 5,5H · Semana 21H · Mes 38,5H".
  */
-export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRetry: () => void; retryResting: boolean }) {
+export function RedmineSummary({ now, onRetry, retryResting, compact }: { now: Date; onRetry: () => void; retryResting: boolean; compact: boolean }) {
   const t = useT()
   const language = useLanguage()
   const summary = useRedmine((store) => store.summary)
@@ -57,13 +58,23 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
   const loading = summary === null && !error
   const phase = summary ? 'ready' : error ? 'error' : 'loading'
 
+  if (compact) {
+    return (
+      <section aria-label={t('redmine.summary.region')} data-testid="redmine-summary" data-phase={phase} data-compact="true" className="card flex h-7 shrink-0 items-center px-3">
+        <p data-testid="redmine-summary-line" className="tabular min-w-0 truncate text-small text-chalk">
+          {summaryLine(summary, language)}
+        </p>
+      </section>
+    )
+  }
+
   return (
     <section
       aria-label={t('redmine.summary.region')}
       data-testid="redmine-summary"
       data-phase={phase}
       aria-busy={loading || undefined}
-      className="flex shrink-0 flex-wrap gap-x-5 gap-y-2 border-b border-line px-1.5 pb-2.5 pt-1"
+      className="card flex shrink-0 flex-wrap gap-x-5 gap-y-2 px-3 py-2"
     >
       <ContributionGraph
         weeks={summary ? summaryGrid(summary, today, target) : placeholderGrid(now)}
@@ -96,7 +107,7 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
                 {t('redmine.summary.hours')}
               </th>
               {COLUMNS.map(({ key }) => (
-                <td key={key} data-column={key} className="tabular whitespace-nowrap p-0 text-right text-body font-medium text-chalk">
+                <td key={key} data-column={key} className="font-mono tabular whitespace-nowrap p-0 text-right text-body font-medium text-chalk">
                   {summary ? hoursLong(summary[key], language) : NO_VALUE}
                 </td>
               ))}
@@ -131,8 +142,8 @@ export function RedmineSummary({ now, onRetry, retryResting }: { now: Date; onRe
                 data-testid="redmine-summary-retry"
                 onClick={onRetry}
                 aria-disabled={retryResting}
-                // 24 px tall target (the line stays 16 px); the global ice focus ring shows on keyboard focus.
-                className="-my-1 inline-flex min-h-6 cursor-pointer items-center rounded-control-sm px-1 font-medium text-ice underline-offset-2 hover:underline aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:no-underline"
+                // 24 px tall target (the line stays 16 px); the global focus ring shows on keyboard focus.
+                className="-my-1 inline-flex min-h-6 cursor-pointer items-center rounded-control-sm px-1 font-medium text-select underline-offset-2 hover:underline aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:no-underline"
               >
                 {t('redmine.summary.retry')}
               </button>

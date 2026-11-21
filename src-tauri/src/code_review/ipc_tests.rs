@@ -8,12 +8,11 @@ use tokio::sync::watch;
 
 use super::*;
 use crate::contract::code_review::{
-    CodeReviewList, CodeReviewState, ContributionSummary, ContributionTotals, ContributionsResult,
-    Platform, PlatformState, PlatformStatus, ReviewItem, ReviewState, SetTokenReason,
-    SetTokenResult,
+    CodeReviewState, ContributionSummary, ContributionTotals, ContributionsResult, Platform,
+    PlatformState, PlatformStatus, SetTokenReason, SetTokenResult,
 };
 use crate::contract::{check, Direction};
-use crate::ipc::{Ctx, IpcErrorCode, Registry, Sender, CONTROL_CENTER, NOTCH};
+use crate::ipc::{Ctx, Registry, Sender, CONTROL_CENTER, NOTCH};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Who {
@@ -45,28 +44,14 @@ fn ok_state() -> CodeReviewState {
     }
 }
 
-fn item(id: &str) -> ReviewItem {
-    ReviewItem {
-        id: id.into(),
-        reference: "o/r#1".into(),
-        title: "T".into(),
-        author: "a".into(),
-        updated_at: "2026-11-13T09:00:00.000Z".into(),
-        draft: false,
-        review: ReviewState::None,
-        checks: None,
-        conflicts: false,
-    }
-}
-
 /// The integration as the channels see it, recording every call.
 struct FakeApi {
     ready: watch::Receiver<bool>,
     state: CodeReviewState,
-    list: CodeReviewList,
     set_token: SetTokenResult,
     contributions: ContributionsResult,
-    open_refusal: Mutex<Option<&'static str>>,
+    /// What `open_profile` and `open_alert` answer.
+    opens: bool,
     calls: Mutex<Vec<String>>,
 }
 
@@ -97,22 +82,18 @@ impl CodeReviewApi for FakeApi {
         self.state.clone()
     }
 
-    fn list(&self, platform: Platform) -> BoxFuture<'_, CodeReviewList> {
-        self.record(format!("list:{}", platform.as_str()));
-        let list = self.list.clone();
-        Box::pin(async move { list })
-    }
-
     fn refresh(&self) {
         self.record("refresh".into());
     }
 
-    fn open(&self, platform: Platform, id: &str) -> Result<(), ExposedError> {
-        self.record(format!("open:{}:{id}", platform.as_str()));
-        match self.open_refusal.lock().unwrap().take() {
-            Some(message) => Err(ExposedError::new(IpcErrorCode::InvalidInput, message)),
-            None => Ok(()),
-        }
+    fn open_profile(&self, platform: Platform) -> BoxFuture<'_, bool> {
+        self.record(format!("open-profile:{}", platform.as_str()));
+        Box::pin(async move { self.opens })
+    }
+
+    fn open_alert(&self, platform: Platform) -> BoxFuture<'_, bool> {
+        self.record(format!("open-alert:{}", platform.as_str()));
+        Box::pin(async move { self.opens })
     }
 
     fn set_token(
@@ -144,7 +125,7 @@ impl CodeReviewApi for FakeApi {
 
 struct Options {
     ready: bool,
-    list: CodeReviewList,
+    opens: bool,
     set_token: SetTokenResult,
     contributions: ContributionsResult,
 }
@@ -153,10 +134,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             ready: true,
-            list: CodeReviewList {
-                to_review: vec![item("a")],
-                mine: vec![],
-            },
+            opens: true,
             set_token: SetTokenResult::Accepted {
                 account: "me".into(),
             },
@@ -179,10 +157,9 @@ fn setup(options: Options) -> Harness {
     let api = Arc::new(FakeApi {
         ready,
         state: ok_state(),
-        list: options.list,
         set_token: options.set_token,
         contributions: options.contributions,
-        open_refusal: Mutex::new(None),
+        opens: options.opens,
         calls: Mutex::new(Vec::new()),
     });
     let slot: Arc<CodeReviewSlot> = Arc::default();
@@ -235,9 +212,9 @@ async fn settle() {
 
 const ALLOWED: [(&str, &str); 8] = [
     ("code-review:get-state", "both"),
-    ("code-review:list", "notch"),
     ("code-review:refresh", "notch"),
-    ("code-review:open", "notch"),
+    ("code-review:open-profile", "notch"),
+    ("code-review:open-alert", "notch"),
     ("code-review:set-token", "control-center"),
     ("code-review:clear", "control-center"),
     ("code-review:view", "notch"),
@@ -246,8 +223,9 @@ const ALLOWED: [(&str, &str); 8] = [
 
 fn sample(channel: &str) -> Option<Value> {
     match channel {
-        "code-review:list" => Some(json!({ "platform": "github" })),
-        "code-review:open" => Some(json!({ "platform": "github", "id": "a" })),
+        "code-review:open-profile" | "code-review:open-alert" => {
+            Some(json!({ "platform": "github" }))
+        }
         "code-review:set-token" => Some(json!({ "platform": "github", "token": "fake-token" })),
         "code-review:clear" => Some(json!({ "platform": "gitlab" })),
         "code-review:view" => Some(json!({ "open": true })),
@@ -303,18 +281,18 @@ async fn get_state_is_reachable_only_from_both() {
 }
 
 #[tokio::test]
-async fn list_is_reachable_only_from_notch() {
-    reachable_only_from("code-review:list").await;
-}
-
-#[tokio::test]
 async fn refresh_is_reachable_only_from_notch() {
     reachable_only_from("code-review:refresh").await;
 }
 
 #[tokio::test]
-async fn open_is_reachable_only_from_notch() {
-    reachable_only_from("code-review:open").await;
+async fn open_profile_is_reachable_only_from_notch() {
+    reachable_only_from("code-review:open-profile").await;
+}
+
+#[tokio::test]
+async fn open_alert_is_reachable_only_from_notch() {
+    reachable_only_from("code-review:open-alert").await;
 }
 
 #[tokio::test]
@@ -352,18 +330,14 @@ async fn a_forbidden_caller_never_reaches_the_integration() {
         Some(json!({ "platform": "github" })),
     )
     .await;
-    t.invoke(
-        "code-review:open",
-        Who::ControlCenter,
-        Some(json!({ "platform": "github", "id": "a" })),
-    )
-    .await;
-    t.invoke(
-        "code-review:list",
-        Who::ControlCenter,
-        Some(json!({ "platform": "github" })),
-    )
-    .await;
+    for channel in ["code-review:open-profile", "code-review:open-alert"] {
+        t.invoke(
+            channel,
+            Who::ControlCenter,
+            Some(json!({ "platform": "github" })),
+        )
+        .await;
+    }
     t.invoke(
         "code-review:view",
         Who::ControlCenter,
@@ -397,28 +371,10 @@ async fn get_state_waits_for_the_stored_tokens_to_load() {
 }
 
 #[tokio::test]
-async fn passes_list_refresh_open_set_token_and_clear_through() {
+async fn passes_refresh_set_token_and_clear_through() {
     let t = setup(Options::default());
     assert_eq!(
-        t.invoke(
-            "code-review:list",
-            Who::Notch,
-            Some(json!({ "platform": "gitlab" }))
-        )
-        .await,
-        json!({ "ok": true, "data": { "toReview": [serde_json::to_value(item("a")).unwrap()], "mine": [] } })
-    );
-    assert_eq!(
         t.invoke("code-review:refresh", Who::Notch, None).await,
-        json!({ "ok": true, "data": null })
-    );
-    assert_eq!(
-        t.invoke(
-            "code-review:open",
-            Who::Notch,
-            Some(json!({ "platform": "github", "id": "a" }))
-        )
-        .await,
         json!({ "ok": true, "data": null })
     );
     assert_eq!(
@@ -442,9 +398,7 @@ async fn passes_list_refresh_open_set_token_and_clear_through() {
     assert_eq!(
         t.api.calls(),
         vec![
-            "list:gitlab".to_owned(),
             "refresh".to_owned(),
-            "open:github:a".to_owned(),
             "set-token:gitlab:fake-token:Some(\"https://gitlab.example.test\")".to_owned(),
             "clear:gitlab".to_owned(),
         ]
@@ -471,40 +425,59 @@ async fn returns_a_failed_token_check_as_data() {
 }
 
 #[tokio::test]
-async fn exposes_invalid_input_from_open_unknown_id_or_origin() {
+async fn open_profile_and_open_alert_answer_a_boolean_and_never_a_url() {
     let t = setup(Options::default());
-    *t.api.open_refusal.lock().unwrap() = Some("Unknown item");
+    for channel in ["code-review:open-profile", "code-review:open-alert"] {
+        assert_eq!(
+            t.invoke(channel, Who::Notch, Some(json!({ "platform": "gitlab" })))
+                .await,
+            json!({ "ok": true, "data": { "opened": true } }),
+            "{channel}"
+        );
+    }
     assert_eq!(
-        t.invoke(
-            "code-review:open",
-            Who::Notch,
-            Some(json!({ "platform": "github", "id": "zz" }))
-        )
-        .await,
-        json!({ "ok": false, "error": { "code": "INVALID_INPUT", "message": "Unknown item" } })
+        t.api.calls(),
+        vec![
+            "open-profile:gitlab".to_owned(),
+            "open-alert:gitlab".to_owned()
+        ]
     );
+    let nothing = setup(Options {
+        opens: false,
+        ..Options::default()
+    });
+    for channel in ["code-review:open-profile", "code-review:open-alert"] {
+        assert_eq!(
+            nothing
+                .invoke(channel, Who::Notch, Some(json!({ "platform": "github" })))
+                .await,
+            json!({ "ok": true, "data": { "opened": false } }),
+            "{channel}"
+        );
+    }
 }
 
 #[tokio::test]
-async fn validates_inputs_ids_only_never_a_url_known_platforms_bounded_tokens() {
+async fn validates_inputs_a_platform_only_never_a_url_known_platforms_bounded_tokens() {
     let t = setup(Options::default());
     let cases = [
         (
-            "code-review:open",
+            "code-review:open-profile",
             Who::Notch,
-            Some(json!({ "platform": "github", "id": "a", "url": "https://evil.test" })),
+            Some(json!({ "platform": "github", "url": "https://evil.test" })),
         ),
         (
-            "code-review:open",
+            "code-review:open-alert",
             Who::Notch,
-            Some(json!({ "platform": "bitbucket", "id": "a" })),
+            Some(json!({ "platform": "github", "id": "a" })),
         ),
         (
-            "code-review:open",
+            "code-review:open-alert",
             Who::Notch,
-            Some(json!({ "platform": "github", "id": "" })),
+            Some(json!({ "platform": "bitbucket" })),
         ),
-        ("code-review:list", Who::Notch, Some(json!({}))),
+        ("code-review:open-profile", Who::Notch, Some(json!({}))),
+        ("code-review:open-alert", Who::Notch, None),
         (
             "code-review:refresh",
             Who::Notch,
@@ -541,8 +514,8 @@ async fn validates_inputs_ids_only_never_a_url_known_platforms_bounded_tokens() 
 }
 
 #[tokio::test]
-async fn validates_outputs_strict_state_no_urls_in_lists_at_most_20_items_strict_token_result() {
-    // Rust types cannot carry a token in the state, a URL in a list or a token back: the strict
+async fn validates_outputs_strict_state_no_urls_in_opened_strict_token_result() {
+    // Rust types cannot carry a token in the state, a URL in a result or a token back: the strict
     // contract the dispatcher checks against refuses those shapes all the same.
     let mut leaky_state = serde_json::to_value(ok_state()).unwrap();
     leaky_state["github"]["token"] = json!("secret");
@@ -554,16 +527,16 @@ async fn validates_outputs_strict_state_no_urls_in_lists_at_most_20_items_strict
         ),
         Some(Err(_))
     ));
-    let mut url_item = serde_json::to_value(item("a")).unwrap();
-    url_item["url"] = json!("https://github.com/o/r/pull/1");
-    assert!(matches!(
-        check(
-            "code-review:list",
-            Direction::Output,
-            Some(&json!({ "toReview": [url_item], "mine": [] }))
-        ),
-        Some(Err(_))
-    ));
+    for output in [
+        json!({ "opened": true, "url": "https://github.com/o/r/pull/1" }),
+        json!({ "opened": "yes" }),
+        json!({}),
+    ] {
+        assert!(matches!(
+            check("code-review:open-alert", Direction::Output, Some(&output)),
+            Some(Err(_))
+        ));
+    }
     assert!(matches!(
         check(
             "code-review:set-token",
@@ -572,22 +545,6 @@ async fn validates_outputs_strict_state_no_urls_in_lists_at_most_20_items_strict
         ),
         Some(Err(_))
     ));
-    // What the integration returns is checked before it leaves: 21 items is INTERNAL.
-    let too_many = setup(Options {
-        list: CodeReviewList {
-            to_review: (0..21).map(|i| item(&i.to_string())).collect(),
-            mine: vec![],
-        },
-        ..Options::default()
-    });
-    let response = too_many
-        .invoke(
-            "code-review:list",
-            Who::Notch,
-            Some(json!({ "platform": "github" })),
-        )
-        .await;
-    assert_eq!(code(&response), &json!("INTERNAL"));
     // The serialized shapes hold exactly the contract's keys.
     let state = serde_json::to_value(ok_state()).unwrap();
     let mut keys: Vec<&str> = state["github"]

@@ -1,60 +1,88 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_MISSES, EMPTY_REVIEW_BLOCKS, nextReviewBlocks, reviewBlockCount, type ReviewBlocks } from '../../../src/renderer/notch/system/capsule-latch'
-import type { CodeReviewState, PlatformState, PlatformStatus } from '../../../src/shared/code-review/schema'
+import {
+  CAPSULE_MISSES,
+  contributionBlockCount,
+  EMPTY_CONTRIBUTION_BLOCKS,
+  nextContributionBlocks,
+  type ContributionBlocks,
+} from '../../../src/renderer/notch/system/capsule-latch'
+import type { CodeReviewState, ContributionsResult, ContributionSummary, Platform, PlatformState, PlatformStatus } from '../../../src/shared/code-review/schema'
 
-const platform = (status: PlatformStatus, unreviewed: number | null): PlatformState => ({
+const platform = (status: PlatformStatus): PlatformState => ({
   status,
-  account: 'someone',
-  unreviewed,
+  account: status === 'unconfigured' ? null : 'someone',
+  unreviewed: null,
   updatedAt: '2026-11-13T12:00:00.000Z',
   persistent: true,
 })
-const reading = (github: PlatformState, gitlab: PlatformState = platform('unconfigured', null)): CodeReviewState => ({ github, gitlab })
-const feed = (states: CodeReviewState[], from: ReviewBlocks = EMPTY_REVIEW_BLOCKS): ReviewBlocks => states.reduce(nextReviewBlocks, from)
+const state = (github: PlatformStatus, gitlab: PlatformStatus = 'unconfigured'): CodeReviewState => ({ github: platform(github), gitlab: platform(gitlab) })
+const answer = (monthTotal: number | null, month = '2026-11', error = false): ContributionsResult => ({
+  summary: monthTotal === null ? null : ({ month, monthTotal } as ContributionSummary),
+  error,
+})
 
-describe('nextReviewBlocks', () => {
-  it('starts with no blocks and shows one per platform with the first reading over 0', () => {
-    expect(reviewBlockCount(EMPTY_REVIEW_BLOCKS)).toBe(0)
-    const both = feed([reading(platform('ok', 2), platform('offline', 100))])
-    expect(both.github.count).toBe(2)
-    expect(both.gitlab.count).toBe(100)
-    expect(reviewBlockCount(both)).toBe(2)
+/** One reading: the state and the contributions answers the store holds at that moment. */
+type Reading = [CodeReviewState | null, Partial<Record<Platform, ContributionsResult>>]
+const feed = (readings: Reading[], from: ContributionBlocks = EMPTY_CONTRIBUTION_BLOCKS): ContributionBlocks =>
+  readings.reduce((blocks, [current, contributions]) => nextContributionBlocks(blocks, current, contributions), from)
+
+describe('nextContributionBlocks', () => {
+  it('starts with no blocks and shows one per live platform with its month total', () => {
+    expect(contributionBlockCount(EMPTY_CONTRIBUTION_BLOCKS)).toBe(0)
+    const both = feed([[state('ok', 'offline'), { github: answer(143), gitlab: answer(2500) }]])
+    expect(both.github).toEqual({ total: 143, month: '2026-11', missRun: 0 })
+    expect(both.gitlab.total).toBe(2500)
+    expect(contributionBlockCount(both)).toBe(2)
   })
 
-  it('never shows a block for 0, no data, unconfigured or auth-error', () => {
-    expect(feed([reading(platform('ok', 0))]).github.count).toBeNull()
-    expect(feed([reading(platform('ok', null))]).github.count).toBeNull()
-    expect(feed([reading(platform('unconfigured', 3))]).github.count).toBeNull()
-    expect(feed([reading(platform('auth-error', 3))]).github.count).toBeNull()
+  it('shows a live 0; never without a summary yet, unconfigured or auth-error', () => {
+    expect(feed([[state('ok'), { github: answer(0) }]]).github.total).toBe(0)
+    expect(feed([[state('offline'), { github: answer(0) }]]).github.total).toBe(0)
+    expect(feed([[state('ok'), {}]]).github.total).toBeNull()
+    expect(feed([[state('ok'), { github: answer(null) }]]).github.total).toBeNull()
+    expect(feed([[state('unconfigured'), { github: answer(3) }]]).github.total).toBeNull()
+    expect(feed([[state('auth-error'), { github: answer(3) }]]).github.total).toBeNull()
+    expect(feed([[null, { github: answer(3) }]]).github.total).toBeNull()
   })
 
-  it('a live reading of 0 hides the block at once; no data (null) keeps the latch until the misses run out', () => {
-    expect(feed([reading(platform('ok', 4)), reading(platform('ok', 0))]).github.count).toBeNull()
-    expect(feed([reading(platform('offline', 4)), reading(platform('offline', 0))]).github.count).toBeNull()
-    let blocks = feed([reading(platform('ok', 4))])
+  it('a failed query keeps its last summary: the total stays', () => {
+    expect(feed([[state('ok'), { github: answer(5) }], [state('ok'), { github: answer(5, '2026-11', true) }]]).github.total).toBe(5)
+  })
+
+  it('a reading without a summary keeps the last total until the misses run out', () => {
+    let blocks = feed([[state('ok'), { github: answer(4) }]])
     for (let i = 1; i < CAPSULE_MISSES; i++) {
-      blocks = nextReviewBlocks(blocks, reading(platform('ok', null)))
-      expect(blocks.github.count).toBe(4)
+      blocks = nextContributionBlocks(blocks, state('ok'), { github: answer(null) })
+      expect(blocks.github.total).toBe(4)
     }
-    blocks = nextReviewBlocks(blocks, reading(platform('ok', null)))
-    expect(blocks.github.count).toBeNull()
+    blocks = nextContributionBlocks(blocks, state('ok'), { github: answer(null) })
+    expect(blocks.github.total).toBeNull()
   })
 
-  it('a new count resets the misses; a platform that stops being live hides at once', () => {
-    let blocks = feed([reading(platform('ok', 4)), reading(platform('ok', null)), reading(platform('ok', 5))])
-    expect(blocks.github).toEqual({ count: 5, missRun: 0 })
-    blocks = nextReviewBlocks(blocks, reading(platform('auth-error', null)))
-    expect(blocks.github.count).toBeNull()
+  it('a new total resets the misses and follows the month; a platform that stops being live hides at once', () => {
+    let blocks = feed([
+      [state('ok'), { github: answer(4) }],
+      [state('ok'), { github: answer(null) }],
+      [state('ok'), { github: answer(1, '2026-12') }],
+    ])
+    expect(blocks.github).toEqual({ total: 1, month: '2026-12', missRun: 0 })
+    blocks = nextContributionBlocks(blocks, state('auth-error'), { github: answer(1, '2026-12') })
+    expect(blocks.github.total).toBeNull()
   })
 
   it('keeps each platform on its own latch', () => {
-    const blocks = feed([reading(platform('ok', 1), platform('ok', 3)), reading(platform('ok', 1), platform('unconfigured', null))])
-    expect(blocks.github.count).toBe(1)
-    expect(blocks.gitlab.count).toBeNull()
-    expect(reviewBlockCount(blocks)).toBe(1)
+    const blocks = feed([
+      [state('ok', 'ok'), { github: answer(1), gitlab: answer(3) }],
+      [state('ok', 'unconfigured'), { github: answer(1), gitlab: answer(3) }],
+    ])
+    expect(blocks.github.total).toBe(1)
+    expect(blocks.gitlab.total).toBeNull()
+    expect(contributionBlockCount(blocks)).toBe(1)
   })
 
   it('returns the same object when nothing changes', () => {
-    expect(nextReviewBlocks(EMPTY_REVIEW_BLOCKS, reading(platform('ok', 0)))).toBe(EMPTY_REVIEW_BLOCKS)
+    expect(nextContributionBlocks(EMPTY_CONTRIBUTION_BLOCKS, state('ok'), {})).toBe(EMPTY_CONTRIBUTION_BLOCKS)
+    const zero = feed([[state('ok'), { github: answer(0) }]])
+    expect(nextContributionBlocks(zero, state('ok'), { github: answer(0) })).toBe(zero)
   })
 })

@@ -5,7 +5,8 @@ import type { RedmineIssue, RedmineSummary, RedmineWriteError } from '../../../s
 import type { Language } from '../../../shared/settings/schema'
 import { locale } from '../locale'
 
-const hoursNumber = (hours: number, language: Language): string => new Intl.NumberFormat(locale(language), { maximumFractionDigits: 2 }).format(hours)
+/** The figure alone: "5,5" / "5.5", at most 2 decimals, no trailing zeros. */
+export const hoursNumber = (hours: number, language: Language): string => new Intl.NumberFormat(locale(language), { maximumFractionDigits: 2 }).format(hours)
 
 /** Hours as the capsule and the lists show them: "5,5h" / "5.5h", at most 2 decimals, no trailing zeros, "0h". */
 export function hoursText(hours: number, language: Language): string {
@@ -15,6 +16,16 @@ export function hoursText(hours: number, language: Language): string {
 /** Hours for sentences and accessible names: "5,5 h" / "5.5 h". */
 export function hoursLong(hours: number, language: Language): string {
   return `${hoursNumber(hours, language)} h`
+}
+
+/** The hours summary in one line, while searching: "Hoy 5,5H · Semana 21H · Mes 38,5H"; a dash until it arrives. */
+export function summaryLine(summary: RedmineSummary | null, language: Language): string {
+  const figure = (hours: number | undefined) => (hours === undefined ? '—' : hoursText(hours, language).toUpperCase())
+  return [
+    `${translate(language, 'redmine.summary.today')} ${figure(summary?.today)}`,
+    `${translate(language, 'redmine.summary.week')} ${figure(summary?.week)}`,
+    `${translate(language, 'redmine.summary.month')} ${figure(summary?.monthTotal)}`,
+  ].join(' · ')
 }
 
 /** Lower case without accents, so "diseno" finds "Diseño". */
@@ -71,14 +82,43 @@ export function issueHoursText(issue: RedmineIssue, language: Language): string 
 }
 
 /**
- * Hours as typed in the detail's fields: digits with a comma or a point and at most 2 decimals
- * ("1,5", "2.25", ".5"); null for anything else. The range is the caller's.
+ * The detail's logged-hours line, under the estimate: "12,5 h imputadas de 6 h", or "12,5 h
+ * imputadas" without an estimate (no hours read counts as 0). `over` when the logged hours pass the
+ * estimate (the line turns Rojo Fallo).
+ */
+export function spentLine(spent: number | null, estimated: number | null, language: Language): { readonly text: string; readonly over: boolean } {
+  const hours = hoursLong(spent ?? 0, language)
+  if (estimated === null) return { text: translate(language, 'redmine.detail.spent', { hours }), over: false }
+  return {
+    text: translate(language, 'redmine.detail.spentOf', { hours, estimate: hoursLong(estimated, language) }),
+    over: (spent ?? 0) > estimated,
+  }
+}
+
+/**
+ * Hours as typed in the detail's fields, in the formats Redmine itself accepts: a number with a
+ * comma or a point and at most 2 decimals, "h" optional ("1,5", "2.25", ".5", "2h"); hours and
+ * minutes ("1h 25m", "1h25m", "1h25", "25m", "90 min"); or "h:mm" ("1:25"). Minutes become hours
+ * rounded to 2 decimals (what main accepts; 0.01 h is 0.6 min, so Redmine shows the same minutes
+ * back). Case and spaces don't matter. Null for anything else. The range is the caller's.
  */
 export function parseHours(text: string): number | null {
-  const match = /^(\d*)(?:[.,](\d{1,2}))?$/.exec(text.trim())
-  if (!match || (match[1] === '' && match[2] === undefined)) return null
-  return Number(`${match[1] === '' ? '0' : match[1]}.${match[2] ?? '0'}`)
+  const value = text.trim().toLowerCase()
+  const decimal = /^(\d*)(?:[.,](\d{1,2}))?\s*h?$/.exec(value)
+  if (decimal && !(decimal[1] === '' && decimal[2] === undefined)) {
+    return Number(`${decimal[1] === '' ? '0' : decimal[1]}.${decimal[2] ?? '0'}`)
+  }
+  const clock = /^(\d+):([0-5]\d)$/.exec(value)
+  if (clock) return toHours(Number(clock[1]), Number(clock[2]))
+  const parts = /^(?:(\d+)\s*h)?\s*(?:(\d+)\s*(?:m|min)?)?$/.exec(value)
+  // Minutes without a unit only after hours ("1h25"); a bare number is the decimal form above.
+  if (parts && (parts[1] !== undefined || (parts[2] !== undefined && /m/.test(value)))) {
+    return toHours(Number(parts[1] ?? 0), Number(parts[2] ?? 0))
+  }
+  return null
 }
+
+const toHours = (hours: number, minutes: number): number => Math.round((hours + minutes / 60) * 100) / 100
 
 const WRITE_ERRORS: Readonly<Record<RedmineWriteError, MessageKey>> = {
   auth: 'redmine.error.auth',

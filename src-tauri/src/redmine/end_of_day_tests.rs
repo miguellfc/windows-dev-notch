@@ -59,6 +59,10 @@ type Listener = Arc<dyn Fn(&RedmineSettings) + Send + Sync>;
 /// `settings.get` / `settings.onChange` over a value the test swaps with [`H::change`].
 struct FakeSettings {
     current: Mutex<RedmineSettings>,
+    /// `integrations.redmine.enabled`.
+    redmine_enabled: AtomicBool,
+    /// `Some(n)`: turns Redmine off on the read after the next `n` (a change racing a check).
+    off_after_reads: Mutex<Option<usize>>,
     listeners: Mutex<Vec<Listener>>,
 }
 
@@ -70,6 +74,13 @@ impl FakeSettings {
             listener(&next);
         }
     }
+
+    /// Turns the Redmine integration on or off, then notifies like the store.
+    fn set_redmine_enabled(&self, enabled: bool) {
+        self.redmine_enabled.store(enabled, Ordering::SeqCst);
+        let current = self.current.lock().unwrap().clone();
+        self.change(current);
+    }
 }
 
 impl EndOfDaySettings for FakeSettings {
@@ -79,6 +90,19 @@ impl EndOfDaySettings for FakeSettings {
 
     fn on_change(&self, listener: SettingsListener) {
         self.listeners.lock().unwrap().push(Arc::from(listener));
+    }
+
+    fn integration_enabled(&self) -> bool {
+        let mut off_after = self.off_after_reads.lock().unwrap();
+        match *off_after {
+            Some(0) => {
+                self.redmine_enabled.store(false, Ordering::SeqCst);
+                *off_after = None;
+            }
+            Some(n) => *off_after = Some(n - 1),
+            None => {}
+        }
+        self.redmine_enabled.load(Ordering::SeqCst)
     }
 }
 
@@ -137,6 +161,8 @@ fn build(start: DateTime<Utc>, initial: RedmineSettings, tz: Tz) -> H {
     let active = Arc::new(Mutex::new(HashSet::new()));
     let settings = Arc::new(FakeSettings {
         current: Mutex::new(initial),
+        redmine_enabled: AtomicBool::new(true),
+        off_after_reads: Mutex::new(None),
         listeners: Mutex::new(Vec::new()),
     });
     let hours = Arc::new(Mutex::new(Some(5.5)));
@@ -638,4 +664,64 @@ fn start_twice_or_after_dispose_arms_nothing_more() {
     idle.scheduler.check();
     assert_eq!(idle.offered(), []);
     assert_eq!(idle.timer_count(), 0);
+}
+
+// ---------------------------------------------------------------------------------------------
+// v0.3.0: the Redmine integration disabled in the settings (`integrations.redmine.enabled`)
+
+#[test]
+fn end_of_day_skipped_when_redmine_disabled() {
+    let h = setup(at(16, 9, 0, 0));
+    h.settings.set_redmine_enabled(false);
+    h.advance_to(at(16, 18, 30, 0));
+    h.scheduler.check();
+    assert_eq!(h.offered(), []);
+    assert_eq!(h.alerts(), []);
+    h.scheduler.dispose();
+}
+
+#[test]
+fn end_of_day_disabled_at_start_never_offers() {
+    let h = build(at(16, 9, 0, 0), default_settings(), Madrid);
+    h.settings.redmine_enabled.store(false, Ordering::SeqCst);
+    h.scheduler.start();
+    h.advance_to(at(17, 19, 0, 0));
+    assert_eq!(h.offered(), []);
+    h.scheduler.dispose();
+}
+
+#[test]
+fn end_of_day_comes_back_when_redmine_is_enabled_again_but_not_for_a_time_already_past() {
+    let h = setup(at(16, 9, 0, 0));
+    h.settings.set_redmine_enabled(false);
+    h.advance_to(at(16, 17, 0, 0));
+    h.settings.set_redmine_enabled(true);
+    h.advance_to(at(16, 18, 0, 0));
+    assert_eq!(h.alerts(), [alert(5.5, 8.0)]);
+
+    // Off over the next day's time, back on after it (within the grace): not that day.
+    h.settings.set_redmine_enabled(false);
+    h.advance_to(at(17, 18, 10, 0));
+    h.settings.set_redmine_enabled(true);
+    h.advance_to(at(17, 18, 40, 0));
+    assert_eq!(h.alerts().len(), 1);
+    h.advance_to(at(18, 18, 0, 0));
+    assert_eq!(h.alerts().len(), 2);
+    h.scheduler.dispose();
+}
+
+#[test]
+fn redmine_turned_off_between_the_decision_and_the_alert_offers_nothing() {
+    let h = setup(at(16, 9, 0, 0));
+    h.advance_to(at(16, 17, 59, 0));
+    // The check's decision still sees Redmine on; it is off right before the alert.
+    *h.settings.off_after_reads.lock().unwrap() = Some(1);
+    h.jump(at(16, 18, 0, 30));
+    h.scheduler.check();
+    assert_eq!(h.offered(), []);
+    // Nothing is left half-offered: on again, the next day alerts as usual.
+    h.settings.set_redmine_enabled(true);
+    h.advance_to(at(17, 18, 0, 0));
+    assert_eq!(h.alerts(), [alert(5.5, 8.0)]);
+    h.scheduler.dispose();
 }

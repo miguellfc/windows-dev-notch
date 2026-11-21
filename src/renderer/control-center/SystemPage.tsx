@@ -8,7 +8,7 @@ import { SettingRow } from './ControlCenterApp'
 import { ALERT_RANGES, createAlertSaver, parseAlertField, type Range } from './system-alerts-form'
 
 const field =
-  'tabular h-8 w-16 rounded-control border border-line bg-veil px-2 text-center text-body text-chalk outline-none transition-colors duration-150 focus:border-ice/60 aria-invalid:border-fail/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-40'
+  'field tabular h-8 w-16 px-2 text-center text-body text-chalk outline-none transition-colors duration-150 focus:border-select/60 aria-invalid:border-fail/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-40'
 
 /**
  * A whole-number field and its unit, as two cells of the controls grid, validated on blur or Enter.

@@ -8,7 +8,6 @@ use chrono_tz::Tz;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::code_review::client::to_review_item;
 use crate::code_review::http::{Method, TransportError};
 use crate::contract::Validate;
 use crate::ipc::BoxFuture;
@@ -105,11 +104,8 @@ struct PrOptions {
     review_decision: Option<&'static str>,
     total_count: Option<usize>,
     latest: Option<&'static str>,
-    mergeable: Option<&'static str>,
-    rollup: Option<&'static str>,
     /// `Some(Value::Null)` for a deleted author; default `{login: 'octocat'}`.
     author: Option<Value>,
-    no_commits: bool,
     /// Explicit review nodes (oldest first); otherwise built from `latest` by `bob`.
     review_nodes: Option<Value>,
     /// `reviews: null` (connection not available).
@@ -129,22 +125,16 @@ fn reviews_of(o: &PrOptions) -> Value {
 
 fn pr(o: PrOptions) -> Value {
     let number = o.number.unwrap_or(1);
-    let rollup = o
-        .rollup
-        .map_or(Value::Null, |state| json!({ "state": state }));
     json!({
         "id": o.id.unwrap_or("PR_1"),
         "number": number,
         "title": "Add feature",
         "url": format!("https://github.com/owner/repo/pull/{number}"),
         "isDraft": o.is_draft,
-        "updatedAt": "2026-11-12T10:00:00Z",
         "reviewDecision": o.review_decision,
-        "mergeable": o.mergeable.unwrap_or("MERGEABLE"),
         "repository": { "nameWithOwner": "owner/repo" },
         "author": o.author.clone().unwrap_or_else(|| json!({ "login": "octocat" })),
         "reviews": if o.null_reviews { Value::Null } else { reviews_of(&o) },
-        "commits": { "nodes": if o.no_commits { json!([]) } else { json!([{ "commit": { "statusCheckRollup": rollup } }]) } },
     })
 }
 
@@ -154,7 +144,6 @@ fn pr_default() -> Value {
 
 /// `counts.unreviewed`: `None` = default 0, `Some(None)` = `null`.
 fn data_with(
-    to_review: Vec<Value>,
     mine: Vec<Value>,
     mine_count: Option<usize>,
     unreviewed: Option<Option<u64>>,
@@ -168,15 +157,14 @@ fn data_with(
     json!({
         "data": {
             "viewer": { "login": "octocat" },
-            "toReview": { "issueCount": to_review.len(), "nodes": to_review },
             "mine": { "issueCount": mine_count, "nodes": mine },
             "unreviewed": unreviewed,
         }
     })
 }
 
-fn data(to_review: Vec<Value>, mine: Vec<Value>) -> Value {
-    data_with(to_review, mine, None, None)
+fn data(mine: Vec<Value>) -> Value {
+    data_with(mine, None, None)
 }
 
 fn ids(items: &[ClientItem]) -> Vec<&str> {
@@ -193,8 +181,8 @@ fn own(id: &str, review: ReviewState) -> crate::code_review::client::OwnReview {
 // --- github client: request ---------------------------------------------------------------
 
 #[tokio::test]
-async fn posts_one_graphql_query_with_both_searches_the_bearer_token_and_no_redirects() {
-    let s = answer(data(vec![], vec![]));
+async fn posts_one_graphql_query_with_the_own_searches_the_bearer_token_and_no_redirects() {
+    let s = answer(data(vec![]));
     s.client.list().await.unwrap();
     let requests = s.requests();
     assert_eq!(requests.len(), 1);
@@ -209,7 +197,6 @@ async fn posts_one_graphql_query_with_both_searches_the_bearer_token_and_no_redi
         Some(format!("Bearer {TOKEN}").as_str())
     );
     let body = s.body(0);
-    assert!(body.contains("is:open is:pr review-requested:@me archived:false"));
     assert!(body.contains("is:open is:pr author:@me archived:false"));
     assert!(body.contains("is:open is:pr author:@me archived:false draft:false review:none"));
     let parsed: Value = serde_json::from_str(&body).unwrap();
@@ -229,7 +216,7 @@ async fn posts_one_graphql_query_with_both_searches_the_bearer_token_and_no_redi
 
 #[tokio::test]
 async fn uses_a_custom_api_base_when_given() {
-    let body = data(vec![], vec![]);
+    let body = data(vec![]);
     let s = setup_with("http://127.0.0.1:4100", move |_| Ok(json_response(&body)));
     s.client.list().await.unwrap();
     assert_eq!(s.requests()[0].url, "http://127.0.0.1:4100/graphql");
@@ -248,72 +235,26 @@ async fn viewer_returns_the_login() {
 // --- github client: mapping ---------------------------------------------------------------
 
 #[tokio::test]
-async fn maps_a_pr_to_an_item_with_ref_author_url_and_flags() {
-    let s = answer(data(
-        vec![pr(PrOptions {
-            id: Some("PR_r"),
-            number: Some(7),
-            rollup: Some("SUCCESS"),
-            mergeable: Some("CONFLICTING"),
-            ..PrOptions::default()
-        })],
-        vec![],
-    ));
+async fn maps_a_pr_to_an_item_with_ref_url_and_review_state() {
+    let s = answer(data(vec![pr(PrOptions {
+        id: Some("PR_r"),
+        number: Some(7),
+        latest: Some("APPROVED"),
+        ..PrOptions::default()
+    })]));
     let result = s.client.list().await.unwrap();
     assert_eq!(
-        result.to_review,
+        result.mine,
         vec![ClientItem {
             item: ReviewItem {
                 id: "PR_r".into(),
                 reference: "owner/repo#7".into(),
                 title: "Add feature".into(),
-                author: "octocat".into(),
-                updated_at: "2026-11-12T10:00:00Z".into(),
                 draft: false,
-                review: ReviewState::None,
-                checks: Some(Checks::Pass),
-                conflicts: true,
+                review: ReviewState::Approved,
             },
             url: "https://github.com/owner/repo/pull/7".into(),
         }]
-    );
-    assert!(result.mine.is_empty());
-}
-
-#[tokio::test]
-async fn maps_checks_from_the_status_rollup() {
-    let cases = [
-        (Some("SUCCESS"), Some(Checks::Pass)),
-        (Some("FAILURE"), Some(Checks::Fail)),
-        (Some("ERROR"), Some(Checks::Fail)),
-        (Some("PENDING"), Some(Checks::Running)),
-        (Some("EXPECTED"), Some(Checks::Running)),
-        (None, None),
-    ];
-    for (rollup, checks) in cases {
-        let s = answer(data(
-            vec![pr(PrOptions {
-                rollup,
-                ..PrOptions::default()
-            })],
-            vec![],
-        ));
-        assert_eq!(
-            s.client.list().await.unwrap().to_review[0].item.checks,
-            checks,
-            "{rollup:?}"
-        );
-    }
-    let s = answer(data(
-        vec![pr(PrOptions {
-            no_commits: true,
-            ..PrOptions::default()
-        })],
-        vec![],
-    ));
-    assert_eq!(
-        s.client.list().await.unwrap().to_review[0].item.checks,
-        None
     );
 }
 
@@ -349,7 +290,7 @@ async fn maps_the_review_state_from_the_decision_and_the_latest_review() {
     ];
     for (options, review) in cases {
         let label = format!("{:?} {:?}", options.review_decision, options.latest);
-        let s = answer(data(vec![], vec![pr(options)]));
+        let s = answer(data(vec![pr(options)]));
         assert_eq!(
             s.client.list().await.unwrap().mine[0].item.review,
             review,
@@ -384,7 +325,7 @@ async fn counts_own_open_non_draft_prs_without_reviews_and_reports_their_review_
             ..PrOptions::default()
         }),
     ];
-    let s = answer(data(vec![], mine));
+    let s = answer(data(mine));
     let result = s.client.list().await.unwrap();
     assert_eq!(result.unreviewed, 2);
     assert_eq!(
@@ -414,40 +355,37 @@ fn many(count: usize, latest: impl Fn(usize) -> Option<&'static str>) -> Vec<Val
 }
 
 #[tokio::test]
-async fn keeps_at_most_20_items_per_list() {
+async fn keeps_at_most_20_items() {
     let prs = many(25, |_| None);
-    let s = answer(data(prs.clone(), prs));
+    let s = answer(data(prs));
     let result = s.client.list().await.unwrap();
-    assert_eq!(result.to_review.len(), 20);
     assert_eq!(result.mine.len(), 20);
     assert_eq!(result.unreviewed, 20);
 }
 
 #[tokio::test]
 async fn skips_null_and_non_pr_search_nodes_and_tolerates_a_deleted_author() {
-    let s = answer(data(
-        vec![
-            Value::Null,
-            json!({}),
-            pr(PrOptions {
-                author: Some(Value::Null),
-                ..PrOptions::default()
-            }),
-        ],
-        vec![],
-    ));
+    let s = answer(data(vec![
+        Value::Null,
+        json!({}),
+        pr(PrOptions {
+            author: Some(Value::Null),
+            ..PrOptions::default()
+        }),
+    ]));
     let result = s.client.list().await.unwrap();
-    assert_eq!(result.to_review.len(), 1);
-    assert_eq!(result.to_review[0].item.author, "");
+    assert_eq!(result.mine.len(), 1);
+    // Without an author nothing is a self-review.
+    assert_eq!(result.own_review, vec![own("PR_1", ReviewState::None)]);
 }
 
 #[tokio::test]
 async fn cuts_very_long_titles() {
     let mut long = pr_default();
     long["title"] = json!("x".repeat(5000));
-    let s = answer(data(vec![long], vec![]));
+    let s = answer(data(vec![long]));
     assert_eq!(
-        s.client.list().await.unwrap().to_review[0]
+        s.client.list().await.unwrap().mine[0]
             .item
             .title
             .encode_utf16()
@@ -471,22 +409,15 @@ async fn uses_the_list_when_it_holds_every_own_pr_even_if_the_search_disagrees()
             ..PrOptions::default()
         }),
     ];
-    let s = answer(data_with(vec![], mine, None, Some(Some(0))));
+    let s = answer(data_with(mine, None, Some(Some(0))));
     assert_eq!(s.client.list().await.unwrap().unreviewed, 1);
-}
-
-#[tokio::test]
-async fn uses_the_review_none_search_count_when_the_list_is_cut_at_20() {
-    let prs = many(20, |i| (i < 15).then_some("APPROVED"));
-    let s = answer(data_with(vec![], prs, Some(40), Some(Some(27))));
-    assert_eq!(s.client.list().await.unwrap().unreviewed, 27);
 }
 
 #[tokio::test]
 async fn never_reports_fewer_than_the_list_shows_and_caps_at_100() {
     let prs = many(20, |_| None);
     let unreviewed = |mine: usize, searched: Option<u64>| {
-        answer(data_with(vec![], prs.clone(), Some(mine), Some(searched)))
+        answer(data_with(prs.clone(), Some(mine), Some(searched)))
     };
     assert_eq!(
         unreviewed(40, Some(3))
@@ -516,14 +447,11 @@ async fn never_reports_fewer_than_the_list_shows_and_caps_at_100() {
 
 #[tokio::test]
 async fn treats_a_null_reviews_connection_as_no_review_without_failing() {
-    let s = answer(data(
-        vec![],
-        vec![pr(PrOptions {
-            id: Some("a"),
-            null_reviews: true,
-            ..PrOptions::default()
-        })],
-    ));
+    let s = answer(data(vec![pr(PrOptions {
+        id: Some("a"),
+        null_reviews: true,
+        ..PrOptions::default()
+    })]));
     let result = s.client.list().await.unwrap();
     assert_eq!(result.mine[0].item.review, ReviewState::None);
     assert_eq!(result.unreviewed, 1);
@@ -532,29 +460,26 @@ async fn treats_a_null_reviews_connection_as_no_review_without_failing() {
 #[tokio::test]
 async fn ignores_the_pr_authors_own_reviews_self_review_never_counts_nor_alerts() {
     let own_review = json!({ "state": "COMMENTED", "author": { "login": "octocat" } });
-    let s = answer(data(
-        vec![],
-        vec![
-            pr(PrOptions {
-                id: Some("a"),
-                review_nodes: Some(json!([own_review])),
-                ..PrOptions::default()
-            }),
-            pr(PrOptions {
-                id: Some("b"),
-                review_nodes: Some(json!([
-                    { "state": "APPROVED", "author": { "login": "bob" } },
-                    own_review,
-                ])),
-                ..PrOptions::default()
-            }),
-            pr(PrOptions {
-                id: Some("c"),
-                review_nodes: Some(json!([{ "state": "COMMENTED", "author": null }])),
-                ..PrOptions::default()
-            }),
-        ],
-    ));
+    let s = answer(data(vec![
+        pr(PrOptions {
+            id: Some("a"),
+            review_nodes: Some(json!([own_review])),
+            ..PrOptions::default()
+        }),
+        pr(PrOptions {
+            id: Some("b"),
+            review_nodes: Some(json!([
+                { "state": "APPROVED", "author": { "login": "bob" } },
+                own_review,
+            ])),
+            ..PrOptions::default()
+        }),
+        pr(PrOptions {
+            id: Some("c"),
+            review_nodes: Some(json!([{ "state": "COMMENTED", "author": null }])),
+            ..PrOptions::default()
+        }),
+    ]));
     let result = s.client.list().await.unwrap();
     assert_eq!(
         result.own_review,
@@ -571,10 +496,10 @@ async fn ignores_the_pr_authors_own_reviews_self_review_never_counts_nor_alerts(
 
 #[tokio::test]
 async fn uses_the_data_of_a_200_response_that_also_has_errors() {
-    let mut body = data(vec![pr_default()], vec![]);
+    let mut body = data(vec![pr_default()]);
     body["errors"] = json!([{ "message": "Some repo not accessible" }]);
     let s = answer(body);
-    assert_eq!(s.client.list().await.unwrap().to_review.len(), 1);
+    assert_eq!(s.client.list().await.unwrap().mine.len(), 1);
 }
 
 #[tokio::test]
@@ -606,7 +531,7 @@ async fn gives_invalid_response_for_a_malformed_body_or_schema() {
     let mut bad = pr_default();
     bad["isDraft"] = json!("no");
     expect_code(
-        answer(data(vec![bad], vec![])).client.list().await,
+        answer(data(vec![bad])).client.list().await,
         CodeReviewError::InvalidResponse,
     );
 }
@@ -657,20 +582,6 @@ async fn treats_an_opaque_redirect_as_invalid_response() {
 async fn gives_network_when_fetch_rejects() {
     let s = setup_with(GITHUB_API_BASE, |_| Err(TransportError::Network));
     expect_code(s.client.list().await, CodeReviewError::Network);
-}
-
-// --- toReviewItem -------------------------------------------------------------------------
-
-#[tokio::test]
-async fn to_review_item_drops_the_url_so_the_item_fits_the_strict_ipc_schema() {
-    let s = answer(data(vec![pr_default()], vec![]));
-    let result = s.client.list().await.unwrap();
-    let item = to_review_item(&result.to_review[0]);
-    item.validate().unwrap();
-    let wire = serde_json::to_value(&item).unwrap();
-    assert!(wire.get("url").is_none());
-    let back: ReviewItem = serde_json::from_value(wire).unwrap();
-    assert_eq!(back, item);
 }
 
 // --- github client: contributions ---------------------------------------------------------
@@ -917,11 +828,11 @@ async fn request_bodies_match_electron_byte_for_byte() {
         r#"{"query":"query Viewer { viewer { login } }"}"#
     );
 
-    let s = answer(data(vec![], vec![]));
+    let s = answer(data(vec![]));
     s.client.list().await.unwrap();
     assert_eq!(
         s.body(0),
-        r#"{"query":"query CodeReview($toReview: String!, $mine: String!, $unreviewed: String!, $first: Int!) {\n  viewer { login }\n  toReview: search(type: ISSUE, first: $first, query: $toReview) { nodes { ...pr } }\n  mine: search(type: ISSUE, first: $first, query: $mine) { issueCount nodes { ...pr } }\n  unreviewed: search(type: ISSUE, first: 0, query: $unreviewed) { issueCount }\n}\nfragment pr on PullRequest {\n  id\n  number\n  title\n  url\n  isDraft\n  updatedAt\n  reviewDecision\n  mergeable\n  repository { nameWithOwner }\n  author { login }\n  reviews(last: 20, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED]) { totalCount nodes { state author { login } } }\n  commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }\n}","variables":{"toReview":"is:open is:pr review-requested:@me archived:false","mine":"is:open is:pr author:@me archived:false","unreviewed":"is:open is:pr author:@me archived:false draft:false review:none","first":20}}"#
+        r#"{"query":"query CodeReview($mine: String!, $unreviewed: String!, $first: Int!) {\n  viewer { login }\n  mine: search(type: ISSUE, first: $first, query: $mine) { issueCount nodes { ...pr } }\n  unreviewed: search(type: ISSUE, first: 0, query: $unreviewed) { issueCount }\n}\nfragment pr on PullRequest {\n  id\n  number\n  title\n  url\n  isDraft\n  reviewDecision\n  repository { nameWithOwner }\n  author { login }\n  reviews(last: 20, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED]) { totalCount nodes { state author { login } } }\n}","variables":{"mine":"is:open is:pr author:@me archived:false","unreviewed":"is:open is:pr author:@me archived:false draft:false review:none","first":20}}"#
     );
 
     let s = answer(default_contributions());
@@ -961,7 +872,7 @@ async fn sends_exactly_the_github_headers() {
 async fn accepts_integral_floats_where_zod_int_does_and_rejects_the_rest() {
     let mut node = pr_default();
     node["number"] = json!(12.0);
-    let mut body = data_with(vec![], vec![node], None, None);
+    let mut body = data_with(vec![node], None, None);
     body["data"]["mine"]["issueCount"] = json!(1e0);
     let s = answer(body);
     assert_eq!(
@@ -972,12 +883,12 @@ async fn accepts_integral_floats_where_zod_int_does_and_rejects_the_rest() {
         let mut node = pr_default();
         node["number"] = bad;
         expect_code(
-            answer(data(vec![node], vec![])).client.list().await,
+            answer(data(vec![node])).client.list().await,
             CodeReviewError::InvalidResponse,
         );
     }
     // `int().min(0)` counts: a negative count fails.
-    let mut body = data(vec![], vec![]);
+    let mut body = data(vec![]);
     body["data"]["unreviewed"]["issueCount"] = json!(-1);
     expect_code(
         answer(body).client.list().await,
@@ -1001,7 +912,7 @@ async fn zod_shape_rules_for_nodes_and_optional_fields() {
         json!("PR"),
     ] {
         expect_code(
-            answer(data(vec![node], vec![])).client.list().await,
+            answer(data(vec![node])).client.list().await,
             CodeReviewError::InvalidResponse,
         );
     }
@@ -1009,42 +920,24 @@ async fn zod_shape_rules_for_nodes_and_optional_fields() {
     let mut prs = many(20, |_| None);
     prs.push(json!({ "id": "broken" }));
     assert_eq!(
-        answer(data(prs, vec![]))
-            .client
-            .list()
-            .await
-            .unwrap()
-            .to_review
-            .len(),
+        answer(data(prs)).client.list().await.unwrap().mine.len(),
         20
     );
-    // `commits` is optional but not nullable; `reviews` is both.
+    // `reviews` and `author` are optional and nullable.
     let mut node = pr_default();
-    node["commits"] = Value::Null;
-    expect_code(
-        answer(data(vec![node], vec![])).client.list().await,
-        CodeReviewError::InvalidResponse,
-    );
-    let mut node = pr_default();
-    node.as_object_mut().unwrap().remove("commits");
     node.as_object_mut().unwrap().remove("reviews");
     node.as_object_mut().unwrap().remove("author");
-    let result = answer(data(vec![], vec![node]))
-        .client
-        .list()
-        .await
-        .unwrap();
-    assert_eq!(result.mine[0].item.checks, None);
-    assert_eq!(result.mine[0].item.author, "");
+    let result = answer(data(vec![node])).client.list().await.unwrap();
+    assert_eq!(result.mine[0].item.review, ReviewState::None);
     // Malformed `errors` fail the whole response, even with data.
-    let mut body = data(vec![], vec![]);
+    let mut body = data(vec![]);
     body["errors"] = json!([{ "type": 1 }]);
     expect_code(
         answer(body).client.list().await,
         CodeReviewError::InvalidResponse,
     );
     // A missing `unreviewed` search is allowed; a cut list then keeps the list count.
-    let mut body = data_with(vec![], many(20, |_| None), Some(40), None);
+    let mut body = data_with(many(20, |_| None), Some(40), None);
     body["data"]
         .as_object_mut()
         .unwrap()
@@ -1194,7 +1087,7 @@ async fn implements_code_review_client() {
         if query.starts_with("query Viewer") {
             json_response(&json!({ "data": { "viewer": { "login": "octocat" } } }))
         } else if query.starts_with("query CodeReview") {
-            json_response(&data(vec![], vec![pr_default()]))
+            json_response(&data(vec![pr_default()]))
         } else {
             json_response(&default_contributions())
         }
@@ -1214,4 +1107,29 @@ async fn implements_code_review_client() {
     assert_eq!(summary.updated_at, "2026-11-13T09:30:00.000Z");
     assert_eq!(summary.month_totals.commits, 9);
     assert!(!summary.partial);
+}
+
+// --- github client: no review-requested list -----------------------------------------------
+
+#[tokio::test]
+async fn poll_does_not_request_the_to_review_list() {
+    let s = answer(data(vec![]));
+    s.client.list().await.unwrap();
+    let body = s.body(0);
+    assert!(!body.contains("review-requested"));
+    let parsed: Value = serde_json::from_str(&body).unwrap();
+    let query = parsed["query"].as_str().unwrap();
+    assert!(!query.contains("toReview") && !query.contains("$toReview"));
+    assert!(parsed["variables"].get("toReview").is_none());
+    // The own PRs only need what the first-review detector reads.
+    assert!(!query.contains("mergeable"));
+    assert!(!query.contains("statusCheckRollup"));
+}
+
+#[tokio::test]
+async fn unreviewed_count_survives_more_than_twenty_own_prs() {
+    let prs = many(20, |i| (i < 15).then_some("APPROVED"));
+    let s = answer(data_with(prs, Some(40), Some(Some(27))));
+    assert_eq!(s.client.list().await.unwrap().unreviewed, 27);
+    assert!(s.body(0).contains("draft:false review:none"));
 }

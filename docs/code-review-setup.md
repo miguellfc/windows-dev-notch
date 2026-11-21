@@ -2,7 +2,7 @@
 
 Developer Notch muestra tus PR de **GitHub** (github.com) y tus MR de un **GitLab propio** con **tokens personales de solo lectura**. Se configuran una vez, en unos minutos.
 
-Qué verás después: en la cápsula, por plataforma, cuántos PR/MR tuyos abiertos siguen **sin revisar**; un aviso breve cuando uno recibe su primera revisión (**Aprobado**, **Cambios pedidos** o **Revisado**); y en la vista "Revisiones" del notch (se abre desde el tile de GitHub o de GitLab del panel), lo que **espera tu revisión** y **lo tuyo abierto**, con su estado. Un clic abre cada uno en el navegador.
+Qué verás después: en la cápsula, por plataforma, cuántas **contribuciones** llevas este mes; un aviso breve cuando uno recibe su primera revisión (**Aprobado**, **Cambios pedidos** o **Revisado**); y en la vista "Revisiones" del notch (se abre desde el tile de GitHub o de GitLab del panel), lo que **espera tu revisión** y **lo tuyo abierto**, con su estado. Un clic abre cada uno en el navegador.
 
 El notch **solo lee**: nunca aprueba, comenta, fusiona ni cambia nada.
 
@@ -50,7 +50,7 @@ Los tokens detallados existen en beta desde GitLab 18.10 y son estables desde la
 1. Abre **Control Center → GitHub y GitLab**.
 2. **GitHub**: pega el token en **Token de GitHub** y pulsa **Comprobar y guardar**.
 3. **GitLab**: escribe la **URL de GitLab**, pega el token en **Token de GitLab** y pulsa **Comprobar y guardar**.
-4. Si todo va bien verás **Conectado como** *tu cuenta*, y el campo del token se vacía. En unos segundos aparecen los contadores en la cápsula.
+4. Si todo va bien verás **Conectado como** *tu cuenta*, y el campo del token se vacía. En unos segundos aparecen tus contribuciones del mes en la cápsula.
 
 En la misma página puedes activar o quitar los **avisos** y su **sonido** por plataforma.
 
@@ -61,7 +61,7 @@ Arriba de la vista "Revisiones" (la de la plataforma cuyo tile abriste, GitHub o
 - **Gráfico del mes en curso**: un cuadrado por día, de lunes a domingo; cuanto más claro, más actividad ese día respecto al día más activo del mes. Hoy va marcado y los días que aún no han llegado salen solo con el borde. Pasa el ratón o recorre los días con el teclado (Tab entra en hoy, flechas para moverte) y verás la fecha y cuántas contribuciones tuvo.
 - **Resumen**: **Hoy · Semana** (de lunes a domingo) **· Mes**, con commits, PR/MR abiertos, PR/MR fusionados y revisiones, y el total de contribuciones del gráfico.
 
-Se consulta al abrir la vista y cada 15 minutos mientras sigue abierta (o con **Actualizar**); con la vista cerrada no se pide nada. Si falla, verás **"No se pudieron cargar las contribuciones · Reintentar"** y las listas de PR/MR siguen funcionando.
+Se consulta al conectar la plataforma (o al arrancar), cada 15 minutos aunque la vista esté cerrada (la cápsula muestra el total del mes), al abrir la vista o el panel y con **Actualizar**. Si falla, verás **"No se pudieron cargar las contribuciones · Reintentar"** y las listas de PR/MR siguen funcionando.
 
 Ten en cuenta:
 
@@ -95,5 +95,5 @@ Los tokens caducan cuando tú decidiste al crearlos (o cuando los revocas). Si G
 | "Sin conexión con GitHub/GitLab" | No hay red, el servidor no responde o la URL no es de un GitLab | Comprueba la red y la URL; el notch reintenta solo |
 | "Revisa el token" | El token caducó o se revocó | Crea otro y pulsa **Comprobar y guardar** |
 | Falta un PR o un repositorio | El token detallado no incluye ese repositorio, o la organización aún no lo aprobó | Edita el token y añade el repositorio, o pide la aprobación |
-| La cápsula no muestra el bloque | No tienes PR/MR propios abiertos sin revisar (los borradores no cuentan) | Es lo esperado; la vista "Revisiones" (tile de GitHub o GitLab) sigue listando todo |
+| La cápsula no muestra el bloque | La plataforma no está conectada (o el token fue rechazado), tiene «Cápsula» apagado, o aún no ha llegado la primera consulta de contribuciones | Conecta o renueva el token en Control Center y comprueba el interruptor «Cápsula»; el bloque aparece en cuanto llega el total del mes (también con 0) |
 | Un aviso tarda | El notch consulta cada 2 minutos | Espera o pulsa **Actualizar** en la vista |

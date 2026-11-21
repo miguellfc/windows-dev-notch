@@ -255,7 +255,7 @@ mod tests {
     fn default_rect_is_the_mode_size_centred() {
         assert_eq!(
             default_capsule_rect(VisibleMode::Peek),
-            rect((WINDOW_WIDTH - 168.0) / 2.0, 6.0, 168.0, 36.0)
+            rect((WINDOW_WIDTH - 174.0) / 2.0, 6.0, 174.0, 36.0)
         );
         assert_eq!(default_capsule_rect(VisibleMode::Mini).y, 0.0);
     }
@@ -330,9 +330,9 @@ mod tests {
         );
         controller.start();
         let rects = CapsuleRectStore::new();
-        let placement = WindowPlacement::new((580, 0), 1.0);
+        let placement = WindowPlacement::new((533, 0), 1.0);
         let mut tracker = PointerTracker::new();
-        // Peek at its default box: x 296..464 in the window, so 876..1044 on screen.
+        // Peek at its default box: x 340..514 in the window, so 873..1047 on screen.
         let mut poll = |cursor| poll_once(&controller, &rects, &placement, &mut tracker, cursor);
         poll((500, 20));
         assert_eq!(controller.mode(), NotchMode::Peek);

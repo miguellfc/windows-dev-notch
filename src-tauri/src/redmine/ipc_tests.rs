@@ -38,6 +38,7 @@ fn ok_state() -> RedmineState {
         status: RedmineStatus::Ok,
         account: Some("Alice".into()),
         today_hours: Some(5.5),
+        month_hours: Some(42.25),
         updated_at: Some(1_763_000_000_000.0),
         persistent: true,
     }
@@ -133,6 +134,11 @@ impl RedmineApi for FakeApi {
     fn issue(&self, id: u64) -> BoxFuture<'_, Result<RedmineIssueDetail, ExposedError>> {
         self.record(format!("issue:{id}"));
         Box::pin(async { Ok(detail()) })
+    }
+
+    fn find_issue(&self, id: u64) -> BoxFuture<'_, Result<bool, ExposedError>> {
+        self.record(format!("find-issue:{id}"));
+        Box::pin(async { Ok(true) })
     }
 
     fn activities(&self) -> BoxFuture<'_, Result<Vec<RedmineActivity>, ExposedError>> {
@@ -300,10 +306,11 @@ async fn settle() {
     }
 }
 
-const ALLOWED: [(&str, &str); 12] = [
+const ALLOWED: [(&str, &str); 13] = [
     ("redmine:get-state", "both"),
     ("redmine:issues", "notch"),
     ("redmine:issue", "notch"),
+    ("redmine:find-issue", "notch"),
     ("redmine:activities", "notch"),
     ("redmine:update-issue", "notch"),
     ("redmine:log-time", "notch"),
@@ -317,7 +324,7 @@ const ALLOWED: [(&str, &str); 12] = [
 
 fn sample(channel: &str) -> Option<Value> {
     match channel {
-        "redmine:issue" => Some(json!({ "id": 12 })),
+        "redmine:issue" | "redmine:find-issue" => Some(json!({ "id": 12 })),
         "redmine:update-issue" => Some(json!({ "id": 12, "statusId": 3 })),
         "redmine:log-time" => Some(log_entry()),
         "redmine:view" => Some(json!({ "open": true })),
@@ -386,6 +393,11 @@ async fn issues_is_reachable_only_from_notch() {
 #[tokio::test]
 async fn issue_is_reachable_only_from_notch() {
     reachable_only_from("redmine:issue").await;
+}
+
+#[tokio::test]
+async fn find_issue_is_reachable_only_from_notch() {
+    reachable_only_from("redmine:find-issue").await;
 }
 
 #[tokio::test]

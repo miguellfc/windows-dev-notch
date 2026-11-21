@@ -1,34 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CODE_REVIEW_LIST_LIMIT,
-  checksSchema,
   clearInputSchema,
   codeReviewAlertSchema,
-  codeReviewListSchema,
   codeReviewStateSchema,
   gitlabUrlSchema,
-  itemSchema,
-  listInputSchema,
-  openInputSchema,
+  openAlertInputSchema,
+  openedResultSchema,
+  openProfileInputSchema,
   platformSchema,
   platformStateSchema,
-  reviewStateSchema,
   setTokenInputSchema,
   setTokenResultSchema,
-  type ReviewItem,
 } from '../../../src/shared/code-review/schema'
-
-const item: ReviewItem = {
-  id: 'PR_kwDOA',
-  ref: 'owner/repo#123',
-  title: 'Fix the thing',
-  author: 'octocat',
-  updatedAt: '2026-11-12T10:00:00Z',
-  draft: false,
-  review: 'none',
-  checks: null,
-  conflicts: false,
-}
 
 const platformState = { status: 'ok', account: 'me', unreviewed: 2, updatedAt: '2026-11-12T10:00:00.000Z', persistent: true }
 
@@ -36,36 +19,6 @@ describe('code review enums', () => {
   it('accepts only the two platforms', () => {
     expect(platformSchema.options).toEqual(['github', 'gitlab'])
     expect(platformSchema.safeParse('bitbucket').success).toBe(false)
-  })
-
-  it('accepts the review states and checks values', () => {
-    for (const s of ['none', 'approved', 'changes', 'commented']) expect(reviewStateSchema.safeParse(s).success).toBe(true)
-    expect(reviewStateSchema.safeParse('dismissed').success).toBe(false)
-    for (const c of ['pass', 'fail', 'running', null]) expect(checksSchema.safeParse(c).success).toBe(true)
-    expect(checksSchema.safeParse('pending').success).toBe(false)
-    expect(checksSchema.safeParse(undefined).success).toBe(false)
-  })
-})
-
-describe('itemSchema', () => {
-  it('accepts a complete item', () => {
-    expect(itemSchema.parse(item)).toEqual(item)
-  })
-
-  it('is strict and requires every field', () => {
-    expect(itemSchema.safeParse({ ...item, url: 'https://github.com/x' }).success).toBe(false)
-    const missing: Partial<ReviewItem> = { ...item }
-    delete missing.conflicts
-    expect(itemSchema.safeParse(missing).success).toBe(false)
-    expect(itemSchema.safeParse({ ...item, id: '' }).success).toBe(false)
-    expect(itemSchema.safeParse({ ...item, review: 'nope' }).success).toBe(false)
-  })
-
-  it('bounds the lists to the limit', () => {
-    expect(CODE_REVIEW_LIST_LIMIT).toBe(20)
-    const many = Array.from({ length: 21 }, (_, i) => ({ ...item, id: `id${i}` }))
-    expect(codeReviewListSchema.safeParse({ toReview: many.slice(0, 20), mine: [] }).success).toBe(true)
-    expect(codeReviewListSchema.safeParse({ toReview: many, mine: [] }).success).toBe(false)
   })
 })
 
@@ -132,14 +85,24 @@ describe('gitlabUrlSchema', () => {
 })
 
 describe('IPC inputs', () => {
-  it('list, open and clear take a platform (and an id for open)', () => {
-    expect(listInputSchema.safeParse({ platform: 'github' }).success).toBe(true)
-    expect(listInputSchema.safeParse({ platform: 'github', x: 1 }).success).toBe(false)
+  it('clear, open-profile and open-alert take only a platform, never an id or a URL', () => {
     expect(clearInputSchema.safeParse({ platform: 'gitlab' }).success).toBe(true)
     expect(clearInputSchema.safeParse({}).success).toBe(false)
-    expect(openInputSchema.safeParse({ platform: 'gitlab', id: '12!3' }).success).toBe(true)
-    expect(openInputSchema.safeParse({ platform: 'gitlab', id: '' }).success).toBe(false)
-    expect(openInputSchema.safeParse({ platform: 'gitlab', id: 'x'.repeat(257) }).success).toBe(false)
+    for (const schema of [openProfileInputSchema, openAlertInputSchema]) {
+      expect(schema.safeParse({ platform: 'github' }).success).toBe(true)
+      expect(schema.safeParse({ platform: 'bitbucket' }).success).toBe(false)
+      expect(schema.safeParse({}).success).toBe(false)
+      expect(schema.safeParse({ platform: 'github', id: '12!3' }).success).toBe(false)
+      expect(schema.safeParse({ platform: 'github', url: 'https://github.com/x' }).success).toBe(false)
+    }
+  })
+
+  it('the openers answer one boolean and nothing else', () => {
+    expect(openedResultSchema.parse({ opened: true })).toEqual({ opened: true })
+    expect(openedResultSchema.safeParse({ opened: false }).success).toBe(true)
+    expect(openedResultSchema.safeParse({}).success).toBe(false)
+    expect(openedResultSchema.safeParse({ opened: 'yes' }).success).toBe(false)
+    expect(openedResultSchema.safeParse({ opened: true, url: 'https://github.com/x' }).success).toBe(false)
   })
 
   it('set-token bounds the token to 1-255 characters and takes an optional url', () => {

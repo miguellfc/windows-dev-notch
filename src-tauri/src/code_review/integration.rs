@@ -20,19 +20,19 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use chrono::{DateTime, SecondsFormat, Utc};
 use tokio::sync::watch;
 
-use super::client::{to_review_item, ClientItem, CodeReviewClient, CodeReviewError};
+use super::client::{ClientItem, CodeReviewClient, CodeReviewError};
 use super::detector::{merge_uncertain, Alert, ReviewDetector};
 use super::ipc::{CodeReviewApi, CodeReviewSlot};
 pub use crate::apps::OpenExternal;
 use crate::apps::{is_loopback_origin, opener, origin_of};
 use crate::contract::code_review::{
-    CodeReviewAlert, CodeReviewList, CodeReviewState, ContributionSummary, ContributionsChanged,
+    CodeReviewAlert, CodeReviewState, ContributionSummary, ContributionsChanged,
     ContributionsResult, Platform, PlatformState, PlatformStatus, ReviewState, SetTokenReason,
     SetTokenResult, GITLAB_URL_MAX,
 };
 use crate::contract::settings::CodeReviewSettings;
 use crate::contract::text::{js_trim, utf16_len};
-use crate::ipc::{BoxFuture, ExposedError, IpcErrorCode};
+use crate::ipc::BoxFuture;
 use crate::notch::runtime::NotchRuntime;
 use crate::services::clock::WallClock;
 use crate::services::secure_token_store::SecureTokenStore;
@@ -46,8 +46,11 @@ use crate::settings::validate::normalize_gitlab_url;
 pub const TICK_MS: u64 = 120_000;
 /// Waits after consecutive network / 5xx / 429 / invalid-response failures: 1, 2, 4, 5 min (max).
 pub const BACKOFF_MS: [u64; 4] = [60_000, 120_000, 240_000, 300_000];
-/// Contributions rhythm, only while the "Revisiones" view is open.
+/// Contributions rhythm, whenever the platform is live (the compact capsule shows the month's
+/// total), view open or not.
 pub const CONTRIBUTIONS_TICK_MS: u64 = 900_000;
+/// Minimum time between two contributions queries started by opening the main panel.
+pub const PANEL_REFRESH_MIN_MS: u64 = 60_000;
 /// Minimum time between two manual refreshes (process-wide, not per platform).
 pub const MANUAL_REFRESH_MIN_MS: i64 = 5_000;
 /// The only origin GitHub items may open in the browser.
@@ -90,6 +93,8 @@ pub struct CodeReviewDeps {
     pub open_external: OpenExternal,
     /// Own PR/MRs got their first review while that platform's alerts are on.
     pub on_alert: Arc<dyn Fn(&CodeReviewAlert) + Send + Sync>,
+    /// `open_alert` really opened the PR/MR: the alert has done its job and goes away now.
+    pub retract_alert: Arc<dyn Fn() + Send + Sync>,
 }
 
 /// `parseCodeReviewBaseOverrides`: the API base per platform in dev/E2E.
@@ -171,6 +176,9 @@ pub struct CodeReviewIntegration {
     /// The newest effect of each ordered kind that went out. Held while emitting, so effects
     /// decided under `inner` in order A, B never reach the renderer as B, A.
     emitted: Mutex<Emitted>,
+    /// The platform of the last first-review alert sent (the notch's review alert is one for
+    /// both): turning that platform off ends the alert.
+    last_alert: Mutex<Option<Platform>>,
 }
 
 /// Sequence numbers (assigned under `inner`) of the last state and contributions events sent.
@@ -221,7 +229,7 @@ impl Inner {
     /// `canPoll`.
     fn can_poll(&self, platform: Platform) -> bool {
         let rt = &self.runtimes[index(platform)];
-        !self.disposed && self.started && rt.client.is_some() && usable(rt.status.0)
+        !self.disposed && !rt.paused && self.started && rt.client.is_some() && usable(rt.status.0)
     }
 
     /// `isStale`: another generation, disposed, or the token was rejected meanwhile (only a new
@@ -229,6 +237,11 @@ impl Inner {
     fn is_stale(&self, platform: Platform, started_in: u64) -> bool {
         let rt = &self.runtimes[index(platform)];
         started_in != rt.generation || self.disposed || rt.status.0 == PlatformStatus::AuthError
+    }
+
+    /// A query's answer is dropped: stale, or the platform was turned off meanwhile.
+    fn poll_dropped(&self, platform: Platform, started_in: u64) -> bool {
+        self.is_stale(platform, started_in) || self.runtimes[index(platform)].paused
     }
 }
 
@@ -246,10 +259,12 @@ struct Runtime {
     account: Option<String>,
     unreviewed: Option<u32>,
     updated_at: Option<String>,
-    to_review: Vec<ClientItem>,
-    mine: Vec<ClientItem>,
-    /// Id -> URL of the last list handed to the notch: `open` only accepts these.
-    sent: HashMap<String, String>,
+    /// URL of the PR/MR of the last first-review alert, only while that alert was for exactly one
+    /// (`open_alert` opens it, on the platform's origin). Never sent to the renderer.
+    last_alert_url: Option<String>,
+    /// Bumped whenever `last_alert_url` is written or cleared by anything but `open_alert`'s own
+    /// take: a launch that ends later restores or retracts only while it is unchanged.
+    alert_epoch: u64,
     detector: ReviewDetector,
     /// Last known review state of each own open PR/MR (kept for items uncertain in a round).
     remembered: HashMap<String, ReviewState>,
@@ -267,6 +282,11 @@ struct Runtime {
     contributions_error: bool,
     contributions_timer: Option<(TimerId, u64)>,
     contributions_in_flight: Option<InFlight>,
+    /// The last contributions query started by opening the main panel, with this token.
+    last_panel_refresh: Option<DateTime<Utc>>,
+    /// Turned off in the settings (`integrations.github|gitlab.enabled`): no review or
+    /// contributions query, no state from one, no alert. Unlike `disposed`, it can be undone.
+    paused: bool,
 }
 
 /// `PlatformStatus` with a default (`unconfigured`).
@@ -284,8 +304,9 @@ enum Effect {
     /// With its sequence number: an older snapshot never overwrites a newer one.
     State(u64, CodeReviewState),
     Contributions(u64, ContributionsChanged),
-    /// First reviews: sent only if that platform's alerts are still on.
-    Alert(CodeReviewAlert),
+    /// First reviews: sent only if that platform's alerts are still on. With the URL of the PR/MR
+    /// when the alert is for exactly one.
+    Alert(CodeReviewAlert, Option<String>),
 }
 
 type Effects = Vec<Effect>;
@@ -315,6 +336,7 @@ impl CodeReviewIntegration {
             ready,
             persistent,
             emitted: Mutex::new(Emitted::default()),
+            last_alert: Mutex::new(None),
         });
         let task = Arc::clone(&this);
         (this.deps.spawn)(Box::pin(async move {
@@ -322,6 +344,14 @@ impl CodeReviewIntegration {
             let _ = loaded.send(true);
         }));
         this
+    }
+
+    /// The platform of the last first-review alert sent, if any.
+    pub fn last_alert_platform(&self) -> Option<Platform> {
+        *self
+            .last_alert
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     fn lock(&self) -> MutexGuard<'_, Inner> {
@@ -486,7 +516,11 @@ impl CodeReviewIntegration {
                         (self.deps.emit_contributions)(&change);
                     }
                 }
-                Effect::Alert(alert) => {
+                Effect::Alert(alert, url) => {
+                    // Turned off between the answer and here: no alert.
+                    if self.lock().rt(alert.platform).paused {
+                        continue;
+                    }
                     // The setting is read when the alert is due; `sound` is the renderer's.
                     let alerts = self.deps.settings.get().alerts;
                     let enabled = match alert.platform {
@@ -497,6 +531,17 @@ impl CodeReviewIntegration {
                         continue;
                     }
                     log::info!(target: LOG_TARGET, "Code review first reviews platform={} count={}", alert.platform.as_str(), alert.count);
+                    // One PR/MR keeps its URL for the click; several (or none) forget the last one.
+                    {
+                        let mut inner = self.lock();
+                        let rt = inner.rt(alert.platform);
+                        rt.last_alert_url = url;
+                        rt.alert_epoch += 1;
+                    }
+                    *self
+                        .last_alert
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner) = Some(alert.platform);
                     (self.deps.on_alert)(&alert);
                 }
             }
@@ -558,7 +603,7 @@ impl CodeReviewIntegration {
     /// `scheduleContributions`.
     fn schedule_contributions(&self, inner: &mut Inner, platform: Platform) {
         self.clear_timer(inner, platform, Rhythm::Contributions);
-        if !inner.view_open || !inner.started || inner.disposed {
+        if !inner.started || inner.disposed {
             return;
         }
         self.arm(
@@ -580,9 +625,8 @@ impl CodeReviewIntegration {
         rt.account = None;
         rt.unreviewed = None;
         rt.updated_at = None;
-        rt.to_review.clear();
-        rt.mine.clear();
-        rt.sent.clear();
+        rt.last_alert_url = None;
+        rt.alert_epoch += 1;
         rt.remembered.clear();
         rt.detector.reset();
         rt.failures = 0;
@@ -590,6 +634,7 @@ impl CodeReviewIntegration {
         let had_contributions = rt.contributions.is_some() || rt.contributions_error;
         rt.contributions = None;
         rt.contributions_error = false;
+        rt.last_panel_refresh = None;
         if had_contributions {
             self.emit_contributions(inner, platform, effects);
         }
@@ -602,9 +647,6 @@ impl CodeReviewIntegration {
         self.clear_timer(inner, platform, Rhythm::Contributions);
         let rt = inner.rt(platform);
         rt.unreviewed = None;
-        rt.to_review.clear();
-        rt.mine.clear();
-        rt.sent.clear();
         rt.status = Status(PlatformStatus::AuthError);
         self.publish(inner, effects);
     }
@@ -676,7 +718,7 @@ impl CodeReviewIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(platform, started_in) {
+            if inner.poll_dropped(platform, started_in) {
                 return;
             }
             match result {
@@ -691,8 +733,6 @@ impl CodeReviewIntegration {
                     // known state, for both the detector and the count.
                     let observation = merge_uncertain(&snapshot, &rt.remembered);
                     rt.account = Some(account);
-                    rt.to_review = snapshot.to_review;
-                    rt.mine = snapshot.mine;
                     rt.unreviewed = Some(observation.unreviewed);
                     rt.remembered = observation.remembered;
                     rt.updated_at = Some(updated_at);
@@ -700,10 +740,16 @@ impl CodeReviewIntegration {
                     rt.status = Status(PlatformStatus::Ok);
                     self.publish(&mut inner, &mut effects);
                     self.schedule(&mut inner, platform, TICK_MS);
+                    // The token works: the contributions rhythm starts if it is not running yet
+                    // (startup, a stored token, a dropped run), so the capsule has its total.
+                    let rt = inner.rt(platform);
+                    if rt.contributions_timer.is_none() && rt.contributions_in_flight.is_none() {
+                        self.poll_contributions(&mut inner, platform);
+                    }
                     let rt = inner.rt(platform);
                     let fresh = rt.detector.observe(&observation.observed);
-                    if let Some(alert) = announcement(platform, &rt.mine, &fresh) {
-                        effects.push(Effect::Alert(alert));
+                    if let Some((alert, url)) = announcement(platform, &snapshot.mine, &fresh) {
+                        effects.push(Effect::Alert(alert, url));
                     }
                 }
                 Err(CodeReviewError::Auth) => self.auth_failed(&mut inner, platform, &mut effects),
@@ -721,13 +767,26 @@ impl CodeReviewIntegration {
         self.run(effects);
     }
 
-    /// `pollContributions`: never with the view closed; one query per platform and generation.
+    /// `pollContributions`: the month's contributions of a live platform, view open or not (the
+    /// compact capsule shows their total). Started by the first review query that works (startup,
+    /// a stored token), a new token or the platform turned on again, then every
+    /// [`CONTRIBUTIONS_TICK_MS`].
     fn poll_contributions(
         &self,
         inner: &mut Inner,
         platform: Platform,
     ) -> Option<watch::Receiver<bool>> {
-        if !inner.view_open || !inner.can_poll(platform) {
+        self.fetch_contributions(inner, platform)
+    }
+
+    /// One contributions query per platform and generation. The 15-min timer is armed again when
+    /// it ends (while started and not disposed; the next run checks the platform is still usable).
+    fn fetch_contributions(
+        &self,
+        inner: &mut Inner,
+        platform: Platform,
+    ) -> Option<watch::Receiver<bool>> {
+        if !inner.can_poll(platform) {
             return None;
         }
         let rt = inner.rt(platform);
@@ -776,7 +835,7 @@ impl CodeReviewIntegration {
         let mut effects = Effects::new();
         {
             let mut inner = self.lock();
-            if inner.is_stale(platform, started_in) {
+            if inner.poll_dropped(platform, started_in) {
                 return;
             }
             match result {
@@ -796,7 +855,7 @@ impl CodeReviewIntegration {
                     return;
                 }
                 Err(error) => {
-                    // Lists, status and the rest of the state stay: only the chart shows it.
+                    // The status and the rest of the state stay: only the chart shows it.
                     log::warn!(target: LOG_TARGET, "Code review contributions query failed platform={} code={}", platform.as_str(), error_code(error));
                     inner.rt(platform).contributions_error = true;
                 }
@@ -807,35 +866,8 @@ impl CodeReviewIntegration {
         self.run(effects);
     }
 
-    /// The last lists of a platform (no URLs), remembered as the ids `open` accepts.
-    pub async fn list(&self, platform: Platform) -> CodeReviewList {
-        self.ready().await;
-        let in_flight = self
-            .lock()
-            .rt(platform)
-            .in_flight
-            .as_ref()
-            .map(|run| run.done.clone());
-        finished(in_flight).await;
-        let mut inner = self.lock();
-        let rt = inner.rt(platform);
-        let (to_review, mine) = if usable(rt.status.0) {
-            (rt.to_review.clone(), rt.mine.clone())
-        } else {
-            (Vec::new(), Vec::new())
-        };
-        rt.sent = to_review
-            .iter()
-            .chain(&mine)
-            .map(|item| (item.item.id.clone(), item.url.clone()))
-            .collect();
-        CodeReviewList {
-            to_review: to_review.iter().map(to_review_item).collect(),
-            mine: mine.iter().map(to_review_item).collect(),
-        }
-    }
-
-    /// Queries every connected platform now (at most every 5 s); contributions too while open.
+    /// Queries every connected platform now (at most every 5 s); contributions too while the
+    /// "Revisiones" view is open (otherwise their own rhythm keeps them fresh).
     pub fn refresh(&self) {
         let at = self.deps.clock.now();
         let mut inner = self.lock();
@@ -848,24 +880,105 @@ impl CodeReviewIntegration {
         inner.last_manual_refresh = Some(at);
         for platform in PLATFORMS {
             self.poll(&mut inner, platform);
-            self.poll_contributions(&mut inner, platform);
+            if inner.view_open {
+                self.poll_contributions(&mut inner, platform);
+            }
         }
     }
 
-    /// The "Revisiones" view opened or closed: contributions are queried on open and every
-    /// 15 min while open (an in-flight query still finishes after a close).
+    /// A platform turned off or on in the settings (`integrations.github|gitlab.enabled`);
+    /// the wiring applies the saved value before `start()`, then every change.
+    ///
+    /// Off: that platform's review and contributions rhythms stop and an answer still in flight
+    /// is dropped (no state, no alert); its token and last state stay. On: queries at once
+    /// (reviews and contributions, once a run still in flight has ended), then the usual
+    /// rhythms. The first-review
+    /// baseline starts again, so reviews that came while off are not announced. The other
+    /// platform is untouched. Not [`Self::dispose`], which is final.
+    pub fn set_enabled(&self, platform: Platform, enabled: bool) {
+        let mut inner = self.lock();
+        if inner.disposed || inner.rt(platform).paused != enabled {
+            return;
+        }
+        inner.rt(platform).paused = !enabled;
+        log::info!(target: LOG_TARGET, "Code review platform enabled platform={} enabled={enabled}", platform.as_str());
+        if enabled {
+            self.resume(&mut inner, platform);
+        } else {
+            self.clear_timer(&mut inner, platform, Rhythm::Poll);
+            self.clear_timer(&mut inner, platform, Rhythm::Contributions);
+            let rt = inner.rt(platform);
+            rt.detector.reset();
+            rt.last_alert_url = None;
+            rt.alert_epoch += 1;
+            rt.last_panel_refresh = None;
+        }
+    }
+
+    /// Queries a platform turned on again, after any run of it still in flight, whatever its
+    /// fate: one dropped while off clears its `in_flight` only once the lock is released, and
+    /// `poll` would take that run for the current one (no new query, no timer).
+    fn resume(&self, inner: &mut Inner, platform: Platform) {
+        let rt = inner.rt(platform);
+        let waiting: Vec<watch::Receiver<bool>> = [&rt.in_flight, &rt.contributions_in_flight]
+            .into_iter()
+            .flatten()
+            .map(|run| run.done.clone())
+            .collect();
+        if waiting.is_empty() {
+            self.poll(inner, platform);
+            self.poll_contributions(inner, platform);
+            return;
+        }
+        let Some(this) = self.me.upgrade() else {
+            return;
+        };
+        (self.deps.spawn)(Box::pin(async move {
+            for done in waiting {
+                finished(Some(done)).await;
+            }
+            let mut inner = this.lock();
+            this.poll(&mut inner, platform);
+            this.poll_contributions(&mut inner, platform);
+        }));
+    }
+
+    /// The "Revisiones" view opened or closed: contributions are queried on open (which restarts
+    /// their 15-min rhythm); a close changes nothing, the rhythm goes on for the capsule.
     pub fn set_view_open(&self, open: bool) {
         let mut inner = self.lock();
         if inner.view_open == open {
             return;
         }
         inner.view_open = open;
-        for platform in PLATFORMS {
-            if open {
+        if open {
+            for platform in PLATFORMS {
                 self.poll_contributions(&mut inner, platform);
-            } else {
-                self.clear_timer(&mut inner, platform, Rhythm::Contributions);
             }
+        }
+    }
+
+    /// The main panel opened: one contributions query per connected platform that is turned on,
+    /// at most every [`PANEL_REFRESH_MIN_MS`] (it restarts the 15-min rhythm, like any query). The
+    /// view's own query is never held back by this minimum.
+    pub fn panel_opened(&self) {
+        let at = self.deps.clock.now();
+        let mut inner = self.lock();
+        for platform in PLATFORMS {
+            if !inner.can_poll(platform) {
+                continue;
+            }
+            let rt = inner.rt(platform);
+            // A clock moved backwards never counts as "just asked".
+            let recently = rt.last_panel_refresh.is_some_and(|last| {
+                u64::try_from((at - last).num_milliseconds())
+                    .is_ok_and(|elapsed| elapsed < PANEL_REFRESH_MIN_MS)
+            });
+            if recently {
+                continue;
+            }
+            rt.last_panel_refresh = Some(at);
+            self.fetch_contributions(&mut inner, platform);
         }
     }
 
@@ -885,39 +998,84 @@ impl CodeReviewIntegration {
         }
     }
 
-    /// Opens an item of the last list sent, only on its platform's allowed origin. Returns at
-    /// once; the browser opens in the background.
-    pub fn open(&self, platform: Platform, id: &str) -> Result<(), ExposedError> {
-        let url = {
+    /// The only origin a platform's pages may open from: GitHub's, or the configured GitLab
+    /// server's (`None` without one).
+    fn allowed_origin(inner: &Inner, platform: Platform) -> Option<String> {
+        match platform {
+            Platform::Github => Some(GITHUB_WEB_ORIGIN.to_owned()),
+            Platform::Gitlab if inner.gitlab_url.is_empty() => None,
+            Platform::Gitlab => origin_of(&inner.gitlab_url),
+        }
+    }
+
+    /// Opens a URL main built or kept and waits for the launch: `false` when the system could not
+    /// start the browser.
+    async fn open_in_browser(&self, platform: Platform, url: String) -> bool {
+        match (self.deps.open_external)(url).await {
+            Ok(()) => true,
+            Err(error) => {
+                log::warn!(target: LOG_TARGET, "Could not open the page in the browser platform={} error={error}", platform.as_str());
+                false
+            }
+        }
+    }
+
+    /// Opens the PR/MR of the last alert, if that alert was for exactly one and its URL is still
+    /// on the platform's origin. `false`: nothing opened (the view of the platform is the way out),
+    /// also when the browser could not be launched (the URL is kept for another click).
+    pub async fn open_alert(&self, platform: Platform) -> bool {
+        let (url, epoch) = {
             let mut inner = self.lock();
-            let Some(url) = inner.rt(platform).sent.get(id).cloned() else {
-                log::warn!(target: LOG_TARGET, "Refused to open an item not shown in the notch platform={}", platform.as_str());
-                return Err(ExposedError::new(
-                    IpcErrorCode::InvalidInput,
-                    "Unknown item",
-                ));
-            };
-            let allowed = match platform {
-                Platform::Github => Some(GITHUB_WEB_ORIGIN.to_owned()),
-                Platform::Gitlab if inner.gitlab_url.is_empty() => None,
-                Platform::Gitlab => origin_of(&inner.gitlab_url),
+            let allowed = Self::allowed_origin(&inner, platform);
+            let Some(url) = inner.rt(platform).last_alert_url.clone() else {
+                return false;
             };
             if allowed.is_none() || origin_of(&url) != allowed {
-                log::warn!(target: LOG_TARGET, "Refused to open an item outside the allowed origin platform={}", platform.as_str());
-                return Err(ExposedError::new(
-                    IpcErrorCode::InvalidInput,
-                    "Item URL not allowed",
-                ));
+                log::warn!(target: LOG_TARGET, "Refused to open an alert outside the allowed origin platform={}", platform.as_str());
+                return false;
             }
-            url
+            // Taken while the launch is in flight: a second click meanwhile finds nothing and
+            // opens no second tab.
+            let rt = inner.rt(platform);
+            rt.last_alert_url = None;
+            (url, rt.alert_epoch)
         };
-        let opening = (self.deps.open_external)(url);
-        (self.deps.spawn)(Box::pin(async move {
-            if let Err(error) = opening.await {
-                log::warn!(target: LOG_TARGET, "Could not open the item in the browser platform={} error={error}", platform.as_str());
+        if !self.open_in_browser(platform, url.clone()).await {
+            // Not opened: the alert stays and the URL with it, unless anything wrote or cleared it
+            // meanwhile (a newer alert, the platform turned off, the session ended).
+            let mut inner = self.lock();
+            let rt = inner.rt(platform);
+            if rt.alert_epoch == epoch {
+                rt.last_alert_url = Some(url);
             }
-        }));
-        Ok(())
+            return false;
+        }
+        // A newer alert may have replaced the one opened (the launch was slow): leave it be.
+        let unchanged = self.lock().rt(platform).alert_epoch == epoch;
+        if unchanged {
+            (self.deps.retract_alert)();
+        }
+        true
+    }
+
+    /// Opens the account's page (`https://github.com/<account>` or `<gitlab url>/<account>`).
+    /// `false` without a known account (or GitLab server) or when the browser could not be launched.
+    pub async fn open_profile(&self, platform: Platform) -> bool {
+        let url = {
+            let mut inner = self.lock();
+            let allowed = Self::allowed_origin(&inner, platform);
+            let base = match platform {
+                Platform::Github => GITHUB_WEB_ORIGIN.to_owned(),
+                Platform::Gitlab => inner.gitlab_url.clone(),
+            };
+            let account = inner.rt(platform).account.clone();
+            let url = account.and_then(|account| profile_url(&base, &account));
+            match url {
+                Some(url) if allowed.is_some() && origin_of(&url) == allowed => url,
+                _ => return false,
+            }
+        };
+        self.open_in_browser(platform, url).await
     }
 
     /// Validates the token (and GitLab URL) against the API before saving anything.
@@ -1035,9 +1193,10 @@ impl CodeReviewIntegration {
             return;
         }
         inner.started = true;
+        // Contributions follow the first review query that works (`run_poll`): a stored token
+        // that was rejected meanwhile is never asked for them.
         for platform in PLATFORMS {
             self.poll(&mut inner, platform);
-            self.poll_contributions(&mut inner, platform);
         }
     }
 
@@ -1077,33 +1236,50 @@ impl CodeReviewIntegration {
     }
 }
 
-/// `announce`'s payload: one first review with its kind, ref and title (from the current list),
-/// otherwise just how many.
+/// `announce`'s payload: one first review with its kind, ref and title (from the current list)
+/// and the URL of that PR/MR, otherwise just how many.
 fn announcement(
     platform: Platform,
     mine: &[ClientItem],
     fresh: &[Alert],
-) -> Option<CodeReviewAlert> {
+) -> Option<(CodeReviewAlert, Option<String>)> {
     let first = fresh.first()?;
     let single = (fresh.len() == 1)
         .then(|| mine.iter().find(|item| item.item.id == first.id))
         .flatten();
     Some(match single {
-        Some(item) => CodeReviewAlert {
-            platform,
-            count: 1,
-            kind: Some(first.kind),
-            reference: Some(item.item.reference.clone()),
-            title: Some(item.item.title.clone()),
-        },
-        None => CodeReviewAlert {
-            platform,
-            count: u64::try_from(fresh.len()).unwrap_or(u64::MAX),
-            kind: None,
-            reference: None,
-            title: None,
-        },
+        Some(item) => (
+            CodeReviewAlert {
+                platform,
+                count: 1,
+                kind: Some(first.kind),
+                reference: Some(item.item.reference.clone()),
+                title: Some(item.item.title.clone()),
+            },
+            Some(item.url.clone()),
+        ),
+        None => (
+            CodeReviewAlert {
+                platform,
+                count: u64::try_from(fresh.len()).unwrap_or(u64::MAX),
+                kind: None,
+                reference: None,
+                title: None,
+            },
+            None,
+        ),
     })
+}
+
+/// `<base>/<account>` with the account as one path segment (never a way out of it). `None` for a
+/// base that is not a URL, or an account that is empty or a dot segment.
+fn profile_url(base: &str, account: &str) -> Option<String> {
+    if matches!(account, "" | "." | "..") {
+        return None;
+    }
+    let mut url = url::Url::parse(base).ok()?;
+    url.path_segments_mut().ok()?.pop_if_empty().push(account);
+    Some(url.into())
 }
 
 impl CodeReviewApi for CodeReviewIntegration {
@@ -1115,16 +1291,16 @@ impl CodeReviewApi for CodeReviewIntegration {
         CodeReviewIntegration::state(self)
     }
 
-    fn list(&self, platform: Platform) -> BoxFuture<'_, CodeReviewList> {
-        Box::pin(CodeReviewIntegration::list(self, platform))
-    }
-
     fn refresh(&self) {
         CodeReviewIntegration::refresh(self);
     }
 
-    fn open(&self, platform: Platform, id: &str) -> Result<(), ExposedError> {
-        CodeReviewIntegration::open(self, platform, id)
+    fn open_profile(&self, platform: Platform) -> BoxFuture<'_, bool> {
+        Box::pin(CodeReviewIntegration::open_profile(self, platform))
+    }
+
+    fn open_alert(&self, platform: Platform) -> BoxFuture<'_, bool> {
+        Box::pin(CodeReviewIntegration::open_alert(self, platform))
     }
 
     fn set_token(
@@ -1295,6 +1471,7 @@ pub fn install(
         // it after 6 s.
         on_alert: {
             let app = app.clone();
+            let controller = Arc::clone(&controller);
             Arc::new(move |alert: &CodeReviewAlert| {
                 if app.get_webview_window(ipc::NOTCH).is_none() {
                     return;
@@ -1302,6 +1479,11 @@ pub fn install(
                 ipc::emit_event(&app, &[ipc::NOTCH], "code-review:alert", alert);
                 controller.dispatch(NotchEvent::Review { on: true });
             })
+        },
+        // Opening the PR/MR from the alert puts the alert away at once.
+        retract_alert: {
+            let controller = Arc::clone(&controller);
+            Arc::new(move || controller.dispatch(NotchEvent::Review { on: false }))
         },
     };
     let integration = CodeReviewIntegration::new(deps);
@@ -1313,6 +1495,11 @@ pub fn install(
             }
         });
     }
+    // A platform disabled in the settings never queries, not even at start; `lib.rs` follows
+    // later changes.
+    let integrations = app.state::<SettingsStore>().get().integrations;
+    integration.set_enabled(Platform::Github, integrations.github.enabled);
+    integration.set_enabled(Platform::Gitlab, integrations.gitlab.enabled);
     if slot
         .set(Arc::clone(&integration) as Arc<dyn CodeReviewApi>)
         .is_err()

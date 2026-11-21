@@ -177,7 +177,7 @@ fn guard_table_matches_electron() {
     assert_eq!(guard_for("claude:hooks-install"), Guard::ControlCenterOnly);
     assert_eq!(guard_for("reminders:update"), Guard::ControlCenterOnly);
     assert_eq!(guard_for("redmine:set-key"), Guard::ControlCenterOnly);
-    assert_eq!(guard_for("code-review:list"), Guard::NotchOnly);
+    assert_eq!(guard_for("code-review:open-alert"), Guard::NotchOnly);
     // Channels without an Electron guard accept any trusted window.
     assert_eq!(guard_for("settings:update"), Guard::Any);
     assert_eq!(guard_for("notch:pointer"), Guard::Any);
