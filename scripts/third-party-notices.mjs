@@ -1,5 +1,5 @@
 // Generates THIRD_PARTY_NOTICES.md: the Rust crates in the app's Windows runtime graph, the npm
-// packages bundled into the renderer and the bridge, the Geist fonts and the brand icons.
+// packages bundled into the renderer and the bridge, the interface fonts and the brand icons.
 // Run with `npm run notices`. It reads only local data: `cargo metadata --offline` (crate license
 // files come from the Cargo registry) and `node_modules`. The output is sorted, so it is stable.
 import { execFileSync } from 'node:child_process'
@@ -15,7 +15,7 @@ const TARGET = 'x86_64-pc-windows-msvc'
 // @tauri-apps/api, the renderer CSS is built from tailwindcss (`@import 'tailwindcss'`), and Vite
 // injects its modulepreload polyfill. Their own dependencies are build tools and are not walked.
 const BUNDLED_DEV_DEPENDENCIES = ['@tauri-apps/api', 'tailwindcss', 'vite']
-const FONT_PACKAGES = ['@fontsource-variable/geist', '@fontsource-variable/geist-mono', '@fontsource/jersey-10']
+const FONT_PACKAGES = ['@fontsource-variable/nunito', '@fontsource-variable/geist-mono', '@fontsource/jersey-10']
 
 // License alternatives covered by the standard texts at the end of the crate section.
 const STANDARD_IDS = new Set(['MIT', 'Apache-2.0'])
@@ -361,10 +361,10 @@ function npmNotices() {
   }
 
   const out = []
-  out.push('## Fuentes Geist')
+  out.push('## Fuentes')
   out.push('')
   out.push(
-    'La interfaz incluye las fuentes Geist y Geist Mono (de Vercel), empaquetadas por Fontsource, bajo la SIL Open Font License 1.1. ' +
+    'La interfaz incluye las fuentes Nunito, Geist Mono y Jersey 10, empaquetadas por Fontsource, bajo la SIL Open Font License 1.1. ' +
       'Su licencia exige distribuir este texto con las fuentes.',
   )
   out.push('')
@@ -483,7 +483,7 @@ const document = [
     '(`scripts/third-party-notices.mjs`) a partir de `cargo metadata` y `node_modules`; no se edita a mano.',
   '',
   '- [Iconos](#iconos)',
-  '- [Fuentes Geist](#fuentes-geist)',
+  '- [Fuentes](#fuentes)',
   '- [Paquetes npm de la interfaz](#paquetes-npm-de-la-interfaz)',
   '- [Crates de Rust](#crates-de-rust)',
   '- [Marcas](#marcas)',

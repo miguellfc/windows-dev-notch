@@ -43,17 +43,6 @@ export function summarizeDots(sessions: readonly ClaudeSession[], now: number): 
   return { dots: all.slice(0, MAX_DOTS), extra: Math.max(0, all.length - MAX_DOTS), counts }
 }
 
-/** The largest extra the capsule writes out: its block reserves one digit ("+9"). */
-export const MAX_VISIBLE_EXTRA = 9
-
-/**
- * The visible "+N" after the dots: empty without extra, and never past "+9" (the reserved width).
- * The exact count stays in the block's accessible label.
- */
-export function extraLabel(extra: number): string {
-  return extra > 0 ? `+${Math.min(extra, MAX_VISIBLE_EXTRA)}` : ''
-}
-
 /** Milliseconds until the next visible `done` dot turns off, or null when none will. */
 export function nextDoneExpiry(sessions: readonly ClaudeSession[], now: number): number | null {
   let soonest: number | null = null

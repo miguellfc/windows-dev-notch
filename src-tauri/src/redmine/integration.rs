@@ -1,7 +1,9 @@
 //! The Redmine state machine of the main process (port of
 //! 0.1.0's `redmine-integration.ts`) and its Tauri wiring pieces (0.1.0's `index.ts`).
 //!
-//! One runtime: key, client, generation, 300 s rhythm with backoff (issues and today's hours),
+//! One runtime: key, client, generation, 300 s rhythm with backoff (issues, and one time entries
+//! query over the summary's range, from the 1st of the month or that week's Monday if earlier, to
+//! today: today's hours, the month's and the month summary the panel card draws),
 //! and the month summary every 900 s while the Redmine view is open. Everything lives under one
 //! `Mutex`, never held across an `.await`, an emit or the opener: each operation collects its
 //! effects under the lock and runs them once it is released, in sequence order (an older
@@ -49,7 +51,7 @@ use crate::http::ApiError;
 use crate::ipc::{BoxFuture, ExposedError, IpcErrorCode};
 use crate::notch::runtime::NotchRuntime;
 use crate::redmine::client::{IssuePatch, RedmineApiClient, TimeEntryInput};
-use crate::redmine::summary::{sum_hours, summarize_hours, summary_range};
+use crate::redmine::summary::{summarize_hours, summary_range};
 use crate::services::clock::WallClock;
 pub use crate::services::secure_token_store::TokenStore;
 use crate::services::tasks::finished;
@@ -191,6 +193,11 @@ struct Inner {
     today_hours: Option<f64>,
     /// Local date the `today_hours` reading belongs to: after midnight it is no longer today's.
     today_hours_day: Option<String>,
+    /// Hours from the 1st of the month to today, from the same query as `today_hours`.
+    month_hours: Option<f64>,
+    /// Local month (`YYYY-MM`) the `month_hours` reading belongs to: on the 1st it is no longer
+    /// this month's.
+    month_hours_month: Option<String>,
     /// Epoch milliseconds of the last successful query.
     updated_at: Option<f64>,
     issue_list: RedmineIssueList,
@@ -232,6 +239,8 @@ impl Inner {
             account: None,
             today_hours: None,
             today_hours_day: None,
+            month_hours: None,
+            month_hours_month: None,
             updated_at: None,
             issue_list: RedmineIssueList::default(),
             sent: HashSet::new(),
@@ -402,11 +411,21 @@ where
             .flatten()
     }
 
+    /// The last month-to-date reading only while it is still the same local month.
+    fn current_month_hours(&self, inner: &Inner) -> Option<f64> {
+        let today = local_date(&self.local_now());
+        let month = today.get(..7).unwrap_or(&today);
+        (inner.month_hours_month.as_deref() == Some(month))
+            .then_some(inner.month_hours)
+            .flatten()
+    }
+
     fn state_of(&self, inner: &Inner) -> RedmineState {
         RedmineState {
             status: inner.status,
             account: inner.account.clone(),
             today_hours: self.current_today_hours(inner),
+            month_hours: self.current_month_hours(inner),
             updated_at: inner.updated_at,
             persistent: self.persistent,
         }
@@ -546,13 +565,15 @@ where
     }
 
     /// `resetSession`: forgets everything tied to the current key (not the stored key itself).
-    /// Callers publish. `today_hours_day` stays, as in TS (`today_hours` is `None` anyway).
+    /// Callers publish. `today_hours_day` and `month_hours_month` stay, as in TS (the hours are
+    /// `None` anyway).
     fn reset_session(&self, inner: &mut Inner, effects: &mut Effects) {
         inner.generation += 1;
         self.clear_timer(inner, Rhythm::Poll);
         inner.client = None;
         inner.account = None;
         inner.today_hours = None;
+        inner.month_hours = None;
         inner.updated_at = None;
         inner.issue_list = RedmineIssueList::default();
         inner.sent.clear();
@@ -575,6 +596,7 @@ where
         self.clear_timer(inner, Rhythm::Poll);
         self.clear_timer(inner, Rhythm::Summary);
         inner.today_hours = None;
+        inner.month_hours = None;
         inner.issue_list = RedmineIssueList::default();
         inner.sent.clear();
         inner.read_issues.clear();
@@ -659,11 +681,13 @@ where
                 Some(account) => account,
                 None => client.viewer().await?.name,
             };
-            // The day comes from the clock on every query: midnight takes effect at once.
-            let today = local_date(&self.local_now());
+            // The day comes from the clock on every query: midnight takes effect at once. One
+            // query over the summary's range gives today's hours, the month's and the summary.
+            let at = self.local_now();
+            let (from, to) = summary_range(&at);
             let (list, entries) =
-                tokio::try_join!(client.issues(), client.time_entries(&today, &today))?;
-            Ok::<_, ApiError>((account, today, list, entries))
+                tokio::try_join!(client.issues(), client.time_entries(&from, &to))?;
+            Ok::<_, ApiError>((account, to, summarize_hours(&entries, &at), list))
         }
         .await;
         let mut effects = Effects::new();
@@ -673,13 +697,16 @@ where
                 return;
             }
             match result {
-                Ok((account, today, list, entries)) => {
+                Ok((account, today, summary, list)) => {
                     inner.account = Some(account);
                     inner.issue_list = list;
-                    inner.today_hours = Some(sum_hours(
-                        entries.iter().filter(|entry| entry.date == today),
-                    ));
+                    inner.today_hours = Some(summary.today);
                     inner.today_hours_day = Some(today);
+                    inner.month_hours = Some(summary.month_total);
+                    inner.month_hours_month = Some(summary.month.clone());
+                    // The same summary the view's own query would give: the panel card draws
+                    // it without that query (no event: the state below makes it ask again).
+                    inner.summary = Some(summary);
                     #[allow(clippy::cast_precision_loss, reason = "epoch ms fit f64 exactly")]
                     let updated_at = self.deps.clock.now().timestamp_millis() as f64;
                     inner.updated_at = Some(updated_at);

@@ -3,7 +3,7 @@ import { buildApi } from '../../../src/shared/ipc/build-api'
 import { channels, eventChannels } from '../../../src/shared/ipc/channels'
 import { contract, eventContract } from '../../../src/shared/ipc/contract'
 import { err, ok } from '../../../src/shared/ipc/result'
-import { NO_ALERTS, PROCESS_LIMIT } from '../../../src/shared/system/schema'
+import { NO_ALERTS } from '../../../src/shared/system/schema'
 
 const channelNames = Object.values(channels).flatMap((group) => Object.values(group))
 
@@ -319,48 +319,19 @@ describe('usage contract', () => {
 })
 
 describe('system monitor contract', () => {
-  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS, storage: { letter: 'C', usedPercent: 62 } }
-  const row = { pid: 42, name: 'node.exe', cpuPercent: 1.5, privateBytes: 1024, startTime: '2026-11-10T09:00:00.000Z', killable: true }
+  const light = { cpuPercent: 12, ram: { usedBytes: 1, totalBytes: 2 }, battery: null, alerts: NO_ALERTS, storage: { usedPercent: 62 }, online: null }
 
-  it('exposes the system channels and events', () => {
-    expect(channels.system).toEqual({ view: 'system:view', killProcess: 'system:kill-process' })
-    expect(eventChannels.systemMetrics).toBe('system:metrics')
-    expect(eventChannels.systemProcesses).toBe('system:processes')
+  it('exposes only the metrics event (no view, process list or close channels)', () => {
+    expect(Object.values(channels).flatMap((group) => Object.values(group) as string[]).filter((name) => name.startsWith('system:'))).toEqual([])
+    expect(Object.values(eventChannels).filter((name) => name.startsWith('system:'))).toEqual(['system:metrics'])
   })
 
-  it('sets the view order to cpu or ram (open/close follows the notch mode)', () => {
-    const view = contract['system:view'].input
-    expect(view.safeParse({ by: 'cpu' }).success).toBe(true)
-    expect(view.safeParse({ by: 'ram' }).success).toBe(true)
-    expect(view.safeParse({}).success).toBe(false)
-    expect(view.safeParse({ open: true }).success).toBe(false)
-    expect(view.safeParse({ open: false, by: 'ram' }).success).toBe(false)
-    expect(view.safeParse({ by: 'disk' }).success).toBe(false)
-    expect(view.safeParse({ by: 'cpu', path: 'C:/' }).success).toBe(false)
-    expect(contract['system:view'].output.safeParse(null).success).toBe(true)
-  })
-
-  it('closes by pid and start time only, and returns a known result', () => {
-    const kill = contract['system:kill-process']
-    expect(kill.input.safeParse({ pid: 42, startTime: row.startTime }).success).toBe(true)
-    expect(kill.input.safeParse({ pid: -1, startTime: row.startTime }).success).toBe(false)
-    expect(kill.input.safeParse({ pid: 42, startTime: row.startTime, name: 'node.exe' }).success).toBe(false)
-    for (const result of ['killed', 'gone', 'denied', 'not-killable']) expect(kill.output.safeParse(result).success).toBe(true)
-    expect(kill.output.safeParse('maybe').success).toBe(false)
-  })
-
-  it('validates metrics and process events', () => {
+  it('validates the metrics event (light or unavailable)', () => {
     const metrics = eventContract['system:metrics']
     expect(metrics.safeParse({ kind: 'light', ...light }).success).toBe(true)
-    expect(metrics.safeParse({ kind: 'full', ...light, disks: [], network: null }).success).toBe(true)
+    expect(metrics.safeParse({ kind: 'full', ...light, disks: [], network: null }).success).toBe(false)
     expect(metrics.safeParse({ kind: 'unavailable' }).success).toBe(true)
     expect(metrics.safeParse({ kind: 'light', ...light, cpuPercent: 101 }).success).toBe(false)
-    const rows = eventContract['system:processes']
-    expect(rows.safeParse([row]).success).toBe(true)
-    expect(rows.safeParse(Array.from({ length: PROCESS_LIMIT }, (_, i) => ({ ...row, pid: i + 1 }))).success).toBe(true)
-    expect(rows.safeParse(Array.from({ length: PROCESS_LIMIT + 1 }, (_, i) => ({ ...row, pid: i + 1 }))).success).toBe(false)
-    expect(PROCESS_LIMIT).toBe(5)
-    expect(rows.safeParse([{ ...row, path: 'C:/x' }]).success).toBe(false)
   })
 })
 
@@ -654,7 +625,7 @@ describe('code review in the notch contract', () => {
 })
 
 describe('redmine contract', () => {
-  const state = { status: 'ok', account: 'Alice Doe', todayHours: 5.5, updatedAt: 1_763_000_000_000, persistent: true }
+  const state = { status: 'ok', account: 'Alice Doe', todayHours: 5.5, monthHours: 60, updatedAt: 1_763_000_000_000, persistent: true }
   const issue = {
     id: 12,
     subject: 'Fix login',

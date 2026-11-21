@@ -2,12 +2,12 @@ import { integrationKeys, type CapsuleIntegrationKey, type IntegrationKey } from
 import type { NotchView } from '../../shared/notch/state'
 import type { IntegrationsSettings } from '../../shared/settings/schema'
 
-/** The cards of the enabled integrations, in the order of `integrationKeys`. */
+/** The cards of the enabled integrations (every integration has one), in the order of `integrationKeys`. */
 export function visibleCards(integrations: IntegrationsSettings): IntegrationKey[] {
   return integrationKeys.filter((key) => integrations[key].enabled)
 }
 
-/** Whether an integration's block shows in the capsule. System's metrics never depend on this. */
+/** Whether an integration's block shows in the capsule. The system metrics never depend on this. */
 export function capsuleShows(key: CapsuleIntegrationKey, integrations: IntegrationsSettings): boolean {
   const integration = integrations[key]
   return integration.enabled && integration.capsule

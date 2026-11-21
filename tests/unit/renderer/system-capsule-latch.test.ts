@@ -7,14 +7,16 @@ const light = (
   battery: { percent: number; charging: boolean; pluggedIn: boolean } | null,
   cpuPercent: number | null = 30,
   alerts: SystemAlerts = NO_ALERTS,
-  storage: { letter: string; usedPercent: number } | null = null,
+  usedPercent: number | null = null,
+  online: boolean | null = true,
 ): SystemMetrics => ({
   kind: 'light',
   cpuPercent,
   ram: { usedBytes: 8 * GB, totalBytes: 16 * GB },
   battery: battery && { ...battery, secondsLeft: null },
   alerts,
-  storage,
+  storage: usedPercent === null ? null : { usedPercent },
+  online,
 })
 const QUIET = { cpu: false, ram: false, battery: false }
 const ON_BATTERY = { percent: 12, charging: false, pluggedIn: false }
@@ -30,22 +32,9 @@ describe('nextCapsule', () => {
       ramPercent: 50,
       battery: { percent: 82, charging: true, pluggedIn: true },
       alerts: QUIET,
-      storage: { letter: 'C', usedPercent: null, alert: false },
+      storage: { usedPercent: null, lowDrive: null },
+      online: true,
     })
-  })
-
-  it('maps a full sample like a light one', () => {
-    const full: SystemMetrics = {
-      kind: 'full',
-      cpuPercent: 30,
-      ram: { usedBytes: 8 * GB, totalBytes: 16 * GB },
-      battery: null,
-      disks: [],
-      network: null,
-      alerts: NO_ALERTS,
-      storage: null,
-    }
-    expect(feed([full]).view).toEqual({ cpuPercent: 30, ramPercent: 50, battery: null, alerts: QUIET, storage: { letter: 'C', usedPercent: null, alert: false } })
   })
 
   it('never shows a battery slot on a machine that never reported one', () => {
@@ -73,7 +62,8 @@ describe('nextCapsule', () => {
       ramPercent: 50,
       battery: { percent: 82, charging: false, pluggedIn: false },
       alerts: QUIET,
-      storage: { letter: 'C', usedPercent: null, alert: false },
+      storage: { usedPercent: null, lowDrive: null },
+      online: true,
     })
   })
 
@@ -82,8 +72,8 @@ describe('nextCapsule', () => {
   })
 
   it('treats an empty RAM total as unknown', () => {
-    const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null, alerts: NO_ALERTS, storage: null }
-    expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null, alerts: QUIET, storage: { letter: 'C', usedPercent: null, alert: false } })
+    const sample: SystemMetrics = { kind: 'light', cpuPercent: null, ram: { usedBytes: 0, totalBytes: 0 }, battery: null, alerts: NO_ALERTS, storage: null, online: null }
+    expect(feed([sample]).view).toEqual({ cpuPercent: null, ramPercent: null, battery: null, alerts: QUIET, storage: { usedPercent: null, lowDrive: null }, online: null })
   })
 
   it('carries the CPU, RAM and battery alerts of each sample, unlatched', () => {
@@ -101,46 +91,48 @@ describe('nextCapsule', () => {
   })
 
   it('shows the storage of the sample, without alert', () => {
-    expect(feed([light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 62 })]).view?.storage).toEqual({ letter: 'C', usedPercent: 62, alert: false })
+    expect(feed([light(null, 30, NO_ALERTS, 62)]).view?.storage).toEqual({ usedPercent: 62, lowDrive: null })
   })
 
-  it('flags the storage while the disk alert points at it', () => {
-    const view = feed([light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })]).view
-    expect(view?.storage).toEqual({ letter: 'C', usedPercent: 95, alert: true })
+  it('flags the storage with the low drive while there is a disk alert, whatever the drive', () => {
+    expect(feed([light(null, 30, lowDisk('C', 5), 95)]).view?.storage).toEqual({ usedPercent: 95, lowDrive: 'C' })
+    expect(feed([light(null, 30, lowDisk('D', 4), 62)]).view?.storage).toEqual({ usedPercent: 62, lowDrive: 'D' })
   })
 
-  it('keeps the storage alert until the disk alert is gone in 3 samples in a row', () => {
-    const shown = feed([light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })])
-    const quiet = light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 90 })
-    expect(feed([quiet, quiet], shown).view?.storage).toEqual({ letter: 'C', usedPercent: 90, alert: true })
-    expect(feed([quiet, quiet, quiet], shown).view?.storage).toEqual({ letter: 'C', usedPercent: 90, alert: false })
+  it('keeps the storage alert and its drive until the disk alert is gone in 3 samples in a row', () => {
+    const shown = feed([light(null, 30, lowDisk('D', 5), 95)])
+    const quiet = light(null, 30, NO_ALERTS, 90)
+    expect(feed([quiet, quiet], shown).view?.storage).toEqual({ usedPercent: 90, lowDrive: 'D' })
+    expect(feed([quiet, quiet, quiet], shown).view?.storage).toEqual({ usedPercent: 90, lowDrive: null })
   })
 
   it('resets the storage miss count when the disk alert comes back', () => {
-    const q = light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 90 })
-    const a = light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })
-    expect(feed([a, q, q, a, q, q]).view?.storage?.alert).toBe(true)
+    const q = light(null, 30, NO_ALERTS, 90)
+    const a = light(null, 30, lowDisk('C', 5), 95)
+    expect(feed([a, q, q, a, q, q]).view?.storage?.lowDrive).toBe('C')
   })
 
-  it('does not hold the alert onto another drive', () => {
-    const shown = feed([light(null, 30, lowDisk('C', 5), { letter: 'C', usedPercent: 95 })])
-    const moved = feed([light(null, 30, NO_ALERTS, { letter: 'D', usedPercent: 40 })], shown)
-    expect(moved.view?.storage).toEqual({ letter: 'D', usedPercent: 40, alert: false })
+  it('follows the alert onto another drive at once', () => {
+    const shown = feed([light(null, 30, lowDisk('C', 5), 95)])
+    expect(feed([light(null, 30, lowDisk('E', 3), 95)], shown).view?.storage).toEqual({ usedPercent: 95, lowDrive: 'E' })
   })
 
-  it('does not flag the storage when the disk alert is for a different drive', () => {
-    const view = feed([light(null, 30, lowDisk('D', 4), { letter: 'C', usedPercent: 62 })]).view
-    expect(view?.storage).toEqual({ letter: 'C', usedPercent: 62, alert: false })
-  })
-
-  it('without storage in the sample, usedPercent is null and the letter follows the alert', () => {
-    expect(feed([light(null, 30, lowDisk('D', 4))]).view?.storage).toEqual({ letter: 'D', usedPercent: null, alert: true })
-    expect(feed([light(null)]).view?.storage).toEqual({ letter: 'C', usedPercent: null, alert: false })
+  it('without storage in the sample, usedPercent is null and the alert still shows', () => {
+    expect(feed([light(null, 30, lowDisk('D', 4))]).view?.storage).toEqual({ usedPercent: null, lowDrive: 'D' })
+    expect(feed([light(null)]).view?.storage).toEqual({ usedPercent: null, lowDrive: null })
   })
 
   it('drops the storage with the rest of the metrics when the monitor is lost', () => {
-    const shown = feed([light(null, 30, NO_ALERTS, { letter: 'C', usedPercent: 62 })])
-    expect(feed([UNAVAILABLE, UNAVAILABLE], shown).view?.storage).toEqual({ letter: 'C', usedPercent: 62, alert: false })
+    const shown = feed([light(null, 30, NO_ALERTS, 62)])
+    expect(feed([UNAVAILABLE, UNAVAILABLE], shown).view?.storage).toEqual({ usedPercent: 62, lowDrive: null })
     expect(feed([UNAVAILABLE, UNAVAILABLE, UNAVAILABLE], shown).view).toBeNull()
+  })
+  it("carries main's connectivity reading of each sample, unlatched, null included", () => {
+    const offline = feed([light(null, 30, NO_ALERTS, null, false)])
+    expect(offline.view?.online).toBe(false)
+    expect(feed([light(null, 30, NO_ALERTS, null, true)], offline).view?.online).toBe(true)
+    expect(feed([light(null, 30, NO_ALERTS, null, null)], offline).view?.online).toBeNull()
+    // Unavailable samples keep the last view, its reading included, like the other metrics.
+    expect(feed([UNAVAILABLE], offline).view?.online).toBe(false)
   })
 })

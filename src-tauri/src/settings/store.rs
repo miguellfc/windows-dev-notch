@@ -99,7 +99,7 @@ impl SettingsStore {
             );
             return Ok(self.use_settings(self.defaults.clone(), true));
         }
-        // Only v7 migrates; an older (or missing) version is not usable.
+        // Only v7 and v8 migrate; an older (or missing) version is not usable.
         let Some(migrated) = migrate(raw) else {
             return self.recover("Settings file has no usable version").await;
         };
@@ -109,9 +109,10 @@ impl SettingsStore {
                 .await;
         };
         if version != Some(u64::from(SETTINGS_VERSION)) {
-            // The migration replaces any `integrations` key a v7 file had with the defaults.
-            // If the migrated file cannot be written back, the session keeps the migrated values
-            // (not the defaults) in read-only mode, and the v7 file stays as it was.
+            // The migration replaces any `integrations` key a v7 file had with the defaults and
+            // drops a v8 file's `integrations.system`. If the migrated file cannot be written
+            // back, the session keeps the migrated values (not the defaults) in read-only mode,
+            // and the old file stays as it was.
             if let Err(error) = write_atomic(&self.path, &serialize(&settings)).await {
                 log::warn!(
                     "Could not write the settings migrated to version {SETTINGS_VERSION}; using them in read-only mode: {error}"
@@ -189,21 +190,32 @@ impl SettingsStore {
     }
 }
 
-/// Brings a settings file up to [`SETTINGS_VERSION`]: v7 gets the default `integrations`; the
-/// current version passes through untouched. Anything older (or without a version) is `None`,
-/// which sends the file to quarantine. The result still has to pass the schema.
+/// Brings a settings file up to [`SETTINGS_VERSION`] one step at a time: v7 gets the default
+/// `integrations` (v8); v8 loses `integrations.system` (v9: the System view is gone and its
+/// metrics need no switch). The current version passes through untouched. Anything older (or
+/// without a version) is `None`, which sends the file to quarantine. The result still has to
+/// pass the schema.
 pub fn migrate(mut raw: Value) -> Option<Value> {
-    match raw.get("version").and_then(Value::as_u64)? {
-        version if version == u64::from(SETTINGS_VERSION) => Some(raw),
-        7 => {
-            let integrations = serde_json::to_value(default_integrations()).ok()?;
-            let object = raw.as_object_mut()?;
-            object.insert("integrations".into(), integrations);
-            object.insert("version".into(), SETTINGS_VERSION.into());
-            Some(raw)
-        }
-        _ => None,
+    let mut version = raw.get("version").and_then(Value::as_u64)?;
+    if version == u64::from(SETTINGS_VERSION) {
+        return Some(raw);
     }
+    if version == 7 {
+        let integrations = serde_json::to_value(default_integrations()).ok()?;
+        raw.as_object_mut()?
+            .insert("integrations".into(), integrations);
+        version = 8;
+    }
+    if version != 8 {
+        return None;
+    }
+    // A v8 file without an `integrations` object is left for the schema to reject.
+    if let Some(integrations) = raw.get_mut("integrations").and_then(Value::as_object_mut) {
+        integrations.remove("system");
+    }
+    raw.as_object_mut()?
+        .insert("version".into(), SETTINGS_VERSION.into());
+    Some(raw)
 }
 
 fn apply_integration_patch(
@@ -278,7 +290,6 @@ fn apply_patch(settings: &mut Settings, patch: SettingsPatch) {
         apply_integration_patch(&mut target.redmine, integrations.redmine);
         apply_integration_patch(&mut target.reminders, integrations.reminders);
         apply_integration_patch(&mut target.notes, integrations.notes);
-        apply_integration_patch(&mut target.system, integrations.system);
     }
 }
 
@@ -400,8 +411,76 @@ mod tests {
             .any(|n| n.starts_with("settings.corrupt-")));
     }
 
+    /// The current defaults as a v8 file: `integrations.system` (teal, on, no capsule) is back.
+    fn v8_value() -> Value {
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["version"] = 8.into();
+        value["integrations"]["system"] =
+            serde_json::json!({ "enabled": false, "capsule": false, "color": "#A3B18A" });
+        value
+    }
+
     #[test]
-    fn v7_file_migrates_to_v8_keeping_other_fields() {
+    fn v8_file_migrates_to_v9_dropping_only_integrations_system() {
+        let dir = TempDir::new();
+        let mut value = v8_value();
+        value["language"] = "en".into();
+        value["integrations"]["gmail"]["color"] = "sand".into();
+        value["integrations"]["notes"]["enabled"] = false.into();
+        write(&dir.file(), &value.to_string());
+        let loaded = block_on(store(&dir.file()).load());
+        let mut expected = defaults();
+        expected.language = Language::En;
+        expected.integrations.gmail.color = IntegrationColor::Palette(PaletteColor::Sand);
+        expected.integrations.notes.enabled = false;
+        assert_eq!(loaded.version, 9);
+        assert_eq!(loaded, expected);
+        assert_eq!(saved(&dir.file()), expected);
+        let raw: Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.file()).unwrap()).unwrap();
+        assert_eq!(raw["version"], 9);
+        assert!(raw["integrations"].get("system").is_none());
+        assert_eq!(dir.names(), vec!["settings.json"]);
+    }
+
+    #[test]
+    fn v8_file_without_a_system_entry_still_migrates() {
+        let dir = TempDir::new();
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["version"] = 8.into();
+        write(&dir.file(), &value.to_string());
+        assert_eq!(block_on(store(&dir.file()).load()), defaults());
+        assert_eq!(dir.names(), vec!["settings.json"]);
+    }
+
+    #[test]
+    fn v8_file_that_does_not_match_the_schema_is_quarantined() {
+        let dir = TempDir::new();
+        let mut value = v8_value();
+        value["integrations"]["notes"]["capsule"] = true.into();
+        write(&dir.file(), &value.to_string());
+        assert_eq!(block_on(store(&dir.file()).load()), defaults());
+        assert!(dir
+            .names()
+            .iter()
+            .any(|n| n.starts_with("settings.corrupt-")));
+    }
+
+    #[test]
+    fn a_v9_file_with_integrations_system_is_quarantined() {
+        let dir = TempDir::new();
+        let mut value = v8_value();
+        value["version"] = 9.into();
+        write(&dir.file(), &value.to_string());
+        assert_eq!(block_on(store(&dir.file()).load()), defaults());
+        assert!(dir
+            .names()
+            .iter()
+            .any(|n| n.starts_with("settings.corrupt-")));
+    }
+
+    #[test]
+    fn v7_file_migrates_to_v9_keeping_other_fields() {
         let dir = TempDir::new();
         let mut value = serde_json::to_value(defaults()).unwrap();
         value["version"] = 7.into();
@@ -413,7 +492,7 @@ mod tests {
         let mut expected = defaults();
         expected.language = Language::En;
         expected.shortcut = "Control+Alt+K".into();
-        assert_eq!(loaded.version, 8);
+        assert_eq!(loaded.version, 9);
         assert_eq!(loaded.integrations, default_integrations());
         assert_eq!(loaded, expected);
         assert_eq!(saved(&dir.file()), expected);
@@ -465,13 +544,14 @@ mod tests {
     }
 
     #[test]
-    fn migrate_handles_only_v7_and_the_current_version() {
+    fn migrate_handles_only_v7_v8_and_the_current_version() {
         let current = serde_json::to_value(defaults()).unwrap();
         assert_eq!(migrate(current.clone()), Some(current.clone()));
         let mut v7 = current.clone();
         v7["version"] = 7.into();
         v7.as_object_mut().unwrap().remove("integrations");
         assert_eq!(migrate(v7), Some(current.clone()));
+        assert_eq!(migrate(v8_value()), Some(current.clone()));
         for version in [6, 3, 0] {
             let mut old = current.clone();
             old["version"] = version.into();
@@ -660,7 +740,7 @@ mod tests {
         let next = block_on(s.update(SettingsPatch {
             integrations: Some(IntegrationsPatch {
                 gmail: Some(IntegrationSettingsPatch {
-                    color: Some(IntegrationColor::Blue),
+                    color: Some(IntegrationColor::Hex([0xA3, 0xB1, 0x8A])),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -672,11 +752,17 @@ mod tests {
         expected.gmail = IntegrationSettings {
             enabled: false,
             capsule: true,
-            color: IntegrationColor::Blue,
+            color: IntegrationColor::Hex([0xA3, 0xB1, 0x8A]),
         };
         assert_eq!(next.integrations, expected);
         assert_eq!(next.integrations.github, default_integrations().github);
         assert_eq!(saved(&dir.file()).integrations, expected);
+        let raw = std::fs::read_to_string(dir.file()).unwrap();
+        assert!(
+            raw.contains("\"#A3B18A\""),
+            "the custom color is stored as uppercase hex"
+        );
+        assert!(raw.contains("\"clay\""), "palette colors stay ids");
     }
 
     #[test]

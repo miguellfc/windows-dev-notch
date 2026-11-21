@@ -49,7 +49,7 @@ use reminders::ipc::RemindersSlot;
 use reminders::Reminders;
 use services::quit::{ExitDecision, QuitFlush};
 use services::usage::{UsageEvent, UsageLog};
-use system::ipc::{SystemControl, SystemIntegration, SystemSlot};
+use system::integration::SystemIntegration;
 
 /// Shared state managed by Tauri; later tasks add their services here.
 pub struct App {
@@ -84,7 +84,6 @@ pub fn run() {
         notes: notes_slot,
         apps: apps_slot,
         reminders: reminders_slot,
-        system: system_slot,
         claude: claude_slot,
         code_review: code_review_slot,
         redmine: redmine_slot,
@@ -176,14 +175,8 @@ pub fn run() {
             }
             notch.start_foreground_watch();
             // The system monitor follows the notch mode (sampling starts below, once everything
-            // else is up); the channels reach it through the slot.
+            // else is up).
             let system = Arc::new(SystemIntegration::new());
-            if system_slot
-                .set(Arc::clone(&system) as Arc<dyn SystemControl>)
-                .is_err()
-            {
-                log::error!("system: installed twice");
-            }
             app.manage(Arc::clone(&system));
             {
                 let system = Arc::clone(&system);
@@ -314,7 +307,7 @@ pub fn run() {
             // Then the reminders, as in Electron.
             app.state::<Arc<services::quit::QuitTasks>>()
                 .add_cleanup(move |_thread| reminders.dispose());
-            // Then the system monitor and its PDH query (Electron: reminders, then system).
+            // Then the system monitor (Electron: reminders, then system).
             {
                 let system = Arc::clone(&system);
                 app.state::<Arc<services::quit::QuitTasks>>()
@@ -425,7 +418,6 @@ pub struct Slots {
     pub notes: Arc<NotesSlot>,
     pub apps: Arc<AppsSlot>,
     pub reminders: Arc<RemindersSlot>,
-    pub system: Arc<SystemSlot>,
     pub claude: Arc<ClaudeSlot>,
     pub code_review: Arc<CodeReviewSlot>,
     pub redmine: Arc<RedmineSlot>,
@@ -442,7 +434,6 @@ pub fn build_registry(slots: &Slots) -> ipc::Registry {
     notes::ipc::register(&mut registry, &slots.notes);
     apps::register(&mut registry, &slots.apps);
     reminders::ipc::register(&mut registry, &slots.reminders);
-    system::ipc::register(&mut registry, &slots.system);
     claude::ipc::register(&mut registry, &slots.claude);
     code_review::ipc::register(&mut registry, &slots.code_review);
     redmine::ipc::register(&mut registry, &slots.redmine);
@@ -823,18 +814,23 @@ fn install_reminders(
 
 /// Loads the Win32 system API and starts the monitor on a blocking worker (never the main
 /// thread): samples run through `spawn_blocking`, on the notch's timers (the E2E test clock moves
-/// them too) and a monotonic `Instant` clock. `system:metrics` / `system:processes` go to the
-/// notch window only, skipped while it does not exist.
+/// them too) and a monotonic `Instant` clock. `system:metrics` goes to the notch window only,
+/// skipped while it does not exist.
 fn start_system(app: &AppHandle, system: Arc<SystemIntegration>, notch: &Arc<NotchRuntime>) {
-    use system::ipc::StartOptions;
+    use system::integration::StartOptions;
     use system::SystemApi;
 
     let controller = Arc::clone(&notch.controller);
     let timers = notch.timers();
+    // `__e2e:connectivity` can force the connection the monitor reads (e2e build only).
+    #[cfg(feature = "e2e")]
+    let forced = e2e::force_connectivity(app);
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let start = std::panic::AssertUnwindSafe(|| {
             let api = system::Win32SystemApi::new().map(|api| Arc::new(api) as Arc<dyn SystemApi>);
+            #[cfg(feature = "e2e")]
+            let api = api.map(forced);
             let started = std::time::Instant::now();
             let options = StartOptions {
                 api,
@@ -854,14 +850,6 @@ fn start_system(app: &AppHandle, system: Arc<SystemIntegration>, notch: &Arc<Not
                     Box::new(move |metrics| {
                         if app.get_webview_window(ipc::NOTCH).is_some() {
                             ipc::emit_event(&app, &[ipc::NOTCH], "system:metrics", metrics);
-                        }
-                    })
-                },
-                on_processes: {
-                    let app = app.clone();
-                    Box::new(move |rows| {
-                        if app.get_webview_window(ipc::NOTCH).is_some() {
-                            ipc::emit_event(&app, &[ipc::NOTCH], "system:processes", &rows);
                         }
                     })
                 },

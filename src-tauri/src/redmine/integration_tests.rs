@@ -112,10 +112,11 @@ fn entry(date: &str, hours: f64) -> TimeEntry {
     }
 }
 
-/// The fake's default `timeEntries`: `[1.5, 2.25]` on the day asked when `from == to`.
-fn default_entries(from: &str, to: &str) -> Vec<TimeEntry> {
-    if from == to {
-        vec![entry(from, 1.5), entry(from, 2.25)]
+/// The fake's default `timeEntries`: `[1.5, 2.25]` on today (`to`) for the poll, none for the
+/// summary.
+fn default_entries(_from: &str, to: &str, poll: bool) -> Vec<TimeEntry> {
+    if poll {
+        vec![entry(to, 1.5), entry(to, 2.25)]
     } else {
         vec![]
     }
@@ -165,6 +166,7 @@ fn unconfigured() -> RedmineState {
         status: RedmineStatus::Unconfigured,
         account: None,
         today_hours: None,
+        month_hours: None,
         updated_at: None,
         persistent: true,
     }
@@ -273,8 +275,8 @@ impl<A, O: Clone + Send + Sync + 'static> Mock<A, O> {
     }
 }
 
-/// `timeEntries(from, to)`.
-type EntriesMock = Mock<(String, String), Res<Vec<TimeEntry>>>;
+/// `timeEntries(from, to)`, and whether the poll asked (the summary may ask the same range).
+type EntriesMock = Mock<(String, String, bool), Res<Vec<TimeEntry>>>;
 
 struct FakeClient {
     base_url: Mutex<String>,
@@ -286,6 +288,9 @@ struct FakeClient {
     update_issue: Mutex<Mock<(u64, IssuePatch), RedmineWriteResult>>,
     log_time: Mutex<Mock<TimeEntryInput, RedmineWriteResult>>,
     time_entries: Mutex<EntriesMock>,
+    /// Set by `issues()`: the poll asks for the issues and, in the same `try_join!`, the time
+    /// entries; the summary asks for the entries alone. Tells their calls apart.
+    pending_poll: AtomicBool,
 }
 
 impl FakeClient {
@@ -311,9 +316,11 @@ impl FakeClient {
             log_time: Mutex::new(Mock::new(refused_write(RedmineWriteError::Network), |_| {
                 RedmineWriteResult::Done
             })),
-            time_entries: Mutex::new(Mock::new(network(), |(from, to): &(String, String)| {
-                Ok(default_entries(from, to))
-            })),
+            time_entries: Mutex::new(Mock::new(
+                network(),
+                |(from, to, poll): &(String, String, bool)| Ok(default_entries(from, to, *poll)),
+            )),
+            pending_poll: AtomicBool::new(false),
         }
     }
 
@@ -326,14 +333,35 @@ impl FakeClient {
     }
 
     fn entries_calls(&self) -> Vec<(String, String)> {
-        self.time_entries.lock().unwrap().calls.clone()
+        self.time_entries
+            .lock()
+            .unwrap()
+            .calls
+            .iter()
+            .map(|(from, to, _)| (from.clone(), to.clone()))
+            .collect()
     }
 
-    /// Calls of `timeEntries` for a range (the summary), not a single day.
-    fn ranged_calls(&self) -> usize {
-        self.entries_calls()
+    /// The poll's calls of `timeEntries` (with the issues), as `(from, to)`.
+    fn poll_entries_calls(&self) -> Vec<(String, String)> {
+        self.time_entries
+            .lock()
+            .unwrap()
+            .calls
             .iter()
-            .filter(|(from, to)| from != to)
+            .filter(|(_, _, poll)| *poll)
+            .map(|(from, to, _)| (from.clone(), to.clone()))
+            .collect()
+    }
+
+    /// Calls of `timeEntries` for the month summary (not the poll's).
+    fn ranged_calls(&self) -> usize {
+        self.time_entries
+            .lock()
+            .unwrap()
+            .calls
+            .iter()
+            .filter(|(_, _, poll)| !*poll)
             .count()
     }
 
@@ -354,6 +382,7 @@ impl RedmineApiClient for FakeClient {
     }
 
     fn issues(&self) -> BoxFuture<'_, Res<RedmineIssueList>> {
+        self.pending_poll.store(true, Ordering::SeqCst);
         let reply = self.issues.lock().unwrap().call(());
         Box::pin(resolve(reply))
     }
@@ -382,11 +411,12 @@ impl RedmineApiClient for FakeClient {
         from: &'a str,
         to: &'a str,
     ) -> BoxFuture<'a, Res<Vec<TimeEntry>>> {
+        let poll = self.pending_poll.swap(false, Ordering::SeqCst);
         let reply = self
             .time_entries
             .lock()
             .unwrap()
-            .call((from.to_owned(), to.to_owned()));
+            .call((from.to_owned(), to.to_owned(), poll));
         Box::pin(resolve(reply))
     }
 
@@ -850,7 +880,7 @@ async fn without_a_server_forgets_a_stored_key_and_stays_unconfigured() {
 }
 
 #[tokio::test]
-async fn with_a_key_queries_at_once_account_issues_todays_hours_and_then_every_300_s() {
+async fn with_a_key_queries_at_once_account_issues_the_months_hours_and_then_every_300_s() {
     let t = setup(Setup::default());
     t.ready().await;
     t.flush(0).await;
@@ -858,9 +888,10 @@ async fn with_a_key_queries_at_once_account_issues_todays_hours_and_then_every_3
     let client = t.last();
     assert_eq!(client.viewer_calls(), 1);
     assert_eq!(client.issues_calls(), 1);
+    // One query from the 1st of the month to today, for today's hours and the month's.
     assert_eq!(
         client.entries_calls(),
-        [("2026-11-14".to_owned(), "2026-11-14".to_owned())]
+        [("2026-11-01".to_owned(), "2026-11-14".to_owned())]
     );
     assert_eq!(
         t.state(),
@@ -868,6 +899,7 @@ async fn with_a_key_queries_at_once_account_issues_todays_hours_and_then_every_3
             status: RedmineStatus::Ok,
             account: Some("Alice Doe".into()),
             today_hours: Some(3.75),
+            month_hours: Some(3.75),
             updated_at: Some(ms(t.clock.now())),
             persistent: true,
         }
@@ -1393,13 +1425,11 @@ async fn is_queried_only_with_the_view_open_at_once_then_every_900_s_and_stops_w
     t.flush(SUMMARY_TICK_MS * 2).await;
     let client = t.last();
     assert_eq!(client.ranged_calls(), 0);
-    assert_eq!(
-        t.integration.summary().await,
-        RedmineSummaryResult {
-            summary: None,
-            error: false
-        }
-    );
+    // With the view closed, the summary is the poll's (no query or event of its own).
+    let closed = t.integration.summary().await;
+    assert!(!closed.error);
+    assert_eq!(closed.summary.map(|s| s.month_total), Some(3.75));
+    assert!(t.summary_events().is_empty());
 
     t.integration.set_view_open(true);
     t.flush(0).await;
@@ -1419,9 +1449,9 @@ async fn is_queried_only_with_the_view_open_at_once_then_every_900_s_and_stops_w
 async fn covers_the_1st_of_the_month_to_today_and_sums_today_the_week_from_monday_and_the_month() {
     let t = setup(Setup::default());
     t.set_prepare(|c, _| {
-        c.time_entries.lock().unwrap().set_with(|(from, to)| {
-            Reply::Now(Ok(if from == to {
-                vec![entry(from, 2.0)]
+        c.time_entries.lock().unwrap().set_with(|(_, to, poll)| {
+            Reply::Now(Ok(if *poll {
+                vec![entry(to, 2.0)]
             } else {
                 vec![
                     entry("2026-11-02", 8.0),
@@ -1473,8 +1503,8 @@ async fn starts_on_the_monday_of_the_week_when_it_falls_in_the_previous_month() 
         ..Setup::default()
     });
     t.set_prepare(|c, _| {
-        c.time_entries.lock().unwrap().set_with(|(from, to)| {
-            Reply::Now(Ok(if from == to {
+        c.time_entries.lock().unwrap().set_with(|(_, _, poll)| {
+            Reply::Now(Ok(if *poll {
                 vec![]
             } else {
                 vec![entry("2026-11-30", 4.0), entry("2026-12-01", 3.0)]
@@ -1506,13 +1536,17 @@ async fn a_failed_query_keeps_the_last_summary_and_flags_the_error() {
     t.integration.set_view_open(true);
     t.flush(0).await;
     let client = t.last();
-    client.time_entries.lock().unwrap().set_with(|(from, to)| {
-        Reply::Now(if from == to {
-            Ok(vec![])
-        } else {
-            Err(ApiError::Server)
-        })
-    });
+    client
+        .time_entries
+        .lock()
+        .unwrap()
+        .set_with(|(_, _, poll)| {
+            Reply::Now(if *poll {
+                Ok(vec![])
+            } else {
+                Err(ApiError::Server)
+            })
+        });
     t.flush(SUMMARY_TICK_MS).await;
     let result = t.integration.summary().await;
     assert!(result.error);
@@ -1845,8 +1879,8 @@ async fn a_summary_that_resolves_after_is_not_kept_or_announced(ending: Ending) 
         .time_entries
         .lock()
         .unwrap()
-        .set_with(move |(from, to)| {
-            if from == to {
+        .set_with(move |(_, _, poll)| {
+            if *poll {
                 Reply::Now(Ok(vec![]))
             } else {
                 Reply::Later(receiver.clone(), Err(ApiError::Network))
@@ -1860,13 +1894,10 @@ async fn a_summary_that_resolves_after_is_not_kept_or_announced(ending: Ending) 
     pending.resolve(Ok(vec![entry("2026-11-14", 3.0)]));
     t.flush(0).await;
     assert_eq!(t.summary_events().len(), events);
-    assert_eq!(
-        t.integration.summary().await,
-        RedmineSummaryResult {
-            summary: None,
-            error: false
-        }
-    );
+    // Not the late answer (after dispose the poll's last summary may still be cached).
+    let result = t.integration.summary().await;
+    assert!(!result.error);
+    assert!(result.summary.is_none_or(|s| s.today != 3.0));
 }
 
 #[tokio::test]
@@ -2260,8 +2291,8 @@ async fn no_redmine_log_carries_key_subject_or_host() {
         .time_entries
         .lock()
         .unwrap()
-        .set_with(|(from, to)| {
-            Reply::Now(if from == to {
+        .set_with(|(_, _, poll)| {
+            Reply::Now(if *poll {
                 Ok(vec![])
             } else {
                 Err(ApiError::RateLimited)
@@ -2338,17 +2369,193 @@ async fn the_wall_clock_dates_the_poll_and_today_hours_follow_the_local_day() {
     t.flush(0).await;
     assert_eq!(
         t.last().entries_calls()[0],
-        ("2026-11-14".to_owned(), "2026-11-14".to_owned())
+        ("2026-11-01".to_owned(), "2026-11-14".to_owned())
     );
     t.set_time(madrid(2026, 11, 15, 0, 30));
     assert_eq!(t.state().today_hours, None);
+    // Same month: the month's hours stay until the next poll.
+    assert_eq!(t.state().month_hours, Some(3.75));
     t.integration.refresh();
     t.flush(0).await;
     assert_eq!(
         t.last().entries_calls().last().cloned(),
-        Some(("2026-11-15".to_owned(), "2026-11-15".to_owned()))
+        Some(("2026-11-01".to_owned(), "2026-11-15".to_owned()))
     );
     assert_eq!(t.state().today_hours, Some(3.75));
+}
+
+#[tokio::test]
+async fn the_poll_sums_the_month_and_today_from_the_same_entries_without_another_query() {
+    let t = setup(Setup::default());
+    t.set_prepare(|c, _| {
+        c.time_entries.lock().unwrap().set(Ok(vec![
+            entry("2026-11-02", 8.0),
+            entry("2026-11-14", 0.1),
+            entry("2026-11-09", 7.5),
+            entry("2026-11-14", 0.2),
+        ]));
+    });
+    t.ready().await;
+    t.flush(0).await;
+    let client = t.last();
+    assert_eq!(client.issues_calls(), 1);
+    assert_eq!(
+        client.poll_entries_calls(),
+        [("2026-11-01".to_owned(), "2026-11-14".to_owned())]
+    );
+    assert_eq!(client.entries_calls().len(), 1);
+    let state = t.state();
+    assert_eq!(state.today_hours, Some(0.3));
+    assert_eq!(state.month_hours, Some(15.8));
+    assert_eq!(t.last_emitted().month_hours, Some(15.8));
+    // The end-of-day alert still reads today's hours alone.
+    assert_eq!(t.integration.today_hours(), Some(0.3));
+    // The month summary comes with them, the view closed and without its own query.
+    assert_eq!(client.ranged_calls(), 0);
+    let summary = t.integration.summary().await.summary.expect("a summary");
+    assert_eq!(summary.month_total, 15.8);
+    assert_eq!(summary.today, 0.3);
+    assert_eq!(summary.days.len(), 14);
+    assert!(t.summary_events().is_empty());
+}
+
+#[tokio::test]
+async fn the_months_hours_reset_when_the_month_changes() {
+    // 23:30 on Monday 30 Nov in Madrid; 00:30 on Tuesday 1 Dec is a new month.
+    let t = setup(Setup {
+        now: madrid(2026, 11, 30, 23, 30),
+        ..Setup::default()
+    });
+    t.set_prepare(|c, _| {
+        c.time_entries.lock().unwrap().set_with(|(_, to, _)| {
+            Reply::Now(Ok(if to == "2026-11-30" {
+                vec![entry("2026-11-03", 120.0), entry("2026-11-30", 6.0)]
+            } else {
+                // The range starts on Monday 30 Nov: that day is not December's.
+                vec![entry("2026-11-30", 6.0), entry(to, 1.25)]
+            }))
+        });
+    });
+    t.ready().await;
+    t.flush(0).await;
+    assert_eq!(t.state().month_hours, Some(126.0));
+    assert_eq!(t.state().today_hours, Some(6.0));
+
+    t.set_time(madrid(2026, 12, 1, 0, 30));
+    // November's reading is not December's: nothing until the next poll.
+    let state = t.state();
+    assert_eq!(state.month_hours, None);
+    assert_eq!(state.today_hours, None);
+    t.integration.refresh();
+    t.flush(0).await;
+    assert_eq!(
+        t.last().poll_entries_calls().last().cloned(),
+        Some(("2026-11-30".to_owned(), "2026-12-01".to_owned()))
+    );
+    assert_eq!(t.state().month_hours, Some(1.25));
+    assert_eq!(t.state().today_hours, Some(1.25));
+    let summary = t.integration.summary().await.summary.expect("a summary");
+    assert_eq!((summary.month.as_str(), summary.week), ("2026-12", 7.25));
+}
+
+#[tokio::test]
+async fn the_months_hours_are_forgotten_with_a_rejected_key() {
+    let t = setup(Setup::default());
+    t.ready().await;
+    t.flush(0).await;
+    assert_eq!(t.state().month_hours, Some(3.75));
+    t.last()
+        .time_entries
+        .lock()
+        .unwrap()
+        .set(Err(ApiError::Auth));
+    t.flush(TICK_MS).await;
+    assert_eq!(t.status(), RedmineStatus::AuthError);
+    assert_eq!(t.state().month_hours, None);
+}
+
+/// A fake Redmine that answers the month's time entries in two pages (100 + 30).
+struct PagedMonth {
+    requests: Mutex<Vec<String>>,
+}
+
+impl Transport for PagedMonth {
+    fn send(&self, request: HttpRequest) -> BoxFuture<'_, Result<HttpResponse, TransportError>> {
+        self.requests.lock().unwrap().push(request.url.clone());
+        let body = if request.url.contains("/users/current.json") {
+            r#"{"user":{"id":7,"login":"alice","firstname":"Alice","lastname":"Doe"}}"#.to_owned()
+        } else if request.url.contains("/issues.json") {
+            r#"{"issues":[],"total_count":0}"#.to_owned()
+        } else if request.url.contains("/time_entries.json") {
+            let entries: Vec<serde_json::Value> = if request.url.contains("offset=0") {
+                (0..100)
+                    .map(|_| serde_json::json!({ "spent_on": "2026-11-03", "hours": 0.5 }))
+                    .collect()
+            } else {
+                (0..30)
+                    .map(|i| {
+                        let date = if i < 20 { "2026-11-14" } else { "2026-11-10" };
+                        let hours = if i < 20 { 0.25 } else { 1.0 };
+                        serde_json::json!({ "spent_on": date, "hours": hours })
+                    })
+                    .collect()
+            };
+            serde_json::json!({ "time_entries": entries, "total_count": 130 }).to_string()
+        } else {
+            "{}".to_owned()
+        };
+        let response = HttpResponse::new(200).with_body(body.into_bytes());
+        Box::pin(async move { Ok(response) })
+    }
+}
+
+#[tokio::test]
+async fn the_poll_pages_through_the_months_entries() {
+    let fake = Arc::new(PagedMonth {
+        requests: Mutex::new(Vec::new()),
+    });
+    let factory: ClientFactory = {
+        let fake = Arc::clone(&fake);
+        Arc::new(move |_base_url: &str, key: &str| {
+            RedmineClient::new_allowing_loopback_http(
+                Arc::clone(&fake) as Arc<dyn Transport>,
+                "http://127.0.0.1:9".to_owned(),
+                key,
+            )
+            .ok()
+            .map(|client| Arc::new(client) as Arc<dyn RedmineApiClient>)
+        })
+    };
+    let t = setup(Setup {
+        factory: Some(factory),
+        ..Setup::default()
+    });
+    t.ready().await;
+    t.flush(0).await;
+    eventually("the first poll", || t.status() == RedmineStatus::Ok).await;
+    let state = t.state();
+    assert_eq!(state.today_hours, Some(5.0));
+    assert_eq!(state.month_hours, Some(65.0));
+    let requests = fake.requests.lock().unwrap().clone();
+    let entries: Vec<&String> = requests
+        .iter()
+        .filter(|url| url.contains("/time_entries.json"))
+        .collect();
+    assert_eq!(entries.len(), 2, "{entries:?}");
+    for url in &entries {
+        assert!(
+            url.contains("from=2026-11-01") && url.contains("to=2026-11-14"),
+            "{url}"
+        );
+    }
+    assert!(entries[0].contains("offset=0") && entries[1].contains("offset=100"));
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|url| url.contains("/issues.json"))
+            .count(),
+        1
+    );
 }
 
 // ---------------------------------------------------------------------------------------------

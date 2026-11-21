@@ -38,6 +38,7 @@ fn ok_state() -> RedmineState {
         status: RedmineStatus::Ok,
         account: Some("Alice".into()),
         today_hours: Some(5.5),
+        month_hours: Some(42.25),
         updated_at: Some(1_763_000_000_000.0),
         persistent: true,
     }

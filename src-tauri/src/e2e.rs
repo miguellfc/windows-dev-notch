@@ -7,7 +7,7 @@
 //! `window.__TAURI_INTERNALS__.invoke('notch_ipc', { channel: '__e2e:pid', input })`. The usual
 //! trusted-sender check still applies.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -26,6 +26,7 @@ use crate::notch::state::NotchEvent;
 use crate::redmine::end_of_day::EndOfDay;
 use crate::reminders::Reminders;
 use crate::services::clock::WallClock;
+use crate::system::{DiskSpace, MemoryStatus, PowerStatus, SystemApi, SystemTimes};
 
 /// `NOTCH_TEST_CLOCK=1`: the controller's timers follow a clock `__e2e:advance-clock` moves.
 pub fn test_clock_enabled() -> bool {
@@ -406,6 +407,106 @@ fn cpu_time_ms(pid: u32) -> Option<f64> {
     ok.then(|| (ticks(&times[2]) + ticks(&times[3])) as f64 / 10_000.0)
 }
 
+/// What `__e2e:connectivity` makes the system monitor read as internet reachability: `None`
+/// reads the real connectivity hint; `Some(value)` answers `value` instead (`Some(None)`: Windows
+/// does not know). Managed as `Arc<ForcedConnectivity>` by [`force_connectivity`].
+#[derive(Default)]
+pub struct ForcedConnectivity(Mutex<Option<Option<bool>>>);
+
+impl ForcedConnectivity {
+    fn set(&self, value: Option<Option<bool>>) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = value;
+    }
+
+    fn get(&self) -> Option<Option<bool>> {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// The real system API with its connectivity read overridable by `__e2e:connectivity`.
+struct ForcedConnectivityApi {
+    inner: Arc<dyn SystemApi>,
+    forced: Arc<ForcedConnectivity>,
+}
+
+impl SystemApi for ForcedConnectivityApi {
+    fn system_times(&self) -> Option<SystemTimes> {
+        self.inner.system_times()
+    }
+
+    fn memory(&self) -> Option<MemoryStatus> {
+        self.inner.memory()
+    }
+
+    fn power(&self) -> Option<PowerStatus> {
+        self.inner.power()
+    }
+
+    fn fixed_drives(&self) -> Option<Vec<char>> {
+        self.inner.fixed_drives()
+    }
+
+    fn disk_space(&self, letter: char) -> Option<DiskSpace> {
+        self.inner.disk_space(letter)
+    }
+
+    fn online(&self) -> Option<bool> {
+        self.forced.get().unwrap_or_else(|| self.inner.online())
+    }
+}
+
+/// Manages the [`ForcedConnectivity`] state (call it on setup, before the monitor starts) and
+/// returns the wrapper that makes the system API honour it.
+pub fn force_connectivity(
+    app: &AppHandle,
+) -> impl Fn(Arc<dyn SystemApi>) -> Arc<dyn SystemApi> + Send + 'static {
+    let forced = Arc::new(ForcedConnectivity::default());
+    app.manage(Arc::clone(&forced));
+    move |inner| {
+        Arc::new(ForcedConnectivityApi {
+            inner,
+            forced: Arc::clone(&forced),
+        }) as Arc<dyn SystemApi>
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+enum ConnectivityMode {
+    /// The real `GetNetworkConnectivityHint` reading again.
+    Real,
+    Online,
+    Offline,
+    /// Windows does not know (`online: null`): the renderer falls back to `navigator.onLine`.
+    Unknown,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConnectivityInput {
+    connectivity: ConnectivityMode,
+}
+
+impl Validate for ConnectivityInput {}
+
+/// `{connectivity}`: what the system monitor reads as internet reachability from its next light
+/// sample (every 3 s while the capsule shows), so a spec can check the connection icon without
+/// taking the machine offline. UNAVAILABLE before the monitor's setup.
+fn connectivity(app: &AppHandle, input: Value) -> Result<Value, ExposedError> {
+    let ConnectivityInput { connectivity } = parse_input(input)?;
+    let forced = app
+        .try_state::<Arc<ForcedConnectivity>>()
+        .map(|state| Arc::clone(&state))
+        .ok_or_else(unavailable)?;
+    forced.set(match connectivity {
+        ConnectivityMode::Real => None,
+        ConnectivityMode::Online => Some(Some(true)),
+        ConnectivityMode::Offline => Some(Some(false)),
+        ConnectivityMode::Unknown => Some(None),
+    });
+    Ok(Value::Null)
+}
+
 /// Applies `--e2e-env-NAME=VALUE` command-line arguments as environment variables, before
 /// anything reads them: tauri-driver gives every session the same environment, so a spec that
 /// needs its own switch (`NOTCH_APP_LAUNCH_FAIL=claude`) passes it through `tauri:options.args`.
@@ -445,6 +546,7 @@ pub const CHANNELS: &[(&str, Handler)] = &[
     ("__e2e:opened-urls", Handler::Inline(opened_urls)),
     ("__e2e:clipboard", Handler::Blocking(clipboard)),
     ("__e2e:process-cpu", Handler::Blocking(process_cpu)),
+    ("__e2e:connectivity", Handler::Inline(connectivity)),
 ];
 
 pub fn register(registry: &mut Registry) {

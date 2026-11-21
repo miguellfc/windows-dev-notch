@@ -100,7 +100,7 @@ describe('Developer Notch (Tauri)', () => {
       process: 'undefined',
       frozen: true,
       writable: false,
-      keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'system', 'usage'],
+      keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'usage'],
     })
 
     const csp = await $('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
@@ -194,6 +194,9 @@ describe('Developer Notch (Tauri)', () => {
     // test could only reach by moving the user's real cursor.
     await settle()
     const peekBox = await capsuleBox()
+    // The peek fits its time and date: their own width plus the 28 px padding and 2 px border, no spare room.
+    const zoneWidth = await $('[data-testid="capsule-zone-left"]').getSize('width')
+    expect(Math.abs(peekBox.width - Math.ceil(zoneWidth + 30))).toBeLessThanOrEqual(1)
     const hitAt = (x: number, y: number) =>
       inPage(
         (px, py) =>
@@ -376,7 +379,7 @@ describe('Developer Notch (Tauri)', () => {
       // Polled: the labels re-render with the language a frame after `lang` changes.
       await eventually(
         measureFit,
-        (fit) => fit.cards === 8 && fit.quick === 2 && fit.cut.length === 0 && !fit.panelOverflows && !fit.quickOutside,
+        (fit) => fit.cards === 7 && fit.quick === 2 && fit.cut.length === 0 && !fit.panelOverflows && !fit.quickOutside,
         `the cards fitting in ${language}`,
       )
     }

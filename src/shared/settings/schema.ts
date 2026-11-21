@@ -3,6 +3,7 @@ import { GITLAB_URL_MAX, isStoredGitlabUrl } from '../code-review/schema'
 import { REDMINE_URL_MAX, isStoredRedmineUrl } from '../redmine/url'
 import {
   DEFAULT_INTEGRATION_COLORS,
+  HEX_COLOR,
   capsuleIntegrationKeys,
   integrationColorIds,
   integrationKeys,
@@ -10,7 +11,8 @@ import {
 } from '../integrations/colors'
 import { isSafeAccelerator } from './accelerator'
 
-export const SETTINGS_VERSION = 8
+/** v9: `integrations.system` is gone (the System view was removed; its metrics need no switch). */
+export const SETTINGS_VERSION = 9
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
@@ -119,17 +121,23 @@ export const redmineSettingsSchema = z.strictObject({
 })
 export type RedmineSettings = z.infer<typeof redmineSettingsSchema>
 
-/** One integration: on/off, whether it shows in the capsule, and its palette color. */
+/** A palette id, or a custom color as uppercase `#RRGGBB`. */
+export const integrationColorSchema = z.union([
+  z.enum(integrationColorIds),
+  z.custom<`#${string}`>((value) => typeof value === 'string' && HEX_COLOR.test(value), 'Color must be a palette id or #RRGGBB'),
+])
+
+/** One integration: on/off, whether it shows in the capsule, and its color (palette id or hex). */
 export const integrationSettingsSchema = z.strictObject({
   enabled: z.boolean(),
   capsule: z.boolean(),
-  color: z.enum(integrationColorIds),
+  color: integrationColorSchema,
 })
 export type IntegrationSettings = z.infer<typeof integrationSettingsSchema>
 
 const capsuleKeySet: ReadonlySet<IntegrationKey> = new Set(capsuleIntegrationKeys)
 
-/** v8: the eight integrations; only the capsule ones may have `capsule: true`. */
+/** v9: the seven integrations (v8 also had `system`); only the capsule ones may have `capsule: true`. */
 export const integrationsSettingsSchema = z
   .strictObject({
     claude: integrationSettingsSchema,
@@ -139,11 +147,10 @@ export const integrationsSettingsSchema = z
     redmine: integrationSettingsSchema,
     reminders: integrationSettingsSchema,
     notes: integrationSettingsSchema,
-    system: integrationSettingsSchema,
   })
   .refine(
     (integrations) => integrationKeys.every((key) => capsuleKeySet.has(key) || !integrations[key].capsule),
-    'Reminders, notes and system have no capsule block',
+    'Reminders and notes have no capsule block',
   )
 export type IntegrationsSettings = z.infer<typeof integrationsSettingsSchema>
 
@@ -179,7 +186,6 @@ export const settingsPatchSchema = settingsSchema
         redmine: integrationSettingsSchema.partial(),
         reminders: integrationSettingsSchema.partial(),
         notes: integrationSettingsSchema.partial(),
-        system: integrationSettingsSchema.partial(),
       })
       .partial(),
   })
@@ -232,7 +238,6 @@ export function cloneDefaultIntegrations(): IntegrationsSettings {
     redmine: entry('redmine'),
     reminders: entry('reminders'),
     notes: entry('notes'),
-    system: entry('system'),
   }
 }
 

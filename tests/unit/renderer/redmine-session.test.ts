@@ -7,6 +7,7 @@ const reading = (status: RedmineStatus, account: string | null = 'Alice'): Redmi
   status,
   account,
   todayHours: 2,
+  monthHours: 2,
   updatedAt: 1,
   persistent: true,
 })

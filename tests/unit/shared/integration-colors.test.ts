@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_INTEGRATION_COLORS,
+  HEX_COLOR,
   INTEGRATION_COLOR_HEX,
   capsuleIntegrationKeys,
+  colorHex,
   integrationColorIds,
   integrationKeys,
+  paletteIdFor,
 } from '../../../src/shared/integrations/colors'
 import { messages, type MessageKey } from '../../../src/shared/i18n/messages'
 
@@ -23,7 +26,7 @@ describe('integration palette', () => {
   })
 
   it('lists the integrations in order, capsule ones first', () => {
-    expect(integrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes', 'system'])
+    expect(integrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes'])
     expect(capsuleIntegrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine'])
   })
 
@@ -36,7 +39,6 @@ describe('integration palette', () => {
       redmine: 'pink',
       reminders: 'blue',
       notes: 'violet',
-      system: 'teal',
     })
   })
 
@@ -48,5 +50,18 @@ describe('integration palette', () => {
     }
     expect(messages.es['color.pistachio']).toBe('Pistacho')
     expect(messages.en['color.peach']).toBe('Peach')
+  })
+
+  it('accepts uppercase #RRGGBB as a custom color only', () => {
+    expect(HEX_COLOR.test('#A3B18A')).toBe(true)
+    for (const text of ['#a3b18a', '#12345', 'A3B18A', 'red', '']) expect(HEX_COLOR.test(text), text).toBe(false)
+  })
+
+  it('turns a color into its hex and a hex back into a palette id', () => {
+    expect(colorHex('green')).toBe('#4ADE80')
+    expect(colorHex('#A3B18A')).toBe('#A3B18A')
+    expect(paletteIdFor('#4ADE80')).toBe('green')
+    expect(paletteIdFor('#cc785c')).toBe('clay')
+    expect(paletteIdFor('#A3B18A')).toBeNull()
   })
 })

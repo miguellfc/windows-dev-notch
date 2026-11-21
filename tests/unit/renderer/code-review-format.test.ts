@@ -5,12 +5,10 @@ import {
   profileRow,
   reviewAlertContent,
   reviewAlertLabel,
-  reviewCountText,
   reviewsBody,
   reviewsPlatform,
   shortRef,
   splitRef,
-  unreviewedLabel,
 } from '../../../src/renderer/shared/code-review/format'
 import type { CodeReviewState, PlatformState } from '../../../src/shared/code-review/schema'
 
@@ -20,22 +18,6 @@ const platform = (status: PlatformState['status'], unreviewed: number | null = 0
   unreviewed,
   updatedAt: status === 'ok' ? '2026-11-13T12:00:00.000Z' : null,
   persistent: true,
-})
-
-describe('reviewCountText / unreviewedLabel', () => {
-  it('caps at 99+', () => {
-    expect(reviewCountText(3)).toBe('3')
-    expect(reviewCountText(99)).toBe('99')
-    expect(reviewCountText(100)).toBe('99+')
-  })
-
-  it('names the platform and PR or MR, in ES and EN', () => {
-    expect(unreviewedLabel('github', 2, 'es')).toBe('2 PR tuyos sin revisar en GitHub')
-    expect(unreviewedLabel('gitlab', 2, 'es')).toBe('2 MR tuyos sin revisar en GitLab')
-    expect(unreviewedLabel('github', 1, 'es')).toBe('1 PR tuyo sin revisar en GitHub')
-    expect(unreviewedLabel('gitlab', 100, 'en')).toBe('99+ of your MRs unreviewed on GitLab')
-    expect(unreviewedLabel('github', 1, 'en')).toBe('1 of your PRs unreviewed on GitHub')
-  })
 })
 
 describe('reviewAlertContent / reviewAlertLabel', () => {

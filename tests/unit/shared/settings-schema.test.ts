@@ -195,8 +195,8 @@ describe('code review settings', () => {
   const alerts = { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } }
   const withCodeReview = (codeReview: unknown) => settingsSchema.safeParse({ ...valid, codeReview }).success
 
-  it('is at version 8 with an empty GitLab URL and every alert on', () => {
-    expect(SETTINGS_VERSION).toBe(8)
+  it('is at version 9 with an empty GitLab URL and every alert on', () => {
+    expect(SETTINGS_VERSION).toBe(9)
     expect(DEFAULT_CODE_REVIEW_SETTINGS).toEqual({ gitlabUrl: '', alerts })
     expect(valid.codeReview).toEqual({ gitlabUrl: '', alerts })
   })
@@ -267,9 +267,9 @@ describe('redmine settings', () => {
   })
 })
 
-describe('integrations (v8)', () => {
-  it('is version 8', () => {
-    expect(SETTINGS_VERSION).toBe(8)
+describe('integrations (v9)', () => {
+  it('is version 9', () => {
+    expect(SETTINGS_VERSION).toBe(9)
   })
 
   it('defaults: all enabled, capsule only for the five capsule integrations', () => {
@@ -283,23 +283,32 @@ describe('integrations (v8)', () => {
       redmine: { enabled: true, capsule: true, color: 'pink' },
       reminders: { enabled: true, capsule: false, color: 'blue' },
       notes: { enabled: true, capsule: false, color: 'violet' },
-      system: { enabled: true, capsule: false, color: 'teal' },
     })
     expect(cloneDefaultIntegrations().claude).not.toBe(cloneDefaultIntegrations().claude)
   })
 
-  it('rejects capsule on notes, reminders and system', () => {
-    for (const key of ['notes', 'reminders', 'system'] as const) {
+  it('rejects capsule on notes and reminders', () => {
+    for (const key of ['notes', 'reminders'] as const) {
       const settings = createDefaultSettings('es')
       settings.integrations[key].capsule = true
       expect(settingsSchema.safeParse(settings).success, key).toBe(false)
     }
   })
 
-  it('rejects a color outside the palette', () => {
+  it('rejects a color that is neither a palette id nor uppercase #RRGGBB', () => {
+    for (const color of ['magenta', '#4ade80', '#12345', '4ADE80', '']) {
+      const settings = createDefaultSettings('es')
+      ;(settings.integrations.gmail as { color: string }).color = color
+      expect(settingsSchema.safeParse(settings).success, color).toBe(false)
+    }
+  })
+
+  it('accepts a custom color as uppercase #RRGGBB', () => {
     const settings = createDefaultSettings('es')
-    ;(settings.integrations.gmail as { color: string }).color = 'magenta'
-    expect(settingsSchema.safeParse(settings).success).toBe(false)
+    settings.integrations.gmail.color = '#A3B18A'
+    expect(settingsSchema.parse(settings).integrations.gmail.color).toBe('#A3B18A')
+    expect(settingsPatchSchema.safeParse({ integrations: { gmail: { color: '#A3B18A' } } }).success).toBe(true)
+    expect(settingsPatchSchema.safeParse({ integrations: { gmail: { color: '#a3b18a' } } }).success).toBe(false)
   })
 
   it('accepts partial per-key, per-field patches', () => {
@@ -307,5 +316,13 @@ describe('integrations (v8)', () => {
     expect(settingsPatchSchema.safeParse({ integrations: { notes: { enabled: false } } }).success).toBe(true)
     expect(settingsPatchSchema.safeParse({ integrations: { gmail: { color: 'nope' } } }).success).toBe(false)
     expect(settingsPatchSchema.safeParse({ integrations: { nope: { enabled: true } } }).success).toBe(false)
+  })
+
+  it('no longer has a system integration (v9)', () => {
+    const settings = createDefaultSettings('es')
+    expect(Object.keys(settings.integrations)).not.toContain('system')
+    const withSystem = { ...settings, integrations: { ...settings.integrations, system: { enabled: true, capsule: false, color: 'teal' } } }
+    expect(settingsSchema.safeParse(withSystem).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ integrations: { system: { enabled: false } } }).success).toBe(false)
   })
 })

@@ -1,10 +1,11 @@
 import { Cog, EyeOff } from 'lucide-react'
 import { AnimatePresence, MotionConfig, motion, useIsPresent, useReducedMotion, type HTMLMotionProps } from 'motion/react'
-import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
-import { CAPSULE_SIZES, capsuleTopFor, compactWidthFor, gmailSizeFor, growsWindow, redmineSizeFor, type VisibleMode } from '../../shared/notch/geometry'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type Ref } from 'react'
+import { CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, PEEK_MAX_WIDTH, compactWidthFor, gmailSizeFor, growsWindow, redmineSizeFor, reviewsSizeFor, type VisibleMode } from '../../shared/notch/geometry'
 import { MAIL_ALERT_MS, PANEL_MODES, REDMINE_ALERT_MS, REVIEW_ALERT_MS, type NotchMode, type NotchView } from '../../shared/notch/state'
 import type { IntegrationsSettings } from '../../shared/settings/schema'
 import { setRedmineAlert, setRedmineAlertPayload, useRedmine } from '../shared/redmine-store'
+import { PLATFORMS } from '../shared/code-review/format'
 import { setReviewAlert, setReviewAlertPayload, setReviewsTarget, useCodeReview } from '../shared/code-review-store'
 import { setMailAlert, setNewMail, setReading, useGmail } from '../shared/gmail-store'
 import { keepsReader } from '../shared/gmail/format'
@@ -39,12 +40,12 @@ import {
 import { NotesView } from './notes/NotesView'
 import { CardRow } from './panel/CardRow'
 import { HelpLine } from './panel/HelpLine'
+import { PanelSystem } from './panel/PanelSystem'
 import { QuickAccess, useOpenFailure } from './panel/QuickAccess'
 import { playChime } from './reminders/chime'
 import { RemindersView } from './reminders/RemindersView'
-import { EMPTY_REVIEW_BLOCKS, reviewBlockCount, type CapsuleView, type ReviewBlocks } from './system/capsule-latch'
-import { CapsuleMail, CapsuleMetrics, CapsuleRedmine, CapsuleReview } from './system/CapsuleMetrics'
-import { SystemView } from './system/SystemView'
+import { contributionBlockCount, EMPTY_CONTRIBUTION_BLOCKS, type CapsuleView, type ContributionBlocks } from './system/capsule-latch'
+import { CapsuleContributions, CapsuleMail, CapsuleMetrics, CapsuleRedmine } from './system/CapsuleMetrics'
 
 /** The integrations as last loaded (null before settings arrive: nothing is filtered yet). */
 function currentIntegrations(): IntegrationsSettings | null {
@@ -208,7 +209,7 @@ function useRedmineAlert(mode: NotchMode): void {
 }
 
 /** Panel modes that show one view; the others (expanded, alert, capsules) are not views. */
-const VIEW_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine'])
+const VIEW_MODES: ReadonlySet<NotchMode> = new Set<NotchMode>(['permission', 'question', 'reminders', 'notes', 'gmail', 'reviews', 'redmine'])
 
 /** Turning an integration off while its view is open sends the panel back to home. */
 function useCloseDisabledView(mode: NotchMode, integrations: IntegrationsSettings | null): void {
@@ -223,7 +224,8 @@ interface CapsuleBlocks {
   /** Some Claude session has a dot (and Claude shows in the capsule). */
   claude: boolean
   unread: number | null
-  reviews: ReviewBlocks
+  /** GitHub's and GitLab's contributions this month. */
+  contributions: ContributionBlocks
   hours: number | null
 }
 
@@ -238,21 +240,24 @@ function useCapsuleBlocks(): CapsuleBlocks {
   const github = shows('github')
   const gitlab = shows('gitlab')
   // Memoized: useCompactContent compares the blocks by identity.
-  const reviews = useMemo<ReviewBlocks>(
+  const contributions = useMemo<ContributionBlocks>(
     () =>
       github && gitlab
         ? latched
-        : { github: github ? latched.github : EMPTY_REVIEW_BLOCKS.github, gitlab: gitlab ? latched.gitlab : EMPTY_REVIEW_BLOCKS.gitlab },
+        : {
+            github: github ? latched.github : EMPTY_CONTRIBUTION_BLOCKS.github,
+            gitlab: gitlab ? latched.gitlab : EMPTY_CONTRIBUTION_BLOCKS.gitlab,
+          },
     [latched, github, gitlab],
   )
-  return { claude: shows('claude') && dots, unread: shows('gmail') ? unread : null, reviews, hours: shows('redmine') ? hours : null }
+  return { claude: shows('claude') && dots, unread: shows('gmail') ? unread : null, contributions, hours: shows('redmine') ? hours : null }
 }
 
 /** Width of the compact capsule for the system view (null: no sample) and the integration blocks it shows. */
 function compactWidthOf(view: CapsuleView | null, blocks: CapsuleBlocks): number {
   return compactWidthFor({
     system: view && { battery: view.battery !== null },
-    blocks: { claude: blocks.claude, mail: blocks.unread !== null, reviews: reviewBlockCount(blocks.reviews), redmine: blocks.hours !== null },
+    blocks: { claude: blocks.claude, mail: blocks.unread !== null, reviews: contributionBlockCount(blocks.contributions), redmine: blocks.hours !== null },
   })
 }
 
@@ -274,6 +279,8 @@ export function NotchApp() {
   const settings = useSettings((state) => state.settings)
   const blocks = useCapsuleBlocks()
   const compactWidth = useSystem((state) => compactWidthOf(state.capsule.view, blocks))
+  // The peek fits the time and date it shows, and Claude's mark while a session has a dot (up to PEEK_MAX_WIDTH).
+  const [peekWidth, setPeekWidth] = useState<number | null>(null)
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
   useMailAlert(mode)
@@ -282,6 +289,8 @@ export function NotchApp() {
   useCloseDisabledView(mode, settings?.integrations ?? null)
   const gmailReading = useGmail((state) => state.reading !== null)
   const redmineSearching = useRedmine((state) => state.searching)
+  const reviewsHeight = useCodeReview((state) => state.viewHeight)
+  const redmineHeight = useRedmine((state) => state.viewHeight)
   const capsuleRect = useCapsuleRect()
 
   useEffect(() => {
@@ -305,11 +314,15 @@ export function NotchApp() {
   const size =
     mode === 'compact'
       ? { ...CAPSULE_SIZES.compact, width: compactWidth }
-      : mode === 'gmail'
+      : mode === 'peek'
+        ? { ...CAPSULE_SIZES.peek, width: Math.min(peekWidth ?? CAPSULE_SIZES.peek.width, PEEK_MAX_WIDTH) }
+        : mode === 'gmail'
         ? gmailSizeFor(gmailReading)
         : mode === 'redmine'
-          ? redmineSizeFor(redmineSearching)
-          : CAPSULE_SIZES[mode]
+          ? redmineSizeFor(redmineSearching, redmineHeight)
+          : mode === 'reviews'
+            ? reviewsSizeFor(reviewsHeight)
+            : CAPSULE_SIZES[mode]
   const expanded = PANEL_MODES.has(mode)
   const morph = morphTransition(mode, growing)
   // Left click: the pill goes back to compact (then peek once the pointer leaves); peek and compact
@@ -375,7 +388,7 @@ export function NotchApp() {
                 exit={{ opacity: 0, transition: CONTENT_EXIT }}
                 className="absolute inset-0"
               >
-                <CapsuleContent mode={mode} compactWidth={size.width} />
+                <CapsuleContent mode={mode} compactWidth={size.width} onPeekWidth={setPeekWidth} />
               </PresenceLayer>
             </AnimatePresence>
           </motion.div>
@@ -408,35 +421,65 @@ interface CompactContent extends CapsuleBlocks {
 function useCompactContent(compactWidth: number): CompactContent {
   const view = useSystem((state) => state.capsule.view)
   const blocks = useCapsuleBlocks()
-  const { claude, unread, reviews, hours } = blocks
+  const { claude, unread, contributions, hours } = blocks
   const matches = compactWidthOf(view, blocks) === compactWidth
-  const [kept, setKept] = useState<CompactContent>({ view, claude, unread, reviews, hours })
-  if (matches && (kept.view !== view || kept.claude !== claude || kept.unread !== unread || kept.reviews !== reviews || kept.hours !== hours)) {
-    setKept({ view, claude, unread, reviews, hours })
+  const [kept, setKept] = useState<CompactContent>({ view, claude, unread, contributions, hours })
+  if (matches && (kept.view !== view || kept.claude !== claude || kept.unread !== unread || kept.contributions !== contributions || kept.hours !== hours)) {
+    setKept({ view, claude, unread, contributions, hours })
   }
-  return matches ? { view, claude, unread, reviews, hours } : kept
+  return matches ? { view, claude, unread, contributions, hours } : kept
+}
+
+/**
+ * The peek: the time and date, then Claude's mark while some session has a dot (as in the compact
+ * capsule, where the integration is on for it), with no spare room. Their own width (they never grow
+ * here) plus the padding and border is reported before paint and on every change, so the capsule fits.
+ */
+function PeekContent({ time, date, onWidth }: { time: string; date: string; onWidth: (width: number) => void }): ReactNode {
+  const { claude } = useCapsuleBlocks()
+  const zone = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const element = zone.current
+    if (!element) return
+    const report = () => onWidth(Math.ceil(COMPACT_ZONE.padding + element.getBoundingClientRect().width))
+    report()
+    const observer = new ResizeObserver(report)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [onWidth])
+  return (
+    <div className="flex h-full items-center px-3.5">
+      <span ref={zone} data-testid="capsule-zone-left" className="flex shrink-0 items-center gap-2.5">
+        <span className="tabular shrink-0 whitespace-nowrap text-body font-medium">{time}</span>
+        <span className="shrink-0 whitespace-nowrap text-small text-graphite-glass">{date}</span>
+        {claude && <StatusDots />}
+      </span>
+    </div>
+  )
 }
 
 function CapsuleContent({
   mode,
   compactWidth,
+  onPeekWidth,
 }: {
   mode: VisibleMode
   compactWidth: number
+  /** The peek's width for the time and date it shows: its padding and border plus their own width. */
+  onPeekWidth: (width: number) => void
 }): ReactNode {
   const now = useClock()
   const language = useLanguage()
   const time = new Intl.DateTimeFormat(locale(language), { hour: '2-digit', minute: '2-digit' }).format(now)
   const date = new Intl.DateTimeFormat(locale(language), { weekday: 'short', day: 'numeric', month: 'short' }).format(now)
-  const { view, claude, unread, reviews, hours } = useCompactContent(compactWidth)
-  const hasBlocks = claude || unread !== null || reviewBlockCount(reviews) > 0 || hours !== null
+  const { view, claude, unread, contributions, hours } = useCompactContent(compactWidth)
+  const hasBlocks = claude || unread !== null || contributionBlockCount(contributions) > 0 || hours !== null
 
   if (mode === 'mini') return null
   if (mode === 'alert') return <Alert />
   if (mode === 'permission') return <PermissionCard />
   if (mode === 'question') return <QuestionCard />
   if (mode === 'reminders') return <RemindersView />
-  if (mode === 'system') return <SystemView />
   if (mode === 'notes') return <NotesView />
   if (mode === 'gmail') return <GmailView />
   if (mode === 'reviews') return <ReviewsView />
@@ -447,12 +490,12 @@ function CapsuleContent({
   // widths are the worst case), so the other zones stay against the right edge.
   const left = (
     <span data-testid="capsule-zone-left" className="flex shrink-0 grow items-center gap-2.5">
-      <span className="tabular shrink-0 whitespace-nowrap font-mono text-body font-medium">{time}</span>
+      <span className="tabular shrink-0 whitespace-nowrap text-body font-medium">{time}</span>
       <span className="shrink-0 whitespace-nowrap text-small text-graphite-glass">{date}</span>
     </span>
   )
 
-  if (mode === 'peek') return <div className="flex h-full items-center px-3.5">{left}</div>
+  if (mode === 'peek') return <PeekContent time={time} date={date} onWidth={onPeekWidth} />
 
   // Compact: time and date | the integration blocks | the system. A zone with nothing to show goes
   // with its divider. Every block and metric carries its 10 px gap before it (`*:ml-2.5`) and each
@@ -467,8 +510,10 @@ function CapsuleContent({
           <span data-testid="capsule-zone-blocks" className="flex shrink-0 items-center *:ml-2.5">
             {claude && <StatusDots />}
             {unread !== null && <CapsuleMail unread={unread} />}
-            {reviews.github.count !== null && <CapsuleReview platform="github" count={reviews.github.count} />}
-            {reviews.gitlab.count !== null && <CapsuleReview platform="gitlab" count={reviews.gitlab.count} />}
+            {PLATFORMS.map((platform) => {
+              const { total, month } = contributions[platform]
+              return total !== null && month !== null && <CapsuleContributions key={platform} platform={platform} total={total} month={month} />
+            })}
             {hours !== null && <CapsuleRedmine hours={hours} />}
           </span>
         </>
@@ -531,6 +576,7 @@ function Panel({ time, date }: { time: string; date: string }) {
           <span className="text-small text-graphite">{date}</span>
         </span>
         <span className="flex items-center gap-1">
+          <PanelSystem />
           <button
             type="button"
             aria-label={t('notch.panel.controlCenter')}

@@ -70,24 +70,27 @@ describe('Integrations (Tauri)', () => {
     await launch({ fresh: true, files: seeded })
     await requestIntent('expand')
     await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
-    await eventually(tileCount, (n) => n === 9, 'nine tiles')
+    await eventually(tileCount, (n) => n === 8, 'eight tiles')
     await expect($('[data-testid="integration-gmail"]')).toBeDisplayed()
 
     await openIntegrationsPage()
+    // Seven rows: System has no row since its view was removed (its metrics need no switch).
+    expect((await $$('[data-testid^="integration-row-"]')).length).toBe(7)
+    await expect($(row('system'))).not.toExist()
     await turnOff('gmail')
     // The capsule switch of a switched-off integration is disabled.
     await expect($(`${row('gmail')} [role="switch"]:disabled`)).toExist()
 
     await useWindow('notch')
     await requestIntent('expand')
-    await eventually(tileCount, (n) => n === 8, 'eight tiles')
+    await eventually(tileCount, (n) => n === 7, 'seven tiles')
     await expect($('[data-testid="integration-gmail"]')).not.toExist()
     expect(readIntegrations()['gmail']).toMatchObject({ enabled: false })
 
     await launch({ fresh: false })
     expect(readIntegrations()['gmail']).toMatchObject({ enabled: false })
     await requestIntent('expand')
-    await eventually(tileCount, (n) => n === 8, 'eight tiles after a restart')
+    await eventually(tileCount, (n) => n === 7, 'seven tiles after a restart')
     await expect($('[data-testid="integration-gmail"]')).not.toExist()
   })
 
@@ -107,32 +110,63 @@ describe('Integrations (Tauri)', () => {
     const trigger = () => $('//*[@data-testid="integration-row-github"]//button[normalize-space()="Cambiar color"]')
     await expect(trigger()).toBeFocused()
 
-    await browser.keys(['Enter'])
-    await $('[role="radiogroup"]').waitForDisplayed()
-    await browser.keys(['ArrowRight', 'ArrowRight'])
-    await eventually(async () => readIntegrations()['github']?.color, (color) => color === 'teal', 'github saved as teal')
+    const popup = () => $('[role="dialog"]')
+    // Hue is the first of the three sliders.
+    const hue = () => $('(//*[@role="dialog"]//input[@type="range"])[1]')
+    const code = () => $('//*[@role="dialog"]//label[normalize-space()="Código"]/following-sibling::input')
+    const save = () => $('//*[@role="dialog"]//button[normalize-space()="Guardar"]')
 
-    await browser.keys(['Escape'])
-    await expect($('[role="radiogroup"]')).not.toExist()
-    await expect(trigger()).toBeFocused()
-    // The button names the grid it opens.
+    // Opening focuses Hue and names the dialog after the integration; the button points at it.
     await browser.keys(['Enter'])
-    await $('[role="radiogroup"]').waitForDisplayed()
-    const grid = await $('[role="radiogroup"]').getAttribute('id')
-    expect(grid).toBeTruthy()
-    await expect(trigger()).toHaveAttribute('aria-controls', grid!)
-    // Back on the button with the grid open, Esc closes it there too.
-    await browser.action('key').down(Key.Shift).down(Key.Tab).up(Key.Tab).up(Key.Shift).perform()
-    await expect(trigger()).toBeFocused()
-    await expect($('[role="radiogroup"]')).toBeDisplayed()
-    await browser.keys(['Escape'])
-    await expect($('[role="radiogroup"]')).not.toExist()
-    await expect(trigger()).toBeFocused()
-    // Focus leaving the picker closes the grid.
+    await popup().waitForDisplayed()
+    const titleId = await popup().getAttribute('aria-labelledby')
+    await expect($(`[id="${titleId}"]`)).toHaveText('Color de GitHub')
+    await expect(hue()).toBeFocused()
+    const dialogId = await popup().getAttribute('id')
+    expect(dialogId).toBeTruthy()
+    await expect(trigger()).toHaveAttribute('aria-controls', dialogId!)
+
+    // Tab past the sliders and the code field to the shortcuts: one stop, on the current colour.
+    for (let i = 0; i < 6; i++) {
+      const role = await inPage(
+        () => (globalThis as unknown as { document: { activeElement: { getAttribute(n: string): string | null } | null } }).document.activeElement?.getAttribute('role') ?? null,
+      )
+      if (role === 'radio') break
+      await browser.keys(['Tab'])
+    }
+    await expect($('//*[@role="radiogroup"]//*[@role="radio" and @aria-label="Verde"]')).toBeFocused()
+    await browser.keys(['ArrowRight'])
+    const emerald = () => $('//*[@role="radiogroup"]//*[@role="radio" and @aria-label="Esmeralda"]')
+    await expect(emerald()).toBeFocused()
     await browser.keys(['Enter'])
-    await $('[role="radiogroup"]').waitForDisplayed()
-    await browser.keys(['Tab'])
-    await expect($('[role="radiogroup"]')).not.toExist()
+    await expect(emerald()).toHaveAttribute('aria-checked', 'true')
+    // Nothing is saved before Guardar.
+    expect(readIntegrations()['github']?.color).toBe('green')
+    await save().click()
+    await expect(popup()).not.toExist()
+    await eventually(async () => readIntegrations()['github']?.color, (color) => color === 'emerald', 'github saved as emerald')
+    await expect(trigger()).toBeFocused()
+
+    // A custom colour typed in the code field is stored as uppercase hex.
+    await browser.keys(['Enter'])
+    await popup().waitForDisplayed()
+    await code().click()
+    await browser.action('key').down(Key.Ctrl).down('a').up('a').up(Key.Ctrl).perform()
+    // Any case, with or without #: the field normalizes it.
+    await code().addValue('#a3b18a')
+    await save().click()
+    await expect(popup()).not.toExist()
+    await eventually(async () => readIntegrations()['github']?.color, (color) => color === '#A3B18A', 'github saved as #A3B18A')
+
+    // Esc discards the draft and returns focus to the button.
+    await trigger().click()
+    await popup().waitForDisplayed()
+    await expect(hue()).toBeFocused()
+    await browser.keys(['ArrowRight', 'ArrowRight'])
+    await browser.keys(['Escape'])
+    await expect(popup()).not.toExist()
+    await expect(trigger()).toBeFocused()
+    expect(readIntegrations()['github']?.color).toBe('#A3B18A')
   })
 
   it('disabling an integration with its view open returns home', async () => {
@@ -146,9 +180,9 @@ describe('Integrations (Tauri)', () => {
     await turnOff('notes')
 
     await useWindow('notch')
-    // The view closes (Back sends the panel home); with the notch's focus lost to the Control
-    // Center and the pointer away, it then rests compact.
-    await eventually(async () => capsule().getAttribute('data-mode'), (mode) => mode === 'compact', 'the notes view closed to compact')
+    // The view closes (Back sends the panel home). With the notch's focus lost to the Control Center
+    // it then rests as a capsule: compact with the real cursor over it, peek with the cursor away.
+    await eventually(async () => capsule().getAttribute('data-mode'), (mode) => mode === 'compact' || mode === 'peek', 'the notes view closed to a resting capsule')
     await expect($('[data-testid="notes-panel"]')).not.toExist()
     // Expanding again shows home (the tiles), not the view.
     await requestIntent('expand')
@@ -172,7 +206,7 @@ describe('Integrations (Tauri)', () => {
     // With Claude off the home panel lists no sessions (and the tile is gone).
     await requestIntent('expand')
     await expect(capsule()).toHaveAttribute('data-mode', 'expanded')
-    await eventually(tileCount, (n) => n === 8, 'eight tiles')
+    await eventually(tileCount, (n) => n === 7, 'seven tiles')
     await expect($('[data-testid="claude-sessions"]')).not.toExist()
 
     const permission = (command: string) =>

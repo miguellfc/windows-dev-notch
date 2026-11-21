@@ -11,8 +11,9 @@ interface GmailStore {
   bindGmailPanel: () => void
 }
 interface CodeReviewStore {
-  useCodeReview: { getState: () => { contributions: Record<string, unknown> } }
+  useCodeReview: { getState: () => { contributions: Record<string, unknown>; blocks: Record<'github' | 'gitlab', { total: number | null }> } }
   bindCodeReview: () => void
+  bindCodeReviewContributions: () => void
 }
 const GMAIL_STORE: string = '../../../src/renderer/shared/gmail-store'
 const CODE_REVIEW_STORE: string = '../../../src/renderer/shared/code-review-store'
@@ -23,7 +24,7 @@ const importCodeReview = () => import(/* @vite-ignore */ CODE_REVIEW_STORE) as P
 function fakeNotch(mode = 'peek') {
   const listeners = new Map<string, Listener[]>()
   const recent = vi.fn(async () => ({ ok: true, data: [{ id: 'm1' }] }))
-  const contributions = vi.fn(async ({ platform }: { platform: string }) => ({ ok: true, data: { summary: null, error: false, platform } }))
+  const contributions = vi.fn(async ({ platform }: { platform: string }) => ({ ok: true, data: { summary: null as unknown, error: false, platform } }))
   const notch = {
     events: {
       on: (channel: string, listener: Listener) => {
@@ -139,5 +140,35 @@ describe('code review store: contributions with the view closed', () => {
     expect(contributions).toHaveBeenCalledWith({ platform: 'gitlab' })
     expect(useCodeReview.getState().contributions.gitlab).toBeDefined()
     expect(useCodeReview.getState().contributions.github).toBeUndefined()
+  })
+  it('asks once for the contributions of a platform that turns live, and latches its month total for the capsule', async () => {
+    const { fire, contributions } = fakeNotch()
+    const summary = { month: '2026-11', monthTotal: 143 }
+    contributions.mockImplementation(async ({ platform }) => ({ ok: true, data: { summary: platform === 'github' ? summary : null, error: false, platform } }))
+    const { bindCodeReview, bindCodeReviewContributions, useCodeReview } = await importCodeReview()
+    bindCodeReview()
+    bindCodeReviewContributions()
+    const reading = (github: string, gitlab: string) => ({ github: gmailState(github), gitlab: gmailState(gitlab) })
+    fire('code-review:state', reading('ok', 'unconfigured'))
+    await flush()
+    expect(contributions).toHaveBeenCalledTimes(1)
+    expect(contributions).toHaveBeenCalledWith({ platform: 'github' })
+    expect(useCodeReview.getState().blocks.github.total).toBe(143)
+    expect(useCodeReview.getState().blocks.gitlab.total).toBeNull()
+    // Later readings leave it to main's contributions-changed events.
+    fire('code-review:state', reading('ok', 'unconfigured'))
+    await flush()
+    expect(contributions).toHaveBeenCalledTimes(1)
+    fire('code-review:state', reading('auth-error', 'unconfigured'))
+    expect(useCodeReview.getState().blocks.github.total).toBeNull()
+  })
+
+  it('the Control Center (no bindCodeReviewContributions) never asks: the channel belongs to the notch', async () => {
+    const { fire, contributions } = fakeNotch()
+    const { bindCodeReview } = await importCodeReview()
+    bindCodeReview()
+    fire('code-review:state', { github: gmailState('ok'), gitlab: gmailState('ok') })
+    await flush()
+    expect(contributions).not.toHaveBeenCalled()
   })
 })

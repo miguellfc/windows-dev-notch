@@ -48,7 +48,7 @@ import {
 } from '../redmine/schema'
 import { createReminderInputSchema, reminderSchema, updateReminderInputSchema } from '../reminders/schema'
 import { settingsPatchSchema, settingsSchema } from '../settings/schema'
-import { killInputSchema, killResultSchema, PROCESS_LIMIT, processRowSchema, systemMetricsSchema, viewInputSchema } from '../system/schema'
+import { systemMetricsSchema } from '../system/schema'
 import { usageSummaryInputSchema, usageSummarySchema } from '../usage/schema'
 import type { ChannelName, EventName } from './channels'
 
@@ -57,7 +57,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'system', 'notes', 'gmail', 'reviews', 'redmine', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'notes', 'gmail', 'reviews', 'redmine', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
@@ -214,8 +214,6 @@ export const contract = {
   'notes:restore': { input: noteIdInputSchema, output: noteSchema },
   'notes:copy': { input: noteIdInputSchema, output: ack },
   'usage:summary': { input: usageSummaryInputSchema, output: usageSummarySchema },
-  'system:view': { input: viewInputSchema, output: ack },
-  'system:kill-process': { input: killInputSchema, output: killResultSchema },
   'gmail:get-state': { input: none, output: gmailStateSchema },
   'gmail:recent': { input: none, output: z.array(gmailMessageSchema).max(GMAIL_RECENT_LIMIT) },
   'gmail:view': { input: z.strictObject({ open: z.boolean() }), output: ack },
@@ -289,8 +287,6 @@ export const eventContract = {
   'reminders:fired': z.strictObject({ count: z.int().positive() }),
   'notes:changed': notesSnapshotSchema,
   'system:metrics': systemMetricsSchema,
-  /** Top processes of the System view (at most PROCESS_LIMIT). */
-  'system:processes': z.array(processRowSchema).max(PROCESS_LIMIT),
   /** Gmail session and unread count, to the notch and the Control Center (never tokens or mail). */
   'gmail:state': gmailStateSchema,
   /** New unread mail, to the notch only; no sender or subject when the user hides them. */

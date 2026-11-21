@@ -318,20 +318,6 @@ describe('reminderDue (a reminder is due)', () => {
     expect(run(attention(true), { type: 'expand' }, attention(false)).view).toBe('home')
   })
 
-  it('opens the system integration and goes back to the integrations row', () => {
-    const open = run({ type: 'open-integration', id: 'system' })
-    expect(open).toMatchObject({ expanded: true, view: 'system' })
-    expect(notchMode(open)).toBe('system')
-    const back = reduceNotch(open, { type: 'back' })
-    expect(back.view).toBe('home')
-    expect(notchMode(back)).toBe('expanded')
-  })
-
-  it('treats system as a panel mode that dismisses to compact', () => {
-    expect(PANEL_MODES.has('system')).toBe(true)
-    expect(notchMode(run({ type: 'open-integration', id: 'system' }, { type: 'dismiss' }))).toBe('peek')
-  })
-
   it('opens the notes integration, goes back to the integrations row, and dismisses to compact', () => {
     const open = run({ type: 'open-integration', id: 'notes' })
     expect(open).toMatchObject({ expanded: true, view: 'notes' })

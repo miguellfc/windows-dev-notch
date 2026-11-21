@@ -7,12 +7,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use crate::contract::notch::{IntegrationId, NotchMode};
 
 /// Modes that show the panel and therefore own the keyboard focus.
-pub const PANEL_MODES: [NotchMode; 9] = [
+pub const PANEL_MODES: [NotchMode; 8] = [
     NotchMode::Expanded,
     NotchMode::Permission,
     NotchMode::Question,
     NotchMode::Reminders,
-    NotchMode::System,
     NotchMode::Notes,
     NotchMode::Gmail,
     NotchMode::Reviews,
@@ -178,7 +177,6 @@ pub enum NotchEvent {
 fn integration_mode(id: IntegrationId) -> NotchMode {
     match id {
         IntegrationId::Reminders => NotchMode::Reminders,
-        IntegrationId::System => NotchMode::System,
         IntegrationId::Notes => NotchMode::Notes,
         IntegrationId::Gmail => NotchMode::Gmail,
         IntegrationId::Reviews => NotchMode::Reviews,

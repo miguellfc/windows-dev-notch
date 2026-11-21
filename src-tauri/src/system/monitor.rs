@@ -1,44 +1,33 @@
-//! Port of 0.1.0's `system-monitor.ts`: decides when to sample. Light every 3 s while
-//! the capsule is visible (peek included), full + processes every 1 s in `system` mode (the System
-//! view), nothing in mini / hidden / alert. Exactly one of `light()` or `full()` runs per tick,
-//! because both share the CPU baseline. The view's open state follows the mode alone.
+//! Port of 0.1.0's `system-monitor.ts`: decides when to sample. Light every 3 s while the
+//! capsule is visible (peek included, and every panel), nothing in mini / hidden / alert. The
+//! System view and its full rhythm (disks, network, processes every 1 s) were removed: what is
+//! left feeds the capsule's metrics, the panel header's copy of them and the system alerts.
 //!
 //! Threads: the rhythm state lives behind a short lock that is never held across a sample.
-//! Everything that touches the samplers (a tick, the silent warm-up, a re-sort, the baseline
-//! resets) is queued as a job and run, in order, by one drain at a time through the injected
-//! [`Executor`] (`spawn_blocking` in the app, inline in unit tests), so the Win32 reads never run
-//! on the caller's thread (the main thread for mode changes and page loads) and two samples never
-//! overlap. Results are emitted after each job, outside the samplers' lock. Like JS `setInterval`
-//! callbacks, interval ticks never overlap: an interval tick that fires while another tick is
-//! still queued or running is skipped (coalesced) rather than piled up. Explicit samples (a
-//! restart, a resync, a kill refresh) always run, after whatever is queued.
-//! [`kill`](SystemMonitor::kill) runs the sampler synchronously and blocks on the samplers'
-//! lock: call it off the main thread.
+//! Everything that touches the sampler (a tick, the baseline reset) is queued as a job and run,
+//! in order, by one drain at a time through the injected [`Executor`] (`spawn_blocking` in the
+//! app, inline in unit tests), so the Win32 reads never run on the caller's thread (the main
+//! thread for mode changes and page loads) and two samples never overlap. Results are emitted
+//! after each job, outside the sampler's lock. Like JS `setInterval` callbacks, interval ticks
+//! never overlap: an interval tick that fires while another tick is still queued or running is
+//! skipped (coalesced) rather than piled up. Explicit samples (a restart, a resync) always run,
+//! after whatever is queued.
 
 use std::collections::VecDeque;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 
-use super::alerts::{worst_disk, AlertInput, Alerts, BatteryInput, DiskFree};
-use super::metrics::{Metrics, MetricsFull, MetricsLight};
-use super::processes::{MonotonicClock, Processes};
+use super::alerts::{AlertInput, Alerts, BatteryInput, DiskFree};
+use super::metrics::{Metrics, MetricsLight};
 use crate::contract::notch::NotchMode;
 use crate::contract::settings::SystemAlertSettings;
-use crate::contract::system::{
-    KillInput, KillResult, ProcessOrder, ProcessRow, StorageSample, SystemAlerts, SystemMetrics,
-    Unavailable, PROCESS_LIMIT,
-};
-use crate::services::timers::{Interval, TimerId, Timers};
+use crate::contract::system::{StorageSample, SystemAlerts, SystemMetrics, Unavailable};
+use crate::services::timers::{Interval, Timers};
 
 pub const LIGHT_INTERVAL_MS: u64 = 3000;
-pub const FULL_INTERVAL_MS: u64 = 1000;
 /// A pause at least this long resets the CPU baseline; over a shorter one the delta is a true
 /// average.
 pub const LONG_PAUSE_MS: u64 = 10_000;
-/// When the view opens with no recent full sample, the backend samples once silently and sends
-/// the first full sample this much later, so per-process CPU and the PDH rates (which need two
-/// reads at least 500 ms apart) are real values instead of "—".
-pub const WARMUP_MS: u64 = 600;
 /// The light rhythm reads free disk space (no PDH) at most this often, for the disk alert.
 pub const DISK_CHECK_MS: u64 = 60_000;
 
@@ -46,20 +35,14 @@ pub const DISK_CHECK_MS: u64 = 60_000;
 pub type Executor = Arc<dyn Fn(Box<dyn FnOnce() + Send>) + Send + Sync>;
 /// Receives every `system:metrics` payload.
 pub type MetricsSink = Box<dyn Fn(&SystemMetrics) + Send + Sync>;
-/// Receives every `system:processes` payload.
-pub type ProcessesSink = Box<dyn Fn(&[ProcessRow]) + Send + Sync>;
+/// A monotonic clock in milliseconds: a wall-clock change must never stretch or shrink a pause.
+pub type MonotonicClock = Arc<dyn Fn() -> u64 + Send + Sync>;
 /// The live alert settings.
 pub type AlertSettingsSource = Box<dyn Fn() -> SystemAlertSettings + Send + Sync>;
 
-/// Both samplers; absent when the Win32 API could not load (the monitor then only reports
-/// `unavailable`).
-pub struct Samplers {
-    pub metrics: Box<dyn Metrics>,
-    pub processes: Box<dyn Processes>,
-}
-
 pub struct MonitorOptions {
-    pub samplers: Option<Samplers>,
+    /// Absent when the Win32 API could not load (the monitor then only reports `unavailable`).
+    pub metrics: Option<Box<dyn Metrics>>,
     /// Turns each emitted sample into its `alerts`.
     pub alerts: Box<dyn Alerts>,
     /// The live alert settings, read on every tick.
@@ -68,7 +51,6 @@ pub struct MonitorOptions {
     /// Monotonic clock in ms, used to measure pauses.
     pub now: MonotonicClock,
     pub on_metrics: MetricsSink,
-    pub on_processes: ProcessesSink,
     pub executor: Executor,
 }
 
@@ -76,7 +58,6 @@ pub struct MonitorOptions {
 enum Rhythm {
     Paused,
     Light,
-    Full,
 }
 
 /// Modes where nothing is sampled: the capsule is the user's pinned pill, off screen, or showing
@@ -86,29 +67,19 @@ enum Rhythm {
 fn desired(mode: NotchMode) -> Rhythm {
     match mode {
         NotchMode::Mini | NotchMode::Hidden | NotchMode::Alert => Rhythm::Paused,
-        NotchMode::System => Rhythm::Full,
         _ => Rhythm::Light,
     }
 }
 
 struct State {
     mode: NotchMode,
-    order: ProcessOrder,
     rhythm: Rhythm,
     interval: Option<Interval>,
-    /// The one-shot timer of a warm-up; `None` otherwise.
-    warmup: Option<TimerId>,
-    /// A warm-up whose baselines are still being taken (its timer is armed once they are, as
-    /// `warmUp` does synchronously): the generation it was started with.
-    warmup_pending: Option<u64>,
-    /// Bumped every time the timers stop (a restart, a warm-up, a pause, dispose). Ticks, interval
-    /// firings and warm-up callbacks carry the generation they were started with and do nothing
-    /// once it is stale: a callback already in flight when its timer was cleared, or a tick
-    /// queued before the rhythm changed, cannot act on the newer rhythm (JS never interleaves
-    /// like this, so the stamped behaviour is the faithful one).
+    /// Bumped every time the timers stop (a restart, a pause, dispose). Ticks and interval
+    /// firings carry the generation they were started with and do nothing once it is stale: a
+    /// callback already in flight when its timer was cleared, or a tick queued before the rhythm
+    /// changed, cannot act on the newer rhythm.
     generation: u64,
-    /// When the last full sample (or warm-up) ran; `None` before the first one.
-    last_full_at: Option<u64>,
     /// When the current pause began; `None` before the first rhythm (always a fresh start).
     paused_at: Option<u64>,
     /// When the light rhythm last read free disk space; `None` = read on its next tick.
@@ -119,19 +90,14 @@ struct State {
 }
 
 struct Work {
-    samplers: Option<Samplers>,
+    metrics: Option<Box<dyn Metrics>>,
     alerts: Box<dyn Alerts>,
     /// The worst drive of the last disk reading, sent with every sample until the next one (the
     /// light rhythm reads disks every [`DISK_CHECK_MS`]); a failed read keeps it.
     storage: Option<StorageSample>,
 }
 
-enum Emission {
-    Metrics(SystemMetrics),
-    Processes(Vec<ProcessRow>),
-}
-
-type Job = Box<dyn FnOnce(&Inner, &mut Work) -> Vec<Emission> + Send>;
+type Job = Box<dyn FnOnce(&Inner, &mut Work) -> Option<SystemMetrics> + Send>;
 
 #[derive(Default)]
 struct Queue {
@@ -151,7 +117,6 @@ struct Inner {
     now: MonotonicClock,
     alert_settings: AlertSettingsSource,
     on_metrics: MetricsSink,
-    on_processes: ProcessesSink,
     executor: Executor,
 }
 
@@ -176,31 +141,26 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Never logs the panic payload: it could carry a process name.
+/// Never logs the panic payload: it could carry a path or other machine details.
 fn guarded(what: &str, run: impl FnOnce()) {
     if catch_unwind(AssertUnwindSafe(run)).is_err() {
         log::error!("System sample failed: {what} (panic)");
     }
 }
 
-/// The capsule's storage figure: the drive with the least free space, as % used.
+/// The capsule's storage figure: the whole computer's fill, as % used over every fixed drive read
+/// (used bytes over total bytes, so a big drive weighs more than a small one). `None` without one.
 fn storage_of(disks: &[DiskFree]) -> Option<StorageSample> {
-    worst_disk(disks).map(|disk| StorageSample {
-        letter: disk.letter.clone(),
-        used_percent: (100.0 - disk.free_percent).clamp(0.0, 100.0),
+    let (used, total) = disks.iter().fold((0u128, 0u128), |(used, total), disk| {
+        let free = disk.free_bytes.min(disk.total_bytes);
+        (
+            used + u128::from(disk.total_bytes - free),
+            total + u128::from(disk.total_bytes),
+        )
+    });
+    (total > 0).then(|| StorageSample {
+        used_percent: (100.0 * used as f64 / total as f64).clamp(0.0, 100.0),
     })
-}
-
-/// Free space from a full sample, so the full rhythm needs no extra disk read.
-fn free_from_full(sample: &MetricsFull) -> Vec<DiskFree> {
-    sample
-        .disks
-        .iter()
-        .map(|disk| DiskFree {
-            letter: disk.letter.clone(),
-            free_percent: 100.0 - disk.used_percent,
-        })
-        .collect()
 }
 
 impl Inner {
@@ -242,18 +202,15 @@ impl Inner {
                     }
                 }
             };
-            let emissions = {
+            let emission = {
                 let mut work = lock(&self.work);
                 catch_unwind(AssertUnwindSafe(|| job(self, &mut work))).unwrap_or_else(|_| {
                     log::error!("System sample failed: job (panic)");
-                    Vec::new()
+                    None
                 })
             };
-            for emission in emissions {
-                guarded("emit", || match &emission {
-                    Emission::Metrics(metrics) => (self.on_metrics)(metrics),
-                    Emission::Processes(rows) => (self.on_processes)(rows),
-                });
+            if let Some(metrics) = emission {
+                guarded("emit", || (self.on_metrics)(&metrics));
             }
         }
     }
@@ -262,10 +219,6 @@ impl Inner {
         state.generation += 1;
         // Dropping the interval clears its pending timer.
         state.interval = None;
-        state.warmup_pending = None;
-        if let Some(id) = state.warmup.take() {
-            self.timers.clear(id);
-        }
     }
 
     /// Queues a tick stamped with the current rhythm and generation: it does nothing if either
@@ -288,16 +241,11 @@ impl Inner {
             return;
         }
         self.push_tick(state);
-        let period = if state.rhythm == Rhythm::Full {
-            FULL_INTERVAL_MS
-        } else {
-            LIGHT_INTERVAL_MS
-        };
         let me = self.me.clone();
         let generation = state.generation;
         state.interval = Some(Interval::start(
             Arc::clone(&self.timers),
-            period,
+            LIGHT_INTERVAL_MS,
             Arc::new(move || {
                 if let Some(inner) = me.upgrade() {
                     inner.on_interval(generation);
@@ -317,58 +265,6 @@ impl Inner {
             self.push_tick(&mut state);
         }
         self.kick();
-    }
-
-    /// Takes silent baselines now and starts the full rhythm [`WARMUP_MS`] after they are taken
-    /// (`warmUp` reads them synchronously before arming its timeout). Arming the timer before the
-    /// queued baselines ran would leave the first full tick less than the sampler's minimum CPU
-    /// interval after them whenever the baselines are slow (a cold PDH query, a long process
-    /// list), and the first list would show no CPU values.
-    fn warm_up(&self, state: &mut State) {
-        self.stop_timer(state);
-        state.last_full_at = Some((self.now)());
-        let generation = state.generation;
-        state.warmup_pending = Some(generation);
-        self.push(Box::new(move |inner: &Inner, work: &mut Work| {
-            let order = lock(&inner.state).order;
-            if let Some(samplers) = work.samplers.as_mut() {
-                guarded("warm-up", || {
-                    samplers.metrics.full();
-                    samplers.processes.top(order, PROCESS_LIMIT);
-                });
-                // The warm-up list never reached the view: nothing in it may be closed.
-                samplers.processes.forget_list();
-            }
-            inner.arm_warmup(generation);
-            Vec::new()
-        }));
-    }
-
-    /// Arms the warm-up's timer, unless that warm-up was stopped while its baselines ran. The
-    /// timer only starts the rhythm while its warm-up is still the current one: a late callback
-    /// of a stopped warm-up must not cut a newer one short.
-    fn arm_warmup(&self, generation: u64) {
-        let mut state = lock(&self.state);
-        if state.disposed || state.warmup_pending != Some(generation) {
-            return;
-        }
-        state.warmup_pending = None;
-        let me = self.me.clone();
-        state.warmup = Some(self.timers.set_timeout(
-            WARMUP_MS,
-            Box::new(move || {
-                let Some(inner) = me.upgrade() else { return };
-                {
-                    let mut state = lock(&inner.state);
-                    if state.disposed || state.generation != generation {
-                        return;
-                    }
-                    state.warmup = None;
-                    inner.restart(&mut state);
-                }
-                inner.kick();
-            }),
-        ));
     }
 
     fn apply(&self, state: &mut State) {
@@ -394,56 +290,16 @@ impl Inner {
             .is_none_or(|at| (self.now)().saturating_sub(at) >= LONG_PAUSE_MS);
         if previous == Rhythm::Paused && long_pause {
             self.push(Box::new(|_: &Inner, work: &mut Work| {
-                if let Some(samplers) = work.samplers.as_mut() {
-                    samplers.metrics.reset();
+                if let Some(metrics) = work.metrics.as_mut() {
+                    metrics.reset();
                 }
                 work.alerts.reset();
-                Vec::new()
+                None
             }));
         }
-        // Entering the light rhythm (from a pause or the view) reads disk space on its first tick.
-        if next == Rhythm::Light {
-            state.last_disk_at = None;
-        }
-        if next == Rhythm::Full {
-            // A fresh view may only close rows it shows. Per-process CPU baselines survive a short
-            // close (the delta is then a true average); after a long one they are stale.
-            self.push(Box::new(|_: &Inner, work: &mut Work| {
-                if let Some(samplers) = work.samplers.as_mut() {
-                    samplers.processes.forget_list();
-                }
-                Vec::new()
-            }));
-            let stale = state
-                .last_full_at
-                .is_none_or(|at| (self.now)().saturating_sub(at) >= LONG_PAUSE_MS);
-            if stale {
-                self.push(Box::new(|_: &Inner, work: &mut Work| {
-                    if let Some(samplers) = work.samplers.as_mut() {
-                        samplers.processes.reset();
-                    }
-                    Vec::new()
-                }));
-                self.warm_up(state);
-                return;
-            }
-        }
+        // Entering the light rhythm reads disk space on its first tick.
+        state.last_disk_at = None;
         self.restart(state);
-    }
-
-    fn push_processes(&self) {
-        self.push(Box::new(|inner: &Inner, work: &mut Work| {
-            let order = lock(&inner.state).order;
-            let mut out = Vec::new();
-            if let Some(samplers) = work.samplers.as_mut() {
-                guarded("processes", || {
-                    out.push(Emission::Processes(
-                        samplers.processes.top(order, PROCESS_LIMIT),
-                    ));
-                });
-            }
-            out
-        }));
     }
 
     /// Evaluates one emitted sample. Fails open: if the settings or the evaluator panic, the
@@ -477,69 +333,43 @@ impl Inner {
         })
     }
 
-    fn tick(&self, work: &mut Work, stamp: Stamp) -> Vec<Emission> {
+    fn tick(&self, work: &mut Work, stamp: Stamp) -> Option<SystemMetrics> {
         // Released even if the tick panics outside `guarded`: a stuck count would make every
         // later interval tick skip.
         let _pending = TickPending(self);
         self.tick_inner(work, stamp)
     }
 
-    fn tick_inner(&self, work: &mut Work, stamp: Stamp) -> Vec<Emission> {
-        let (rhythm, order, now) = {
-            let mut state = lock(&self.state);
+    fn tick_inner(&self, work: &mut Work, stamp: Stamp) -> Option<SystemMetrics> {
+        let now = {
+            let state = lock(&self.state);
             if state.disposed
                 || state.rhythm != stamp.rhythm
                 || state.generation != stamp.generation
+                || state.rhythm == Rhythm::Paused
             {
-                return Vec::new();
+                return None;
             }
-            let now = (self.now)();
-            if state.rhythm == Rhythm::Full {
-                state.last_full_at = Some(now);
-            }
-            (state.rhythm, state.order, now)
+            (self.now)()
         };
         let Work {
-            samplers,
+            metrics,
             alerts,
             storage,
         } = work;
-        let Some(samplers) = samplers.as_mut() else {
-            return Vec::new();
-        };
-        let mut out = Vec::new();
-        match rhythm {
-            Rhythm::Full => {
-                guarded("full", || {
-                    let sample = samplers.metrics.full();
-                    let free = free_from_full(&sample);
-                    *storage = storage_of(&free);
-                    let alerts = self.evaluate(alerts.as_mut(), &sample.light(), Some(free), now);
-                    out.push(Emission::Metrics(SystemMetrics::Full(
-                        sample.with_alerts(alerts, storage.clone()),
-                    )));
-                });
-                guarded("processes", || {
-                    out.push(Emission::Processes(
-                        samplers.processes.top(order, PROCESS_LIMIT),
-                    ));
-                });
+        let metrics = metrics.as_mut()?;
+        let mut out = None;
+        guarded("light", || {
+            let sample = metrics.light();
+            let disks = self.light_disks(metrics.as_mut(), now);
+            if let Some(disks) = &disks {
+                *storage = storage_of(disks);
             }
-            Rhythm::Light => {
-                guarded("light", || {
-                    let sample = samplers.metrics.light();
-                    let disks = self.light_disks(samplers.metrics.as_mut(), now);
-                    if let Some(disks) = &disks {
-                        *storage = storage_of(disks);
-                    }
-                    let alerts = self.evaluate(alerts.as_mut(), &sample, disks, now);
-                    out.push(Emission::Metrics(SystemMetrics::Light(
-                        sample.with_alerts(alerts, storage.clone()),
-                    )));
-                });
-            }
-            Rhythm::Paused => {}
-        }
+            let alerts = self.evaluate(alerts.as_mut(), &sample, disks, now);
+            out = Some(SystemMetrics::Light(
+                sample.with_alerts(alerts, storage.clone()),
+            ));
+        });
         out
     }
 
@@ -566,26 +396,22 @@ pub struct SystemMonitor {
 
 impl SystemMonitor {
     pub fn new(options: MonitorOptions) -> Self {
-        let available = options.samplers.is_some();
+        let available = options.metrics.is_some();
         let inner = Arc::new_cyclic(|me| Inner {
             me: me.clone(),
             available,
             state: Mutex::new(State {
                 mode: NotchMode::Hidden,
-                order: ProcessOrder::Cpu,
                 rhythm: Rhythm::Paused,
                 interval: None,
-                warmup: None,
-                warmup_pending: None,
                 generation: 0,
-                last_full_at: None,
                 paused_at: None,
                 last_disk_at: None,
                 disposed: false,
                 ticks_pending: 0,
             }),
             work: Mutex::new(Work {
-                samplers: options.samplers,
+                metrics: options.metrics,
                 alerts: options.alerts,
                 storage: None,
             }),
@@ -594,7 +420,6 @@ impl SystemMonitor {
             now: options.now,
             alert_settings: options.alert_settings,
             on_metrics: options.on_metrics,
-            on_processes: options.on_processes,
             executor: options.executor,
         });
         if !available {
@@ -603,8 +428,7 @@ impl SystemMonitor {
         Self { inner }
     }
 
-    /// The `system` mode is the System view: entering it starts the full rhythm, leaving it
-    /// stops it.
+    /// Mini, hidden and alert pause the sampling; every other mode samples on the light rhythm.
     pub fn set_mode(&self, mode: NotchMode) {
         {
             let mut state = lock(&self.inner.state);
@@ -612,62 +436,6 @@ impl SystemMonitor {
             self.inner.apply(&mut state);
         }
         self.inner.kick();
-    }
-
-    /// The process order for the next emissions (re-sorts at once while the view is open).
-    pub fn set_order(&self, by: ProcessOrder) {
-        {
-            let mut state = lock(&self.inner.state);
-            if state.disposed {
-                return;
-            }
-            // The view sends its order on mount: an unavailable monitor answers with its state.
-            if !self.inner.available {
-                drop(state);
-                self.inner.unavailable();
-                return;
-            }
-            if by == state.order {
-                return;
-            }
-            state.order = by;
-            // A new order re-sorts at once (the sampler reuses CPU values on a short interval);
-            // during a warm-up the first emission already uses it.
-            if state.rhythm == Rhythm::Full
-                && state.warmup.is_none()
-                && state.warmup_pending.is_none()
-            {
-                self.inner.push_processes();
-            }
-        }
-        self.inner.kick();
-    }
-
-    /// Validates and performs a close request. Blocks while a sample runs: call it off the main
-    /// thread.
-    pub fn kill(&self, input: &KillInput) -> KillResult {
-        if lock(&self.inner.state).disposed || !self.inner.available {
-            return KillResult::NotKillable;
-        }
-        let result = {
-            let mut work = lock(&self.inner.work);
-            match work.samplers.as_mut() {
-                Some(samplers) => samplers.processes.kill(input),
-                None => KillResult::NotKillable,
-            }
-        };
-        // The result only: never the pid or the process name.
-        log::info!("Process close requested: {}", result.as_str());
-        if result == KillResult::Killed {
-            {
-                let mut state = lock(&self.inner.state);
-                if state.rhythm == Rhythm::Full && !state.disposed {
-                    self.inner.restart(&mut state);
-                }
-            }
-            self.inner.kick();
-        }
-        result
     }
 
     /// The notch (re)loaded: samples at once (or re-sends `unavailable`) so it never waits.

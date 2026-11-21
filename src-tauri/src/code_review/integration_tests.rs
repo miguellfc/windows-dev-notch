@@ -1705,28 +1705,57 @@ fn both() -> Setup {
 }
 
 #[tokio::test]
-async fn never_queries_contributions_while_the_view_is_closed() {
+async fn queries_contributions_once_live_then_every_15_min_with_the_view_closed() {
     let t = setup(both());
     t.ready().await;
-    t.flush(CONTRIBUTIONS_TICK_MS * 3).await;
+    t.flush(0).await;
+    let (gh, gl) = (t.last(GITHUB), t.last(GITLAB_P));
+    // The compact capsule shows the month's total: no view needed.
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 1));
+    assert!(t.summary(GITHUB).await.is_some());
+    assert!(t.events().contains(&changed(GITHUB, false)));
+    assert!(t.events().contains(&changed(GITLAB_P, false)));
+    // The 2 min review rounds add none; the 15 min rhythm does.
+    t.flush(CONTRIBUTIONS_TICK_MS - 1).await;
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 1));
+    t.flush(1).await;
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (2, 2));
+    // A manual refresh with the view closed leaves them to their rhythm.
     t.integration.refresh();
     t.flush(0).await;
-    assert_eq!(t.last(GITHUB).contributions_calls(), 0);
-    assert_eq!(t.last(GITLAB_P).contributions_calls(), 0);
-    assert_eq!(t.summary(GITHUB).await, None);
+    assert_eq!(gh.contributions_calls(), 2);
 }
 
 #[tokio::test]
-async fn queries_each_connected_platform_on_open_then_every_15_min_while_open_stops_on_close() {
+async fn contributions_start_with_the_first_review_query_that_works() {
+    let t = setup(Setup::default());
+    t.set_prepare(|c, _, _| c.fetch_once(Err(CodeReviewError::Network)));
+    t.ready().await;
+    t.flush(0).await;
+    let gh = t.last(GITHUB);
+    assert_eq!(t.status(GITHUB), PlatformStatus::Offline);
+    assert_eq!(gh.contributions_calls(), 0);
+    t.flush(BACKOFF_MS[0]).await;
+    assert_eq!(t.status(GITHUB), PlatformStatus::Ok);
+    assert_eq!(gh.contributions_calls(), 1);
+    // Later review rounds leave them to their own rhythm.
+    t.flush(TICK_MS * 3).await;
+    assert_eq!(gh.contributions_calls(), 1);
+}
+
+#[tokio::test]
+async fn opening_the_view_queries_at_once_and_restarts_the_rhythm_closing_it_keeps_the_rhythm() {
     let t = setup(both());
     t.ready().await;
     t.flush(0).await;
-    t.integration.set_view_open(true);
-    t.flush(0).await;
     let gh = t.last(GITHUB);
     let gl = t.last(GITLAB_P);
-    assert_eq!(gh.contributions_calls(), 1);
-    assert_eq!(gl.contributions_calls(), 1);
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 1));
+    t.flush(60_000).await;
+    t.integration.set_view_open(true);
+    t.flush(0).await;
+    assert_eq!(gh.contributions_calls(), 2);
+    assert_eq!(gl.contributions_calls(), 2);
     assert_eq!(
         t.summary(GITHUB)
             .await
@@ -1738,18 +1767,20 @@ async fn queries_each_connected_platform_on_open_then_every_15_min_while_open_st
     assert!(events.contains(&changed(GITHUB, false)));
     assert!(events.contains(&changed(GITLAB_P, false)));
     t.flush(CONTRIBUTIONS_TICK_MS - 1).await;
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
     t.flush(1).await;
-    assert_eq!(gh.contributions_calls(), 2);
-    assert_eq!(gl.contributions_calls(), 2);
+    assert_eq!(gh.contributions_calls(), 3);
+    assert_eq!(gl.contributions_calls(), 3);
+    // Closing the view does not stop the rhythm (the capsule still shows the total).
     t.integration.set_view_open(false);
-    t.flush(CONTRIBUTIONS_TICK_MS * 4).await;
-    assert_eq!(gh.contributions_calls(), 2);
-    // The cache outlives the closed view (shown at once on the next open, then refreshed).
+    t.flush(CONTRIBUTIONS_TICK_MS - 1).await;
+    assert_eq!(gh.contributions_calls(), 3);
+    t.flush(1).await;
+    assert_eq!(gh.contributions_calls(), 4);
     assert!(t.summary(GITHUB).await.is_some());
     t.integration.set_view_open(true);
     t.flush(0).await;
-    assert_eq!(gh.contributions_calls(), 3);
+    assert_eq!(gh.contributions_calls(), 5);
 }
 
 #[tokio::test]
@@ -1757,12 +1788,13 @@ async fn opening_twice_in_a_row_does_not_start_a_second_timer_or_query() {
     let t = setup(Setup::default());
     t.ready().await;
     t.flush(0).await;
+    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
     t.integration.set_view_open(true);
     t.integration.set_view_open(true);
     t.flush(0).await;
-    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
-    t.flush(CONTRIBUTIONS_TICK_MS).await;
     assert_eq!(t.last(GITHUB).contributions_calls(), 2);
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    assert_eq!(t.last(GITHUB).contributions_calls(), 3);
 }
 
 #[tokio::test]
@@ -1790,20 +1822,20 @@ async fn manual_refresh_also_refreshes_contributions_while_open_sharing_the_5_s_
     t.integration.set_view_open(true);
     t.flush(0).await;
     let gh = t.last(GITHUB);
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
     t.flush(5_000).await;
     t.integration.refresh();
     t.flush(0).await;
-    assert_eq!(gh.contributions_calls(), 2);
+    assert_eq!(gh.contributions_calls(), 3);
     assert_eq!(gh.fetch_calls(), 2);
     t.integration.refresh();
     t.flush(4_000).await;
-    assert_eq!(gh.contributions_calls(), 2);
+    assert_eq!(gh.contributions_calls(), 3);
     // The 15 min rhythm restarts from the manual query.
     t.flush(CONTRIBUTIONS_TICK_MS - 4_000 - 1).await;
-    assert_eq!(gh.contributions_calls(), 2);
-    t.flush(1).await;
     assert_eq!(gh.contributions_calls(), 3);
+    t.flush(1).await;
+    assert_eq!(gh.contributions_calls(), 4);
 }
 
 #[tokio::test]
@@ -1878,9 +1910,10 @@ async fn a_401_403_on_contributions_goes_to_auth_error_like_the_lists_and_stops_
     );
     let fetches = gh.fetch_calls();
     t.flush(CONTRIBUTIONS_TICK_MS * 2).await;
-    assert_eq!(gh.contributions_calls(), 1);
+    // The one at startup, then the rejected one.
+    assert_eq!(gh.contributions_calls(), 2);
     assert_eq!(gh.fetch_calls(), fetches);
-    assert_eq!(t.last(GITLAB_P).contributions_calls(), 3);
+    assert_eq!(t.last(GITLAB_P).contributions_calls(), 4);
 }
 
 #[tokio::test]
@@ -1915,7 +1948,7 @@ async fn a_new_token_starts_a_new_generation_empty_cache_old_results_dropped_new
     assert!(t.summary(GITHUB).await.is_some());
     let release = old.contributions_later();
     t.flush(CONTRIBUTIONS_TICK_MS).await;
-    assert_eq!(old.contributions_calls(), 2);
+    assert_eq!(old.contributions_calls(), 3);
     let release_new: Arc<Mutex<Option<oneshot::Sender<Res<ContributionSummary>>>>> = Arc::default();
     {
         let release_new = Arc::clone(&release_new);
@@ -1953,8 +1986,6 @@ async fn computes_the_range_from_the_clock_on_each_query_crossing_midnight_and_t
     });
     t.ready().await;
     t.flush(0).await;
-    t.integration.set_view_open(true);
-    t.flush(0).await;
     let gh = t.last(GITHUB);
     assert_eq!(gh.contributions_now(0), start);
     assert_eq!(
@@ -1979,8 +2010,6 @@ async fn computes_the_range_from_the_clock_on_each_query_crossing_midnight_and_t
 async fn stops_the_contributions_timer_on_dispose() {
     let t = setup(Setup::default());
     t.ready().await;
-    t.flush(0).await;
-    t.integration.set_view_open(true);
     t.flush(0).await;
     t.integration.dispose();
     t.flush(CONTRIBUTIONS_TICK_MS * 2).await;
@@ -2350,6 +2379,7 @@ async fn an_older_contributions_event_that_reaches_the_emitter_last_is_dropped()
     let t = setup(Setup::default());
     t.ready().await;
     t.flush(0).await;
+    let before = t.events().len();
     let (mut late, mut fresh) = (Vec::new(), Vec::new());
     {
         let mut inner = t.integration.lock();
@@ -2365,8 +2395,8 @@ async fn an_older_contributions_event_that_reaches_the_emitter_last_is_dropped()
     t.integration.run(fresh);
     t.integration.run(late);
     assert_eq!(
-        t.events(),
-        vec![changed(GITHUB, true), changed(GITLAB_P, false)]
+        t.events()[before..],
+        [changed(GITHUB, true), changed(GITLAB_P, false)]
     );
 }
 
@@ -2404,10 +2434,11 @@ async fn nothing_is_emitted_or_alerted_after_dispose() {
     }
     late.push(Effect::Alert(count_alert(GITHUB, 1), None));
     let emitted = t.emitted.lock().unwrap().len();
+    let events = t.events().len();
     t.integration.dispose();
     t.integration.run(late);
     assert_eq!(t.emitted.lock().unwrap().len(), emitted);
-    assert_eq!(t.events(), vec![]);
+    assert_eq!(t.events().len(), events);
     assert_eq!(t.alerts(), vec![]);
 }
 
@@ -2428,20 +2459,22 @@ fn reviews_waiting() -> T {
 async fn disabled_platform_stops_reviews_and_contributions() {
     let t = reviews_waiting();
     t.ready().await;
+    t.flush(0).await;
     t.integration.set_view_open(true);
     t.flush(0).await;
     let (gh, gl) = (t.last(GITHUB), t.last(GITLAB_P));
     assert_eq!((gh.fetch_calls(), gl.fetch_calls()), (1, 1));
-    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 1));
+    // The startup's and the view's.
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (2, 2));
 
     t.integration.set_enabled(GITHUB, false);
     t.flush(CONTRIBUTIONS_TICK_MS).await;
     // GitHub: no review, no contributions, no alert.
     assert_eq!(gh.fetch_calls(), 1);
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
     // GitLab untouched: its rhythm and its first-review alert.
     assert!(gl.fetch_calls() > 1);
-    assert_eq!(gl.contributions_calls(), 2);
+    assert_eq!(gl.contributions_calls(), 3);
     assert_eq!(
         t.alerts()
             .iter()
@@ -2453,7 +2486,7 @@ async fn disabled_platform_stops_reviews_and_contributions() {
     t.integration.refresh();
     t.flush(0).await;
     assert_eq!(gh.fetch_calls(), 1);
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
 }
 
 #[tokio::test]
@@ -2503,13 +2536,14 @@ async fn a_review_answer_that_arrives_after_disabling_is_dropped() {
 async fn reenabling_a_platform_queries_it_at_once() {
     let t = reviews_waiting();
     t.ready().await;
-    t.integration.set_view_open(true);
     t.flush(0).await;
     let gh = t.last(GITHUB);
+    assert_eq!(gh.contributions_calls(), 1);
     t.integration.set_enabled(GITHUB, false);
     t.flush(TICK_MS * 2).await;
     assert_eq!(gh.fetch_calls(), 1);
 
+    // View closed: contributions come back with it too (the capsule shows them).
     t.integration.set_enabled(GITHUB, true);
     t.flush(0).await;
     assert_eq!(gh.fetch_calls(), 2);
@@ -2530,7 +2564,7 @@ async fn reenabling_a_platform_with_answers_still_pending_queries_again_and_rear
     t.integration.set_view_open(true);
     let answer = gh.fetch_later();
     t.flush(TICK_MS).await;
-    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (2, 1));
+    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (2, 2));
 
     // Off, both answers come back, on again before anything else runs.
     t.integration.set_enabled(GITHUB, false);
@@ -2538,11 +2572,11 @@ async fn reenabling_a_platform_with_answers_still_pending_queries_again_and_rear
     let _ = contributions.send(Ok(summary_for(t.clock.now(), 1)));
     t.integration.set_enabled(GITHUB, true);
     t.flush(0).await;
-    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (3, 2));
+    assert_eq!((gh.fetch_calls(), gh.contributions_calls()), (3, 3));
     t.flush(TICK_MS).await;
     assert_eq!(gh.fetch_calls(), 4);
     t.flush(CONTRIBUTIONS_TICK_MS).await;
-    assert_eq!(gh.contributions_calls(), 3);
+    assert_eq!(gh.contributions_calls(), 4);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2556,22 +2590,26 @@ async fn panel_opened_fetches_contributions_for_enabled_platforms() {
     t.integration.set_enabled(GITLAB_P, false);
     let (gh, gl) = (t.last(GITHUB), t.last(GITLAB_P));
 
+    // One each at startup.
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 1));
+    let events = t.events().len();
+
     t.integration.panel_opened();
     t.integration.panel_opened();
     t.flush(0).await;
-    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (1, 0));
-    assert!(t.events().contains(&changed(GITHUB, false)));
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (2, 1));
+    assert_eq!(t.events()[events..], [changed(GITHUB, false)]);
     assert!(t.summary(GITHUB).await.is_some());
 
     t.flush(PANEL_REFRESH_MIN_MS - 1).await;
     t.integration.panel_opened();
     t.flush(0).await;
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
 
     t.flush(1).await;
     t.integration.panel_opened();
     t.flush(0).await;
-    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (2, 0));
+    assert_eq!((gh.contributions_calls(), gl.contributions_calls()), (3, 1));
 }
 
 #[tokio::test]
@@ -2591,13 +2629,19 @@ async fn panel_opened_skips_unconfigured_and_rejected_platforms() {
 }
 
 #[tokio::test]
-async fn panel_opened_does_not_arm_the_view_timer() {
+async fn panel_opened_restarts_the_15_min_rhythm() {
     let t = setup(Setup::default());
     t.ready().await;
     t.flush(0).await;
+    let gh = t.last(GITHUB);
+    t.flush(60_000).await;
     t.integration.panel_opened();
-    t.flush(CONTRIBUTIONS_TICK_MS * 3).await;
-    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
+    t.flush(0).await;
+    assert_eq!(gh.contributions_calls(), 2);
+    t.flush(CONTRIBUTIONS_TICK_MS - 1).await;
+    assert_eq!(gh.contributions_calls(), 2);
+    t.flush(1).await;
+    assert_eq!(gh.contributions_calls(), 3);
 }
 
 #[tokio::test]
@@ -2608,13 +2652,13 @@ async fn a_view_opened_right_after_the_panel_still_makes_its_own_query_and_keeps
     let gh = t.last(GITHUB);
     t.integration.panel_opened();
     t.flush(0).await;
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
 
     t.integration.set_view_open(true);
     t.flush(0).await;
-    assert_eq!(gh.contributions_calls(), 2);
-    t.flush(CONTRIBUTIONS_TICK_MS).await;
     assert_eq!(gh.contributions_calls(), 3);
+    t.flush(CONTRIBUTIONS_TICK_MS).await;
+    assert_eq!(gh.contributions_calls(), 4);
 }
 
 #[tokio::test]
@@ -2628,12 +2672,12 @@ async fn a_view_opened_during_the_panel_query_shares_it_and_arms_the_timer() {
     t.flush(0).await;
     t.integration.set_view_open(true);
     t.flush(0).await;
-    assert_eq!(gh.contributions_calls(), 1);
+    assert_eq!(gh.contributions_calls(), 2);
 
     let _ = answer.send(Ok(summary_for(t.clock.now(), 1)));
     t.flush(0).await;
     t.flush(CONTRIBUTIONS_TICK_MS).await;
-    assert_eq!(gh.contributions_calls(), 2);
+    assert_eq!(gh.contributions_calls(), 3);
 }
 
 #[tokio::test]
@@ -2643,12 +2687,14 @@ async fn a_new_token_is_not_held_back_by_the_minute_of_the_previous_one() {
     t.flush(0).await;
     t.integration.panel_opened();
     t.flush(0).await;
-    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
+    assert_eq!(t.last(GITHUB).contributions_calls(), 2);
 
     t.integration.set_token(GITHUB, "ghp_new", None).await;
     t.flush(0).await;
+    // The new token's own query, then the panel's.
+    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
     t.integration.panel_opened();
     t.flush(0).await;
     assert_eq!(t.client_count(), 2);
-    assert_eq!(t.last(GITHUB).contributions_calls(), 1);
+    assert_eq!(t.last(GITHUB).contributions_calls(), 2);
 }

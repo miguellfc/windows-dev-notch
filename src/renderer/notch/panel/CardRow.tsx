@@ -1,4 +1,4 @@
-import { Activity, AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
+import { AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { IntegrationKey } from '../../../shared/integrations/colors'
@@ -21,7 +21,6 @@ import { GmailCard } from './cards/GmailCard'
 import { NotesCard } from './cards/NotesCard'
 import { RedmineCard } from './cards/RedmineCard'
 import { RemindersCard } from './cards/RemindersCard'
-import { SystemCard } from './cards/SystemCard'
 import { CardTabStop, PanelCard } from './PanelCard'
 
 const ICONS: Readonly<Record<IntegrationKey, LucideIcon>> = {
@@ -32,7 +31,6 @@ const ICONS: Readonly<Record<IntegrationKey, LucideIcon>> = {
   redmine: RedmineMark,
   reminders: AlarmClock,
   notes: StickyNote,
-  system: Activity,
 }
 
 const TITLES: Readonly<Record<IntegrationKey, MessageKey>> = {
@@ -43,11 +41,13 @@ const TITLES: Readonly<Record<IntegrationKey, MessageKey>> = {
   redmine: 'integration.redmine',
   reminders: 'integration.reminders',
   notes: 'integration.notes',
-  system: 'integration.system',
 }
 
 /** The right edge fades out while more cards are scrolled away. */
 const EDGE_MASK: CSSProperties = { maskImage: 'linear-gradient(to right, #000 calc(100% - 48px), transparent)' }
+
+/** At the end of the row the half card is on the left, so that edge fades out instead. */
+const END_MASK: CSSProperties = { maskImage: 'linear-gradient(to left, #000 calc(100% - 48px), transparent)' }
 
 /** How long after the last wheel event the row forgets the distance it was adding up. */
 const WHEEL_IDLE_MS = 200
@@ -79,7 +79,7 @@ function scrollBehavior(): ScrollBehavior {
 /** Moves the focus to a card and scrolls the row only as far as showing it whole takes. */
 function focusCard(row: HTMLElement, index: number): void {
   row.querySelector<HTMLElement>(`[data-card-index="${index}"] [data-card-main]`)?.focus({ preventScroll: true })
-  row.scrollTo({ left: scrollForCard(index, row.scrollLeft), behavior: scrollBehavior() })
+  row.scrollTo({ left: scrollForCard(index, row.scrollLeft, row.scrollWidth - row.clientWidth), behavior: scrollBehavior() })
 }
 
 /** Whether no control holds the focus. */
@@ -163,8 +163,6 @@ function CardContent({ cardKey }: { cardKey: IntegrationKey }) {
       return <RemindersCard />
     case 'notes':
       return <NotesCard />
-    case 'system':
-      return <SystemCard />
   }
 }
 
@@ -181,8 +179,8 @@ function PageIndicator({ page, pages }: { page: number; pages: number }) {
 
 /**
  * The integrations' cards, 3.5 in view. The row is one Tab stop: the arrow keys move the focus along
- * it and Enter opens the card. With more than three cards a tail of half a card closes the row
- * (86 px, plus the 10 px gap), so the last three can snap to its start: every page is reachable.
+ * it and Enter opens the card. With more than three cards the row ends with the last card against
+ * its right edge, the half card then showing on the left.
  */
 export function CardRow() {
   const t = useT()
@@ -248,10 +246,8 @@ export function CardRow() {
         onFocus={onFocus}
         onBlur={onBlur}
         onScroll={(event) => setScrolledPage(activePage(event.currentTarget.scrollLeft, pages))}
-        style={overflows ? EDGE_MASK : undefined}
-        className={`flex h-[196px] snap-x snap-mandatory gap-2.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none] ${
-          overflows ? "after:w-[86px] after:shrink-0 after:content-['']" : ''
-        }`}
+        style={overflows ? (page === pages - 1 ? END_MASK : EDGE_MASK) : undefined}
+        className="flex h-[196px] snap-x snap-mandatory gap-2.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]"
       >
         {keys.map((key, index) => (
           <li key={key} data-card-index={index} className="shrink-0 snap-start">

@@ -1,5 +1,5 @@
-/** The eight configurable integrations, in the order the Control Center lists them. */
-export const integrationKeys = ['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes', 'system'] as const
+/** The seven configurable integrations, in the order the Control Center lists them. */
+export const integrationKeys = ['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes'] as const
 export type IntegrationKey = (typeof integrationKeys)[number]
 
 /** Only these can show a block in the capsule. */
@@ -30,9 +30,15 @@ export const integrationColorIds = [
   'clay',
   'sand',
 ] as const
-export type IntegrationColor = (typeof integrationColorIds)[number]
+export type PaletteColor = (typeof integrationColorIds)[number]
 
-export const INTEGRATION_COLOR_HEX: Readonly<Record<IntegrationColor, string>> = {
+/** A custom color: uppercase `#RRGGBB`. */
+export const HEX_COLOR = /^#[0-9A-F]{6}$/
+
+/** A stored integration color: a palette id, or a custom uppercase `#RRGGBB`. */
+export type IntegrationColor = PaletteColor | `#${string}`
+
+export const INTEGRATION_COLOR_HEX: Readonly<Record<PaletteColor, string>> = {
   pistachio: '#D9F99D',
   lime: '#A3E635',
   green: '#4ADE80',
@@ -56,7 +62,7 @@ export const INTEGRATION_COLOR_HEX: Readonly<Record<IntegrationColor, string>> =
   sand: '#D6C7A1',
 }
 
-export const DEFAULT_INTEGRATION_COLORS: Readonly<Record<IntegrationKey, IntegrationColor>> = {
+export const DEFAULT_INTEGRATION_COLORS: Readonly<Record<IntegrationKey, PaletteColor>> = {
   claude: 'clay',
   github: 'green',
   gitlab: 'orange',
@@ -64,5 +70,21 @@ export const DEFAULT_INTEGRATION_COLORS: Readonly<Record<IntegrationKey, Integra
   redmine: 'pink',
   reminders: 'blue',
   notes: 'violet',
-  system: 'teal',
+}
+
+const paletteIds: ReadonlySet<string> = new Set(integrationColorIds)
+
+export function isPaletteColor(color: string): color is PaletteColor {
+  return paletteIds.has(color)
+}
+
+/** The color as uppercase `#RRGGBB`: a palette id gives its hex, a hex gives itself. */
+export function colorHex(color: IntegrationColor): string {
+  return isPaletteColor(color) ? INTEGRATION_COLOR_HEX[color] : color
+}
+
+/** The palette id whose hex is `hex` (any case), or null. */
+export function paletteIdFor(hex: string): PaletteColor | null {
+  const upper = hex.toUpperCase()
+  return integrationColorIds.find((id) => INTEGRATION_COLOR_HEX[id] === upper) ?? null
 }

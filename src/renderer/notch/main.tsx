@@ -1,10 +1,10 @@
-import '@fontsource-variable/geist'
+import '@fontsource-variable/nunito'
 import '@fontsource-variable/geist-mono'
 import '@fontsource/jersey-10'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindClaude } from '../shared/claude-store'
-import { bindCodeReview } from '../shared/code-review-store'
+import { bindCodeReview, bindCodeReviewContributions } from '../shared/code-review-store'
 import { bindGmail, bindGmailPanel } from '../shared/gmail-store'
 import { bindNotes } from '../shared/notes-store'
 import { bindQuestions } from '../shared/questions-store'
@@ -27,6 +27,7 @@ bindSystem()
 bindGmail()
 bindGmailPanel()
 bindCodeReview()
+bindCodeReviewContributions()
 bindRedmine()
 
 createRoot(root).render(

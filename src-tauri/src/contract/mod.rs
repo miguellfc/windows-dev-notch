@@ -363,10 +363,6 @@ pub fn check(
             | "gmail:sign-out",
             Output,
         ) => required::<Ack>(value),
-        ("system:view", Input) => required::<system::ViewInput>(value),
-        ("system:view", Output) => required::<Ack>(value),
-        ("system:kill-process", Input) => required::<system::KillInput>(value),
-        ("system:kill-process", Output) => required::<system::KillResult>(value),
         ("notes:list", Input) | ("reminders:list", Input) => none(value),
         ("notes:list", Output) => required::<notes::NotesSnapshot>(value),
         ("notes:create", Input) => required::<notes::CreateNoteInput>(value),
@@ -397,7 +393,6 @@ pub fn check(
         }
         ("settings:changed", Event) => required::<settings::Settings>(value),
         ("system:metrics", Event) => required::<system::SystemMetrics>(value),
-        ("system:processes", Event) => required::<system::ProcessList>(value),
         ("notes:changed", Event) => required::<notes::NotesSnapshot>(value),
         ("reminders:changed", Event) => required::<reminders::RemindersSnapshot>(value),
         ("reminders:fired", Event) => required::<reminders::ReminderFired>(value),

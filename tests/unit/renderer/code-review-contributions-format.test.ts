@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  capsuleContributionsLabel,
+  capsuleContributionsText,
   contributionsPhase,
   contributionsText,
   dayCellLabel,
@@ -142,5 +144,24 @@ describe('gridKeyTarget', () => {
   it('ignores other keys and unknown dates', () => {
     expect(gridKeyTarget(weeks, '2026-11-12', 'Enter')).toBeNull()
     expect(gridKeyTarget(weeks, '2026-10-30', 'ArrowDown')).toBeNull()
+  })
+})
+
+describe('capsuleContributionsText / capsuleContributionsLabel', () => {
+  it('writes the total up to 999 and caps at 999+', () => {
+    expect(capsuleContributionsText(0)).toBe('0')
+    expect(capsuleContributionsText(143)).toBe('143')
+    expect(capsuleContributionsText(999)).toBe('999')
+    expect(capsuleContributionsText(1000)).toBe('999+')
+    expect(capsuleContributionsText(4321)).toBe('999+')
+  })
+
+  it('names the exact total, the month and the platform, singular for 1, in ES and EN', () => {
+    expect(capsuleContributionsLabel('github', 143, '2026-11', 'es')).toBe('143 contribuciones en noviembre en GitHub')
+    expect(capsuleContributionsLabel('gitlab', 143, '2026-11', 'en')).toBe('143 contributions in November on GitLab')
+    expect(capsuleContributionsLabel('gitlab', 1, '2026-02', 'es')).toBe('1 contribución en febrero en GitLab')
+    expect(capsuleContributionsLabel('github', 1, '2026-02', 'en')).toBe('1 contribution in February on GitHub')
+    expect(capsuleContributionsLabel('github', 0, '2026-11', 'en')).toBe('0 contributions in November on GitHub')
+    expect(capsuleContributionsLabel('github', 1500, '2026-11', 'es')).toBe('1500 contribuciones en noviembre en GitHub')
   })
 })

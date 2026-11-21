@@ -743,9 +743,6 @@ mod tests {
         items.iter().map(|item| item.to_string()).collect()
     }
 
-    const OPEN_SYSTEM: NotchEvent = E::OpenIntegration {
-        id: IntegrationId::System,
-    };
     const OPEN_REMINDERS: NotchEvent = E::OpenIntegration {
         id: IntegrationId::Reminders,
     };
@@ -1091,14 +1088,14 @@ mod tests {
 
     #[test]
     fn focus_on_entering_panel_and_blur_on_leaving() {
-        // Grows into the system panel and takes focus, then gives it back on dismiss.
+        // Grows into the notes panel and takes focus, then gives it back on dismiss.
         let h = Harness::setup();
-        h.dispatch(OPEN_SYSTEM);
+        h.dispatch(OPEN_NOTES);
         assert_eq!(
             h.calls(),
             [
-                size(VisibleMode::System),
-                "mode:system".into(),
+                size(VisibleMode::Notes),
+                "mode:notes".into(),
                 "focus".into()
             ]
         );
@@ -1106,14 +1103,12 @@ mod tests {
         h.dispatch(E::Dismiss);
         assert_eq!(h.calls(), strings(&["mode:peek", "blur"]));
         // Moving between panel views keeps the focus.
-        h.dispatch(OPEN_SYSTEM);
+        h.dispatch(OPEN_NOTES);
         h.reset();
         h.dispatch(E::Back);
-        // The home panel's window is taller than the system view's: grow first, then the mode.
-        assert_eq!(
-            h.calls(),
-            [size(VisibleMode::Expanded), "mode:expanded".into()]
-        );
+        // The home panel's window is shorter than the notes view's: the mode first (the window
+        // shrinks once the renderer settles), and the focus stays.
+        assert_eq!(h.calls(), strings(&["mode:expanded"]));
     }
 
     // --- attention ---

@@ -1,10 +1,4 @@
-import {
-  CODE_REVIEW_COUNT_CAP,
-  type CodeReviewAlert,
-  type CodeReviewState,
-  type Platform,
-  type PlatformState,
-} from '../../../shared/code-review/schema'
+import type { CodeReviewAlert, CodeReviewState, Platform, PlatformState } from '../../../shared/code-review/schema'
 import { translate } from '../../../shared/i18n/messages'
 import type { Language } from '../../../shared/settings/schema'
 
@@ -18,18 +12,6 @@ export const PLATFORMS: readonly Platform[] = ['github', 'gitlab']
 
 /** Brand names are never translated. */
 export const PLATFORM_NAMES: Readonly<Record<Platform, string>> = { github: 'GitHub', gitlab: 'GitLab' }
-
-/** A count as shown: main caps it at 100, which means "more than 99". */
-export function reviewCountText(count: number): string {
-  return count >= CODE_REVIEW_COUNT_CAP ? '99+' : String(count)
-}
-
-/** Accessible name of a capsule block: "2 PR tuyos sin revisar en GitHub" / "1 of your MRs unreviewed on GitLab". */
-export function unreviewedLabel(platform: Platform, count: number, language: Language): string {
-  const github = platform === 'github'
-  if (count === 1) return translate(language, github ? 'codeReview.capsule.unreadPrOne' : 'codeReview.capsule.unreadMrOne')
-  return translate(language, github ? 'codeReview.capsule.unreadPr' : 'codeReview.capsule.unreadMr', { count: reviewCountText(count) })
-}
 
 /** What the first-review alert shows: the verdict of one PR/MR (with its ref and title when known), or a count. */
 export type ReviewAlertContent =

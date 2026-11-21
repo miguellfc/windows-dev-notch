@@ -1,4 +1,4 @@
-import { Activity, AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
+import { AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
 import { capsuleIntegrationKeys, integrationKeys, type IntegrationKey } from '../../shared/integrations/colors'
 import type { MessageKey } from '../../shared/i18n/messages'
 import type { Settings } from '../../shared/settings/schema'
@@ -18,7 +18,6 @@ const ROWS: Readonly<Record<IntegrationKey, { label: MessageKey; icon: LucideIco
   redmine: { label: 'integration.redmine', icon: RedmineMark },
   reminders: { label: 'integration.reminders', icon: AlarmClock },
   notes: { label: 'integration.notes', icon: StickyNote },
-  system: { label: 'integration.system', icon: Activity },
 }
 
 const capsuleKeys: ReadonlySet<IntegrationKey> = new Set(capsuleIntegrationKeys)
@@ -29,7 +28,7 @@ const updateIntegration = createIntegrationsUpdater(
   (patch) => useSettings.getState().update(patch),
 )
 
-/** Every integration: on/off, capsule block (where it has one) and its palette color. */
+/** Every integration: on/off, capsule block (where it has one) and its color. */
 export function IntegrationsPage({ settings }: { settings: Settings }) {
   const t = useT()
   const header = 'px-4 py-2 text-left text-caps font-medium uppercase text-graphite'
@@ -79,8 +78,6 @@ export function IntegrationsPage({ settings }: { settings: Settings }) {
                           label={`${name}: ${t('cc.integrations.capsule')}`}
                           onChange={(capsule) => void updateIntegration(key, { capsule })}
                         />
-                      ) : key === 'system' ? (
-                        <span className="text-small text-graphite">{t('cc.integrations.always')}</span>
                       ) : null}
                     </span>
                   </td>
@@ -88,7 +85,7 @@ export function IntegrationsPage({ settings }: { settings: Settings }) {
                     <ColorSwatchPicker
                       icon={Icon}
                       value={integration.color}
-                      label={`${name}: ${t('cc.integrations.color')}`}
+                      name={name}
                       onChange={(color) => void updateIntegration(key, { color })}
                     />
                   </td>

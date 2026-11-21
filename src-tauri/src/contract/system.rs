@@ -1,11 +1,8 @@
-//! `system:*` channels and events (`src/shared/system/schema.ts`).
+//! The `system:metrics` event (`src/shared/system/schema.ts`).
 
 use serde::{Deserialize, Serialize};
 
-use super::{length, nullable, Validate, MAX_SAFE_INTEGER};
-
-/// Rows of the System view's process list: the sampler's default limit and the event's maximum.
-pub const PROCESS_LIMIT: usize = 5;
+use super::{nullable, Validate, MAX_SAFE_INTEGER};
 
 /// `percentSchema`: 0..=100.
 fn percent(name: &str, value: f64) -> Result<(), String> {
@@ -29,28 +26,11 @@ fn bytes(name: &str, value: f64) -> Result<(), String> {
     }
 }
 
-/// `z.int().positive()`.
-fn positive_int(name: &str, value: u64) -> Result<(), String> {
-    if (1..=MAX_SAFE_INTEGER).contains(&value) {
-        Ok(())
-    } else {
-        Err(format!("{name} must be a positive safe integer"))
-    }
-}
-
 /// `/^[A-Z]$/`.
 fn drive_letter(letter: &str) -> Result<(), String> {
     match letter.as_bytes() {
         [byte] if byte.is_ascii_uppercase() => Ok(()),
         _ => Err("letter must be one of A-Z".into()),
-    }
-}
-
-fn max_length(name: &str, value: &str, max: usize) -> Result<(), String> {
-    if length(value) <= max {
-        Ok(())
-    } else {
-        Err(format!("{name} must be at most {max} characters"))
     }
 }
 
@@ -99,18 +79,16 @@ pub struct BatterySample {
     pub seconds_left: Option<u64>,
 }
 
-/// `lightSampleSchema.storage`: the fixed drive with the least free space (the one the disk alert
-/// watches) and its used percent.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+/// `lightSampleSchema.storage`: the whole computer's fill, used bytes over total bytes of every
+/// fixed drive read, as a percent.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct StorageSample {
-    pub letter: String,
     pub used_percent: f64,
 }
 
-fn optional_storage(storage: Option<&StorageSample>) -> Result<(), String> {
+fn optional_storage(storage: Option<StorageSample>) -> Result<(), String> {
     storage.map_or(Ok(()), |storage| {
-        drive_letter(&storage.letter)?;
         percent("usedPercent", storage.used_percent)
     })
 }
@@ -128,6 +106,11 @@ pub struct LightSample {
     pub alerts: SystemAlerts,
     #[serde(deserialize_with = "nullable")]
     pub storage: Option<StorageSample>,
+    /// Internet reachability from Windows' connectivity hint (`GetNetworkConnectivityHint`):
+    /// `true` with internet access, `false` with none, local only or captive/limited; `None`
+    /// (JSON `null`) when Windows does not know, so the renderer falls back to `navigator.onLine`.
+    #[serde(deserialize_with = "nullable")]
+    pub online: Option<bool>,
 }
 
 impl Validate for LightSample {
@@ -146,74 +129,8 @@ impl Validate for LightSample {
                 return Err("secondsLeft must be a safe integer".into());
             }
         }
-        optional_storage(self.storage.as_ref())?;
+        optional_storage(self.storage)?;
         self.alerts.validate()
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct DiskSample {
-    pub letter: String,
-    pub used_percent: f64,
-    pub free_bytes: f64,
-    #[serde(deserialize_with = "nullable")]
-    pub activity_percent: Option<f64>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct NetworkSample {
-    pub up_bytes_per_sec: f64,
-    pub down_bytes_per_sec: f64,
-}
-
-/// `fullSampleSchema`: the light sample plus disks and network (fields repeated rather than
-/// flattened: `#[serde(flatten)]` cannot be combined with `deny_unknown_fields`).
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct FullSample {
-    #[serde(deserialize_with = "nullable")]
-    pub cpu_percent: Option<f64>,
-    #[serde(deserialize_with = "nullable")]
-    pub ram: Option<RamSample>,
-    #[serde(deserialize_with = "nullable")]
-    pub battery: Option<BatterySample>,
-    pub alerts: SystemAlerts,
-    #[serde(deserialize_with = "nullable")]
-    pub storage: Option<StorageSample>,
-    pub disks: Vec<DiskSample>,
-    #[serde(deserialize_with = "nullable")]
-    pub network: Option<NetworkSample>,
-}
-
-impl FullSample {
-    /// The fields both sample kinds share.
-    pub fn light(&self) -> LightSample {
-        LightSample {
-            cpu_percent: self.cpu_percent,
-            ram: self.ram,
-            battery: self.battery,
-            alerts: self.alerts.clone(),
-            storage: self.storage.clone(),
-        }
-    }
-}
-
-impl Validate for FullSample {
-    fn validate(&self) -> Result<(), String> {
-        self.light().validate()?;
-        for disk in &self.disks {
-            drive_letter(&disk.letter)?;
-            percent("usedPercent", disk.used_percent)?;
-            bytes("freeBytes", disk.free_bytes)?;
-            optional_percent("activityPercent", disk.activity_percent)?;
-        }
-        if let Some(network) = self.network {
-            bytes("upBytesPerSec", network.up_bytes_per_sec)?;
-            bytes("downBytesPerSec", network.down_bytes_per_sec)?;
-        }
-        Ok(())
     }
 }
 
@@ -228,7 +145,6 @@ pub struct Unavailable {}
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum SystemMetrics {
     Light(LightSample),
-    Full(FullSample),
     Unavailable(Unavailable),
 }
 
@@ -236,96 +152,10 @@ impl Validate for SystemMetrics {
     fn validate(&self) -> Result<(), String> {
         match self {
             Self::Light(sample) => sample.validate(),
-            Self::Full(sample) => sample.validate(),
             Self::Unavailable(_) => Ok(()),
         }
     }
 }
-
-/// `processRowSchema`.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct ProcessRow {
-    pub pid: u64,
-    pub name: String,
-    #[serde(deserialize_with = "nullable")]
-    pub cpu_percent: Option<f64>,
-    #[serde(deserialize_with = "nullable")]
-    pub private_bytes: Option<f64>,
-    /// ISO-8601 start instant; with the pid it identifies the process across pid reuse.
-    pub start_time: String,
-    pub killable: bool,
-}
-
-impl Validate for ProcessRow {
-    fn validate(&self) -> Result<(), String> {
-        positive_int("pid", self.pid)?;
-        max_length("name", &self.name, 260)?;
-        optional_percent("cpuPercent", self.cpu_percent)?;
-        if let Some(private) = self.private_bytes {
-            bytes("privateBytes", private)?;
-        }
-        max_length("startTime", &self.start_time, 40)
-    }
-}
-
-/// Payload of `system:processes`: at most [`PROCESS_LIMIT`] rows.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
-#[serde(transparent)]
-pub struct ProcessList(pub Vec<ProcessRow>);
-
-impl Validate for ProcessList {
-    fn validate(&self) -> Result<(), String> {
-        if self.0.len() > PROCESS_LIMIT {
-            return Err(format!("at most {PROCESS_LIMIT} processes"));
-        }
-        self.0.iter().try_for_each(Validate::validate)
-    }
-}
-
-string_enum! {
-    /// `processOrderSchema`.
-    pub enum ProcessOrder {
-        Cpu = "cpu",
-        Ram = "ram",
-    }
-}
-
-string_enum! {
-    /// `killResultSchema`.
-    pub enum KillResult {
-        Killed = "killed",
-        Gone = "gone",
-        Denied = "denied",
-        NotKillable = "not-killable",
-    }
-}
-
-/// `killInputSchema` (input of `system:kill-process`).
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct KillInput {
-    pub pid: u64,
-    pub start_time: String,
-}
-
-impl Validate for KillInput {
-    fn validate(&self) -> Result<(), String> {
-        positive_int("pid", self.pid)?;
-        max_length("startTime", &self.start_time, 40)
-    }
-}
-
-/// `viewInputSchema` (input of `system:view`).
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct ViewInput {
-    pub by: ProcessOrder,
-}
-
-impl Validate for ViewInput {}
-
-input_entry!(KillInput, ViewInput);
 
 #[cfg(test)]
 mod tests {
@@ -339,26 +169,11 @@ mod tests {
             ram: None,
             battery: None,
             alerts: SystemAlerts::default(),
-            storage: Some(StorageSample {
-                letter: "C".into(),
-                used_percent: 62.0,
-            }),
-        };
-        let full = FullSample {
-            cpu_percent: None,
-            ram: Some(RamSample {
-                used_bytes: 1.0,
-                total_bytes: 2.0,
-            }),
-            battery: None,
-            alerts: SystemAlerts::default(),
-            storage: None,
-            disks: Vec::new(),
-            network: None,
+            storage: Some(StorageSample { used_percent: 62.0 }),
+            online: Some(false),
         };
         for metrics in [
             SystemMetrics::Light(light),
-            SystemMetrics::Full(full),
             SystemMetrics::Unavailable(Unavailable {}),
         ] {
             let value = serde_json::to_value(&metrics).unwrap();
@@ -367,13 +182,23 @@ mod tests {
                 Some(Ok(()))
             );
         }
+        // Unknown connectivity is sent as `online: null`, never left out (the schema is strict).
+        let unknown = LightSample {
+            cpu_percent: None,
+            ram: None,
+            battery: None,
+            alerts: SystemAlerts::default(),
+            storage: None,
+            online: None,
+        };
+        let value = serde_json::to_value(SystemMetrics::Light(unknown)).unwrap();
+        assert_eq!(value["online"], serde_json::Value::Null);
+        assert!(value.as_object().unwrap().contains_key("online"));
+        assert_eq!(
+            check("system:metrics", Direction::Event, Some(&value)),
+            Some(Ok(()))
+        );
         let unavailable = serde_json::to_value(SystemMetrics::Unavailable(Unavailable {})).unwrap();
         assert_eq!(unavailable, serde_json::json!({ "kind": "unavailable" }));
-    }
-
-    #[test]
-    fn kill_input_entry_refuses_pid_zero() {
-        let refused = KillInput::from_input(serde_json::json!({ "pid": 0, "startTime": "" }));
-        assert!(refused.is_err());
     }
 }

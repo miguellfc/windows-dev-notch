@@ -33,7 +33,6 @@ pub enum VisibleMode {
     Permission,
     Question,
     Reminders,
-    System,
     Notes,
     Gmail,
     Reviews,
@@ -42,7 +41,7 @@ pub enum VisibleMode {
 }
 
 impl VisibleMode {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 12] = [
         Self::Compact,
         Self::Peek,
         Self::Alert,
@@ -50,7 +49,6 @@ impl VisibleMode {
         Self::Permission,
         Self::Question,
         Self::Reminders,
-        Self::System,
         Self::Notes,
         Self::Gmail,
         Self::Reviews,
@@ -72,7 +70,6 @@ impl VisibleMode {
             Self::Permission => NotchMode::Permission,
             Self::Question => NotchMode::Question,
             Self::Reminders => NotchMode::Reminders,
-            Self::System => NotchMode::System,
             Self::Notes => NotchMode::Notes,
             Self::Gmail => NotchMode::Gmail,
             Self::Reviews => NotchMode::Reviews,
@@ -112,15 +109,14 @@ pub const REVIEWS_SIZE: Size = size(520.0, 324.0);
 pub const REDMINE_SEARCH_SIZE: Size = size(520.0, 560.0);
 
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).
-pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
-    (VisibleMode::Compact, size(491.0, 36.0)),
-    (VisibleMode::Peek, size(177.0, 36.0)),
+pub const CAPSULE_SIZES: [(VisibleMode, Size); 12] = [
+    (VisibleMode::Compact, size(465.0, 36.0)),
+    (VisibleMode::Peek, size(174.0, 36.0)),
     (VisibleMode::Alert, size(320.0, 44.0)),
     (VisibleMode::Expanded, EXPANDED_SIZE),
     (VisibleMode::Permission, size(480.0, 300.0)),
     (VisibleMode::Question, QUESTION_SIZE),
     (VisibleMode::Reminders, size(420.0, 320.0)),
-    (VisibleMode::System, size(520.0, 280.0)),
     (VisibleMode::Notes, size(420.0, 320.0)),
     (VisibleMode::Gmail, GMAIL_READER_SIZE),
     (VisibleMode::Reviews, REVIEWS_SIZE),
@@ -143,17 +139,17 @@ const ZONE_PADDING: f64 = 30.0;
 /// The 1 px line and the room around it.
 const ZONE_DIVIDER: f64 = 15.0;
 /// Time and date.
-const ZONE_LEFT: f64 = 147.0;
+const ZONE_LEFT: f64 = 143.5;
 /// CPU, RAM, storage and connection, without the battery.
-const ZONE_SYSTEM: f64 = 235.0;
+const ZONE_SYSTEM: f64 = 212.5;
 /// What the battery adds.
 const ZONE_BATTERY: f64 = 63.5;
 
 /// Each integration block of the compact capsule with its gap (`CAPSULE_BLOCK`).
-const BLOCK_CLAUDE: f64 = 97.0;
+const BLOCK_CLAUDE: f64 = 22.0;
 const BLOCK_MAIL: f64 = 48.5;
-const BLOCK_REVIEW: f64 = 48.5;
-const BLOCK_REDMINE: f64 = 71.0;
+const BLOCK_REVIEW: f64 = 56.0;
+const BLOCK_REDMINE: f64 = 78.5;
 
 /// The system zone of the compact capsule (`system` in `CompactContent`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -201,9 +197,9 @@ pub const SHADOW_MARGIN_TOP: f64 = 6.0;
 pub const SHADOW_MARGIN_BOTTOM: f64 = 72.0;
 
 /// Constant window width: the widest capsule plus its shadow, rounded up to an even number. The
-/// widest compact capsule (every block, the system zone and the battery) is 819 wide; the
+/// widest compact capsule (every block, the system zone and the battery) is 741 wide; the
 /// widest panel is 712. A test recomputes it from the formula, so it cannot drift.
-pub const WINDOW_WIDTH: f64 = 932.0;
+pub const WINDOW_WIDTH: f64 = 854.0;
 
 #[cfg(test)]
 fn computed_window_width() -> f64 {

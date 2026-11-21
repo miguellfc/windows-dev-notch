@@ -212,7 +212,109 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -313,7 +415,313 @@
         }
       }
     },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 8,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 9,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "#A3B18A"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      }
+    },
     "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 9,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "#a3b18a"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      }
+    },
+    "accept": false
   },
   {
     "channel": "settings:get",
@@ -440,7 +848,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -534,11 +942,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -548,7 +951,7 @@
     "channel": "settings:update",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -641,11 +1044,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -655,7 +1053,7 @@
     "channel": "settings:update",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "fr",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -748,11 +1146,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -762,7 +1155,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -855,11 +1248,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -869,7 +1257,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Space",
       "launchAtLogin": false,
@@ -962,11 +1350,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -976,7 +1359,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1069,11 +1452,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -1083,7 +1461,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1176,11 +1554,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -2589,7 +2962,7 @@
     "channel": "notch:get-mode",
     "direction": "output",
     "value": "system",
-    "accept": true
+    "accept": false
   },
   {
     "channel": "notch:get-mode",
@@ -2821,7 +3194,7 @@
     "value": {
       "id": "system"
     },
-    "accept": true
+    "accept": false
   },
   {
     "channel": "notch:open-integration",
@@ -3508,7 +3881,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": {
         "es": null
       },
@@ -3603,11 +3976,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -3823,9 +4191,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": true
   },
@@ -3855,9 +4223,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
       },
+      "online": true,
       "disks": [
         {
           "letter": "C",
@@ -3871,7 +4239,7 @@
         "downBytesPerSec": 2048.5
       }
     },
-    "accept": true
+    "accept": false
   },
   {
     "channel": "system:metrics",
@@ -3895,7 +4263,8 @@
         "battery": true,
         "disk": null
       },
-      "storage": null
+      "storage": null,
+      "online": null
     },
     "accept": true
   },
@@ -3925,9 +4294,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": true
   },
@@ -3957,93 +4326,9 @@
         }
       },
       "storage": {
-        "letter": "C",
-        "usedPercent": 92.5
-      }
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": {
-      "kind": "full",
-      "cpuPercent": 12.5,
-      "ram": {
-        "usedBytes": 8000000000,
-        "totalBytes": 16000000000
-      },
-      "battery": {
-        "percent": 80,
-        "charging": false,
-        "pluggedIn": true,
-        "secondsLeft": null
-      },
-      "alerts": {
-        "cpu": false,
-        "ram": true,
-        "battery": false,
-        "disk": {
-          "letter": "C",
-          "freePercent": 7.5
-        }
-      },
-      "storage": {
-        "letter": "C",
         "usedPercent": 92.5
       },
-      "disks": [],
-      "network": null
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": {
-      "kind": "full",
-      "cpuPercent": 12.5,
-      "ram": {
-        "usedBytes": 8000000000,
-        "totalBytes": 16000000000
-      },
-      "battery": {
-        "percent": 80,
-        "charging": false,
-        "pluggedIn": true,
-        "secondsLeft": null
-      },
-      "alerts": {
-        "cpu": false,
-        "ram": true,
-        "battery": false,
-        "disk": {
-          "letter": "C",
-          "freePercent": 7.5
-        }
-      },
-      "storage": {
-        "letter": "C",
-        "usedPercent": 92.5
-      },
-      "disks": [
-        {
-          "letter": "Z",
-          "usedPercent": 100,
-          "freeBytes": 0,
-          "activityPercent": 0
-        },
-        {
-          "letter": "A",
-          "usedPercent": 0,
-          "freeBytes": 1.5,
-          "activityPercent": 100
-        }
-      ],
-      "network": {
-        "upBytesPerSec": 1024,
-        "downBytesPerSec": 2048.5
-      }
+      "online": true
     },
     "accept": true
   },
@@ -4089,9 +4374,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4121,9 +4406,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
       },
+      "online": true,
       "disks": []
     },
     "accept": false
@@ -4132,46 +4417,6 @@
     "channel": "system:metrics",
     "direction": "event",
     "value": {
-      "kind": "full",
-      "cpuPercent": 12.5,
-      "ram": {
-        "usedBytes": 8000000000,
-        "totalBytes": 16000000000
-      },
-      "battery": {
-        "percent": 80,
-        "charging": false,
-        "pluggedIn": true,
-        "secondsLeft": null
-      },
-      "alerts": {
-        "cpu": false,
-        "ram": true,
-        "battery": false,
-        "disk": {
-          "letter": "C",
-          "freePercent": 7.5
-        }
-      },
-      "storage": {
-        "letter": "C",
-        "usedPercent": 92.5
-      },
-      "disks": [
-        {
-          "letter": "C",
-          "usedPercent": 60,
-          "freeBytes": 100000000000,
-          "activityPercent": null
-        }
-      ]
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": {
       "kind": "light",
       "cpuPercent": 12.5,
       "ram": {
@@ -4188,9 +4433,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4220,9 +4465,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4252,9 +4497,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4284,9 +4529,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4316,9 +4561,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4347,9 +4592,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4379,9 +4624,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4411,9 +4656,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4443,9 +4688,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4474,9 +4719,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4506,9 +4751,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4538,9 +4783,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4570,9 +4815,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4602,9 +4847,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4630,9 +4875,9 @@
         "battery": false
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 92.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4663,142 +4908,9 @@
         "gpu": false
       },
       "storage": {
-        "letter": "C",
-        "usedPercent": 92.5
-      }
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": {
-      "kind": "full",
-      "cpuPercent": 12.5,
-      "ram": {
-        "usedBytes": 8000000000,
-        "totalBytes": 16000000000
-      },
-      "battery": {
-        "percent": 80,
-        "charging": false,
-        "pluggedIn": true,
-        "secondsLeft": null
-      },
-      "alerts": {
-        "cpu": false,
-        "ram": true,
-        "battery": false,
-        "disk": {
-          "letter": "C",
-          "freePercent": 7.5
-        }
-      },
-      "storage": {
-        "letter": "C",
         "usedPercent": 92.5
       },
-      "disks": [
-        {
-          "letter": "C",
-          "usedPercent": 60,
-          "freeBytes": 1,
-          "activityPercent": null,
-          "label": "OS"
-        }
-      ],
-      "network": {
-        "upBytesPerSec": 1024,
-        "downBytesPerSec": 2048.5
-      }
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": {
-      "kind": "full",
-      "cpuPercent": 12.5,
-      "ram": {
-        "usedBytes": 8000000000,
-        "totalBytes": 16000000000
-      },
-      "battery": {
-        "percent": 80,
-        "charging": false,
-        "pluggedIn": true,
-        "secondsLeft": null
-      },
-      "alerts": {
-        "cpu": false,
-        "ram": true,
-        "battery": false,
-        "disk": {
-          "letter": "C",
-          "freePercent": 7.5
-        }
-      },
-      "storage": {
-        "letter": "C",
-        "usedPercent": 92.5
-      },
-      "disks": [
-        {
-          "letter": "C",
-          "usedPercent": 60,
-          "freeBytes": -5,
-          "activityPercent": null
-        }
-      ],
-      "network": {
-        "upBytesPerSec": 1024,
-        "downBytesPerSec": 2048.5
-      }
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": {
-      "kind": "full",
-      "cpuPercent": 12.5,
-      "ram": {
-        "usedBytes": 8000000000,
-        "totalBytes": 16000000000
-      },
-      "battery": {
-        "percent": 80,
-        "charging": false,
-        "pluggedIn": true,
-        "secondsLeft": null
-      },
-      "alerts": {
-        "cpu": false,
-        "ram": true,
-        "battery": false,
-        "disk": {
-          "letter": "C",
-          "freePercent": 7.5
-        }
-      },
-      "storage": {
-        "letter": "C",
-        "usedPercent": 92.5
-      },
-      "disks": [
-        {
-          "letter": "C",
-          "usedPercent": 60,
-          "freeBytes": 100000000000,
-          "activityPercent": null
-        }
-      ],
-      "network": {
-        "upBytesPerSec": -1,
-        "downBytesPerSec": 0
-      }
+      "online": true
     },
     "accept": false
   },
@@ -4827,7 +4939,8 @@
           "freePercent": 7.5
         }
       },
-      "storage": null
+      "storage": null,
+      "online": true
     },
     "accept": true
   },
@@ -4857,9 +4970,9 @@
         }
       },
       "storage": {
-        "letter": "Z",
         "usedPercent": 0
-      }
+      },
+      "online": true
     },
     "accept": true
   },
@@ -4889,9 +5002,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 100
-      }
+      },
+      "online": true
     },
     "accept": true
   },
@@ -4923,7 +5036,8 @@
       "storage": {
         "letter": "c",
         "usedPercent": 62
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4953,9 +5067,9 @@
         }
       },
       "storage": {
-        "letter": "CD",
-        "usedPercent": 62
-      }
+        "usedPercent": "62"
+      },
+      "online": true
     },
     "accept": false
   },
@@ -4985,9 +5099,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 100.5
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -5017,9 +5131,9 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": -1
-      }
+      },
+      "online": true
     },
     "accept": false
   },
@@ -5049,10 +5163,139 @@
         }
       },
       "storage": {
-        "letter": "C",
         "usedPercent": 62,
         "extra": 1
-      }
+      },
+      "online": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "storage": {},
+      "online": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "online": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "storage": {
+        "usedPercent": 92.5
+      },
+      "online": false
+    },
+    "accept": true
+  },
+  {
+    "channel": "system:metrics",
+    "direction": "event",
+    "value": {
+      "kind": "light",
+      "cpuPercent": 12.5,
+      "ram": {
+        "usedBytes": 8000000000,
+        "totalBytes": 16000000000
+      },
+      "battery": {
+        "percent": 80,
+        "charging": false,
+        "pluggedIn": true,
+        "secondsLeft": null
+      },
+      "alerts": {
+        "cpu": false,
+        "ram": true,
+        "battery": false,
+        "disk": {
+          "letter": "C",
+          "freePercent": 7.5
+        }
+      },
+      "storage": {
+        "usedPercent": 92.5
+      },
+      "online": "offline"
     },
     "accept": false
   },
@@ -5082,8 +5325,9 @@
         }
       },
       "storage": {
-        "letter": "C"
-      }
+        "usedPercent": 92.5
+      },
+      "online": 0
     },
     "accept": false
   },
@@ -5111,567 +5355,10 @@
           "letter": "C",
           "freePercent": 7.5
         }
-      }
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:metrics",
-    "direction": "event",
-    "value": null,
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [],
-    "accept": true
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
       },
-      {
-        "pid": 1,
-        "name": "code.exe",
-        "cpuPercent": null,
-        "privateBytes": null,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": false
+      "storage": {
+        "usedPercent": 92.5
       }
-    ],
-    "accept": true
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 1,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 2,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 3,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 4,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 5,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": true
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "ssssssssssssssssssssssssssssssssssssssss",
-        "killable": true
-      }
-    ],
-    "accept": true
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "",
-        "killable": true
-      }
-    ],
-    "accept": true
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 9007199254740991,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": true
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 1,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 2,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 3,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 4,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 5,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      },
-      {
-        "pid": 6,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 0,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": -3,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 1.5,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 9007199254740992,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "sssssssssssssssssssssssssssssssssssssssss",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "code.exe",
-        "cpuPercent": 100.01,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": -1,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z",
-        "killable": true,
-        "user": "me"
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": [
-      {
-        "pid": 4321,
-        "name": "code.exe",
-        "cpuPercent": 3.25,
-        "privateBytes": 52428800,
-        "startTime": "2026-11-15T08:00:00.123Z"
-      }
-    ],
-    "accept": false
-  },
-  {
-    "channel": "system:processes",
-    "direction": "event",
-    "value": {
-      "pid": 4321,
-      "name": "code.exe",
-      "cpuPercent": 3.25,
-      "privateBytes": 52428800,
-      "startTime": "2026-11-15T08:00:00.123Z",
-      "killable": true
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:view",
-    "direction": "input",
-    "value": {
-      "by": "cpu"
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:view",
-    "direction": "input",
-    "value": {
-      "by": "ram"
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:view",
-    "direction": "input",
-    "value": {
-      "by": "name"
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:view",
-    "direction": "input",
-    "value": {},
-    "accept": false
-  },
-  {
-    "channel": "system:view",
-    "direction": "input",
-    "accept": false
-  },
-  {
-    "channel": "system:view",
-    "direction": "input",
-    "value": {
-      "by": "cpu",
-      "open": true
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:view",
-    "direction": "output",
-    "value": null,
-    "accept": true
-  },
-  {
-    "channel": "system:view",
-    "direction": "output",
-    "value": {},
-    "accept": false
-  },
-  {
-    "channel": "system:view",
-    "direction": "output",
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 1234,
-      "startTime": "2026-11-15T08:00:00.000Z"
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 9007199254740991,
-      "startTime": "ssssssssssssssssssssssssssssssssssssssss"
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 1,
-      "startTime": ""
-    },
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 0,
-      "startTime": "2026-11-15T09:30:00.000Z"
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": -1,
-      "startTime": "2026-11-15T09:30:00.000Z"
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 12.5,
-      "startTime": "2026-11-15T09:30:00.000Z"
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": "1234",
-      "startTime": "2026-11-15T09:30:00.000Z"
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 1234,
-      "startTime": "sssssssssssssssssssssssssssssssssssssssss"
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 1234
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "value": {
-      "pid": 1234,
-      "startTime": "2026-11-15T09:30:00.000Z",
-      "force": true
-    },
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "input",
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": "killed",
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": "gone",
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": "denied",
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": "not-killable",
-    "accept": true
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": "failed",
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": null,
-    "accept": false
-  },
-  {
-    "channel": "system:kill-process",
-    "direction": "output",
-    "value": {
-      "result": "killed"
     },
     "accept": false
   },
@@ -18513,6 +18200,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -18525,6 +18213,7 @@
       "status": "unconfigured",
       "account": null,
       "todayHours": null,
+      "monthHours": null,
       "updatedAt": null,
       "persistent": false
     },
@@ -18537,6 +18226,7 @@
       "status": "auth-error",
       "account": "Ana García",
       "todayHours": 0,
+      "monthHours": 0,
       "updatedAt": 1763287200000.5,
       "persistent": true
     },
@@ -18549,6 +18239,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": "2026-11-16T10:00:00.000Z",
       "persistent": true
     },
@@ -18561,6 +18252,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true,
       "key": "abcdef0123456789"
@@ -18574,6 +18266,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true,
       "url": "https://redmine.example.test"
@@ -18587,6 +18280,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": -0.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -18597,8 +18291,47 @@
     "direction": "output",
     "value": {
       "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "monthHours": -0.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
+      "account": "Ana García",
+      "todayHours": 6.5,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "offline",
+      "account": "Ana García",
+      "todayHours": null,
+      "monthHours": 744.75,
+      "updatedAt": 1763287200000,
+      "persistent": true
+    },
+    "accept": true
+  },
+  {
+    "channel": "redmine:get-state",
+    "direction": "output",
+    "value": {
+      "status": "ok",
       "account": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -18611,6 +18344,7 @@
       "status": "ok",
       "account": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -18623,6 +18357,7 @@
       "status": "ok",
       "account": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -18635,6 +18370,7 @@
       "status": "error",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -18647,6 +18383,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000
     },
     "accept": false
@@ -18658,6 +18395,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "persistent": true
     },
     "accept": false
@@ -20235,6 +19973,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -20247,6 +19986,7 @@
       "status": "offline",
       "account": "Ana García",
       "todayHours": null,
+      "monthHours": null,
       "updatedAt": 1763287200000,
       "persistent": true
     },
@@ -20259,6 +19999,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true,
       "key": "abcdef0123456789"
@@ -20272,6 +20013,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": 1763287200000,
       "persistent": true,
       "url": "https://redmine.example.test"
@@ -20285,6 +20027,7 @@
       "status": "ok",
       "account": "Ana García",
       "todayHours": 6.5,
+      "monthHours": 38.25,
       "updatedAt": "2026-11-16T10:00:00.000Z",
       "persistent": true
     },
@@ -23176,7 +22919,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23269,11 +23012,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -23283,7 +23021,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23376,11 +23114,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -23390,7 +23123,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23483,11 +23216,6 @@
           "enabled": true,
           "capsule": true,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -23497,7 +23225,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23590,11 +23318,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -23604,7 +23327,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23711,7 +23434,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23804,11 +23527,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -23818,7 +23536,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23911,11 +23629,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -23925,109 +23638,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 8,
-      "language": "es",
-      "shortcut": "Control+Alt+Space",
-      "launchAtLogin": false,
-      "reminders": {
-        "snoozeMinutes": 10,
-        "sound": true
-      },
-      "systemAlerts": {
-        "cpu": {
-          "enabled": true,
-          "percent": 90,
-          "sustainSeconds": 30
-        },
-        "ram": {
-          "enabled": true,
-          "percent": 90
-        },
-        "battery": {
-          "enabled": true,
-          "percent": 15
-        },
-        "disk": {
-          "enabled": true,
-          "freePercent": 10
-        }
-      },
-      "gmail": {
-        "clientId": "",
-        "clientSecret": "",
-        "alerts": {
-          "enabled": true,
-          "hideContent": false,
-          "sound": true
-        }
-      },
-      "codeReview": {
-        "gitlabUrl": "",
-        "alerts": {
-          "github": {
-            "enabled": true,
-            "sound": true
-          },
-          "gitlab": {
-            "enabled": true,
-            "sound": true
-          }
-        }
-      },
-      "redmine": {
-        "url": "",
-        "dailyTargetHours": 8,
-        "endOfDay": {
-          "enabled": true,
-          "time": "18:00",
-          "sound": true
-        }
-      },
-      "integrations": {
-        "claude": {
-          "enabled": true,
-          "capsule": true,
-          "color": "clay"
-        },
-        "github": {
-          "enabled": true,
-          "capsule": true,
-          "color": "green"
-        },
-        "gitlab": {
-          "enabled": true,
-          "capsule": true,
-          "color": "orange"
-        },
-        "gmail": {
-          "enabled": true,
-          "capsule": true,
-          "color": "salmon"
-        },
-        "redmine": {
-          "enabled": true,
-          "capsule": true,
-          "color": "pink"
-        },
-        "reminders": {
-          "enabled": true,
-          "capsule": false,
-          "color": "blue"
-        },
-        "notes": {
-          "enabled": true,
-          "capsule": false,
-          "color": "violet"
-        }
-      }
-    },
-    "accept": false
-  },
-  {
-    "channel": "settings:get",
-    "direction": "output",
-    "value": {
-      "version": 8,
+      "version": 9,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -24121,11 +23732,6 @@
           "enabled": true,
           "capsule": false,
           "color": "violet"
-        },
-        "system": {
-          "enabled": true,
-          "capsule": false,
-          "color": "teal"
         }
       }
     },
@@ -24205,6 +23811,102 @@
     "value": {
       "integrations": {
         "gmail": {
+          "color": "#A3B18A"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "#000000"
+        }
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "#a3b18a"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "#4ade80"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "#12345"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "A3B18A"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": "#A3B18A0"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
+          "color": ""
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "gmail": {
           "enabled": "yes"
         }
       }
@@ -24230,6 +23932,18 @@
       "integrations": {
         "calendar": {
           "enabled": true
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "integrations": {
+        "system": {
+          "enabled": false
         }
       }
     },

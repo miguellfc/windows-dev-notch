@@ -4,7 +4,6 @@ import {
   canAllow,
   DONE_VISIBLE_MS,
   dotStatus,
-  extraLabel,
   formatAgo,
   hiddenPreviewChars,
   nextDoneExpiry,
@@ -49,16 +48,6 @@ describe('summarizeDots', () => {
   it('does not count dotless sessions towards the extra', () => {
     const sessions = Array.from({ length: 6 }, (_, i) => session('idle', 0, String(i)))
     expect(summarizeDots(sessions, 0)).toMatchObject({ dots: [], extra: 0 })
-  })
-})
-
-describe('extraLabel', () => {
-  it('writes the extra and caps it at the reserved "+9"', () => {
-    expect(extraLabel(0)).toBe('')
-    expect(extraLabel(1)).toBe('+1')
-    expect(extraLabel(9)).toBe('+9')
-    expect(extraLabel(10)).toBe('+9')
-    expect(extraLabel(250)).toBe('+9')
   })
 })
 
