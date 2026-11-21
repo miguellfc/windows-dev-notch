@@ -4,6 +4,38 @@ Todos los cambios relevantes de Developer Notch se documentan en este archivo.
 
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.3.0] - 2026-11-21
+
+Rediseño visual completo y integraciones configurables. La cápsula, el panel, las vistas, las alertas y Control Center adoptan un lenguaje nuevo, más compacto y casi monocromo, en el que cada integración tiene su propio color.
+
+### Añadido
+
+- Página «Integraciones» en Control Center: activar o desactivar cada integración, elegir si aparece en la cápsula y cambiar su color con un selector libre (matiz, saturación, luminosidad, código hexadecimal y atajos).
+- Cápsula compacta en tres zonas fijas: hora y fecha | integraciones | sistema. Muestra la marca de Claude mientras alguna sesión tiene actividad (también en el peek), el correo sin leer, las contribuciones del mes en GitHub y GitLab y las horas imputadas este mes en Redmine.
+- Panel principal con accesos rápidos verticales, las métricas del sistema en la cabecera y una fila de tarjetas de integraciones que se recorre con la rueda.
+- GitHub y GitLab: gráfico de contribuciones del mes con el resumen de hoy, la semana y el mes, y acceso directo al perfil.
+- Redmine: resumen de horas con el gráfico del mes, buscador por asunto, proyecto o número y detalle de la tarea a vista completa, con su estado, su estimación, las horas que ya tiene imputadas e «Imputar horas».
+- Redmine acepta las horas en sus propios formatos: «1,5», «1h 25m», «1:25» o «25m».
+
+### Cambiado
+
+- Nueva tipografía: Nunito para el texto, la hora y las métricas del sistema; Geist Mono para los datos y Jersey 10 para las cifras grandes.
+- La cápsula, el peek y las vistas de GitHub, GitLab y Redmine se ajustan a su contenido, sin espacios vacíos.
+- Métricas del sistema con iconos nuevos. El almacenamiento muestra el porcentaje usado de todo el equipo y sigue avisando si algún disco se queda sin espacio.
+- El indicador de conexión refleja si hay salida a internet real según Windows, no solo si hay una red conectada.
+- Las contribuciones de GitHub y GitLab se consultan cada 15 minutos aunque la vista esté cerrada, para mostrarlas en la cápsula.
+
+### Eliminado
+
+- La vista y la tarjeta de Sistema: sus datos están ahora en la cabecera del panel y en la cápsula.
+- Las listas de PR/MR («Por revisar» y «Míos») de GitHub y GitLab. La alerta de primera revisión de tus PR/MR se mantiene.
+- La lista de tareas asignadas de Redmine en reposo: se llega a ellas desde el buscador.
+
+### Notas
+
+- Los ajustes se migran solos al formato nuevo (versión 9) al abrir la 0.3.0.
+- El indicador de conexión necesita Windows 10 versión 2004 o posterior.
+
 ## [0.2.0] - 2026-11-17
 
 Developer Notch se ha rehecho sobre Tauri 2 para que pese y consuma menos. No hay funciones nuevas: todo lo de la 0.1.0 funciona igual, con la misma interfaz y los mismos textos en español e inglés.
