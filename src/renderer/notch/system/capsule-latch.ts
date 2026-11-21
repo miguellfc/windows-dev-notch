@@ -1,4 +1,4 @@
-import type { CodeReviewState, Platform, PlatformState } from '../../../shared/code-review/schema'
+import type { CodeReviewState, ContributionsResult, Platform, PlatformStatus } from '../../../shared/code-review/schema'
 import type { GmailState } from '../../../shared/gmail/schema'
 import type { RedmineState } from '../../../shared/redmine/schema'
 import type { SystemMetrics } from '../../../shared/system/schema'
@@ -10,8 +10,16 @@ export interface CapsuleView {
   battery: { percent: number; charging: boolean; pluggedIn: boolean } | null
   /** Which metrics are painted red. Colour only: never changes the width. */
   alerts: { cpu: boolean; ram: boolean; battery: boolean }
-  /** The drive with the least free space, always present while the view is. `alert` is the latched low-space flag; it only paints red. */
-  storage: { letter: string; usedPercent: number | null; alert: boolean } | null
+  /**
+   * The whole computer's fill, always present while the view is. `lowDrive` is the latched letter of
+   * the drive under the disk alert (null without one); while set the block is painted red, colour only.
+   */
+  storage: { usedPercent: number | null; lowDrive: string | null } | null
+  /**
+   * Internet reachability as main last read it (Windows' connectivity hint), not latched: an icon
+   * of fixed width, so it may follow every sample. Null when Windows does not know; see `connectionOnline`.
+   */
+  online: boolean | null
 }
 
 export interface CapsuleLatch {
@@ -58,22 +66,19 @@ export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): Cap
       alerts.battery = previous.view.alerts.battery
     } else batteryMissRun = 0
   }
-  // The storage block is always there; only its alert is latched like the battery slot, so a
-  // single missed read does not make the red flap. It counts only for the alerted drive.
-  const alertDisk = metrics.alerts.disk
-  const letter = metrics.storage?.letter ?? alertDisk?.letter ?? 'C'
-  let alert = false
+  // The storage block is always there; only the disk alert (any drive) is latched like the battery
+  // slot, so a single missed read does not make the red flap. A held alert keeps its drive letter.
+  let lowDrive = metrics.alerts.disk?.letter ?? null
   let diskMissRun = 0
-  if (alertDisk && (!metrics.storage || metrics.storage.letter === alertDisk.letter)) {
-    alert = true
-  } else if (previous.view?.storage?.alert && previous.view.storage.letter === letter) {
+  const heldDrive = previous.view?.storage?.lowDrive ?? null
+  if (lowDrive === null && heldDrive !== null) {
     diskMissRun = previous.diskMissRun + 1
-    if (diskMissRun < CAPSULE_MISSES) alert = true
+    if (diskMissRun < CAPSULE_MISSES) lowDrive = heldDrive
     else diskMissRun = 0
   }
-  const storage: CapsuleView['storage'] = { letter, usedPercent: metrics.storage?.usedPercent ?? null, alert }
+  const storage: CapsuleView['storage'] = { usedPercent: metrics.storage?.usedPercent ?? null, lowDrive }
   return {
-    view: { cpuPercent: metrics.cpuPercent, ramPercent: ram, battery, alerts, storage },
+    view: { cpuPercent: metrics.cpuPercent, ramPercent: ram, battery, alerts, storage, online: metrics.online },
     unavailableRun: 0,
     batteryMissRun,
     diskMissRun,
@@ -82,7 +87,7 @@ export function nextCapsule(previous: CapsuleLatch, metrics: SystemMetrics): Cap
 
 /** The unread-mail block of the compact capsule: the count it shows, or null when it takes no room. */
 export interface MailLatch {
-  /** 1–100 (100 shows as "99+"); null while there is no block. */
+  /** 0–100 (100 shows as "99+"); null while there is no block. */
   unread: number | null
   /** Consecutive readings without unread mail while the block is shown. */
   missRun: number
@@ -107,53 +112,66 @@ export function nextMail(previous: MailLatch, state: GmailState): MailLatch {
   return missRun >= CAPSULE_MISSES ? EMPTY_MAIL : { unread: previous.unread, missRun }
 }
 
-/** One code-review block of the compact capsule (a platform's own unreviewed PR/MRs). */
-export interface ReviewLatch {
-  /** 1–100 (100 shows as "99+"); null while there is no block. */
-  count: number | null
-  /** Consecutive readings without unreviewed PR/MRs while the block is shown. */
+/** One code-review block of the compact capsule: a platform's contributions this month. */
+export interface ContributionLatch {
+  /** The month's total (`ContributionSummary.monthTotal`), 0 included; null while there is no block. */
+  total: number | null
+  /** The total's month, `YYYY-MM` (the accessible label names it); null with no block. */
+  month: string | null
+  /** Consecutive readings without a month summary while the block is shown. */
   missRun: number
 }
 
-export type ReviewBlocks = Readonly<Record<Platform, ReviewLatch>>
+export type ContributionBlocks = Readonly<Record<Platform, ContributionLatch>>
 
-const EMPTY_REVIEW: ReviewLatch = { count: null, missRun: 0 }
-export const EMPTY_REVIEW_BLOCKS: ReviewBlocks = { github: EMPTY_REVIEW, gitlab: EMPTY_REVIEW }
+const EMPTY_CONTRIBUTION: ContributionLatch = { total: null, month: null, missRun: 0 }
+export const EMPTY_CONTRIBUTION_BLOCKS: ContributionBlocks = { github: EMPTY_CONTRIBUTION, gitlab: EMPTY_CONTRIBUTION }
 
-/** The mail block's rule for one platform, except that a live 0 hides at once: live is `ok` or `offline` (which keeps the last data). */
-function nextReview(previous: ReviewLatch, state: PlatformState): ReviewLatch {
-  const live = state.status === 'ok' || state.status === 'offline'
-  if (!live) return EMPTY_REVIEW
-  if (state.unreviewed !== null && state.unreviewed > 0) {
-    return previous.count === state.unreviewed && previous.missRun === 0 ? previous : { count: state.unreviewed, missRun: 0 }
+/**
+ * One platform's block: shown while the platform is live (`ok`, or `offline`, which keeps the last
+ * data) with its month total, 0 included, so a connected platform turned on for the capsule always
+ * shows once its first summary arrives. A reading without a summary ("no data": not answered yet,
+ * or a session that just started again) keeps the last total until CAPSULE_MISSES in a row, like
+ * the mail block; a failed query keeps its last summary in main, so it changes nothing. A platform
+ * that stops being live (unconfigured, rejected token) hides it at once.
+ */
+function nextContribution(previous: ContributionLatch, status: PlatformStatus | undefined, result: ContributionsResult | undefined): ContributionLatch {
+  const live = status === 'ok' || status === 'offline'
+  if (!live) return EMPTY_CONTRIBUTION
+  const summary = result?.summary ?? null
+  if (summary !== null) {
+    const unchanged = previous.total === summary.monthTotal && previous.month === summary.month && previous.missRun === 0
+    return unchanged ? previous : { total: summary.monthTotal, month: summary.month, missRun: 0 }
   }
-  // A live reading of 0 hides the block at once (it matches the "Aprobado" alert); only "no data" is latched.
-  if (state.unreviewed === 0 || previous.count === null) return EMPTY_REVIEW
+  if (previous.total === null) return EMPTY_CONTRIBUTION
   const missRun = previous.missRun + 1
-  return missRun >= CAPSULE_MISSES ? EMPTY_REVIEW : { count: previous.count, missRun }
+  return missRun >= CAPSULE_MISSES ? EMPTY_CONTRIBUTION : { ...previous, missRun }
 }
 
 /**
- * Folds one `code-review:state` reading into the per-platform blocks (pure): each platform is
- * latched like the mail block for "no data" readings only; a live 0 hides the block immediately.
- * Returns the same object when nothing changed.
+ * Folds one reading (a `code-review:state`, or a platform's `code-review:contributions` answer)
+ * into the per-platform blocks (pure). Returns the same object when nothing changed.
  */
-export function nextReviewBlocks(previous: ReviewBlocks, state: CodeReviewState): ReviewBlocks {
-  const github = nextReview(previous.github, state.github)
-  const gitlab = nextReview(previous.gitlab, state.gitlab)
+export function nextContributionBlocks(
+  previous: ContributionBlocks,
+  state: CodeReviewState | null,
+  contributions: Partial<Record<Platform, ContributionsResult>>,
+): ContributionBlocks {
+  const github = nextContribution(previous.github, state?.github.status, contributions.github)
+  const gitlab = nextContribution(previous.gitlab, state?.gitlab.status, contributions.gitlab)
   return github === previous.github && gitlab === previous.gitlab ? previous : { github, gitlab }
 }
 
 /** How many code-review blocks the capsule shows (each adds its measured width). */
-export function reviewBlockCount(blocks: ReviewBlocks): 0 | 1 | 2 {
-  return ((blocks.github.count === null ? 0 : 1) + (blocks.gitlab.count === null ? 0 : 1)) as 0 | 1 | 2
+export function contributionBlockCount(blocks: ContributionBlocks): 0 | 1 | 2 {
+  return ((blocks.github.total === null ? 0 : 1) + (blocks.gitlab.total === null ? 0 : 1)) as 0 | 1 | 2
 }
 
-/** The Redmine block of the compact capsule: the hours logged today it shows, or null when it takes no room. */
+/** The Redmine block of the compact capsule: the hours logged this month it shows, or null when it takes no room. */
 export interface RedmineLatch {
-  /** Hours logged today, 0 included; null while there is no block. */
+  /** Hours logged from the 1st of the month to today, 0 included; null while there is no block. */
   hours: number | null
-  /** Consecutive readings without today's hours while the block is shown. */
+  /** Consecutive readings without the month's hours while the block is shown. */
   missRun: number
 }
 
@@ -161,17 +179,17 @@ export const EMPTY_REDMINE: RedmineLatch = { hours: null, missRun: 0 }
 
 /**
  * Folds one `redmine:state` reading into the Redmine block (pure; returns the same object when
- * nothing changed). Shown with the first reading that has today's hours in a live session (`ok` or
- * `offline`, which keeps the last data), a 0 included: "0h" is what tells the user nothing is logged
- * yet. A reading without them keeps the last value until CAPSULE_MISSES in a row, since the block
- * changes the capsule width. A session that ends (unconfigured, signed out) hides it at once, and so
- * does `offline` without hours: main drops the last reading once its day is over, and yesterday's
- * hours must never pass for today's.
+ * nothing changed). Shown with the first reading that has the month's hours in a live session (`ok`
+ * or `offline`, which keeps the last data), a 0 included: "0h" is what tells the user nothing is
+ * logged yet this month. A reading without them keeps the last value until CAPSULE_MISSES in a row,
+ * since the block changes the capsule width. A session that ends (unconfigured, signed out) hides it
+ * at once, and so does `offline` without hours: main drops the last reading once its month is over,
+ * and last month's hours must never pass for this month's.
  */
 export function nextRedmineBlock(previous: RedmineLatch, state: RedmineState): RedmineLatch {
   const live = state.status === 'ok' || state.status === 'offline'
   if (!live) return EMPTY_REDMINE
-  if (state.todayHours !== null) return previous.hours === state.todayHours && previous.missRun === 0 ? previous : { hours: state.todayHours, missRun: 0 }
+  if (state.monthHours !== null) return previous.hours === state.monthHours && previous.missRun === 0 ? previous : { hours: state.monthHours, missRun: 0 }
   if (previous.hours === null || state.status === 'offline') return EMPTY_REDMINE
   const missRun = previous.missRun + 1
   return missRun >= CAPSULE_MISSES ? EMPTY_REDMINE : { hours: previous.hours, missRun }

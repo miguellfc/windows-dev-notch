@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
 /* Fusión (0.3.0) design tokens (DESIGN.md). Fonts are bundled from @fontsource in each entry. */
-/* Integration palette (21): each integration sets --int to one of these; keep in sync with INTEGRATION_COLOR_HEX.
+/* Integration palette (21): an integration with a palette color sets --int to one of these; keep in
+   sync with INTEGRATION_COLOR_HEX. A custom color (#RRGGBB) sets --int to the hex itself.
    Static: `integrationStyle` builds the names at run time, where Tailwind cannot see them to keep them. */
 @theme static {
   --color-int-pistachio: #d9f99d;
@@ -63,7 +64,7 @@
   /* Contributions chart: level 0 is Grafito at 14 %, levels 1-4 step up the integration colour. */
   --color-contrib-0: rgba(142, 142, 150, 0.14);
 
-  --font-sans: 'Geist Variable', 'Segoe UI Variable', system-ui, sans-serif;
+  --font-sans: 'Nunito Variable', 'Segoe UI Variable', system-ui, sans-serif;
   --font-pixel: 'Jersey 10', 'Geist Mono Variable', monospace;
   --font-mono: 'Geist Mono Variable', 'Cascadia Mono', Consolas, monospace;
 
@@ -205,6 +206,43 @@ body {
   }
   .btn-danger {
     color: var(--color-fail);
+  }
+  /* The integration color popup: floats over the page, a step lighter than it (Hover over Void). */
+  .color-popup {
+    /* Never taller than the window (8 px margin each side): Save and Cancel stay reachable. */
+    max-height: calc(100vh - 16px);
+    background: linear-gradient(var(--color-veil-tile), var(--color-veil-tile)), var(--color-obsidian-dense);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-card);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
+  /* HSL slider: the track shows the range it picks from (--track), the thumb the draft color (--thumb). */
+  .hsl-slider {
+    appearance: none;
+    width: 100%;
+    height: 12px;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-line-strong);
+    background: var(--track);
+    cursor: pointer;
+  }
+  .hsl-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--thumb);
+    border: 2px solid var(--color-chalk);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
+  /* The shortcut matching the draft: a 2 px Tiza ring with a gap; the focus ring sits outside it. */
+  .color-shortcut-checked {
+    box-shadow:
+      0 0 0 2px var(--color-obsidian-dense),
+      0 0 0 4px var(--color-chalk);
+  }
+  .color-shortcut:focus-visible {
+    outline-offset: 4px;
   }
   .field {
     border-radius: var(--radius-control);

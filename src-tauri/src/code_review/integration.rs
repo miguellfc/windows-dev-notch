@@ -46,7 +46,8 @@ use crate::settings::validate::normalize_gitlab_url;
 pub const TICK_MS: u64 = 120_000;
 /// Waits after consecutive network / 5xx / 429 / invalid-response failures: 1, 2, 4, 5 min (max).
 pub const BACKOFF_MS: [u64; 4] = [60_000, 120_000, 240_000, 300_000];
-/// Contributions rhythm, only while the "Revisiones" view is open.
+/// Contributions rhythm, whenever the platform is live (the compact capsule shows the month's
+/// total), view open or not.
 pub const CONTRIBUTIONS_TICK_MS: u64 = 900_000;
 /// Minimum time between two contributions queries started by opening the main panel.
 pub const PANEL_REFRESH_MIN_MS: u64 = 60_000;
@@ -602,7 +603,7 @@ impl CodeReviewIntegration {
     /// `scheduleContributions`.
     fn schedule_contributions(&self, inner: &mut Inner, platform: Platform) {
         self.clear_timer(inner, platform, Rhythm::Contributions);
-        if !inner.view_open || !inner.started || inner.disposed {
+        if !inner.started || inner.disposed {
             return;
         }
         self.arm(
@@ -739,6 +740,12 @@ impl CodeReviewIntegration {
                     rt.status = Status(PlatformStatus::Ok);
                     self.publish(&mut inner, &mut effects);
                     self.schedule(&mut inner, platform, TICK_MS);
+                    // The token works: the contributions rhythm starts if it is not running yet
+                    // (startup, a stored token, a dropped run), so the capsule has its total.
+                    let rt = inner.rt(platform);
+                    if rt.contributions_timer.is_none() && rt.contributions_in_flight.is_none() {
+                        self.poll_contributions(&mut inner, platform);
+                    }
                     let rt = inner.rt(platform);
                     let fresh = rt.detector.observe(&observation.observed);
                     if let Some((alert, url)) = announcement(platform, &snapshot.mine, &fresh) {
@@ -760,20 +767,20 @@ impl CodeReviewIntegration {
         self.run(effects);
     }
 
-    /// `pollContributions`: never with the view closed.
+    /// `pollContributions`: the month's contributions of a live platform, view open or not (the
+    /// compact capsule shows their total). Started by the first review query that works (startup,
+    /// a stored token), a new token or the platform turned on again, then every
+    /// [`CONTRIBUTIONS_TICK_MS`].
     fn poll_contributions(
         &self,
         inner: &mut Inner,
         platform: Platform,
     ) -> Option<watch::Receiver<bool>> {
-        if !inner.view_open {
-            return None;
-        }
         self.fetch_contributions(inner, platform)
     }
 
-    /// One contributions query per platform and generation. The 15-min timer is armed when it
-    /// ends only if the view is open by then.
+    /// One contributions query per platform and generation. The 15-min timer is armed again when
+    /// it ends (while started and not disposed; the next run checks the platform is still usable).
     fn fetch_contributions(
         &self,
         inner: &mut Inner,
@@ -859,7 +866,8 @@ impl CodeReviewIntegration {
         self.run(effects);
     }
 
-    /// Queries every connected platform now (at most every 5 s); contributions too while open.
+    /// Queries every connected platform now (at most every 5 s); contributions too while the
+    /// "Revisiones" view is open (otherwise their own rhythm keeps them fresh).
     pub fn refresh(&self) {
         let at = self.deps.clock.now();
         let mut inner = self.lock();
@@ -872,7 +880,9 @@ impl CodeReviewIntegration {
         inner.last_manual_refresh = Some(at);
         for platform in PLATFORMS {
             self.poll(&mut inner, platform);
-            self.poll_contributions(&mut inner, platform);
+            if inner.view_open {
+                self.poll_contributions(&mut inner, platform);
+            }
         }
     }
 
@@ -881,8 +891,8 @@ impl CodeReviewIntegration {
     ///
     /// Off: that platform's review and contributions rhythms stop and an answer still in flight
     /// is dropped (no state, no alert); its token and last state stay. On: queries at once
-    /// (contributions too while the view is open; once a run still in flight has ended), then
-    /// the usual rhythm. The first-review
+    /// (reviews and contributions, once a run still in flight has ended), then the usual
+    /// rhythms. The first-review
     /// baseline starts again, so reviews that came while off are not announced. The other
     /// platform is untouched. Not [`Self::dispose`], which is final.
     pub fn set_enabled(&self, platform: Platform, enabled: bool) {
@@ -933,26 +943,24 @@ impl CodeReviewIntegration {
         }));
     }
 
-    /// The "Revisiones" view opened or closed: contributions are queried on open and every
-    /// 15 min while open (an in-flight query still finishes after a close).
+    /// The "Revisiones" view opened or closed: contributions are queried on open (which restarts
+    /// their 15-min rhythm); a close changes nothing, the rhythm goes on for the capsule.
     pub fn set_view_open(&self, open: bool) {
         let mut inner = self.lock();
         if inner.view_open == open {
             return;
         }
         inner.view_open = open;
-        for platform in PLATFORMS {
-            if open {
+        if open {
+            for platform in PLATFORMS {
                 self.poll_contributions(&mut inner, platform);
-            } else {
-                self.clear_timer(&mut inner, platform, Rhythm::Contributions);
             }
         }
     }
 
     /// The main panel opened: one contributions query per connected platform that is turned on,
-    /// at most every [`PANEL_REFRESH_MIN_MS`]. It does not count as the view being open: no 15-min
-    /// timer stays armed, and the view's own query is never held back by this minimum.
+    /// at most every [`PANEL_REFRESH_MIN_MS`] (it restarts the 15-min rhythm, like any query). The
+    /// view's own query is never held back by this minimum.
     pub fn panel_opened(&self) {
         let at = self.deps.clock.now();
         let mut inner = self.lock();
@@ -1185,9 +1193,10 @@ impl CodeReviewIntegration {
             return;
         }
         inner.started = true;
+        // Contributions follow the first review query that works (`run_poll`): a stored token
+        // that was rejected meanwhile is never asked for them.
         for platform in PLATFORMS {
             self.poll(&mut inner, platform);
-            self.poll_contributions(&mut inner, platform);
         }
     }
 

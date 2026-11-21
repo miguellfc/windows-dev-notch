@@ -79,16 +79,20 @@ describe('Claude Code (Tauri)', () => {
     const bridge = await installClaudeHooks()
 
     expect((await postHook(bridge.hook, hookEvent('api-server', 'UserPromptSubmit', { prompt: 'secret prompt' }))).status).toBe(200)
-    // The dots live in the compact capsule (the resting peek shows only time and date): hover it.
-    await pointer(true)
-    await expect(capsule()).toHaveAttribute('data-mode', 'compact')
+    // The resting peek shows Claude's mark after the time and date (no dots, no "+N").
+    await expect(capsule()).toHaveAttribute('data-mode', 'peek')
     const dots = byTestId('claude-dots')
     await dots.waitForDisplayed()
-    await expect(dots).toHaveAttribute('aria-label', /Claude Code.*(1)/)
-    await expect(dots.$$('.status-dot')).toBeElementsArrayOfSize(1)
+    await expect(dots.$$('.status-dot')).toBeElementsArrayOfSize(0)
+    // The compact capsule too: the mark alone; the label counts the sessions per state.
+    await pointer(true)
+    await expect(capsule()).toHaveAttribute('data-mode', 'compact')
+    await dots.waitForDisplayed()
+    await expect(dots).toHaveAttribute('aria-label', /Claude Code: 1 (trabajando|working)/)
+    await expect(dots.$$('.status-dot')).toBeElementsArrayOfSize(0)
 
     await postHook(bridge.hook, hookEvent('web-client', 'UserPromptSubmit'))
-    await expect(dots.$$('.status-dot')).toBeElementsArrayOfSize(2)
+    await eventually(() => dots.getAttribute('aria-label'), (label) => /2 (trabajando|working)/.test(label ?? ''), 'two working sessions')
     await postHook(bridge.hook, hookEvent('api-server', 'Stop', { last_assistant_message: 'done' }))
     await expect(dots).toHaveAttribute('aria-label', /Claude Code/)
     await eventually(() => dots.getAttribute('aria-label'), (label) => /(listo|done|terminad|finished)/i.test(label ?? ''), 'a done session')

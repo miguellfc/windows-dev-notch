@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, REDMINE_SIZES, redmineSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
+import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, gmailSizeFor, REDMINE_SIZES, redmineSizeFor, reviewsSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, type CompactContent } from '../../../src/shared/notch/geometry'
 
 const workArea = { x: 0, y: 0, width: 1920, height: 1032 }
 
@@ -12,14 +12,14 @@ describe('windowBoundsFor', () => {
 
   it('leaves room for the shadow around the capsule', () => {
     const bounds = windowBoundsFor('expanded', workArea)
-    expect(bounds.width).toBe(932)
+    expect(bounds.width).toBe(854)
     // The panel has one size: 6 + 300 + 72.
     expect(bounds.height).toBe(378)
   })
 
   it('keeps one width for every mode: the widest capsule plus the shadow', () => {
     // Motion skips layout animations for 250 ms after innerWidth changes, so the width must not.
-    expect(WINDOW_WIDTH).toBe(932)
+    expect(WINDOW_WIDTH).toBe(854)
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
       const bounds = windowBoundsFor(mode, workArea)
       expect(bounds.width).toBe(WINDOW_WIDTH)
@@ -80,28 +80,9 @@ describe('alert and permission geometry', () => {
   })
 })
 
-describe('system panel geometry', () => {
-  it('is 520x280 (5 process rows) and keeps the window width set by the widest compact capsule', () => {
-    expect(CAPSULE_SIZES.system).toEqual({ width: 520, height: 280 })
-    expect(WINDOW_WIDTH).toBe(932)
-    expect(windowBoundsFor('system', workArea).height).toBe(SHADOW_MARGIN.top + 280 + SHADOW_MARGIN.bottom)
-  })
-
-  it('orders the window against the other panels by height', () => {
-    // 280 (system) < 300 (expanded, permission) < 320 (reminders) < 560 (reviews).
-    expect(growsWindow('expanded', 'system')).toBe(false)
-    expect(growsWindow('system', 'permission')).toBe(true)
-    expect(growsWindow('system', 'reminders')).toBe(true)
-    expect(growsWindow('system', 'reviews')).toBe(true)
-    expect(growsWindow('permission', 'system')).toBe(false)
-    expect(growsWindow('reminders', 'system')).toBe(false)
-    expect(growsWindow('reviews', 'system')).toBe(false)
-    expect(growsWindow('system', 'expanded')).toBe(true)
-    expect(resizeOrder('system', 'expanded')).toBe('resize-first')
-    expect(resizeOrder('expanded', 'system')).toBe('animate-first')
-    expect(resizeOrder('system', 'reminders')).toBe('resize-first')
-    expect(resizeOrder('reminders', 'system')).toBe('animate-first')
-    expect(resizeOrder('reviews', 'system')).toBe('animate-first')
+describe('window width', () => {
+  it('is set by the widest compact capsule', () => {
+    expect(WINDOW_WIDTH).toBe(854)
   })
 })
 
@@ -124,8 +105,8 @@ describe('compact capsule width', () => {
   const { padding, divider, left, system, battery } = COMPACT_ZONE
 
   it('pins the zones and blocks measured in WebView2 (worst of ES and EN)', () => {
-    expect(COMPACT_ZONE).toEqual({ padding: 30, divider: 15, left: 147, system: 235, battery: 63.5 })
-    expect(CAPSULE_BLOCK).toEqual({ claude: 97, mail: 48.5, review: 48.5, redmine: 71 })
+    expect(COMPACT_ZONE).toEqual({ padding: 30, divider: 15, left: 143.5, system: 212.5, battery: 63.5 })
+    expect(CAPSULE_BLOCK).toEqual({ claude: 22, mail: 48.5, review: 56, redmine: 78.5 })
   })
 
   it('is time and date alone without blocks or system: the peek width', () => {
@@ -166,14 +147,14 @@ describe('compact capsule width', () => {
 
   it('fits the worst case (every block, two reviews, system and battery) in the window with its shadow', () => {
     expect(WIDEST_COMPACT_WIDTH).toBe(compactWidthFor({ system: { battery: true }, blocks: ALL_BLOCKS }))
-    expect(WIDEST_COMPACT_WIDTH).toBe(819)
+    expect(WIDEST_COMPACT_WIDTH).toBe(741)
     expect(WIDEST_COMPACT_WIDTH + SHADOW_MARGIN.side * 2).toBeLessThanOrEqual(WINDOW_WIDTH)
   })
 
   it('sets the window width by the formula: ceil((max(worst compact, panels) + 112) / 2) * 2', () => {
     const widest = Math.max(WIDEST_COMPACT_WIDTH, ...Object.values(CAPSULE_SIZES).map((size) => size.width))
     expect(WINDOW_WIDTH).toBe(Math.ceil((widest + SHADOW_MARGIN.side * 2) / 2) * 2)
-    expect(WINDOW_WIDTH).toBe(932)
+    expect(WINDOW_WIDTH).toBe(854)
   })
 })
 
@@ -210,7 +191,7 @@ describe('gmail panel geometry', () => {
     expect(CAPSULE_SIZES.gmail).toEqual(GMAIL_SIZES.reader)
     expect(GMAIL_SIZES.reader.height).toBeGreaterThanOrEqual(GMAIL_SIZES.list.height)
     expect(windowBoundsFor('gmail', workArea).height).toBe(SHADOW_MARGIN.top + GMAIL_SIZES.reader.height + SHADOW_MARGIN.bottom)
-    expect(WINDOW_WIDTH).toBe(932)
+    expect(WINDOW_WIDTH).toBe(854)
   })
 
   it('grows the window from the integrations row and the alert, and shrinks back to them', () => {
@@ -231,9 +212,9 @@ describe('expanded panel size', () => {
     expect(14 + 28 + 10 + 196 + 8 + 4 + 8 + 20 + 10 + 2).toBe(CAPSULE_SIZES.expanded.height)
   })
 
-  it('has a 378 px window and leaves the window width at 932', () => {
+  it('has a 378 px window and leaves the window width at 854', () => {
     expect(windowHeightFor('expanded')).toBe(378)
-    expect(WINDOW_WIDTH).toBe(932)
+    expect(WINDOW_WIDTH).toBe(854)
   })
 })
 
@@ -266,6 +247,12 @@ describe('reviews panel geometry', () => {
     expect(windowBoundsFor('reviews', workArea)).toMatchObject({ width: WINDOW_WIDTH, height: SHADOW_MARGIN.top + REVIEWS_HEIGHT + SHADOW_MARGIN.bottom })
   })
 
+  it('fits the capsule to the view while it shows contributions, never past the panel', () => {
+    expect(reviewsSizeFor(null)).toEqual(CAPSULE_SIZES.reviews)
+    expect(reviewsSizeFor(240)).toEqual({ width: 520, height: 242 })
+    expect(reviewsSizeFor(400)).toEqual(CAPSULE_SIZES.reviews)
+  })
+
   it('is shorter than the Redmine view, which is now the tallest panel', () => {
     for (const mode of Object.keys(CAPSULE_SIZES) as (keyof typeof CAPSULE_SIZES)[]) {
       expect(CAPSULE_SIZES.redmine.height).toBeGreaterThanOrEqual(CAPSULE_SIZES[mode].height)
@@ -273,9 +260,9 @@ describe('reviews panel geometry', () => {
     expect(CAPSULE_SIZES.reviews.height).toBeLessThan(CAPSULE_SIZES.redmine.height)
   })
 
-  it('keeps the window width: the widest panel is 712 px, so the compact capsule 819 px worst case (every block) sets it', () => {
+  it('keeps the window width: the widest panel is 712 px, so the compact capsule 741 px worst case (every block) sets it', () => {
     expect(Math.max(...Object.values(CAPSULE_SIZES).map((size) => size.width))).toBe(712)
-    expect(WINDOW_WIDTH).toBe(932)
+    expect(WINDOW_WIDTH).toBe(854)
   })
 })
 
@@ -286,6 +273,11 @@ describe('Redmine panel geometry', () => {
     expect(REDMINE_SIZES.rest).toEqual({ width: 520, height: 272 })
     expect(redmineSizeFor(false)).toEqual(REDMINE_SIZES.rest)
     expect(redmineSizeFor(true)).toEqual(REDMINE_SIZES.search)
+    // The capsule fits the view, never past the rest size at rest nor the search size while searching.
+    expect(redmineSizeFor(false, 200)).toEqual({ width: 520, height: 202 })
+    expect(redmineSizeFor(false, 400)).toEqual(REDMINE_SIZES.rest)
+    expect(redmineSizeFor(true, 400)).toEqual({ width: 520, height: 402 })
+    expect(redmineSizeFor(true, 700)).toEqual(REDMINE_SIZES.search)
   })
 
   it('sizes the window for the search, so searching never resizes it', () => {
@@ -299,7 +291,7 @@ describe('Redmine panel geometry', () => {
 describe('capsule modes geometry (peek at rest, compact on hover, pinned mini)', () => {
   it('peek is the time-and-date capsule: as tall as compact, so hovering never resizes the window', () => {
     expect(CAPSULE_SIZES.peek).toEqual({ width: Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left), height: CAPSULE_SIZES.compact.height })
-    expect(CAPSULE_SIZES.peek.width).toBe(177)
+    expect(CAPSULE_SIZES.peek.width).toBe(174)
     expect(windowHeightFor('peek')).toBe(windowHeightFor('compact'))
   })
 

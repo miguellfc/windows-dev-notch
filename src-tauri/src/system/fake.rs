@@ -4,39 +4,25 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use super::{
-    DiskSpace, MemoryStatus, NetworkRate, PowerStatus, ProcessEntry, ProcessInfo, SystemApi,
-    SystemTimes, TerminateResult,
-};
+use super::{DiskSpace, MemoryStatus, PowerStatus, SystemApi, SystemTimes};
 
 pub(crate) struct FakeState {
-    pub cpu_count: usize,
-    pub self_pid: u32,
-    pub self_session_id: i64,
     pub times: Option<SystemTimes>,
     pub memory: Option<MemoryStatus>,
     pub power: Option<PowerStatus>,
     pub drives: Option<Vec<char>>,
     pub space: HashMap<char, Option<DiskSpace>>,
-    pub disk_idle: Option<f64>,
-    pub network: Option<NetworkRate>,
-    pub entries: Vec<ProcessEntry>,
-    pub infos: HashMap<u32, Option<ProcessInfo>>,
-    pub terminated: Vec<(u32, String)>,
-    pub terminate_result: TerminateResult,
+    pub online: Option<bool>,
     pub throwing: HashSet<&'static str>,
 }
 
 pub(crate) struct FakeSystemApi(Mutex<FakeState>);
 
 impl FakeSystemApi {
-    /// The metrics fixture: 8 cores, 16 000 bytes of RAM with 4 000 free, a battery at 80 %,
-    /// drive C with 250 of 1 000 bytes free, disk 90 % idle, 100 up / 200 down.
+    /// The metrics fixture: 16 000 bytes of RAM with 4 000 free, a battery at 80 % and drive C
+    /// with 250 of 1 000 bytes free, online.
     pub fn new() -> Self {
         Self(Mutex::new(FakeState {
-            cpu_count: 8,
-            self_pid: 1,
-            self_session_id: 1,
             times: Some(times(0.0, 0.0, 0.0)),
             memory: Some(MemoryStatus {
                 total_bytes: 16_000,
@@ -57,15 +43,7 @@ impl FakeSystemApi {
                     free_bytes: 250,
                 }),
             )]),
-            disk_idle: Some(90.0),
-            network: Some(NetworkRate {
-                up: 100.0,
-                down: 200.0,
-            }),
-            entries: Vec::new(),
-            infos: HashMap::new(),
-            terminated: Vec::new(),
-            terminate_result: TerminateResult::Killed,
+            online: Some(true),
             throwing: HashSet::new(),
         }))
     }
@@ -93,18 +71,6 @@ pub(crate) fn times(idle_ms: f64, kernel_ms: f64, user_ms: f64) -> SystemTimes {
 }
 
 impl SystemApi for FakeSystemApi {
-    fn cpu_count(&self) -> usize {
-        self.state().cpu_count
-    }
-
-    fn self_pid(&self) -> u32 {
-        self.state().self_pid
-    }
-
-    fn self_session_id(&self) -> i64 {
-        self.state().self_session_id
-    }
-
     fn system_times(&self) -> Option<SystemTimes> {
         self.read("systemTimes", |s| s.times)
     }
@@ -125,28 +91,7 @@ impl SystemApi for FakeSystemApi {
         self.read("diskSpace", |s| s.space.get(&letter).copied().flatten())
     }
 
-    fn disk_idle_percent(&self) -> Option<f64> {
-        self.read("diskIdlePercent", |s| s.disk_idle)
+    fn online(&self) -> Option<bool> {
+        self.read("online", |s| s.online)
     }
-
-    fn network_bytes_per_sec(&self) -> Option<NetworkRate> {
-        self.read("networkBytesPerSec", |s| s.network)
-    }
-
-    fn processes(&self) -> Vec<ProcessEntry> {
-        self.read("processes", |s| s.entries.clone())
-    }
-
-    fn process_info(&self, pid: u32) -> Option<ProcessInfo> {
-        self.read("processInfo", |s| s.infos.get(&pid).cloned().flatten())
-    }
-
-    fn terminate(&self, pid: u32, start_time: &str) -> TerminateResult {
-        self.read("terminate", |_| ());
-        let mut state = self.state();
-        state.terminated.push((pid, start_time.to_owned()));
-        state.terminate_result
-    }
-
-    fn dispose(&self) {}
 }

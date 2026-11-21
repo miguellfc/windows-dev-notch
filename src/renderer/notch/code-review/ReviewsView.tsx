@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import { localDate } from '../../../shared/code-review/contributions'
 import type { Platform } from '../../../shared/code-review/schema'
 import type { MessageKey } from '../../../shared/i18n/messages'
-import { loadContributions, setReviewsTarget, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
+import { loadContributions, setReviewsTarget, setReviewsViewHeight, useCodeReview, type ReviewsTarget } from '../../shared/code-review-store'
 import { contributionsPhase, graphSummaryText, placeholderGrid } from '../../shared/code-review/contributions-format'
 import { configuredPlatforms, PLATFORM_NAMES, profileRow, reviewsBody, reviewsPlatform } from '../../shared/code-review/format'
 import { formatUpdated } from '../../shared/gmail/format'
@@ -195,6 +195,25 @@ export function ReviewsView() {
     panel.current?.focus()
   })
 
+  // With contributions the view is only as tall as what it shows, and the capsule fits it (no empty
+  // room under the account row); loading and notices keep the full panel and centre themselves in it.
+  const fitted = body === 'contributions'
+  useLayoutEffect(() => {
+    const element = panel.current
+    if (!fitted || !element) {
+      setReviewsViewHeight(null)
+      return
+    }
+    const report = () => setReviewsViewHeight(Math.ceil(element.getBoundingClientRect().height))
+    report()
+    const observer = new ResizeObserver(report)
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+      setReviewsViewHeight(null)
+    }
+  }, [fitted])
+
   const refresh = () => {
     if (resting) return
     setResting(true)
@@ -225,7 +244,7 @@ export function ReviewsView() {
       data-platform={platform}
       tabIndex={-1}
       onKeyDown={onKeyDown}
-      className="flex h-full flex-col gap-1.5 px-3 pb-2.5 pt-2 outline-none"
+      className={`flex flex-col gap-1.5 px-3 pb-2.5 pt-2 outline-none ${fitted ? '' : 'h-full'}`}
     >
       <header className="flex h-8 shrink-0 items-center gap-1">
         <button
@@ -254,7 +273,7 @@ export function ReviewsView() {
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+      <div className={`flex min-h-0 flex-col gap-1.5 ${fitted ? '' : 'flex-1'}`}>
         {live && <Contributions platform={platform} now={now} onRetry={refresh} retryResting={resting} />}
         {profile && <ProfileRow platform={platform} label={profile.label} />}
         {body === 'loading' ? (

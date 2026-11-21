@@ -144,8 +144,23 @@ describe('parseHours', () => {
     expect(parseHours('.5')).toBe(0.5)
   })
 
+  it('accepts hours and minutes like Redmine, rounded to 2 decimals', () => {
+    expect(parseHours('1h 25m')).toBe(1.42)
+    expect(parseHours('1h25m')).toBe(1.42)
+    expect(parseHours('1H 25M')).toBe(1.42)
+    expect(parseHours('1h25')).toBe(1.42)
+    expect(parseHours('2h')).toBe(2)
+    expect(parseHours('1.5h')).toBe(1.5)
+    expect(parseHours('25m')).toBe(0.42)
+    expect(parseHours('90 min')).toBe(1.5)
+    expect(parseHours('1:25')).toBe(1.42)
+    expect(parseHours('0:30')).toBe(0.5)
+    // Every minute comes back as itself in Redmine (0.01 h is 0.6 min).
+    for (let m = 1; m < 60; m++) expect(Math.round(parseHours(`${m}m`)! * 60), `${m}m`).toBe(m)
+  })
+
   it('rejects anything else', () => {
-    for (const text of ['', ' ', '1,234', 'abc', '-1', '1e2', '1.5h', '1,5,5', '0x10']) expect(parseHours(text), text).toBeNull()
+    for (const text of ['', ' ', 'h', 'm', '1,234', 'abc', '-1', '1e2', '1,5,5', '0x10', '1:75', '1:5', '1h 25s', 'm25', '1.5h 10m']) expect(parseHours(text), text).toBeNull()
   })
 })
 

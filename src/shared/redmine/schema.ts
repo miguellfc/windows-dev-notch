@@ -15,6 +15,8 @@ export const redmineStateSchema = z.strictObject({
   account: z.string().max(TEXT_MAX).nullable(),
   /** Hours logged today; `null` until the first read. */
   todayHours: z.number().min(0).nullable(),
+  /** Hours logged from the 1st of the current month to today; `null` until the first read. */
+  monthHours: z.number().min(0).nullable(),
   updatedAt: z.number().nullable(),
   /** Whether the API key is stored encrypted on disk (false: memory only). */
   persistent: z.boolean(),

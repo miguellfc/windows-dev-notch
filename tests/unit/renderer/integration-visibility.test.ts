@@ -10,25 +10,18 @@ const withOff = (...keys: (keyof IntegrationsSettings)[]): IntegrationsSettings 
 }
 
 describe('visibleCards', () => {
-  it('shows the eight cards, in the order of integrationKeys, when everything is on', () => {
-    expect(visibleCards(cloneDefaultIntegrations())).toEqual([...integrationKeys])
-    expect(visibleCards(cloneDefaultIntegrations())).toHaveLength(8)
+  it('shows seven cards, in the order of integrationKeys, when everything is on', () => {
+    expect(visibleCards(cloneDefaultIntegrations())).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes'])
   })
 
   it('drops gmail when it is off', () => {
     const keys = visibleCards(withOff('gmail'))
-    expect(keys).toHaveLength(7)
+    expect(keys).toHaveLength(6)
     expect(keys).not.toContain('gmail')
   })
 
   it('shows no card with every integration off', () => {
     expect(visibleCards(withOff(...integrationKeys))).toEqual([])
-  })
-
-  it('drops the system card but leaves the capsule alone', () => {
-    const integrations = withOff('system')
-    expect(visibleCards(integrations)).not.toContain('system')
-    expect(capsuleShows('gmail', integrations)).toBe(true)
   })
 })
 
@@ -57,7 +50,7 @@ describe('viewAllowed', () => {
   })
 
   it('always allows home, and ties the Claude items to claude', () => {
-    expect(viewAllowed('home', withOff('claude', 'system'))).toBe(true)
+    expect(viewAllowed('home', withOff('claude', 'notes'))).toBe(true)
     expect(viewAllowed('permission', withOff('claude'))).toBe(false)
     expect(viewAllowed('question', cloneDefaultIntegrations())).toBe(true)
   })

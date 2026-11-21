@@ -50,6 +50,7 @@ import {
 
 const ROW = '[data-testid="card-row"]'
 const PAGES = '[data-testid="card-row-pages"]'
+const HEADER_SYSTEM = '[data-testid="panel-system"]'
 const capsule = () => $('[data-testid="notch-capsule"]')
 const expectMode = (mode: string) => expect(capsule()).toHaveAttribute('data-mode', mode)
 
@@ -119,13 +120,15 @@ const focusedCard = (): Promise<number | null> =>
 
 const expectFocusOn = (index: number) => eventually(focusedCard, (card) => card === index, `the focus on card ${index}`)
 
-/** The card lies whole inside the row, clear of the mask that fades the row's last 48 px. */
+/** The card lies whole inside the row, clear of the mask that fades its right edge until the row ends. */
 async function expectCardInView(index: number): Promise<void> {
   await eventually(
     async () => {
       const row = (await rectOf(ROW))!
       const card = (await rectOf(`[data-card-index="${index}"]`))!
-      return card.x >= row.x - 0.5 && card.x + card.width <= row.x + row.width - 48 + 0.5
+      const { marks, active } = await indicator()
+      const faded = active === marks - 1 ? 0 : 48
+      return card.x >= row.x - 0.5 && card.x + card.width <= row.x + row.width - faded + 0.5
     },
     (inView) => inView,
     `card ${index} whole in view`,
@@ -253,9 +256,14 @@ async function connectGmail(server: FakeGmail): Promise<void> {
 
 /** The four integrations show their data, not a notice. */
 async function expectCardsWithData(): Promise<void> {
-  for (const card of ['integration-github', 'integration-gitlab', 'integration-redmine']) {
+  for (const card of ['integration-github', 'integration-gitlab']) {
     await $(`[data-testid="${card}"] .digits`).waitForExist({ timeout: 15_000 })
   }
+  // Redmine: both figures, and the month's squares from the summary (today's has hours, not the grey grid).
+  for (const figure of ['redmine-card-today', 'redmine-card-month']) {
+    await $(`[data-testid="integration-redmine"] [data-testid="${figure}"] .digits`).waitForExist({ timeout: 15_000 })
+  }
+  await $('[data-testid="integration-redmine"] [data-today="true"]:not([data-level="0"])').waitForExist({ timeout: 15_000 })
   await eventually(async () => (await $$('[data-testid="integration-gmail"] li')).length, (mails) => mails === 3, 'three mails on the Gmail card', 15_000)
 }
 
@@ -274,16 +282,21 @@ describe('Main panel (Tauri)', () => {
     await launch({ fresh: true, files: seeded })
     await openPanel()
     expect(await cssOf(ROW, 'mask-image')).toContain('linear-gradient')
-    // Eight cards, three whole in view: six places for the row to stop.
+    // Seven cards, three whole in view: five places for the row to stop.
     await expectPage(0, 0)
-    expect((await indicator()).marks).toBe(6)
+    expect((await indicator()).marks).toBe(5)
 
     await wheel(200)
     await expectPage(1, 182)
     // Past the wheel's idle time, so this notch starts from the page the row stands on.
     await browser.pause(300)
     await wheel(2000)
-    await expectPage(5, 910)
+    await expectPage(4, 632)
+    // The row ends on its last card: no empty space after it, and the fade moves to the half card on the left.
+    const row = (await rectOf(ROW))!
+    const last = (await rectOf('[data-card-index="6"]'))!
+    expect(Math.round(last.x + last.width)).toBe(Math.round(row.x + row.width))
+    expect(await cssOf(ROW, 'mask-image')).toContain('to left')
     await browser.pause(300)
     await wheel(-2000)
     await expectPage(0, 0)
@@ -299,7 +312,7 @@ describe('Main panel (Tauri)', () => {
     await browser.keys('ArrowLeft')
     await expectFocusOn(0)
 
-    for (const index of [1, 2, 3, 4, 5, 6, 7]) {
+    for (const index of [1, 2, 3, 4, 5, 6]) {
       await browser.keys('ArrowRight')
       await expectFocusOn(index)
       await expectCardInView(index)
@@ -307,11 +320,11 @@ describe('Main panel (Tauri)', () => {
     // The right end stops there too: no wrapping round.
     await browser.keys('ArrowRight')
     await browser.pause(200)
-    await expectFocusOn(7)
-    await expectPage(5, 910)
+    await expectFocusOn(6)
+    await expectPage(4, 632)
 
     await browser.keys('Enter')
-    await expectMode('system')
+    await expectMode('notes')
     await browser.keys('Escape')
     await expectMode('expanded')
   })
@@ -321,7 +334,7 @@ describe('Main panel (Tauri)', () => {
     await openControlCenter()
     await $('//nav//button[normalize-space()="Integraciones" or normalize-space()="Integrations"]').click()
     await $('[data-testid="integrations-table"]').waitForDisplayed()
-    for (const key of ['gitlab', 'gmail', 'redmine', 'reminders']) await turnOff(key)
+    for (const key of ['gitlab', 'gmail', 'redmine']) await turnOff(key)
 
     // Four cards still overflow: two places to stop.
     await useWindow('notch')
@@ -341,6 +354,40 @@ describe('Main panel (Tauri)', () => {
     await wheel(400)
     await browser.pause(300)
     expect(await scrollLeft()).toBe(0)
+  })
+
+  it('the header shows the system metrics as plain figures and fits in both languages', async () => {
+    await launch({ fresh: true, files: seeded })
+    await openPanel()
+    await expect($('[data-testid="integration-system"]')).not.toExist()
+    const header = $(HEADER_SYSTEM)
+    await header.waitForDisplayed({ timeout: 10_000 })
+    for (const metric of ['metric-cpu', 'metric-ram', 'metric-connection']) {
+      await expect(header.$(`[data-testid="${metric}"]`)).toBeDisplayed()
+    }
+    // The metrics wear the same background as the header's icon buttons, 4 px from them.
+    const iconButton = '[data-notch-panel] header button:not([data-testid])'
+    expect(await cssOf(HEADER_SYSTEM, 'background-color')).toBe(await cssOf(iconButton, 'background-color'))
+    const pill = (await rectOf(HEADER_SYSTEM))!
+    expect(Math.round((await rectOf(iconButton))!.x - (pill.x + pill.width))).toBe(4)
+
+    for (const language of ['es', 'en'] as const) {
+      await setLanguage(language)
+      await eventually(pageLang, (lang) => lang === language, `the panel in ${language}`)
+      await settle()
+      const clock = (await rectOf('[data-notch-panel] header > span:first-child'))!
+      const metrics = (await rectOf(HEADER_SYSTEM))!
+      const settingsButton = (await rectOf('[data-notch-panel] header button:not([data-testid])'))!
+      expect({ language, clear: metrics.x >= clock.x + clock.width }).toEqual({ language, clear: true })
+      expect({ language, clear: metrics.x + metrics.width <= settingsButton.x }).toEqual({ language, clear: true })
+    }
+
+    // There is no System view: the metrics are not a button and a click keeps the panel.
+    expect(await header.getTagName()).toBe('span')
+    expect(await header.getAttribute('title')).toBeNull()
+    await header.click()
+    await browser.pause(300)
+    await expectMode('expanded')
   })
 
   it('claude card opens the pending permission', async () => {
@@ -465,7 +512,7 @@ describe('Main panel (Tauri)', () => {
       await expectCardsWithData()
       await settle()
       const measured = await cardOverflows()
-      expect({ language, cards: measured.cards }).toEqual({ language, cards: 8 })
+      expect({ language, cards: measured.cards }).toEqual({ language, cards: 7 })
       expect({ language, sizes: [...new Set(measured.sizes)] }).toEqual({ language, sizes: ['172x196'] })
       expect({ language, overflows: measured.overflows }).toEqual({ language, overflows: [] })
     }

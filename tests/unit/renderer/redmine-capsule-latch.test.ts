@@ -2,17 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { CAPSULE_MISSES, EMPTY_REDMINE, nextRedmineBlock, type RedmineLatch } from '../../../src/renderer/notch/system/capsule-latch'
 import type { RedmineState, RedmineStatus } from '../../../src/shared/redmine/schema'
 
-const reading = (status: RedmineStatus, todayHours: number | null): RedmineState => ({
+/** A reading with the month's hours (what the block shows); today's are a different figure. */
+const reading = (status: RedmineStatus, monthHours: number | null): RedmineState => ({
   status,
   account: 'someone',
-  todayHours,
+  todayHours: monthHours === null ? null : 1.5,
+  monthHours,
   updatedAt: 1,
   persistent: true,
 })
 const feed = (states: RedmineState[], from: RedmineLatch = EMPTY_REDMINE): RedmineLatch => states.reduce(nextRedmineBlock, from)
 
 describe('nextRedmineBlock', () => {
-  it('starts hidden and shows today with the first reading in a live session, 0 included', () => {
+  it("starts hidden and shows the month's hours with the first reading in a live session, 0 included", () => {
     expect(EMPTY_REDMINE.hours).toBeNull()
     expect(feed([reading('ok', 5.5)]).hours).toBe(5.5)
     expect(feed([reading('offline', 2)]).hours).toBe(2)
@@ -41,9 +43,15 @@ describe('nextRedmineBlock', () => {
     expect(feed([reading('ok', 5), ...misses, reading('ok', null)])).toEqual(EMPTY_REDMINE)
   })
 
-  it("offline without today's hours (the last reading is from another day) hides at once", () => {
+  it("offline without the month's hours (the last reading is from another month) hides at once", () => {
     expect(feed([reading('ok', 5), reading('offline', null)])).toEqual(EMPTY_REDMINE)
     expect(feed([reading('offline', 5), reading('offline', null)])).toEqual(EMPTY_REDMINE)
+  })
+
+  it("shows the month's hours, never today's, and keeps them after midnight without today's", () => {
+    expect(feed([{ ...reading('ok', 38.5), todayHours: 5.5 }]).hours).toBe(38.5)
+    const midnight: RedmineState = { ...reading('offline', 38.5), todayHours: null }
+    expect(feed([reading('ok', 38.5), midnight]).hours).toBe(38.5)
   })
 
   it('a reading with data resets the run of misses', () => {

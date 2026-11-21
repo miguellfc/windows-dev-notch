@@ -75,8 +75,6 @@
     "reminders:update",
     "settings:get",
     "settings:update",
-    "system:kill-process",
-    "system:view",
     "usage:summary"
   ],
   "events": [
@@ -98,7 +96,6 @@
     "reminders:changed",
     "reminders:fired",
     "settings:changed",
-    "system:metrics",
-    "system:processes"
+    "system:metrics"
   ]
 }

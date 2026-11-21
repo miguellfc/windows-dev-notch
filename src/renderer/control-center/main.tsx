@@ -1,4 +1,4 @@
-import '@fontsource-variable/geist'
+import '@fontsource-variable/nunito'
 import '@fontsource-variable/geist-mono'
 import '@fontsource/jersey-10'
 import { StrictMode } from 'react'

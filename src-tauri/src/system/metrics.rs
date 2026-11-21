@@ -6,10 +6,7 @@ use std::sync::Arc;
 
 use super::alerts::DiskFree;
 use super::{SystemApi, SystemTimes};
-use crate::contract::system::{
-    BatterySample, DiskSample, FullSample, LightSample, NetworkSample, RamSample, StorageSample,
-    SystemAlerts,
-};
+use crate::contract::system::{BatterySample, LightSample, RamSample, StorageSample, SystemAlerts};
 
 /// A light sample without its `alerts` and `storage` (what the sampler measures; the monitor
 /// adds both).
@@ -18,6 +15,8 @@ pub struct MetricsLight {
     pub cpu_percent: Option<f64>,
     pub ram: Option<RamSample>,
     pub battery: Option<BatterySample>,
+    /// Internet reachability (`SystemApi::online`); `None` when Windows does not know.
+    pub online: Option<bool>,
 }
 
 impl MetricsLight {
@@ -28,39 +27,7 @@ impl MetricsLight {
             battery: self.battery,
             alerts,
             storage,
-        }
-    }
-}
-
-/// A full sample without its `alerts` and `storage`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct MetricsFull {
-    pub cpu_percent: Option<f64>,
-    pub ram: Option<RamSample>,
-    pub battery: Option<BatterySample>,
-    pub disks: Vec<DiskSample>,
-    pub network: Option<NetworkSample>,
-}
-
-impl MetricsFull {
-    /// The fields both sample kinds share.
-    pub fn light(&self) -> MetricsLight {
-        MetricsLight {
-            cpu_percent: self.cpu_percent,
-            ram: self.ram,
-            battery: self.battery,
-        }
-    }
-
-    pub fn with_alerts(self, alerts: SystemAlerts, storage: Option<StorageSample>) -> FullSample {
-        FullSample {
-            cpu_percent: self.cpu_percent,
-            ram: self.ram,
-            battery: self.battery,
-            alerts,
-            storage,
-            disks: self.disks,
-            network: self.network,
+            online: self.online,
         }
     }
 }
@@ -68,8 +35,7 @@ impl MetricsFull {
 /// What the monitor needs from the metrics sampler (a trait so its tests can spy on it).
 pub trait Metrics: Send {
     fn light(&mut self) -> MetricsLight;
-    fn full(&mut self) -> MetricsFull;
-    /// Free space per fixed drive only (no PDH, no CPU baseline): the light rhythm's disk-alert
+    /// Free space per fixed drive only (no CPU baseline): the light rhythm's disk-alert
     /// reading. `None` when the drive list could not be read, so the alert keeps its last reading.
     fn disks(&mut self) -> Option<Vec<DiskFree>>;
     /// Forgets the CPU baseline: the next sample reports `cpuPercent: null`.
@@ -79,11 +45,6 @@ pub trait Metrics: Send {
 /// Rounded 0-100; `None` for NaN or infinity (a PDH or division glitch the schema would reject).
 pub(crate) fn clamp_percent(value: f64) -> Option<f64> {
     value.is_finite().then(|| value.round().clamp(0.0, 100.0))
-}
-
-/// A non-negative byte count or rate; `None` when not finite.
-fn to_bytes(value: f64) -> Option<f64> {
-    value.is_finite().then(|| value.round().max(0.0))
 }
 
 /// Runs a raw read; a panicking adapter degrades that metric to `None` instead of failing the
@@ -146,42 +107,6 @@ impl MetricsSampler {
             seconds_left: power.seconds_left.map(u64::from),
         })
     }
-
-    fn full_disks(&self) -> Vec<DiskSample> {
-        let idle = attempt(|| self.api.disk_idle_percent());
-        let activity_percent = idle.and_then(|idle| clamp_percent(100.0 - idle));
-        let letters = attempt(|| self.api.fixed_drives()).unwrap_or_default();
-        let mut result = Vec::new();
-        for letter in letters {
-            let Some(space) = attempt(|| self.api.disk_space(letter)) else {
-                continue;
-            };
-            let (total, free) = (space.total_bytes as f64, space.free_bytes as f64);
-            let used_percent = if total > 0.0 {
-                clamp_percent(100.0 * (total - free) / total)
-            } else {
-                Some(0.0)
-            };
-            let (Some(free_bytes), Some(used_percent)) = (to_bytes(free), used_percent) else {
-                continue;
-            };
-            result.push(DiskSample {
-                letter: letter.to_string(),
-                used_percent,
-                free_bytes,
-                activity_percent,
-            });
-        }
-        result
-    }
-
-    fn network(&self) -> Option<NetworkSample> {
-        let rates = attempt(|| self.api.network_bytes_per_sec())?;
-        Some(NetworkSample {
-            up_bytes_per_sec: to_bytes(rates.up)?,
-            down_bytes_per_sec: to_bytes(rates.down)?,
-        })
-    }
 }
 
 impl Metrics for MetricsSampler {
@@ -190,17 +115,7 @@ impl Metrics for MetricsSampler {
             cpu_percent: self.cpu_percent(),
             ram: self.ram(),
             battery: self.battery(),
-        }
-    }
-
-    fn full(&mut self) -> MetricsFull {
-        let light = self.light();
-        MetricsFull {
-            cpu_percent: light.cpu_percent,
-            ram: light.ram,
-            battery: light.battery,
-            disks: self.full_disks(),
-            network: self.network(),
+            online: attempt(|| self.api.online()),
         }
     }
 
@@ -219,6 +134,8 @@ impl Metrics for MetricsSampler {
                 result.push(DiskFree {
                     letter: letter.to_string(),
                     free_percent,
+                    free_bytes: space.free_bytes.min(space.total_bytes),
+                    total_bytes: space.total_bytes,
                 });
             }
         }

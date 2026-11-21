@@ -10,7 +10,6 @@ import {
   gmailCardBody,
   gmailUnreadFigure,
   redmineNotice,
-  redmineProgress,
   sessionLine,
   topNotes,
   topSessions,
@@ -86,29 +85,12 @@ describe('topNotes', () => {
   })
 })
 
-describe('redmineProgress', () => {
-  it('is the share of the target', () => {
-    expect(redmineProgress(4, 8)).toBe(0.5)
-  })
-
-  it('stops at the target', () => {
-    expect(redmineProgress(10, 8)).toBe(1)
-  })
-
-  it('is empty without hours', () => {
-    expect(redmineProgress(null, 8)).toBe(0)
-  })
-
-  it('is empty without a target to measure against', () => {
-    expect(redmineProgress(4, 0)).toBe(0)
-  })
-})
-
 describe('redmineNotice', () => {
-  const state = (status: RedmineState['status'], todayHours: number | null): RedmineState => ({
+  const state = (status: RedmineState['status'], todayHours: number | null, monthHours = todayHours): RedmineState => ({
     status,
     account: null,
     todayHours,
+    monthHours,
     updatedAt: null,
     persistent: true,
   })
@@ -130,6 +112,11 @@ describe('redmineNotice', () => {
 
   it('has nothing to say with the hours read, zero included', () => {
     expect(redmineNotice(state('ok', 0))).toBeNull()
+  })
+
+  it("shows the month's hours after midnight, before today's are read", () => {
+    expect(redmineNotice(state('ok', null, 38.5))).toBeNull()
+    expect(redmineNotice(state('offline', null, 38.5))).toBeNull()
   })
 })
 

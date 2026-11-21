@@ -5,7 +5,6 @@ import { useSettings } from '../shared/settings-store'
 import { useT } from '../shared/use-t'
 import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
-import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 import { ALERT_RANGES, createAlertSaver, parseAlertField, type Range } from './system-alerts-form'
 
 const field =
@@ -132,7 +131,6 @@ export function SystemPage({ settings }: { settings: Settings }) {
 
   return (
     <div data-testid="system-alerts-page">
-      <IntegrationDisabledNotice integration="system" />
       <p className="mb-2 text-small text-graphite">{t('cc.system.note')}</p>
       {rows.map(({ key, name, hint, range, value }) => {
         const enabled = alerts[key].enabled

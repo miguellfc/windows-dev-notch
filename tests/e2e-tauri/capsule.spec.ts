@@ -27,8 +27,10 @@ import { FAKE_ACCOUNT, FAKE_CLIENT_ID, FAKE_CLIENT_SECRET, startFakeGmail, type 
 import { FAKE_REDMINE_ACCOUNT, FAKE_REDMINE_KEY, FAKE_REDMINE_ORIGIN, startFakeRedmine, type FakeRedmine } from './fixtures/fake-redmine'
 import {
   DEFAULT_ALERTS,
+  alignZoneWithWindows,
   capsuleBox,
   dataDir,
+  e2e,
   eventually,
   fillValue,
   hookEvent,
@@ -206,6 +208,9 @@ describe('Compact capsule (Tauri)', () => {
   })
 
   it('compact capsule worst case fits', async () => {
+    // Connecting GitHub and GitLab asks for their month's contributions (their capsule blocks), and
+    // the fake checks the ranges against the app's days (see code-review.spec.ts).
+    alignZoneWithWindows()
     ;[gmail, review, redmine] = await Promise.all([startFakeGmail(), startFakeCodeReview(), startFakeRedmine()])
     for (const base of [gmail.base, review.base, redmine.base]) {
       if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(base)) throw new Error(`Unexpected fake origin ${base}`)
@@ -254,10 +259,9 @@ describe('Compact capsule (Tauri)', () => {
       await $(present(id)).waitForDisplayed({ timeout: 15_000 })
     }
     await eventually(() => textOf(present('metric-mail')), (text) => text === '99+', 'the mail block at "99+"')
-    // 14 dotted sessions: 4 dots, and the extra capped at the reserved "+9" (its label keeps 10).
-    await eventually(() => count(`${present('claude-dots')} .status-dot`), (n) => n === 4, 'four dots')
-    await eventually(() => textOf(present('claude-dots')), (text) => text === '+9', 'the dots block at "+9"')
-    expect(await labelOf(present('claude-dots'))).toContain('10 más')
+    // 14 sessions with a dot: Claude's mark alone (no dots, no "+N"); the label counts each state.
+    await eventually(() => labelOf(present('claude-dots')), (label) => label === 'Claude Code: 8 trabajando, 3 esperando, 3 con error', 'the Claude label')
+    expect(await count(`${present('claude-dots')} .status-dot`)).toBe(0)
     console.log(`storage block: "${await textOf(present('metric-storage'))}" (${await labelOf(present('metric-storage'))})`)
 
     const all = ['capsule-zone-left', 'capsule-zone-blocks', 'capsule-zone-system', 'claude-dots', 'metric-mail', 'metric-review-github', 'metric-review-gitlab', 'metric-redmine', 'metric-cpu', 'metric-ram', 'metric-storage', 'metric-connection']
@@ -265,7 +269,7 @@ describe('Compact capsule (Tauri)', () => {
     expect(await expectedCompactWidth()).toBe(compactWidthFor({ system: { battery: (await count(present('metric-battery'))) > 0 }, blocks: { claude: true, mail: true, reviews: 2, redmine: true } }))
 
     await setLanguage('en')
-    await eventually(() => labelOf(present('claude-dots')), (label) => label?.includes('10 more') ?? false, 'the English dots label')
+    await eventually(() => labelOf(present('claude-dots')), (label) => label === 'Claude Code: 8 working, 3 waiting, 3 with errors', 'the English Claude label')
     await expectCompactFits(all)
     for (const fake of [gmail, review, redmine]) expect(fake.violations).toEqual([])
   })
@@ -278,17 +282,52 @@ describe('Compact capsule (Tauri)', () => {
     const connection = present('metric-connection')
     await $(storage).waitForDisplayed({ timeout: 15_000 })
     await $(connection).waitForDisplayed()
-    // "C: 62 %" (whatever the drive with the least free space is), the % used.
-    expect(await textOf(storage)).toMatch(/^[A-Z]: \d{1,3}\s?%$/u)
-    expect(await labelOf(storage)).toMatch(/^Disco [A-Z]: \d{1,3}\s?% usado/u)
+    // "62 %": the whole computer's fill (every fixed drive), with no drive letter.
+    expect(await textOf(storage)).toMatch(/^\d{1,3}\s?%$/u)
+    expect(await labelOf(storage)).toMatch(/^Almacenamiento: \d{1,3}\s?% usado(; poco espacio libre en [A-Z]:)?$/u)
     expect(await labelOf(connection)).toBe('Con conexión')
     await expectCompactFits(['capsule-zone-left', 'capsule-zone-system', 'metric-storage', 'metric-connection'])
 
     await setLanguage('en')
     await eventually(() => labelOf(connection), (label) => label === 'Online', 'the English connection label')
-    expect(await textOf(storage)).toMatch(/^[A-Z]: \d{1,3}\s?%$/u)
-    expect(await labelOf(storage)).toMatch(/^Disk [A-Z]: \d{1,3}\s?% used/u)
+    expect(await textOf(storage)).toMatch(/^\d{1,3}\s?%$/u)
+    expect(await labelOf(storage)).toMatch(/^Storage: \d{1,3}\s?% used(; [A-Z]: is low on space)?$/u)
     await expectCompactFits(['capsule-zone-left', 'capsule-zone-system', 'metric-storage', 'metric-connection'])
+  })
+
+  it("the connection icon follows main's internet reading", async () => {
+    // `__e2e:connectivity` forces what the monitor reads from Windows' connectivity hint; it shows
+    // with the next light sample (every 3 s). navigator.onLine stays true on a network without
+    // internet, so only main's reading can turn the icon off here.
+    await launch({ fresh: true, files: { 'settings.json': seededSettings(DEFAULT_ALERTS) } })
+    await pointer(true)
+    await expectMode('compact')
+    const connection = present('metric-connection')
+    await $(connection).waitForDisplayed({ timeout: 15_000 })
+    const state = async () => `${await $(connection).getAttribute('data-online')} ${await labelOf(connection)}`
+    const navigatorOnline = () => inPage(() => (globalThis as unknown as { navigator: { onLine: boolean } }).navigator.onLine)
+
+    await e2e('connectivity', { connectivity: 'offline' })
+    await eventually(state, (value) => value === 'false Sin conexión', 'the connection offline')
+    // Icon only: the width does not move.
+    await expectCompactFits(['capsule-zone-left', 'capsule-zone-system', 'metric-storage', 'metric-connection'])
+
+    await e2e('connectivity', { connectivity: 'online' })
+    await eventually(state, (value) => value === 'true Con conexión', 'the connection online')
+
+    // Windows does not know: navigator.onLine decides.
+    await e2e('connectivity', { connectivity: 'offline' })
+    await eventually(state, (value) => value === 'false Sin conexión', 'the connection offline again')
+    await e2e('connectivity', { connectivity: 'unknown' })
+    const fallback = (await navigatorOnline()) ? 'true Con conexión' : 'false Sin conexión'
+    await eventually(state, (value) => value === fallback, `the navigator fallback (${fallback})`)
+
+    await setLanguage('en')
+    await e2e('connectivity', { connectivity: 'offline' })
+    await eventually(state, (value) => value === 'false Offline', 'the English offline label')
+    await e2e('connectivity', { connectivity: 'online' })
+    await eventually(state, (value) => value === 'true Online', 'the English online label')
+    await e2e('connectivity', { connectivity: 'real' })
   })
 
   it('hiding every capsule integration removes the middle zone', async () => {

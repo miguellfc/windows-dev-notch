@@ -71,6 +71,13 @@ describe('activePage', () => {
     expect(activePage(5000, 6)).toBe(5)
     expect(activePage(-40, 6)).toBe(0)
   })
+
+  it('knows the last page, which ends short of a whole step', () => {
+    // Seven cards: the row stops at 0, 182, 364, 546 and 632, with the last card against the edge.
+    expect(activePage(632, 5)).toBe(4)
+    expect(activePage(546, 5)).toBe(3)
+    expect(activePage(86, 2)).toBe(1)
+  })
 })
 
 describe('wheelScroll', () => {
@@ -101,23 +108,40 @@ describe('snapLeft', () => {
     expect(snapLeft(100, 910)).toBe(182)
     expect(snapLeft(2000, 910)).toBe(910)
   })
+
+  it('reaches the end of the row, which is not a whole step away', () => {
+    expect(snapLeft(632, 632)).toBe(632)
+    expect(snapLeft(600, 632)).toBe(632)
+    expect(snapLeft(560, 632)).toBe(546)
+  })
 })
 
 describe('scrollForCard', () => {
   it('stays put while the card is whole in view', () => {
-    expect(scrollForCard(0, 0)).toBe(0)
-    expect(scrollForCard(2, 0)).toBe(0)
-    expect(scrollForCard(3, 182)).toBe(182)
+    expect(scrollForCard(0, 0, 632)).toBe(0)
+    expect(scrollForCard(2, 0, 632)).toBe(0)
+    expect(scrollForCard(3, 182, 632)).toBe(182)
   })
 
   it('brings in a card past the right edge as the third one shown', () => {
-    expect(scrollForCard(3, 0)).toBe(182)
-    expect(scrollForCard(7, 0)).toBe(910)
+    expect(scrollForCard(3, 0, 632)).toBe(182)
+  })
+
+  it('stops at the end of the row for the last cards', () => {
+    expect(scrollForCard(6, 0, 632)).toBe(632)
+    expect(scrollForCard(5, 546, 632)).toBe(546)
+    expect(scrollForCard(6, 546, 632)).toBe(632)
+  })
+
+  it('stays at the end while the last three cards are in view', () => {
+    expect(scrollForCard(4, 632, 632)).toBe(632)
+    expect(scrollForCard(6, 632, 632)).toBe(632)
   })
 
   it('brings in a card past the left edge as the first one shown', () => {
-    expect(scrollForCard(1, 364)).toBe(182)
-    expect(scrollForCard(0, 910)).toBe(0)
+    expect(scrollForCard(1, 364, 632)).toBe(182)
+    expect(scrollForCard(3, 632, 632)).toBe(546)
+    expect(scrollForCard(0, 632, 632)).toBe(0)
   })
 })
 

@@ -3,7 +3,7 @@
 Developer Notch incluye software, fuentes e iconos de terceros. Este archivo se genera con `npm run notices` (`scripts/third-party-notices.mjs`) a partir de `cargo metadata` y `node_modules`; no se edita a mano.
 
 - [Iconos](#iconos)
-- [Fuentes Geist](#fuentes-geist)
+- [Fuentes](#fuentes)
 - [Paquetes npm de la interfaz](#paquetes-npm-de-la-interfaz)
 - [Crates de Rust](#crates-de-rust)
 - [Marcas](#marcas)
@@ -70,18 +70,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## Fuentes Geist
+## Fuentes
 
-La interfaz incluye las fuentes Geist y Geist Mono (de Vercel), empaquetadas por Fontsource, bajo la SIL Open Font License 1.1. Su licencia exige distribuir este texto con las fuentes.
+La interfaz incluye las fuentes Nunito, Geist Mono y Jersey 10, empaquetadas por Fontsource, bajo la SIL Open Font License 1.1. Su licencia exige distribuir este texto con las fuentes.
 
-- @fontsource-variable/geist 5.3.0 (OFL-1.1): https://github.com/fontsource/font-files
 - @fontsource-variable/geist-mono 5.3.0 (OFL-1.1): https://github.com/fontsource/font-files
+- @fontsource-variable/nunito 5.3.0 (OFL-1.1): https://github.com/fontsource/font-files
 - @fontsource/jersey-10 5.3.0 (OFL-1.1): https://github.com/fontsource/font-files
 
-### @fontsource-variable/geist 5.3.0
+### @fontsource-variable/geist-mono 5.3.0
 
 ````text
-Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font) Geist-Italic[wght].ttf: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
+Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git) GeistMono-Italic[wght].ttf: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
@@ -176,10 +176,10 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ````
 
-### @fontsource-variable/geist-mono 5.3.0
+### @fontsource-variable/nunito 5.3.0
 
 ````text
-Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git) GeistMono-Italic[wght].ttf: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito) Nunito-Italic[wght].ttf: Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

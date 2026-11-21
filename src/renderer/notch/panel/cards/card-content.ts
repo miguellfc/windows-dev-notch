@@ -35,17 +35,14 @@ export function topNotes(notes: readonly Note[], limit = 3): Note[] {
     .slice(0, limit)
 }
 
-/** How much of the daily target is logged, from 0 to 1. */
-export function redmineProgress(hours: number | null, target: number): number {
-  if (hours === null || target <= 0) return 0
-  return Math.min(Math.max(hours / target, 0), 1)
-}
-
-/** The notice that takes the Redmine card's place; null with hours to show (offline keeps the last ones). */
+/**
+ * The notice that takes the Redmine card's place; null with hours to show, today's or the month's
+ * (offline keeps the last ones; after midnight the month's stay until the next reading).
+ */
 export function redmineNotice(state: RedmineState | null): MessageKey | null {
   if (state?.status === 'unconfigured') return 'redmine.state.unconfigured'
   if (state?.status === 'auth-error') return 'redmine.state.auth'
-  if (state?.todayHours !== null && state?.todayHours !== undefined) return null
+  if (state && (state.todayHours !== null || state.monthHours !== null)) return null
   return state?.status === 'offline' ? 'redmine.view.offline' : 'panel.card.loading'
 }
 

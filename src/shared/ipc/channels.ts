@@ -60,10 +60,6 @@ export const channels = {
   usage: {
     summary: 'usage:summary',
   },
-  system: {
-    view: 'system:view',
-    killProcess: 'system:kill-process',
-  },
   gmail: {
     getState: 'gmail:get-state',
     recent: 'gmail:recent',
@@ -120,7 +116,6 @@ export const eventChannels = {
   remindersFired: 'reminders:fired',
   notesChanged: 'notes:changed',
   systemMetrics: 'system:metrics',
-  systemProcesses: 'system:processes',
   gmailState: 'gmail:state',
   gmailNewMail: 'gmail:new-mail',
   codeReviewState: 'code-review:state',

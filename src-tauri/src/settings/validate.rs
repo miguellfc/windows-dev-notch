@@ -186,13 +186,10 @@ fn validate_time(time: &str) -> Result<(), String> {
 /// the capsule.
 fn validate_integrations(integrations: &IntegrationsSettings) -> Result<(), String> {
     let IntegrationsSettings {
-        reminders,
-        notes,
-        system,
-        ..
+        reminders, notes, ..
     } = integrations;
-    if reminders.capsule || notes.capsule || system.capsule {
-        return Err("Reminders, notes and system have no capsule block".into());
+    if reminders.capsule || notes.capsule {
+        return Err("Reminders and notes have no capsule block".into());
     }
     Ok(())
 }
@@ -428,14 +425,9 @@ mod tests {
         assert!(validate_settings(&settings).is_ok());
         settings.integrations.notes.capsule = true;
         assert!(validate_settings(&settings).is_err());
-        for key in ["reminders", "system"] {
-            let mut settings = crate::settings::default_settings("es");
-            match key {
-                "reminders" => settings.integrations.reminders.capsule = true,
-                _ => settings.integrations.system.capsule = true,
-            }
-            assert!(validate_settings(&settings).is_err(), "{key}");
-        }
+        let mut settings = crate::settings::default_settings("es");
+        settings.integrations.reminders.capsule = true;
+        assert!(validate_settings(&settings).is_err());
         // The capsule integrations may turn it off and on.
         let mut settings = crate::settings::default_settings("es");
         settings.integrations.claude.capsule = false;

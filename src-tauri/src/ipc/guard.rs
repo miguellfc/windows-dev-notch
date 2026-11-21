@@ -57,9 +57,6 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("reminders:delete", Guard::Any),
     // usage
     ("usage:summary", Guard::ControlCenterOnly),
-    // system
-    ("system:view", Guard::NotchOnly),
-    ("system:kill-process", Guard::NotchOnly),
     // notes
     ("notes:list", Guard::NotchOnly),
     ("notes:create", Guard::NotchOnly),

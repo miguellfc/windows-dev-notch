@@ -1,12 +1,12 @@
 {
-  "windowWidth": 932,
+  "windowWidth": 854,
   "capsuleSizes": {
     "compact": {
-      "width": 491,
+      "width": 465,
       "height": 36
     },
     "peek": {
-      "width": 177,
+      "width": 174,
       "height": 36
     },
     "alert": {
@@ -28,10 +28,6 @@
     "reminders": {
       "width": 420,
       "height": 320
-    },
-    "system": {
-      "width": 520,
-      "height": 280
     },
     "notes": {
       "width": 420,
@@ -62,7 +58,6 @@
     "permission": 6,
     "question": 6,
     "reminders": 6,
-    "system": 6,
     "notes": 6,
     "gmail": 6,
     "reviews": 6,
@@ -77,7 +72,6 @@
     "permission": 378,
     "question": 582,
     "reminders": 398,
-    "system": 358,
     "notes": 398,
     "gmail": 518,
     "reviews": 402,
@@ -94,9 +88,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 114
       }
     },
@@ -109,9 +103,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 114
       }
     },
@@ -124,9 +118,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 114
       }
     },
@@ -139,9 +133,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 114
       }
     },
@@ -154,9 +148,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 114
       }
     },
@@ -169,9 +163,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 114
       }
     },
@@ -184,9 +178,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 122
       }
     },
@@ -199,9 +193,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 122
       }
     },
@@ -214,9 +208,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 122
       }
     },
@@ -229,9 +223,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 378
       }
     },
@@ -244,9 +238,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 378
       }
     },
@@ -259,9 +253,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 378
       }
     },
@@ -274,9 +268,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 378
       }
     },
@@ -289,9 +283,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 378
       }
     },
@@ -304,9 +298,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 378
       }
     },
@@ -319,9 +313,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 582
       }
     },
@@ -334,9 +328,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 582
       }
     },
@@ -349,9 +343,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 582
       }
     },
@@ -364,9 +358,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 398
       }
     },
@@ -379,9 +373,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 398
       }
     },
@@ -394,55 +388,10 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 398
-      }
-    },
-    {
-      "mode": "system",
-      "workArea": {
-        "x": 0,
-        "y": 0,
-        "width": 1920,
-        "height": 1040
-      },
-      "bounds": {
-        "x": 494,
-        "y": 0,
-        "width": 932,
-        "height": 358
-      }
-    },
-    {
-      "mode": "system",
-      "workArea": {
-        "x": -1280,
-        "y": 0,
-        "width": 1280,
-        "height": 984
-      },
-      "bounds": {
-        "x": -1106,
-        "y": 0,
-        "width": 932,
-        "height": 358
-      }
-    },
-    {
-      "mode": "system",
-      "workArea": {
-        "x": 1920,
-        "y": 0,
-        "width": 2560,
-        "height": 1392
-      },
-      "bounds": {
-        "x": 2734,
-        "y": 0,
-        "width": 932,
-        "height": 358
       }
     },
     {
@@ -454,9 +403,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 398
       }
     },
@@ -469,9 +418,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 398
       }
     },
@@ -484,9 +433,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 398
       }
     },
@@ -499,9 +448,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 518
       }
     },
@@ -514,9 +463,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 518
       }
     },
@@ -529,9 +478,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 518
       }
     },
@@ -544,9 +493,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 402
       }
     },
@@ -559,9 +508,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 402
       }
     },
@@ -574,9 +523,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 402
       }
     },
@@ -589,9 +538,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 638
       }
     },
@@ -604,9 +553,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 638
       }
     },
@@ -619,9 +568,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 638
       }
     },
@@ -634,9 +583,9 @@
         "height": 1040
       },
       "bounds": {
-        "x": 494,
+        "x": 533,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 76
       }
     },
@@ -649,9 +598,9 @@
         "height": 984
       },
       "bounds": {
-        "x": -1106,
+        "x": -1067,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 76
       }
     },
@@ -664,9 +613,9 @@
         "height": 1392
       },
       "bounds": {
-        "x": 2734,
+        "x": 2773,
         "y": 0,
-        "width": 932,
+        "width": 854,
         "height": 76
       }
     }
@@ -709,11 +658,6 @@
     },
     {
       "from": "compact",
-      "to": "system",
-      "order": "resize-first"
-    },
-    {
-      "from": "compact",
       "to": "notes",
       "order": "resize-first"
     },
@@ -774,11 +718,6 @@
     },
     {
       "from": "peek",
-      "to": "system",
-      "order": "resize-first"
-    },
-    {
-      "from": "peek",
       "to": "notes",
       "order": "resize-first"
     },
@@ -839,11 +778,6 @@
     },
     {
       "from": "alert",
-      "to": "system",
-      "order": "resize-first"
-    },
-    {
-      "from": "alert",
       "to": "notes",
       "order": "resize-first"
     },
@@ -904,11 +838,6 @@
     },
     {
       "from": "expanded",
-      "to": "system",
-      "order": "animate-first"
-    },
-    {
-      "from": "expanded",
       "to": "notes",
       "order": "resize-first"
     },
@@ -969,11 +898,6 @@
     },
     {
       "from": "permission",
-      "to": "system",
-      "order": "animate-first"
-    },
-    {
-      "from": "permission",
       "to": "notes",
       "order": "resize-first"
     },
@@ -1034,11 +958,6 @@
     },
     {
       "from": "question",
-      "to": "system",
-      "order": "animate-first"
-    },
-    {
-      "from": "question",
       "to": "notes",
       "order": "animate-first"
     },
@@ -1099,11 +1018,6 @@
     },
     {
       "from": "reminders",
-      "to": "system",
-      "order": "animate-first"
-    },
-    {
-      "from": "reminders",
       "to": "notes",
       "order": "resize-first"
     },
@@ -1128,71 +1042,6 @@
       "order": "animate-first"
     },
     {
-      "from": "system",
-      "to": "compact",
-      "order": "animate-first"
-    },
-    {
-      "from": "system",
-      "to": "peek",
-      "order": "animate-first"
-    },
-    {
-      "from": "system",
-      "to": "alert",
-      "order": "animate-first"
-    },
-    {
-      "from": "system",
-      "to": "expanded",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "permission",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "question",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "reminders",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "system",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "notes",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "gmail",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "reviews",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "redmine",
-      "order": "resize-first"
-    },
-    {
-      "from": "system",
-      "to": "mini",
-      "order": "animate-first"
-    },
-    {
       "from": "notes",
       "to": "compact",
       "order": "animate-first"
@@ -1226,11 +1075,6 @@
       "from": "notes",
       "to": "reminders",
       "order": "resize-first"
-    },
-    {
-      "from": "notes",
-      "to": "system",
-      "order": "animate-first"
     },
     {
       "from": "notes",
@@ -1290,11 +1134,6 @@
     {
       "from": "gmail",
       "to": "reminders",
-      "order": "animate-first"
-    },
-    {
-      "from": "gmail",
-      "to": "system",
       "order": "animate-first"
     },
     {
@@ -1359,11 +1198,6 @@
     },
     {
       "from": "reviews",
-      "to": "system",
-      "order": "animate-first"
-    },
-    {
-      "from": "reviews",
       "to": "notes",
       "order": "animate-first"
     },
@@ -1424,11 +1258,6 @@
     },
     {
       "from": "redmine",
-      "to": "system",
-      "order": "animate-first"
-    },
-    {
-      "from": "redmine",
       "to": "notes",
       "order": "animate-first"
     },
@@ -1485,11 +1314,6 @@
     {
       "from": "mini",
       "to": "reminders",
-      "order": "resize-first"
-    },
-    {
-      "from": "mini",
-      "to": "system",
       "order": "resize-first"
     },
     {
@@ -1527,7 +1351,7 @@
         "reviews": 0,
         "redmine": false
       },
-      "width": 177
+      "width": 174
     },
     {
       "system": null,
@@ -1537,7 +1361,7 @@
         "reviews": 0,
         "redmine": true
       },
-      "width": 263
+      "width": 267
     },
     {
       "system": null,
@@ -1547,7 +1371,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 241
+      "width": 245
     },
     {
       "system": null,
@@ -1557,7 +1381,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 312
+      "width": 323
     },
     {
       "system": null,
@@ -1566,108 +1390,108 @@
         "mail": false,
         "reviews": 2,
         "redmine": false
+      },
+      "width": 301
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 379
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 237
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 316
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 293
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 372
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 349
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 428
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 211
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
       },
       "width": 289
     },
     {
       "system": null,
       "blocks": {
-        "claude": false,
-        "mail": false,
-        "reviews": 2,
-        "redmine": true
-      },
-      "width": 360
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 0,
-        "redmine": false
-      },
-      "width": 241
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 0,
-        "redmine": true
-      },
-      "width": 312
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 1,
-        "redmine": false
-      },
-      "width": 289
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 1,
-        "redmine": true
-      },
-      "width": 360
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 2,
-        "redmine": false
-      },
-      "width": 338
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 2,
-        "redmine": true
-      },
-      "width": 409
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 0,
-        "redmine": false
-      },
-      "width": 289
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 0,
-        "redmine": true
-      },
-      "width": 360
-    },
-    {
-      "system": null,
-      "blocks": {
         "claude": true,
         "mail": false,
         "reviews": 1,
         "redmine": false
       },
-      "width": 338
+      "width": 267
     },
     {
       "system": null,
@@ -1677,7 +1501,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 409
+      "width": 345
     },
     {
       "system": null,
@@ -1687,7 +1511,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 386
+      "width": 323
     },
     {
       "system": null,
@@ -1697,7 +1521,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 457
+      "width": 401
     },
     {
       "system": null,
@@ -1706,6 +1530,16 @@
         "mail": true,
         "reviews": 0,
         "redmine": false
+      },
+      "width": 259
+    },
+    {
+      "system": null,
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
       },
       "width": 338
     },
@@ -1714,20 +1548,10 @@
       "blocks": {
         "claude": true,
         "mail": true,
-        "reviews": 0,
-        "redmine": true
-      },
-      "width": 409
-    },
-    {
-      "system": null,
-      "blocks": {
-        "claude": true,
-        "mail": true,
         "reviews": 1,
         "redmine": false
       },
-      "width": 386
+      "width": 315
     },
     {
       "system": null,
@@ -1737,7 +1561,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 457
+      "width": 394
     },
     {
       "system": null,
@@ -1747,7 +1571,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 435
+      "width": 371
     },
     {
       "system": null,
@@ -1757,7 +1581,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 506
+      "width": 450
     },
     {
       "system": {
@@ -1769,7 +1593,7 @@
         "reviews": 0,
         "redmine": false
       },
-      "width": 427
+      "width": 401
     },
     {
       "system": {
@@ -1781,7 +1605,7 @@
         "reviews": 0,
         "redmine": true
       },
-      "width": 513
+      "width": 495
     },
     {
       "system": {
@@ -1793,7 +1617,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 491
+      "width": 472
     },
     {
       "system": {
@@ -1805,7 +1629,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 562
+      "width": 551
     },
     {
       "system": {
@@ -1817,7 +1641,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 539
+      "width": 528
     },
     {
       "system": {
@@ -1829,7 +1653,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 610
+      "width": 607
     },
     {
       "system": {
@@ -1841,7 +1665,7 @@
         "reviews": 0,
         "redmine": false
       },
-      "width": 491
+      "width": 465
     },
     {
       "system": {
@@ -1853,7 +1677,7 @@
         "reviews": 0,
         "redmine": true
       },
-      "width": 562
+      "width": 543
     },
     {
       "system": {
@@ -1865,7 +1689,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 539
+      "width": 521
     },
     {
       "system": {
@@ -1877,7 +1701,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 610
+      "width": 599
     },
     {
       "system": {
@@ -1888,191 +1712,191 @@
         "mail": true,
         "reviews": 2,
         "redmine": false
-      },
-      "width": 588
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": false,
-        "mail": true,
-        "reviews": 2,
-        "redmine": true
-      },
-      "width": 659
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 0,
-        "redmine": false
-      },
-      "width": 539
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 0,
-        "redmine": true
-      },
-      "width": 610
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 1,
-        "redmine": false
-      },
-      "width": 588
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 1,
-        "redmine": true
-      },
-      "width": 659
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 2,
-        "redmine": false
-      },
-      "width": 636
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": false,
-        "reviews": 2,
-        "redmine": true
-      },
-      "width": 707
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": true,
-        "reviews": 0,
-        "redmine": false
-      },
-      "width": 588
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": true,
-        "reviews": 0,
-        "redmine": true
-      },
-      "width": 659
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": true,
-        "reviews": 1,
-        "redmine": false
-      },
-      "width": 636
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": true,
-        "reviews": 1,
-        "redmine": true
-      },
-      "width": 707
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": true,
-        "reviews": 2,
-        "redmine": false
-      },
-      "width": 685
-    },
-    {
-      "system": {
-        "battery": false
-      },
-      "blocks": {
-        "claude": true,
-        "mail": true,
-        "reviews": 2,
-        "redmine": true
-      },
-      "width": 756
-    },
-    {
-      "system": {
-        "battery": true
-      },
-      "blocks": {
-        "claude": false,
-        "mail": false,
-        "reviews": 0,
-        "redmine": false
-      },
-      "width": 491
-    },
-    {
-      "system": {
-        "battery": true
-      },
-      "blocks": {
-        "claude": false,
-        "mail": false,
-        "reviews": 0,
-        "redmine": true
       },
       "width": 577
     },
     {
       "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": false,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 655
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 438
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 517
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 494
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 573
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 550
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": false,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 629
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 487
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 565
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": false
+      },
+      "width": 543
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 1,
+        "redmine": true
+      },
+      "width": 621
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": false
+      },
+      "width": 599
+    },
+    {
+      "system": {
+        "battery": false
+      },
+      "blocks": {
+        "claude": true,
+        "mail": true,
+        "reviews": 2,
+        "redmine": true
+      },
+      "width": 677
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": false
+      },
+      "width": 465
+    },
+    {
+      "system": {
+        "battery": true
+      },
+      "blocks": {
+        "claude": false,
+        "mail": false,
+        "reviews": 0,
+        "redmine": true
+      },
+      "width": 558
+    },
+    {
+      "system": {
         "battery": true
       },
       "blocks": {
@@ -2081,7 +1905,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 554
+      "width": 536
     },
     {
       "system": {
@@ -2093,7 +1917,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 625
+      "width": 614
     },
     {
       "system": {
@@ -2105,7 +1929,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 603
+      "width": 592
     },
     {
       "system": {
@@ -2117,7 +1941,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 674
+      "width": 670
     },
     {
       "system": {
@@ -2129,7 +1953,7 @@
         "reviews": 0,
         "redmine": false
       },
-      "width": 554
+      "width": 528
     },
     {
       "system": {
@@ -2141,7 +1965,7 @@
         "reviews": 0,
         "redmine": true
       },
-      "width": 625
+      "width": 607
     },
     {
       "system": {
@@ -2153,7 +1977,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 603
+      "width": 584
     },
     {
       "system": {
@@ -2165,7 +1989,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 674
+      "width": 663
     },
     {
       "system": {
@@ -2177,7 +2001,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 651
+      "width": 640
     },
     {
       "system": {
@@ -2189,7 +2013,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 722
+      "width": 719
     },
     {
       "system": {
@@ -2201,7 +2025,7 @@
         "reviews": 0,
         "redmine": false
       },
-      "width": 603
+      "width": 502
     },
     {
       "system": {
@@ -2213,7 +2037,7 @@
         "reviews": 0,
         "redmine": true
       },
-      "width": 674
+      "width": 580
     },
     {
       "system": {
@@ -2225,7 +2049,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 651
+      "width": 558
     },
     {
       "system": {
@@ -2237,7 +2061,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 722
+      "width": 636
     },
     {
       "system": {
@@ -2249,7 +2073,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 700
+      "width": 614
     },
     {
       "system": {
@@ -2261,7 +2085,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 771
+      "width": 692
     },
     {
       "system": {
@@ -2273,7 +2097,7 @@
         "reviews": 0,
         "redmine": false
       },
-      "width": 651
+      "width": 550
     },
     {
       "system": {
@@ -2285,7 +2109,7 @@
         "reviews": 0,
         "redmine": true
       },
-      "width": 722
+      "width": 629
     },
     {
       "system": {
@@ -2297,7 +2121,7 @@
         "reviews": 1,
         "redmine": false
       },
-      "width": 700
+      "width": 606
     },
     {
       "system": {
@@ -2309,7 +2133,7 @@
         "reviews": 1,
         "redmine": true
       },
-      "width": 771
+      "width": 685
     },
     {
       "system": {
@@ -2321,7 +2145,7 @@
         "reviews": 2,
         "redmine": false
       },
-      "width": 748
+      "width": 662
     },
     {
       "system": {
@@ -2333,7 +2157,7 @@
         "reviews": 2,
         "redmine": true
       },
-      "width": 819
+      "width": 741
     }
   ]
 }

@@ -52,6 +52,15 @@ export const QUESTION_SIZE = { width: 520, height: 504 } as const
 export const REVIEWS_SIZE = { width: 520, height: 324 } as const
 
 /**
+ * Size of the "Revisiones" capsule: with contributions, the view's own height plus the 2 px border
+ * (no empty room under the account row), never taller than the window's panel; else the full panel.
+ */
+export function reviewsSizeFor(viewHeight: number | null): { width: number; height: number } {
+  if (viewHeight === null) return REVIEWS_SIZE
+  return { width: REVIEWS_SIZE.width, height: Math.min(viewHeight + 2, REVIEWS_SIZE.height) }
+}
+
+/**
  * The Redmine view. At rest, the 32 px header, the hours summary (the month chart beside
  * Hoy · Semana · Mes) and the search box. While searching, the summary shrinks to one line and the
  * matches or one issue's detail take the room below the box. Both are the `redmine` mode: the window
@@ -65,15 +74,21 @@ export const REDMINE_SIZES = {
   search: { width: 520, height: 560 },
 } as const
 
-/** Size of the Redmine panel: the search while there is something under the box, else the rest. */
-export function redmineSizeFor(searching: boolean): { width: number; height: number } {
-  return searching ? REDMINE_SIZES.search : REDMINE_SIZES.rest
+/**
+ * Size of the Redmine panel: the search while there is something under the box, else the rest. When
+ * the view reports its own height (at rest, or a short list of matches), the capsule fits it plus the
+ * 2 px border (no empty room under the content), never taller than that size.
+ */
+export function redmineSizeFor(searching: boolean, viewHeight: number | null = null): { width: number; height: number } {
+  const full = searching ? REDMINE_SIZES.search : REDMINE_SIZES.rest
+  if (viewHeight === null) return full
+  return { width: full.width, height: Math.min(viewHeight + 2, full.height) }
 }
 
 /**
  * The zones of the compact capsule (time and date | integration blocks | system), in px, measured
  * with `getBoundingClientRect` in the real WebView2 (debug e2e build) in ES and EN, every value at
- * its reserved width ("100 %", "W: 100 %", "99+", "23,75h", 4 dots and "+9"); each is the worst of
+ * its reserved width ("100 %", "99+", "999+", "744,75h", 4 dots and "+9"); each is the worst of
  * the two languages. Every slot carries its own 10 px gap before it, so the zones add up exactly.
  */
 export const COMPACT_ZONE = {
@@ -82,27 +97,33 @@ export const COMPACT_ZONE = {
   /** The 1 px line and the room around it (12 px before, 2 px after; the next slot adds its 10). */
   divider: 15,
   /**
-   * Time and date: EN, "12:59 AM" (62.4) + 10 + "Wed, May 20" (74.6) = 147.0, rounded up (ES: "00:59",
-   * "dom, 20 sept", 124.3). The worst of every hour and every day of a year.
+   * Time (Nunito) and date: EN, "12:00 AM" (58.3) + 10 + "Wed, May 13" (75.0) = 143.3, rounded up
+   * (ES: "00:00", "dom, 13 sept", 117.7). The worst of every hour and every day of a year.
    */
-  left: 147,
-  /** CPU, RAM, storage and connection, without the battery: ES 63.5 + 63.5 + 86 + 22 (EN 212.5). */
-  system: 235,
-  /** What the battery adds, with its gap: ES 63.5 (EN 56). */
+  left: 143.5,
+  /** CPU, RAM, storage (Nunito figures, "100 %") and connection, without the battery: ES 63.4 + 63.4 + 63.4 + 22 = 212.3 (EN 202.5). */
+  system: 212.5,
+  /** What the battery adds, with its gap: ES 63.4 (EN 60.2). */
   battery: 63.5,
 } as const
 
 /** Each integration block of the compact capsule with its 10 px gap, in px (measured like COMPACT_ZONE, the same in ES and EN). */
 export const CAPSULE_BLOCK = {
-  /** Claude's mark, 4 dots and "+9". */
-  claude: 97,
+  /** Claude's 12 px mark alone. */
+  claude: 22,
   /** Gmail's mark and "99+". */
   mail: 48.5,
-  /** One code-review platform's mark and "99+". */
-  review: 48.5,
-  /** Redmine's mark and "23,75h" / "23.75h". */
-  redmine: 71,
+  /** One code-review platform's mark and its contributions this month, "999+" (ES and EN alike: 46 + 10). */
+  review: 56,
+  /** Redmine's mark and the month's hours, "744,75h" / "744.75h". */
+  redmine: 78.5,
 } as const
+
+/**
+ * The widest peek: the time and date at their widest and Claude's mark after them (while some session
+ * has a dot). The peek fits what it shows; this is its ceiling.
+ */
+export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude)
 
 /** What the compact capsule shows: the system zone (null: no sample) and the integration blocks. */
 export interface CompactContent {
@@ -136,14 +157,13 @@ export function compactWidthFor({ system, blocks }: CompactContent): number {
  * edge stops the pointer, so it stays easy to hit while covering a 96×4 strip of what is under it.
  */
 export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height: number }>> = {
-  compact: { width: 491, height: 36 },
-  peek: { width: 177, height: 36 },
+  compact: { width: 465, height: 36 },
+  peek: { width: 174, height: 36 },
   alert: { width: 320, height: 44 },
   expanded: EXPANDED_SIZE,
   permission: { width: 480, height: 300 },
   question: QUESTION_SIZE,
   reminders: { width: 420, height: 320 },
-  system: { width: 520, height: 280 },
   notes: { width: 420, height: 320 },
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
@@ -168,7 +188,7 @@ export const WIDEST_COMPACT_WIDTH = compactWidthFor({
  * showing) plus its shadow. The width never changes between modes because Motion suspends layout
  * animations for 250 ms whenever `innerWidth` changes, which turned every growing morph into a
  * jump. Only the height follows the mode. Rounded up to an even number so the window centres
- * on the screen without a half pixel: the widest compact capsule (819 px) makes it 932.
+ * on the screen without a half pixel: the widest compact capsule (741 px) makes it 854.
  */
 export const WINDOW_WIDTH = Math.ceil((Math.max(WIDEST_COMPACT_WIDTH, ...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2) / 2) * 2
 

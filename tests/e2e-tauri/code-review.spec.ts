@@ -145,8 +145,32 @@ const reviewMetric = async (platform: 'github' | 'gitlab'): Promise<string | nul
 const expectMetric = (platform: 'github' | 'gitlab', label: string | null) =>
   eventually(() => reviewMetric(platform), (value) => value === label, `the ${platform} block ${label ?? 'absent'}`)
 
-/** Launch, connect both platforms from the Control Center; the capsule shows GitHub 2 and GitLab 1. WebDriver ends on the notch. */
-async function connected(server: FakeCodeReview): Promise<void> {
+/** The fake's contributions this month for `platform`, from Windows' day (the app's; see appDays). */
+const monthTotal = async (platform: 'github' | 'gitlab'): Promise<number> => {
+  const today = await appToday()
+  return (platform === 'github' ? expectedGithubContributions(today) : expectedGitlabContributions(today)).monthTotal
+}
+
+/** The capsule block's accessible name: the platform's contributions this month ("143 contribuciones en noviembre en GitHub"). */
+async function contributionsMetric(platform: 'github' | 'gitlab', language: 'es' | 'en' = 'es'): Promise<string> {
+  const total = await monthTotal(platform)
+  const month = monthNameText(localDay(await appToday()), language)
+  const name = platform === 'github' ? 'GitHub' : 'GitLab'
+  if (language === 'es') return `${total === 1 ? '1 contribución' : `${total} contribuciones`} en ${month} en ${name}`
+  return `${total === 1 ? '1 contribution' : `${total} contributions`} in ${month} on ${name}`
+}
+
+/** Both capsule blocks show the platform's contributions this month (WebDriver on the notch, hovered). */
+async function expectContributionMetrics(): Promise<void> {
+  await expectMetric('github', await contributionsMetric('github'))
+  await expectMetric('gitlab', await contributionsMetric('gitlab'))
+}
+
+/**
+ * Launch, connect both platforms from the Control Center; the capsule shows each one's contributions
+ * this month (unless `blocks` is false: no summary yet, say the contributions fail). WebDriver ends on the notch.
+ */
+async function connected(server: FakeCodeReview, blocks = true): Promise<void> {
   await start(server)
   await openCodeReviewPage()
   await saveToken('github', FAKE_GITHUB_TOKEN)
@@ -154,10 +178,7 @@ async function connected(server: FakeCodeReview): Promise<void> {
   await saveToken('gitlab', FAKE_GITLAB_TOKEN, FAKE_GITLAB_ORIGIN)
   await expectConnected('gitlab')
   await useWindow('notch')
-  await whileHovered(async () => {
-    await expectMetric('github', '2 PR tuyos sin revisar en GitHub')
-    await expectMetric('gitlab', '1 MR tuyo sin revisar en GitLab')
-  })
+  if (blocks) await whileHovered(expectContributionMetrics)
 }
 
 const panel = () => byTestId('reviews-panel')
@@ -489,14 +510,23 @@ describe('Code review (Tauri)', () => {
     await eventually(async () => readSettingsFile().codeReview.gitlabUrl, (url) => url === FAKE_GITLAB_ORIGIN, 'the GitLab URL in settings.json')
     await expectNoTokenInDom()
 
-    // The capsule: one block per platform with its own unreviewed PR/MRs (drafts and reviewed ones left out).
+    // The capsule: one block per platform with its contributions this month, queried as soon as the
+    // token works (the "Revisiones" view was never opened). In English too.
     await useWindow('notch')
+    const totals = { github: await monthTotal('github'), gitlab: await monthTotal('gitlab') }
+    // The figure as the block writes it ("999+" from 1000 up).
+    const shown = (total: number) => (total >= 1000 ? '999+' : String(total))
     await whileHovered(async () => {
-      await expectMetric('github', '2 PR tuyos sin revisar en GitHub')
-      await expectMetric('gitlab', '1 MR tuyo sin revisar en GitLab')
-      await expect($(present('metric-review-github'))).toHaveText(expect.stringContaining('2'))
-      await expect($(present('metric-review-gitlab'))).toHaveText(expect.stringContaining('1'))
+      await expectContributionMetrics()
+      await expect($(present('metric-review-github'))).toHaveText(expect.stringContaining(shown(totals.github)))
+      await expect($(present('metric-review-gitlab'))).toHaveText(expect.stringContaining(shown(totals.gitlab)))
     })
+    await setLanguage('en')
+    await whileHovered(async () => {
+      await expectMetric('github', await contributionsMetric('github', 'en'))
+      await expectMetric('gitlab', await contributionsMetric('gitlab', 'en'))
+    })
+    await setLanguage('es')
 
     // The view from the GitHub tile: no tabs, the header says GitHub, the contributions and the account row.
     await openReviewsView('github')
@@ -529,7 +559,7 @@ describe('Code review (Tauri)', () => {
     expectCleanLogs()
   })
 
-  it('a first review shows the alert (also over a capsule hidden with "Ocultar") and lowers the count', async () => {
+  it('a first review shows the alert (also over a capsule hidden with "Ocultar"); the capsule keeps the contributions', async () => {
     const server = fake!
     await connected(server)
     await expectMode('peek')
@@ -543,13 +573,11 @@ describe('Code review (Tauri)', () => {
     const shownAt = Date.now()
     await expect(alert).toHaveText(`Aprobado · web-app#${first!.number} · ${first!.title}`)
     await expect(alert).toHaveAttribute('aria-live', 'polite')
-    // It ends on its own after about 6 s of real time (the clock is not moved meanwhile); the GitHub count went down by one.
+    // It ends on its own after about 6 s of real time (the clock is not moved meanwhile); the
+    // capsule blocks are the month's contributions, which a review does not change.
     await expectMode('peek', 12_000)
     expect(Date.now() - shownAt).toBeGreaterThan(4_000)
-    await whileHovered(async () => {
-      await expectMetric('github', '1 PR tuyo sin revisar en GitHub')
-      await expectMetric('gitlab', '1 MR tuyo sin revisar en GitLab')
-    })
+    await whileHovered(expectContributionMetrics)
 
     // The user hides the notch ("Ocultar"): the window leaves the screen, the queries go on.
     await expandPanel()
@@ -567,22 +595,22 @@ describe('Code review (Tauri)', () => {
     await capsule().waitForExist({ reverse: true, timeout: 12_000 })
     await eventually(notchWindowVisible, (visible) => !visible, 'the notch window hidden again')
 
-    // Shown again: GitHub still has one unreviewed PR.
+    // Shown again: both blocks are still there.
     await expandPanel()
     await pointer(false)
     await requestIntent('dismiss')
     await pointer(false)
     await expectMode('peek')
-    await whileHovered(() => expectMetric('github', '1 PR tuyo sin revisar en GitHub').then(() => undefined))
+    await whileHovered(expectContributionMetrics)
 
-    // A later query with nothing new alerts nothing; GitLab has nothing unreviewed left, so its block
-    // is gone at once (a live 0 does not linger).
+    // A later query with nothing new alerts nothing; GitLab has nothing unreviewed left, and its block
+    // stays (a connected platform turned on for the capsule always shows its contributions).
     const gitlabBefore = server.requests.gitlab
     await advanceClock(TICK_MS)
     await eventually(async () => server.requests.gitlab, (n) => n > gitlabBefore, 'the next GitLab query')
     await browser.pause(500)
     await expectMode('peek')
-    await whileHovered(() => expectMetric('gitlab', null).then(() => undefined))
+    await whileHovered(expectContributionMetrics)
     expect(await $$('[data-testid="review-alert"]')).toHaveLength(0)
 
     expect(server.violations).toEqual([])
@@ -648,7 +676,7 @@ describe('Code review (Tauri)', () => {
     await saveToken('github', FAKE_GITHUB_TOKEN)
     await expectConnected('github')
     await useWindow('notch')
-    await whileHovered(() => expectMetric('github', '2 PR tuyos sin revisar en GitHub').then(() => undefined))
+    await whileHovered(async () => expectMetric('github', await contributionsMetric('github')).then(() => undefined))
 
     expect(server.violations).toEqual([])
     expectCleanLogs()
@@ -672,6 +700,14 @@ describe('Code review (Tauri)', () => {
       expect(await $$('[data-testid="reviews-loading"]')).toHaveLength(0)
       const text = await panel().getText()
       for (const gone of ['Por revisar', 'Míos', 'POR REVISAR', 'MÍOS']) expect({ gone, shown: text.includes(gone) }).toEqual({ gone, shown: false })
+      // The capsule fits the view: no empty room under the account row (the view plus the 2 px border).
+      await browser.waitUntil(
+        async () => {
+          const [capsule, view] = await Promise.all([$('[data-testid="notch-capsule"]').getSize('height'), panel().getSize('height')])
+          return Math.abs(capsule - (view + 2)) <= 1
+        },
+        { timeout: 3000, timeoutMsg: 'the reviews capsule does not fit its view' },
+      )
     }
     // Neither platform was asked for "pending my review": the fake refuses those queries.
     expect(server.violations).toEqual([])
@@ -771,25 +807,27 @@ describe('Code review (Tauri)', () => {
     expectCleanLogs()
   })
 
-  it('contributions: the month chart and summary per platform, keyboard, and queries only while the view is open', async () => {
+  it('contributions: the month chart and summary per platform, keyboard, and queries with the view open or closed', async () => {
     const server = fake!
     await connected(server)
-    // Both platforms connected, the view closed: no contributions asked yet.
-    expect(contributionHits(server)).toEqual({ github: 0, gitlab: 0 })
-
-    // Opening the panel asks each platform once for its card (GitLab: two pages of events). Waiting
-    // for both cards keeps the view's query apart: one started during the panel's would share it.
-    await expandPanel()
-    await expectContributionHits(server, { github: 1, gitlab: 1 })
+    // Both platforms connected, the view closed: each asked once when its token was saved (the
+    // capsule shows the month's total; GitLab: two pages of events).
+    expect(contributionHits(server)).toEqual({ github: 1, gitlab: 1 })
     await eventually(async () => server.hits['gitlab events'], (n) => n === 2, 'two pages of GitLab events')
+
+    // Opening the panel asks each platform once for its card. Waiting for both cards keeps the
+    // view's query apart: one started during the panel's would share it.
+    await expandPanel()
+    await expectContributionHits(server, { github: 2, gitlab: 2 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 4, 'four pages of GitLab events')
     await $('[data-testid="integration-github"] .digits').waitForExist()
     await $('[data-testid="integration-gitlab"] .digits').waitForExist()
     // Opening "Revisiones" asks again, whatever the panel just did.
     await clickCard('integration-github')
     await expectMode('reviews')
     await panel().waitForDisplayed()
-    await expectContributionHits(server, { github: 2, gitlab: 2 })
-    await eventually(async () => server.hits['gitlab events'], (n) => n === 4, 'four pages of GitLab events')
+    await expectContributionHits(server, { github: 3, gitlab: 3 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 6, 'six pages of GitLab events')
 
     // GitHub: the month's calendar (today 12, the rest 0/3/6/9/2), the totals and the merged searches.
     await expect(contributionsBlock()).toHaveAttribute('data-phase', 'ready')
@@ -842,8 +880,8 @@ describe('Code review (Tauri)', () => {
     // Back on the panel a minute later: its 60 s minimum is over, so it asks once more.
     await advanceClock(PANEL_REFRESH_MS)
     await closeReviewsView()
-    await expectContributionHits(server, { github: 3, gitlab: 3 })
-    await eventually(async () => server.hits['gitlab events'], (n) => n === 6, 'six pages of GitLab events')
+    await expectContributionHits(server, { github: 4, gitlab: 4 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 8, 'eight pages of GitLab events')
     await browser.pause(300)
 
     // GitLab: one square per event (a push is 1), the summary's commits are the pushes' commit_count.
@@ -873,22 +911,25 @@ describe('Code review (Tauri)', () => {
     await expectProfile('GitLab', GITLAB_ACCOUNT, 'Abrir GitLab')
 
     // Each opening of the view asks again (the GitLab card reopened it): one for GitHub, one for GitLab.
-    expect(contributionHits(server)).toEqual({ github: 4, gitlab: 4 })
-    // While open: one more query per platform every 15 min (test clock).
+    expect(contributionHits(server)).toEqual({ github: 5, gitlab: 5 })
+    // One more query per platform every 15 min (test clock).
     await advanceClock(CONTRIBUTIONS_TICK_MS)
-    await expectContributionHits(server, { github: 5, gitlab: 5 })
-    await eventually(async () => server.hits['gitlab events'], (n) => n === 10, 'ten pages of GitLab events')
+    await expectContributionHits(server, { github: 6, gitlab: 6 })
+    await eventually(async () => server.hits['gitlab events'], (n) => n === 12, 'twelve pages of GitLab events')
 
-    // Back on the panel: its own query, the last one. No more across two 15-min steps (the 120 s lists keep going).
+    // Back on the panel: its own query. With the view closed the 15 min rhythm goes on (the capsule
+    // shows the month's total): one per platform and step, no more (the 120 s lists keep going).
     await closeReviewsView()
     expect(await mode()).not.toBe('reviews')
-    await expectContributionHits(server, { github: 6, gitlab: 6 })
+    await expectContributionHits(server, { github: 7, gitlab: 7 })
     const fetches = server.hits['github fetch'] ?? 0
     await advanceClock(CONTRIBUTIONS_TICK_MS)
+    await expectContributionHits(server, { github: 8, gitlab: 8 })
     await advanceClock(CONTRIBUTIONS_TICK_MS)
+    await expectContributionHits(server, { github: 9, gitlab: 9 })
     await eventually(async () => server.hits['github fetch'] ?? 0, (n) => n > fetches, 'more GitHub list queries')
     await browser.pause(1_000)
-    expect(contributionHits(server)).toEqual({ github: 6, gitlab: 6 })
+    expect(contributionHits(server)).toEqual({ github: 9, gitlab: 9 })
 
     expect(server.violations).toEqual([])
     // No event title, branch, commit or note text in the log (only counts and codes).
@@ -897,9 +938,15 @@ describe('Code review (Tauri)', () => {
 
   it('a contributions failure shows "No se pudieron cargar las contribuciones · Reintentar" while the account row still shows; Reintentar recovers', async () => {
     const server = fake!
-    await connected(server)
+    // Failing from the start: the queries made when each token is saved get no summary either, so
+    // the capsule has no contributions block and the view has nothing to fall back on.
     server.contributionsFail.github = true
     server.contributionsFail.gitlab = true
+    await connected(server, false)
+    await whileHovered(async () => {
+      await expectMetric('github', null)
+      await expectMetric('gitlab', null)
+    })
 
     await openReviewsView()
     const error = byTestId('contributions-error')

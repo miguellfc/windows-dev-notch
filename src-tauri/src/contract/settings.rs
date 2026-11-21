@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use super::{present, Validate};
 use crate::settings::validate::{validate_patch, validate_settings};
 
-/// Current settings file version (`SETTINGS_VERSION`).
-pub const SETTINGS_VERSION: u32 = 8;
+/// Current settings file version (`SETTINGS_VERSION`). v9 dropped `integrations.system`.
+pub const SETTINGS_VERSION: u32 = 9;
 
 /// `SNOOZE_MINUTES_OPTIONS`.
 pub const SNOOZE_MINUTES_OPTIONS: [u32; 4] = [5, 10, 15, 30];
@@ -128,7 +128,7 @@ pub struct RedmineSettings {
 /// order.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
-pub enum IntegrationColor {
+pub enum PaletteColor {
     Pistachio,
     Lime,
     Green,
@@ -152,7 +152,56 @@ pub enum IntegrationColor {
     Sand,
 }
 
-/// `integrationSettingsSchema`: on/off, whether it shows in the capsule, and its palette color.
+/// `IntegrationColor`: a palette id (`"green"`) or a custom color, stored as uppercase
+/// `"#RRGGBB"` (`HEX_COLOR`). Anything else is rejected, lowercase hex included.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum IntegrationColor {
+    Palette(PaletteColor),
+    Hex([u8; 3]),
+}
+
+impl IntegrationColor {
+    /// Parses `#RRGGBB` with uppercase hex digits only (`/^#[0-9A-F]{6}$/`).
+    fn parse_hex(text: &str) -> Option<[u8; 3]> {
+        let digits = text.strip_prefix('#')?;
+        if digits.len() != 6
+            || !digits
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(&b))
+        {
+            return None;
+        }
+        let byte = |i: usize| u8::from_str_radix(&digits[i..i + 2], 16).ok();
+        Some([byte(0)?, byte(2)?, byte(4)?])
+    }
+}
+
+impl Serialize for IntegrationColor {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Palette(color) => color.serialize(serializer),
+            Self::Hex([r, g, b]) => serializer.serialize_str(&format!("#{r:02X}{g:02X}{b:02X}")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for IntegrationColor {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        if let Some(rgb) = Self::parse_hex(&text) {
+            return Ok(Self::Hex(rgb));
+        }
+        PaletteColor::deserialize(serde::de::value::StrDeserializer::<D::Error>::new(&text))
+            .map(Self::Palette)
+            .map_err(|_| {
+                serde::de::Error::custom(format!(
+                    "invalid color {text:?}: expected a palette id or #RRGGBB"
+                ))
+            })
+    }
+}
+
+/// `integrationSettingsSchema`: on/off, whether it shows in the capsule, and its color.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct IntegrationSettings {
@@ -161,7 +210,7 @@ pub struct IntegrationSettings {
     pub color: IntegrationColor,
 }
 
-/// `integrationsSettingsSchema` (v8): the eight integrations, in `integrationKeys` order. Only
+/// `integrationsSettingsSchema` (v9): the seven integrations, in `integrationKeys` order. Only
 /// claude, github, gitlab, gmail and redmine may have `capsule: true` (checked in `validate`).
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -173,7 +222,6 @@ pub struct IntegrationsSettings {
     pub redmine: IntegrationSettings,
     pub reminders: IntegrationSettings,
     pub notes: IntegrationSettings,
-    pub system: IntegrationSettings,
 }
 
 /// `settingsSchema`.
@@ -335,12 +383,6 @@ pub struct IntegrationsPatch {
         skip_serializing_if = "Option::is_none"
     )]
     pub notes: Option<IntegrationSettingsPatch>,
-    #[serde(
-        default,
-        deserialize_with = "present",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub system: Option<IntegrationSettingsPatch>,
 }
 
 /// `settingsPatchSchema`: any non-empty subset of the user fields, never `version`.
@@ -406,5 +448,42 @@ pub struct SettingsPatch {
 impl Validate for SettingsPatch {
     fn validate(&self) -> Result<(), String> {
         validate_patch(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(text: &str) -> Result<IntegrationColor, serde_json::Error> {
+        serde_json::from_value(serde_json::Value::String(text.to_owned()))
+    }
+
+    #[test]
+    fn integration_color_round_trips_palette_ids_and_hex() {
+        for (text, color) in [
+            ("green", IntegrationColor::Palette(PaletteColor::Green)),
+            ("sand", IntegrationColor::Palette(PaletteColor::Sand)),
+            ("#A3B18A", IntegrationColor::Hex([0xA3, 0xB1, 0x8A])),
+            ("#000000", IntegrationColor::Hex([0, 0, 0])),
+            ("#FFFFFF", IntegrationColor::Hex([0xFF, 0xFF, 0xFF])),
+        ] {
+            assert_eq!(parse(text).unwrap(), color, "{text}");
+            assert_eq!(
+                serde_json::to_value(color).unwrap(),
+                serde_json::Value::String(text.to_owned())
+            );
+        }
+    }
+
+    #[test]
+    fn integration_color_rejects_malformed_strings() {
+        for text in [
+            "#4ade80", "#4ADE8a", "#12345", "#1234567", "4ADE80", "red", "", "#", "Green",
+            "#GGGGGG",
+        ] {
+            assert!(parse(text).is_err(), "{text:?} must be rejected");
+        }
+        assert!(serde_json::from_value::<IntegrationColor>(serde_json::json!(1)).is_err());
     }
 }
