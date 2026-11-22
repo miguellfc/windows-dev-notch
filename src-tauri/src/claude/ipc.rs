@@ -11,8 +11,8 @@ use serde_json::Value;
 use super::service::{AnswerResult, ClaudeService};
 use crate::contract::claude::{
     AccountAddInput, AccountInput, AnswerInput, AnswerOutcome, DecideInput, DismissSessionInput,
-    PendingQuestions, ReleaseQuestionInput, ANSWERS_DO_NOT_FIT_MESSAGE, NO_IDLE_SESSION_MESSAGE,
-    NO_PENDING_REQUEST_MESSAGE,
+    HooksPreviewInput, HooksPreviewMode, PendingQuestions, ReleaseQuestionInput,
+    ANSWERS_DO_NOT_FIT_MESSAGE, NO_IDLE_SESSION_MESSAGE, NO_PENDING_REQUEST_MESSAGE,
 };
 use crate::ipc::{no_input, BoxFuture, Channel, Ctx, ExposedError, IpcErrorCode, Registry};
 
@@ -113,8 +113,9 @@ async fn handle(service: &ClaudeService, op: Op, input: Value) -> Result<Value, 
             Ok(Value::Null)
         }
         Op::HooksPreview => {
-            let input = AccountInput::from_input(input)?;
-            json(service.preview_hooks(&input.account_id).await?)
+            let input = HooksPreviewInput::from_input(input)?;
+            let mode = input.mode.unwrap_or(HooksPreviewMode::Install);
+            json(service.preview_hooks(&input.account_id, mode).await?)
         }
         Op::HooksInstall => {
             let input = AccountInput::from_input(input)?;

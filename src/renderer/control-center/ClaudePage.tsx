@@ -218,7 +218,8 @@ export function ClaudePage() {
       setNotice(null)
       setDiff(null)
       setStep(null)
-      const result = await window.notch.claude.hooksPreview({ accountId })
+      // Turning an account off shows what removing the hooks writes, not the install diff.
+      const result = await window.notch.claude.hooksPreview({ accountId, mode })
       if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
       if (!result.data.ok) return setNotice({ tone: 'error', key: 'cc.claude.invalidJson' })
       setDiff(result.data.diff)

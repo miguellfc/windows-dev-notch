@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   accountFolderLabel,
   accountInitial,
+  accountOptionLabel,
   chosenAccount,
   IDLE_PAUSE_RANGE,
   linkedAccounts,
@@ -54,6 +55,12 @@ describe('work log page: account labels', () => {
   it('shows home folders as ~/name and others in full', () => {
     expect(accountFolderLabel(account(work))).toBe('~/.claude-work')
     expect(accountFolderLabel(account({ id: 'dir-1a2b3c4d', dir: 'D:\\profiles\\claude' }))).toBe('D:\\profiles\\claude')
+  })
+
+  it('tells accounts with the same e-mail apart by organization, else by folder', () => {
+    expect(accountOptionLabel(account({ ...work, email: 'ana@x.com', organization: 'Acme' }))).toBe('ana@x.com · Acme')
+    expect(accountOptionLabel(account({ ...work, email: 'ana@x.com' }))).toBe('ana@x.com · ~/.claude-work')
+    expect(accountOptionLabel(account(work))).toBe('~/.claude-work')
   })
 
   it('bounds the idle pause at 5 to 240 minutes', () => {

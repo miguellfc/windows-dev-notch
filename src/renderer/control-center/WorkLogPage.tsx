@@ -6,7 +6,7 @@ import { useT } from '../shared/use-t'
 import { SettingRow } from './ControlCenterApp'
 import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 import { parseAlertField } from './system-alerts-form'
-import { accountFolderLabel, IDLE_PAUSE_RANGE, linkedAccounts, needsAccountChoice, type AccountRow } from './work-log-account'
+import { accountOptionLabel, IDLE_PAUSE_RANGE, linkedAccounts, needsAccountChoice, type AccountRow } from './work-log-account'
 
 const control =
   'field h-8 px-2.5 text-body text-chalk outline-none transition-colors duration-150 focus:border-select/60 aria-invalid:border-fail/60'
@@ -81,7 +81,7 @@ function AccountPicker({ accounts, accountId }: { accounts: readonly AccountRow[
         ) : null}
         {linked.map((account) => (
           <option key={account.id} value={account.id}>
-            {account.email ?? accountFolderLabel(account)}
+            {accountOptionLabel(account)}
           </option>
         ))}
       </select>

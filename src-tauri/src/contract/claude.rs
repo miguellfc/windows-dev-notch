@@ -455,7 +455,7 @@ pub struct RotateOutcome {
 
 impl Validate for RotateOutcome {}
 
-/// Input of `claude:hooks-preview`, `claude:hooks-install` and `claude:hooks-uninstall`.
+/// Input of `claude:hooks-install` and `claude:hooks-uninstall`.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AccountInput {
@@ -463,6 +463,33 @@ pub struct AccountInput {
 }
 
 impl Validate for AccountInput {
+    fn validate(&self) -> Result<(), String> {
+        account_id(&self.account_id)
+    }
+}
+
+string_enum! {
+    /// `claudeHooksPreviewInputSchema.mode`: the diff of installing or of removing the hooks.
+    pub enum HooksPreviewMode {
+        Install = "install",
+        Uninstall = "uninstall",
+    }
+}
+
+/// `claudeHooksPreviewInputSchema`: input of `claude:hooks-preview`; without `mode`, install.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct HooksPreviewInput {
+    pub account_id: String,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mode: Option<HooksPreviewMode>,
+}
+
+impl Validate for HooksPreviewInput {
     fn validate(&self) -> Result<(), String> {
         account_id(&self.account_id)
     }
@@ -542,6 +569,7 @@ input_entry!(
     AnswerInput,
     ReleaseQuestionInput,
     AccountInput,
+    HooksPreviewInput,
     AccountAddInput
 );
 

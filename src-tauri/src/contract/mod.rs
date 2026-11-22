@@ -264,7 +264,8 @@ pub fn check(
             Input,
         ) => none(value),
         ("claude:get-state", Output) => required::<claude::ClaudeState>(value),
-        ("claude:hooks-preview" | "claude:hooks-install" | "claude:hooks-uninstall", Input) => {
+        ("claude:hooks-preview", Input) => required::<claude::HooksPreviewInput>(value),
+        ("claude:hooks-install" | "claude:hooks-uninstall", Input) => {
             required::<claude::AccountInput>(value)
         }
         ("claude:account-add", Input) => required::<claude::AccountAddInput>(value),

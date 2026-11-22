@@ -871,6 +871,31 @@ async fn preview_returns_the_diff_without_touching_disk() {
 }
 
 #[tokio::test]
+async fn preview_uninstall_is_the_removal_diff_without_touching_disk() {
+    let fx = Fixture::new();
+    fx.seed(&fixture_text()).await;
+    let installer = fx.make();
+    written(installer.install(&opts()).await);
+    let installed = fx.settings();
+    let backups = std::fs::read_dir(&fx.backup_dir).unwrap().count();
+    let plan = installer.preview_uninstall().await.unwrap().unwrap();
+    assert!(plan.diff.iter().any(|l| l.kind == DiffKind::Remove));
+    assert!(!plan.diff.iter().any(|l| l.kind == DiffKind::Add));
+    assert_eq!(plan.next, fixture_text());
+    assert_eq!(fx.settings(), installed);
+    assert_eq!(std::fs::read_dir(&fx.backup_dir).unwrap().count(), backups);
+    // What uninstall then writes is that same diff.
+    assert_eq!(written(installer.uninstall().await).diff, plan.diff);
+}
+
+#[tokio::test]
+async fn preview_uninstall_without_a_file_is_an_empty_diff() {
+    let fx = Fixture::new();
+    let plan = fx.make().preview_uninstall().await.unwrap().unwrap();
+    assert!(plan.diff.is_empty());
+}
+
+#[tokio::test]
 async fn uninstall_with_nothing_installed_writes_nothing() {
     let fx = Fixture::new();
     fx.seed(&fixture_text()).await;

@@ -59,8 +59,8 @@ use super::session_registry::{SessionRegistry, SessionRegistryOptions};
 use crate::contract::claude::{
     AccountHookStatus, BoolLiteral, ClaudeAccountView, ClaudeAccounts, ClaudeConnection,
     ClaudeConnectionErrorReason, ClaudeHooksStatus, Decision, DiffLine, HooksPreview,
-    HooksPreviewDiff, HooksWrite, HooksWritten, InvalidJson, QuestionAnswer, RotateHooks,
-    RotateOutcome,
+    HooksPreviewDiff, HooksPreviewMode, HooksWrite, HooksWritten, InvalidJson, QuestionAnswer,
+    RotateHooks, RotateOutcome,
 };
 pub use crate::contract::claude::{
     ClaudeState, PendingPermission, PendingQuestionView, TestConnectionResult,
@@ -121,6 +121,8 @@ pub trait Installer: Send + Sync {
         &'a self,
         options: &'a HookInstallOptions,
     ) -> BoxFuture<'a, io::Result<HookWriteResult>>;
+    /// The plan [`Self::uninstall`] would write; nothing is written.
+    fn preview_uninstall(&self) -> BoxFuture<'_, io::Result<HookPlan>>;
     fn uninstall(&self) -> BoxFuture<'_, io::Result<HookWriteResult>>;
     fn status<'a>(
         &'a self,
@@ -134,6 +136,10 @@ impl Installer for HookInstaller {
         options: &'a HookInstallOptions,
     ) -> BoxFuture<'a, io::Result<HookPlan>> {
         Box::pin(HookInstaller::preview(self, options))
+    }
+
+    fn preview_uninstall(&self) -> BoxFuture<'_, io::Result<HookPlan>> {
+        Box::pin(HookInstaller::preview_uninstall(self))
     }
 
     fn install<'a>(
@@ -1084,14 +1090,25 @@ impl ClaudeService {
         self.account_list().await
     }
 
-    pub async fn preview_hooks(&self, account_id: &str) -> Result<HooksPreview, ExposedError> {
+    /// The masked diff of installing the hooks in one account, or of removing them (what turning
+    /// it off would write).
+    pub async fn preview_hooks(
+        &self,
+        account_id: &str,
+        mode: HooksPreviewMode,
+    ) -> Result<HooksPreview, ExposedError> {
         let _turn = self.serial.lock().await;
         let config = self.require_config()?;
         let installer = self.installer_of(account_id)?;
-        let plan = installer
-            .preview(&install_options(&config, account_id))
-            .await
-            .map_err(io_failure)?;
+        let plan = match mode {
+            HooksPreviewMode::Install => {
+                installer
+                    .preview(&install_options(&config, account_id))
+                    .await
+            }
+            HooksPreviewMode::Uninstall => installer.preview_uninstall().await,
+        }
+        .map_err(io_failure)?;
         Ok(match plan {
             Ok(plan) => HooksPreview::Diff(HooksPreviewDiff {
                 ok: BoolLiteral,

@@ -580,17 +580,13 @@ impl HookInstaller {
         }))
     }
 
-    pub async fn uninstall(&self) -> io::Result<HookWriteResult> {
-        let file = self.target()?;
-        let Some(current) = read_text_opt(&file).await? else {
-            return Ok(Ok(WriteOutcome {
-                changed: false,
-                diff: Vec::new(),
-                backup_file: None,
-            }));
+    /// The current text and the stored pre-install original, if any. An unreadable original
+    /// (locked, a directory, not UTF-8) only loses the byte-for-byte restore: the uninstall still
+    /// removes our groups by re-serializing.
+    async fn uninstall_inputs(&self) -> io::Result<Option<(String, Option<String>)>> {
+        let Some(current) = read_text_opt(&self.target()?).await? else {
+            return Ok(None);
         };
-        // An unreadable original (locked, a directory, not UTF-8) only loses the byte-for-byte
-        // restore: the uninstall still removes our groups by re-serializing.
         let original = match read_text_opt(&self.original_path()).await {
             Ok(original) => original,
             Err(error) => {
@@ -600,6 +596,30 @@ impl HookInstaller {
                 );
                 None
             }
+        };
+        Ok(Some((current, original)))
+    }
+
+    /// The uninstall plan for the file as it is now (what [`Self::uninstall`] would write);
+    /// nothing is written. Without a file, an empty diff.
+    pub async fn preview_uninstall(&self) -> io::Result<HookPlan> {
+        Ok(match self.uninstall_inputs().await? {
+            Some((current, original)) => plan_uninstall(&current, original.as_deref()),
+            None => Ok(Plan {
+                next: String::new(),
+                diff: Vec::new(),
+            }),
+        })
+    }
+
+    pub async fn uninstall(&self) -> io::Result<HookWriteResult> {
+        let file = self.target()?;
+        let Some((current, original)) = self.uninstall_inputs().await? else {
+            return Ok(Ok(WriteOutcome {
+                changed: false,
+                diff: Vec::new(),
+                backup_file: None,
+            }));
         };
         let Plan { next, diff } = match plan_uninstall(&current, original.as_deref()) {
             Ok(plan) => plan,

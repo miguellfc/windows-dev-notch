@@ -40,3 +40,10 @@ export function accountInitial(account: AccountRow): string {
 /** `~/.claude-work` for the folders of the home; any other folder in full. */
 export const accountFolderLabel = (account: AccountRow): string =>
   account.id === 'claude' || account.id.startsWith('claude-') ? `~/${folderName(account.dir)}` : account.dir
+
+/** The picker's line: «e-mail · organización», or «e-mail · carpeta» without one (two accounts may share an e-mail); the folder alone without a profile. */
+export function accountOptionLabel(account: AccountRow): string {
+  const folder = accountFolderLabel(account)
+  if (!account.email) return folder
+  return `${account.email} · ${account.organization || folder}`
+}

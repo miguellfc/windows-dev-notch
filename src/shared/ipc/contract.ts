@@ -157,6 +157,9 @@ export const claudeAccountIdSchema = z.string().regex(/^[a-z0-9-]{1,64}$/)
 /** Hooks operations act on one account (Claude Code config folder). */
 export const claudeAccountInputSchema = z.strictObject({ accountId: claudeAccountIdSchema })
 
+/** The diff of installing the hooks in one account (the default) or of removing them. */
+export const claudeHooksPreviewInputSchema = z.strictObject({ accountId: claudeAccountIdSchema, mode: z.enum(['install', 'uninstall']).optional() })
+
 /** "Otra carpeta…": an existing Claude Code config folder, added by hand. */
 export const claudeAccountAddInputSchema = z.strictObject({ dir: z.string().min(1).max(1024) })
 
@@ -219,7 +222,7 @@ export const contract = {
   },
   'claude:focus-app': { input: none, output: ack },
   'claude:dismiss-session': { input: z.strictObject({ sessionId: z.string().min(1).max(256) }), output: ack },
-  'claude:hooks-preview': { input: claudeAccountInputSchema, output: claudeHooksPreviewSchema },
+  'claude:hooks-preview': { input: claudeHooksPreviewInputSchema, output: claudeHooksPreviewSchema },
   /** Installing links the account; uninstalling unlinks it. */
   'claude:hooks-install': { input: claudeAccountInputSchema, output: claudeHooksWriteSchema },
   'claude:hooks-uninstall': { input: claudeAccountInputSchema, output: claudeHooksWriteSchema },

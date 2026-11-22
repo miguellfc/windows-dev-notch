@@ -148,6 +148,17 @@ impl Installer for FakeInstaller {
         Box::pin(async move { result })
     }
 
+    fn preview_uninstall(&self) -> BoxFuture<'_, io::Result<HookPlan>> {
+        let plan = Plan {
+            next: "{}".into(),
+            diff: vec![DiffLine {
+                kind: DiffKind::Remove,
+                text: format!("\"x-notch-token\": \"{}\"", token()),
+            }],
+        };
+        Box::pin(async move { Ok(Ok(plan)) })
+    }
+
     fn uninstall(&self) -> BoxFuture<'_, io::Result<HookWriteResult>> {
         *lock(&self.status) = HookStatus::Missing;
         let diff = vec![DiffLine {
@@ -1261,7 +1272,11 @@ async fn dismisses_only_idle_sessions() {
 async fn masks_the_token_in_previews_and_write_results_and_refreshes_the_hook_status() {
     let fx = hooks(HookStatus::Missing);
     fx.service.start().await;
-    let preview = fx.service.preview_hooks("claude").await.unwrap();
+    let preview = fx
+        .service
+        .preview_hooks("claude", HooksPreviewMode::Install)
+        .await
+        .unwrap();
     assert!(!serde_json::to_string(&preview).unwrap().contains(&token()));
     assert_eq!(
         serde_json::to_value(&preview).unwrap(),
@@ -1286,6 +1301,23 @@ async fn masks_the_token_in_previews_and_write_results_and_refreshes_the_hook_st
 }
 
 #[tokio::test]
+async fn the_uninstall_preview_is_the_masked_removal_diff() {
+    let fx = hooks(HookStatus::Installed);
+    fx.service.start().await;
+    let preview = fx
+        .service
+        .preview_hooks("claude", HooksPreviewMode::Uninstall)
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&preview).unwrap(),
+        json!({"ok": true, "diff": [{"kind": "remove", "text": "\"x-notch-token\": \"••••••\""}]})
+    );
+    // Only a preview: the hooks are still there.
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Installed);
+}
+
+#[tokio::test]
 async fn refuses_hook_installs_without_a_bridge_config() {
     let fx = setup_with(Opts {
         encryption: false,
@@ -1294,7 +1326,11 @@ async fn refuses_hook_installs_without_a_bridge_config() {
     fx.service.start().await;
     let install = fx.service.install_hooks("claude").await.unwrap_err();
     assert_eq!(install.code(), IpcErrorCode::Unavailable);
-    let preview = fx.service.preview_hooks("claude").await.unwrap_err();
+    let preview = fx
+        .service
+        .preview_hooks("claude", HooksPreviewMode::Install)
+        .await
+        .unwrap_err();
     assert_eq!(preview.code(), IpcErrorCode::Unavailable);
 }
 
@@ -2136,7 +2172,7 @@ async fn hook_operations_on_an_unknown_account_are_not_found() {
     fx.service.start().await;
     for code in [
         fx.service
-            .preview_hooks("claude-nope")
+            .preview_hooks("claude-nope", HooksPreviewMode::Install)
             .await
             .map(drop)
             .unwrap_err()
