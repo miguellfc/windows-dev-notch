@@ -1,4 +1,4 @@
-import { BatteryCharging, BatteryLow, BatteryMedium, Database, Microchip, Server, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
+import { BatteryCharging, BatteryLow, BatteryMedium, Database, Microchip, Play, Server, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { GmailMark, RedmineMark } from '../../shared/brand-icons'
 import type { Platform } from '../../../shared/code-review/schema'
 import { capsuleContributionsLabel, capsuleContributionsText, CAPSULE_CONTRIBUTIONS_CAP } from '../../shared/code-review/contributions-format'
@@ -189,9 +189,10 @@ export function CapsuleRedmine({ hours }: { hours: number }) {
 const WIDEST_TOTAL = durationText((99 * 60 + 59) * 60_000)
 
 /**
- * The work log's live session (a dot and its Total, "1h 25m", in Nunito and the integration's
- * color), after Claude's mark. Only rendered while an entry is running or paused (the latest one);
- * it reserves "99h 59m" so CAPSULE_BLOCK.workLog holds, and moves once a minute. Paused, the dot dims.
+ * The work log's live session (a play sign and its Total, "1h 25m", in Nunito and the integration's
+ * color), after Claude's mark, in the compact capsule and the peek. Only rendered while an entry is
+ * running or paused (the latest one); it reserves "99h 59m" so CAPSULE_BLOCK.workLog holds, and moves
+ * once a minute. Paused, the play sign dims.
  */
 export function CapsuleWorkLog({ entry }: { entry: WorkLogEntryView }) {
   const language = useLanguage()
@@ -209,7 +210,7 @@ export function CapsuleWorkLog({ entry }: { entry: WorkLogEntryView }) {
       className="flex items-center gap-1.5 text-[color:var(--int)]"
       style={integrationStyle(color)}
     >
-      <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full bg-[color:var(--int)] ${paused ? 'opacity-40' : ''}`} />
+      <Play aria-hidden="true" data-testid="work-log-play" className={`size-2.5 shrink-0 fill-current ${paused ? 'opacity-40' : ''}`} strokeWidth={2.5} />
       <span className="tabular grid whitespace-nowrap text-small font-semibold" aria-hidden="true">
         <span className="invisible [grid-area:1/1]">{WIDEST_TOTAL}</span>
         <span className="text-left [grid-area:1/1]">{total}</span>

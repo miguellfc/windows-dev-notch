@@ -136,10 +136,11 @@ export const CAPSULE_BLOCK = {
 } as const
 
 /**
- * The widest peek: the time and date at their widest and Claude's mark after them (while some session
- * has a dot). The peek fits what it shows; this is its ceiling.
+ * The widest peek: the time and date at their widest, then Claude's mark (while some session has a
+ * dot) and the work log's live block (while a measured session is running or paused). The peek fits
+ * what it shows; this is its ceiling.
  */
-export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude)
+export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude + CAPSULE_BLOCK.workLog)
 
 /** What the compact capsule shows: the system zone (null: no sample) and the integration blocks. */
 export interface CompactContent {

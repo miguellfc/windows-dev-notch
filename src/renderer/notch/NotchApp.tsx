@@ -293,7 +293,7 @@ export function NotchApp() {
   const settings = useSettings((state) => state.settings)
   const blocks = useCapsuleBlocks()
   const compactWidth = useSystem((state) => compactWidthOf(state.capsule.view, blocks))
-  // The peek fits the time and date it shows, and Claude's mark while a session has a dot (up to PEEK_MAX_WIDTH).
+  // The peek fits the time and date it shows, Claude's mark while a session has a dot and the work log's live block (up to PEEK_MAX_WIDTH).
   const [peekWidth, setPeekWidth] = useState<number | null>(null)
   const reduceMotion = useReducedMotion() ?? false
   useReminderChime()
@@ -456,7 +456,7 @@ function useCompactContent(compactWidth: number): CompactContent {
  * here) plus the padding and border is reported before paint and on every change, so the capsule fits.
  */
 function PeekContent({ time, date, onWidth }: { time: string; date: string; onWidth: (width: number) => void }): ReactNode {
-  const { claude } = useCapsuleBlocks()
+  const { claude, workLog } = useCapsuleBlocks()
   const zone = useRef<HTMLSpanElement>(null)
   useLayoutEffect(() => {
     const element = zone.current
@@ -473,6 +473,7 @@ function PeekContent({ time, date, onWidth }: { time: string; date: string; onWi
         <span className="tabular shrink-0 whitespace-nowrap text-body font-medium">{time}</span>
         <span className="shrink-0 whitespace-nowrap text-small text-graphite-glass">{date}</span>
         {claude && <StatusDots />}
+        {workLog !== null && <CapsuleWorkLog entry={workLog} />}
       </span>
     </div>
   )

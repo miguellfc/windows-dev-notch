@@ -106,6 +106,11 @@ describe('Work log (Tauri)', () => {
     await post('SessionStart', { source: 'startup' })
     await post('UserPromptSubmit', { prompt: 'Analiza la API de pagos', prompt_id: 'p-1' })
 
+    // At rest, the peek shows it too: a play sign and the live total after the time and date.
+    await expectMode('peek')
+    await $(present('metric-work-log')).waitForDisplayed({ timeout: 15_000 })
+    expect(await $(present('work-log-play')).isExisting()).toBe(true)
+
     // While it runs, the compact capsule shows its live total after Claude's mark.
     await pointer(true)
     await expectMode('compact')
