@@ -139,3 +139,18 @@ Si `SessionEnd` no llega (ventana cerrada de golpe, notch reiniciado), la entrad
 - El texto exacto del prompt del resumen y cómo se le limita a solo leer el transcript (flags de `claude -p`).
 - El tamaño de las vistas y el ancho del bloque nuevo de la cápsula, siguiendo los patrones medidos de 0.3.0.
 - Límites de longitud (título, subtareas, prompt recortado) y retención de `turns` en sesiones muy largas.
+
+## Cambios durante la implementación
+
+- **Copiar** usa el idioma de la app (`copy_text(entrada, idioma, subtarea)`); no necesita el tope de pausa.
+- **Subtareas numeradas por posición** (`1 - …`, `2 - …`), no por un número propio de cada una.
+- **Notificaciones:** `permission_prompt` y `elicitation_dialog` no cierran un tramo (llegan a mitad del tramo, unos 6 s después de `PermissionRequest`). `SessionStart` con `source: "compact"` tampoco lo cierra; `startup`, `resume` y `clear` sí.
+- **Tramos atascados** (p. ej. Esc sin `Stop`): `SessionEnd`, `SessionStart` y `Notification` no alargan un tramo abierto; lo cierran en su último evento real. El `tick` cierra un tramo inactivo más de la pausa máxima y lo marca atascado; un evento posterior del mismo tramo (`PostToolUse`, `Stop`) lo reabre. Una espera pendiente (permiso o pregunta) cuenta como espera, no como Claude.
+- **Tiempo monótono:** el instante de cada evento se acota a `max(instante, último evento)`, así que los tiempos imputados nunca salen negativos aunque llegue un evento con hora anterior.
+- **Entrada terminada:** una entrada con fin solo se reabre con `SessionStart` y `source: "resume"`; el resto de eventos se ignoran.
+- **Resumen:** `claude -p --output-format json --settings <archivo>` (el archivo, en la carpeta propia del notch, lleva `disableAllHooks` y reglas `deny` para `Bash`, `Edit`, `Write`, `NotebookEdit`, `WebFetch` y `WebSearch`), `--tools Read`, `--allowedTools Read`, `--disallowedTools …`, `--permission-mode dontAsk` y `--strict-mcp-config`. Al agotar el tiempo se mata el árbol de procesos con `taskkill /T /F`.
+- **`is_own_session`:** el notch ignora los eventos de hook de su propio resumen (su `cwd` es la carpeta del resumidor), para que cada resumen no cree una entrada nueva.
+- **Cápsula:** el bloque del Registro de trabajo mide 73,5 px; la cápsula compacta más ancha pasa de 741 a 814 px y `WINDOW_WIDTH` de 854 a 926.
+- **Control Center:** «Otra carpeta…» al asociar una cuenta de Claude es un campo de texto para pegar la ruta (no hay plugin de selector de carpetas).
+- **Desarrollo:** `NOTCH_CLAUDE_HOME` fuerza la carpeta de Claude, solo con los overrides de desarrollo.
+- **Hooks antiguos:** se actualizan solos al arrancar (con copia de seguridad) en las cuentas asociadas.

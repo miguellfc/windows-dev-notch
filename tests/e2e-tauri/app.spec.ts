@@ -100,7 +100,7 @@ describe('Developer Notch (Tauri)', () => {
       process: 'undefined',
       frozen: true,
       writable: false,
-      keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'usage'],
+      keys: ['app', 'apps', 'claude', 'codeReview', 'events', 'gmail', 'notch', 'notes', 'redmine', 'reminders', 'settings', 'usage', 'workLog'],
     })
 
     const csp = await $('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
