@@ -29,8 +29,52 @@ pub const SUMMARY_TIMEOUT: Duration = Duration::from_secs(300);
 pub const PROMPT_MAX_CHARS: usize = 60_000;
 /// The most subtasks an answer may have.
 pub const SUBTASKS_MAX: usize = 40;
-/// `claude -p`, its answer as one JSON object, and no tool but `Read` (the transcript).
-const CLAUDE_ARGS: [&str; 5] = ["-p", "--output-format", "json", "--allowedTools", "Read"];
+/// The tools that could write or reach out: never available to the summary.
+const DENIED_TOOLS: [&str; 6] = [
+    "Bash",
+    "Edit",
+    "Write",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+];
+/// The settings file of every run, in the work folder: no hooks (the account's hooks would send
+/// the run to the notch's bridge as one more session) and the denied tools.
+const SETTINGS_FILE: &str = "settings.json";
+
+/// `claude -p` with its answer as one JSON object, `Read` as the only built-in tool (the
+/// transcript), everything else denied without asking (whatever the account's permission mode),
+/// none of the account's MCP servers, and the settings file of [`run_settings`] (`--settings`
+/// goes last: its value is an absolute path).
+fn claude_args(settings: &Path) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = ["-p", "--output-format", "json", "--tools", "Read"]
+        .iter()
+        .chain(&["--allowedTools", "Read", "--disallowedTools"])
+        .map(Into::into)
+        .collect();
+    args.extend(DENIED_TOOLS.iter().map(Into::into));
+    args.extend(
+        [
+            "--permission-mode",
+            "dontAsk",
+            "--strict-mcp-config",
+            "--settings",
+        ]
+        .iter()
+        .map(Into::into),
+    );
+    args.push(settings.as_os_str().to_owned());
+    args
+}
+
+/// `{"disableAllHooks": true, "permissions": {"deny": [...], "defaultMode": "dontAsk"}}`.
+fn run_settings() -> String {
+    serde_json::json!({
+        "disableAllHooks": true,
+        "permissions": { "deny": DENIED_TOOLS, "defaultMode": "dontAsk" },
+    })
+    .to_string()
+}
 const CONFIG_DIR_VAR: &str = "CLAUDE_CONFIG_DIR";
 /// `CREATE_NO_WINDOW`: no console flashes up for `claude` (or its `.cmd` shim).
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -363,9 +407,12 @@ fn run_claude(
     timeout: Duration,
 ) -> Result<String, SummaryError> {
     std::fs::create_dir_all(work_dir).map_err(|_| SummaryError::Spawn)?;
+    let settings =
+        std::path::absolute(work_dir.join(SETTINGS_FILE)).map_err(|_| SummaryError::Spawn)?;
+    std::fs::write(&settings, run_settings()).map_err(|_| SummaryError::Spawn)?;
     let mut command = Command::new(program);
     command
-        .args(CLAUDE_ARGS)
+        .args(claude_args(&settings))
         .current_dir(work_dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -387,14 +434,19 @@ fn run_claude(
             let _ = stdin.write_all(prompt.as_bytes());
         });
     }
-    let reader = child.stdout.take().map(|mut stdout| {
+    // The output comes over a channel: a descendant that inherited stdout can keep the pipe
+    // open after `claude` exits, and the wait for it has the same deadline.
+    let (output_tx, output) = std::sync::mpsc::channel();
+    if let Some(mut stdout) = child.stdout.take() {
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
             let _ = (&mut stdout).take(OUTPUT_MAX_BYTES).read_to_end(&mut bytes);
             let _ = std::io::copy(&mut stdout, &mut std::io::sink());
-            bytes
-        })
-    });
+            let _ = output_tx.send(bytes);
+        });
+    } else {
+        let _ = output_tx.send(Vec::new());
+    }
     let deadline = Instant::now() + timeout;
     let status = loop {
         match child.try_wait() {
@@ -415,10 +467,15 @@ fn run_claude(
     if !status.success() {
         return Err(SummaryError::Exit(status.code().unwrap_or(-1)));
     }
-    let bytes = reader
-        .and_then(|reader| reader.join().ok())
-        .unwrap_or_default();
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    let left = deadline.saturating_duration_since(Instant::now());
+    match output.recv_timeout(left) {
+        Ok(bytes) => Ok(String::from_utf8_lossy(&bytes).into_owned()),
+        Err(_) => {
+            // `claude` is gone; this kills what is left of its tree that is still reachable.
+            kill_tree(&mut child);
+            Err(SummaryError::Timeout)
+        }
+    }
 }
 
 /// A path as compared: `\` only, none at the end, lowercase.
@@ -485,7 +542,10 @@ impl Summarizer for ClaudeSummarizer {
         };
         let entry = entry.clone();
         tauri::async_runtime::spawn_blocking(move || {
-            let result = me.summarize_now(&entry);
+            // A panic must still answer, or the entry stays `summarizing` until the next start.
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| me.summarize_now(&entry)))
+                    .unwrap_or(Err(SummaryError::Spawn));
             if let Err(error) = &result {
                 log::warn!("work-log summary failed: {error:?}");
             }

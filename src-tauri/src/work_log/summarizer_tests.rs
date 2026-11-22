@@ -497,11 +497,64 @@ mod running {
             read("cwd.txt").trim(),
             fx.dir.join("work-log-summarizer").display().to_string()
         );
+        let settings = fx.dir.join("work-log-summarizer").join("settings.json");
         assert_eq!(
             read("args.txt").trim(),
-            "-p --output-format json --allowedTools Read"
+            format!(
+                "-p --output-format json --tools Read --allowedTools Read --disallowedTools Bash Edit Write NotebookEdit WebFetch WebSearch --permission-mode dontAsk --strict-mcp-config --settings {}",
+                settings.display()
+            )
+        );
+        let written: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
+        assert_eq!(
+            written,
+            serde_json::json!({
+                "disableAllHooks": true,
+                "permissions": {
+                    "deny": ["Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch"],
+                    "defaultMode": "dontAsk",
+                },
+            })
         );
         assert!(read("stdin.txt").contains("### t2 "));
+    }
+
+    #[test]
+    fn a_descendant_holding_stdout_after_the_exit_still_times_out() {
+        let fx = Fx::new();
+        // `start /b` leaves ping running with the inherited stdout after the script exits 0.
+        let lingering = fx.script(
+            "lingering.cmd",
+            "start /b ping -n 8 127.0.0.1
+exit /b 0",
+        );
+        let summarizer = fx.summarizer(lingering, Duration::from_secs(1));
+        let entry = entry_with(session_of(1, "ok"), WorkLogStatus::Summarizing);
+        let started = Instant::now();
+        assert_eq!(summarizer.summarize_now(&entry), Err(SummaryError::Timeout));
+        assert!(
+            started.elapsed() < Duration::from_secs(4),
+            "{:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn a_panic_still_leaves_the_entry_unsummarized() {
+        let fx = Fx::new();
+        let script = fx.script("claude.cmd", "exit /b 0");
+        let summarizer = ClaudeSummarizer::new(SummarizerDeps {
+            claude_override: Some(script),
+            config_dir: Arc::new(|_: &str| panic!("no accounts")),
+            language: Arc::new(|| Language::Es),
+            work_dir: fx.dir.join("work-log-summarizer"),
+            timeout: Duration::from_secs(1),
+        });
+        let service = fx.service(&summarizer);
+        block_on(service.summarize("s1")).unwrap();
+        let entry = wait_for(&service, WorkLogStatus::Unsummarized);
+        assert_eq!(entry.status, WorkLogStatus::Unsummarized);
     }
 
     #[test]
