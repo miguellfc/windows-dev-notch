@@ -494,6 +494,50 @@ fn work_log_config(settings: &Settings) -> work_log::service::WorkLogConfig {
     }
 }
 
+/// `claude -p` for the work log's summaries: the account's folder from the accounts on disk and
+/// the `claudeAccounts` settings (the default account runs without `CLAUDE_CONFIG_DIR`), in the
+/// app's language, in `<data dir>/work-log-summarizer`.
+fn work_log_summarizer(
+    app: &AppHandle,
+    data_dir: &std::path::Path,
+) -> Arc<work_log::summarizer::ClaudeSummarizer> {
+    use work_log::summarizer::{ClaudeSummarizer, ConfigDir, SummarizerDeps};
+    let home = app.path().home_dir().ok();
+    let config_dir = {
+        let app = app.clone();
+        Arc::new(move |id: &str| {
+            if id == claude::accounts::DEFAULT_ACCOUNT_ID {
+                return Some(ConfigDir::Default);
+            }
+            let home = home.as_deref()?;
+            let settings = app.state::<settings::SettingsStore>().get();
+            let extra: Vec<std::path::PathBuf> = settings
+                .claude_accounts
+                .extra_dirs
+                .iter()
+                .map(std::path::PathBuf::from)
+                .collect();
+            claude::accounts::detect_accounts(home, &extra)
+                .into_iter()
+                .find(|account| account.id == id)
+                .map(|account| ConfigDir::Dir(account.dir))
+        })
+    };
+    let language = {
+        let app = app.clone();
+        Arc::new(move || app.state::<settings::SettingsStore>().get().language)
+    };
+    ClaudeSummarizer::new(SummarizerDeps {
+        claude_override: ipc::dev_env_var_os(work_log::summarizer::CLAUDE_OVERRIDE_ENV)
+            .filter(|value| !value.is_empty())
+            .map(std::path::PathBuf::from),
+        config_dir,
+        language,
+        work_dir: data_dir.join("work-log-summarizer"),
+        timeout: work_log::summarizer::SUMMARY_TIMEOUT,
+    })
+}
+
 /// The work log on `work-log.json`, its channels' slot filled and a new snapshot sent whenever
 /// the settings change (account, pause, language). Not started: `setup` starts it with the
 /// other stores. Its clock is the shared wall clock (the E2E test clock moves it).
@@ -508,14 +552,16 @@ fn install_work_log(
         let app = app.clone();
         Arc::new(move || work_log_config(&app.state::<settings::SettingsStore>().get()))
     };
+    let summarizer = work_log_summarizer(app, data_dir);
     let service = work_log::service::WorkLogService::new(work_log::service::WorkLogDeps {
         file: data_dir.join("work-log.json"),
         clock: Arc::new(services::clock::WallClock::real()),
         now: Arc::new(move || clock.now().timestamp_millis()),
         config,
-        summarizer: Arc::new(work_log::service::NoSummarizer),
+        summarizer: Arc::clone(&summarizer) as Arc<dyn work_log::service::Summarizer>,
         on_change: work_log::ipc::notch_emitter(app),
     });
+    summarizer.bind(&service);
     {
         let service = Arc::downgrade(&service);
         app.state::<settings::SettingsStore>()

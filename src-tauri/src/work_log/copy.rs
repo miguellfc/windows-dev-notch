@@ -7,8 +7,9 @@
 //! 2 - Validar la firma con el vector oficial (pendiente)
 //! ```
 
+use super::assign::subtask_times;
 use super::duration::duration_text;
-use super::service::{entry_times, subtask_times, title_of, StoredEntry, StoredSubtask};
+use super::service::{entry_times, title_of, StoredEntry, StoredSubtask};
 use crate::contract::settings::Language;
 use crate::contract::work_log::WorkLogSubtaskStatus;
 
@@ -41,12 +42,15 @@ fn times(claude: i64, total: i64) -> String {
     )
 }
 
-fn subtask_line(entry: &StoredEntry, subtask: &StoredSubtask, words: &Words) -> String {
+fn subtask_line(
+    subtask: &StoredSubtask,
+    (claude, total): (Option<i64>, Option<i64>),
+    words: &Words,
+) -> String {
     let title = subtask.title.trim();
     match subtask.status {
         WorkLogSubtaskStatus::Done => {
-            let (claude, total) = subtask_times(entry, subtask);
-            format!("{title} {}", times(claude, total))
+            format!("{title} {}", times(claude.unwrap_or(0), total.unwrap_or(0)))
         }
         WorkLogSubtaskStatus::Pending => format!("{title} ({})", words.pending),
     }
@@ -57,14 +61,17 @@ fn subtask_line(entry: &StoredEntry, subtask: &StoredSubtask, words: &Words) -> 
 /// provisional title and times.
 pub fn copy_text(entry: &StoredEntry, language: Language, subtask: Option<usize>) -> String {
     let words = words(language);
-    let subtasks = entry
-        .summary
-        .as_ref()
-        .map_or(&[][..], |summary| &summary.subtasks[..]);
+    let (subtasks, subtask_times) = match entry.summary.as_ref() {
+        Some(summary) => (
+            &summary.subtasks[..],
+            subtask_times(summary, &entry.session),
+        ),
+        None => (&[][..], Vec::new()),
+    };
     if let Some(index) = subtask {
         return subtasks
             .get(index)
-            .map(|subtask| subtask_line(entry, subtask, &words))
+            .map(|subtask| subtask_line(subtask, subtask_times[index], &words))
             .unwrap_or_default();
     }
     let (claude, total) = entry_times(entry);
@@ -76,11 +83,11 @@ pub fn copy_text(entry: &StoredEntry, language: Language, subtask: Option<usize>
     )];
     if !subtasks.is_empty() {
         lines.push(format!("{}:", words.subtasks));
-        for (i, subtask) in subtasks.iter().enumerate() {
+        for (i, (subtask, times)) in subtasks.iter().zip(subtask_times).enumerate() {
             lines.push(format!(
                 "{} - {}",
                 i + 1,
-                subtask_line(entry, subtask, &words)
+                subtask_line(subtask, times, &words)
             ));
         }
     }

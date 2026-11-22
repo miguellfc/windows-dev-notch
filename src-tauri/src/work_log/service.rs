@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use chrono::{Local, TimeZone};
 use serde::{Deserialize, Serialize};
 
+use super::assign::subtask_times;
 use super::timing::Session;
 use crate::claude::hook_events::{HookEvent, HookEventName};
 use crate::contract::settings::Language;
@@ -65,6 +66,9 @@ pub struct StoredEntry {
     pub session_id: String,
     pub account_id: String,
     pub cwd: String,
+    /// The session's transcript, from its hook events: only a reference the summary may read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transcript_path: Option<String>,
     pub status: WorkLogStatus,
     pub invoiced: bool,
     pub ended_at: Option<i64>,
@@ -81,6 +85,7 @@ impl StoredEntry {
             session_id: event.session_id.clone(),
             account_id: event.account_id.clone(),
             cwd: String::new(),
+            transcript_path: None,
             status: WorkLogStatus::Running,
             invoiced: false,
             ended_at: None,
@@ -152,17 +157,22 @@ pub struct WorkLogConfig {
     pub language: Language,
 }
 
-/// Writes the summary of an ended session (Task 6). `summarize` is called with the entry already
-/// `summarizing`, outside the service's lock; it must not block (spawn the work) and reports back
-/// with [`WorkLogService::finish_summary`].
+/// Writes the summary of an ended session ([`super::summarizer`]). `summarize` is called with the
+/// entry already `summarizing`, outside the service's lock; it must not block (spawn the work)
+/// and reports back with [`WorkLogService::finish_summary`].
 pub trait Summarizer: Send + Sync {
     fn summarize(&self, entry: &StoredEntry);
     /// Whether `claude` can be launched (`work-log:claude-available`).
     fn claude_available(&self) -> bool;
+    /// An event of the summarizer's own `claude -p` (it runs with the account's hooks): never
+    /// recorded, or every summary would make a new entry to summarize.
+    fn is_own_session(&self, _event: &HookEvent) -> bool {
+        false
+    }
 }
 
-/// The summarizer until Task 6: never summarizes (entries stay `summarizing`) and only looks for
-/// `claude` on the PATH.
+/// A summarizer that never summarizes (entries stay `summarizing`) and only looks for `claude`
+/// on the PATH (tests).
 pub struct NoSummarizer;
 
 impl Summarizer for NoSummarizer {
@@ -177,9 +187,7 @@ impl Summarizer for NoSummarizer {
 pub fn claude_on_path() -> bool {
     let env: crate::apps::launcher::Env = std::env::vars_os().collect();
     let exists = |path: &str| std::path::Path::new(path).is_file();
-    ["claude.exe", "claude.cmd"]
-        .iter()
-        .any(|exe| crate::apps::launcher::resolve_executable(exe, &env, &exists).is_some())
+    super::summarizer::find_claude(None, &env, &exists).is_some()
 }
 
 pub type Now = Arc<dyn Fn() -> i64 + Send + Sync>;
@@ -280,6 +288,14 @@ fn apply_event(
     if let Some(cwd) = event.cwd.as_deref().filter(|cwd| !cwd.is_empty()) {
         entry.cwd = cwd.to_owned();
     }
+    if let Some(path) = event
+        .work
+        .as_ref()
+        .and_then(|work| work.transcript_path.as_deref())
+        .filter(|path| !path.is_empty())
+    {
+        entry.transcript_path = Some(path.to_owned());
+    }
     entry.session.apply(event, now, cap_ms);
     if event.name == HookEventName::SessionEnd {
         entry.session.close(now);
@@ -297,11 +313,14 @@ fn prune(entries: &mut [StoredEntry], now: i64) -> bool {
         let expired = entry
             .deleted_at
             .is_some_and(|at| now - at > RESTORE_WINDOW_MS);
-        let empty = entry.session.turns.is_empty() && entry.summary.is_none();
+        let empty = entry.session.turns.is_empty()
+            && entry.summary.is_none()
+            && entry.transcript_path.is_none();
         if expired && !empty {
             entry.session = Session::start(entry.session.started_at);
             entry.summary = None;
             entry.cwd.clear();
+            entry.transcript_path = None;
             changed = true;
         }
     }
@@ -360,20 +379,6 @@ pub(crate) fn title_of(entry: &StoredEntry, language: Language) -> String {
     }
 }
 
-/// Claude's and the total time of a `done` subtask: the sums over its turns.
-pub(crate) fn subtask_times(entry: &StoredEntry, subtask: &StoredSubtask) -> (i64, i64) {
-    let session = &entry.session;
-    let totals = session.turn_totals();
-    session
-        .turns
-        .iter()
-        .zip(totals)
-        .filter(|(turn, _)| subtask.turn_ids.contains(&turn.id))
-        .fold((0, 0), |(claude, total), (turn, turn_total)| {
-            (claude + turn.claude_ms(), total + turn_total.max(0))
-        })
-}
-
 /// Whole times of the session, never negative.
 pub(crate) fn entry_times(entry: &StoredEntry) -> (i64, i64) {
     (
@@ -393,16 +398,10 @@ fn view_of(entry: &StoredEntry, language: Language) -> WorkLogEntryView {
     let subtasks = entry
         .summary
         .iter()
-        .flat_map(|summary| &summary.subtasks)
-        .map(|subtask| {
+        .flat_map(|summary| summary.subtasks.iter().zip(subtask_times(summary, session)))
+        .map(|(subtask, (claude, total))| {
             let title = cut(subtask.title.trim(), WORK_LOG_SUBTASK_TITLE_MAX);
-            let (claude, total) = match subtask.status {
-                WorkLogSubtaskStatus::Done => {
-                    let (claude, total) = subtask_times(entry, subtask);
-                    (Some(claude as f64), Some(total as f64))
-                }
-                WorkLogSubtaskStatus::Pending => (None, None),
-            };
+            let (claude, total) = (claude.map(|ms| ms as f64), total.map(|ms| ms as f64));
             WorkLogSubtaskView {
                 title: if title.is_empty() {
                     "—".into()
@@ -552,6 +551,9 @@ impl WorkLogService {
             return;
         }
         if !valid_id(&event.session_id) || !valid_id(&event.account_id) {
+            return;
+        }
+        if self.summarizer.is_own_session(event) {
             return;
         }
         let ended = {

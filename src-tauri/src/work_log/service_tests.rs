@@ -151,6 +151,7 @@ fn stored(session: &str, status: WorkLogStatus) -> StoredEntry {
         session_id: session.into(),
         account_id: WORK.into(),
         cwd: "C:\\code\\ms-pay".into(),
+        transcript_path: None,
         status,
         invoiced: false,
         ended_at: None,

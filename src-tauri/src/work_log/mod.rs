@@ -2,8 +2,10 @@
 //! ([`timing`]), kept in `work-log.json` ([`service`]) and served on the `work-log:*` channels
 //! ([`ipc`]).
 
+pub mod assign;
 pub mod copy;
 pub mod duration;
 pub mod ipc;
 pub mod service;
+pub mod summarizer;
 pub mod timing;
