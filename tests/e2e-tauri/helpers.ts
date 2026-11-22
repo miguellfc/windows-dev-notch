@@ -474,9 +474,11 @@ export async function launchClaude(
 }
 
 const ccButton = (...names: string[]) => $(`//button[${names.map((name) => `normalize-space()="${name}"`).join(' or ')}]`)
-export const ccInstall = () => ccButton('Instalar hooks', 'Install hooks')
+/** The link switch of an account's row, by its folder (`~/.claude`, `~/.claude-work`): on = hooks installed. */
+export const ccAccountSwitch = (folder: string) => $(`//button[@role="switch" and (@aria-label="Enlazar ${folder}" or @aria-label="Link ${folder}")]`)
+export const ccInstall = () => ccAccountSwitch('~/.claude')
 export const ccConfirmInstall = () => ccButton('Confirmar instalación', 'Confirm installation')
-export const ccUninstall = () => ccButton('Desinstalar hooks', 'Uninstall hooks')
+export const ccUninstall = () => ccAccountSwitch('~/.claude')
 export const ccConfirmUninstall = () => ccButton('Confirmar desinstalación', 'Confirm uninstall')
 export const ccDiff = () => $('pre')
 

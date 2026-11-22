@@ -74,8 +74,8 @@ describe('Integrations (Tauri)', () => {
     await expect($('[data-testid="integration-gmail"]')).toBeDisplayed()
 
     await openIntegrationsPage()
-    // Seven rows: System has no row since its view was removed (its metrics need no switch).
-    expect((await $$('[data-testid^="integration-row-"]')).length).toBe(7)
+    // Eight rows (work log included): System has no row since its view was removed (its metrics need no switch).
+    expect((await $$('[data-testid^="integration-row-"]')).length).toBe(8)
     await expect($(row('system'))).not.toExist()
     await turnOff('gmail')
     // The capsule switch of a switched-off integration is disabled.

@@ -3,7 +3,8 @@
 //! and the quit cleanup.
 //!
 //! Dev/E2E switches (ignored unless `ipc::dev_overrides_enabled()`): `NOTCH_CLAUDE_SETTINGS`
-//! (the default account's settings.json; else `~/.claude/settings.json`), `NOTCH_CLAUDE_PORT` (`^\d{1,5}$`,
+//! (the default account's settings.json; else `~/.claude/settings.json`), `NOTCH_CLAUDE_HOME`
+//! (where account folders are detected, instead of the user's home), `NOTCH_CLAUDE_PORT` (`^\d{1,5}$`,
 //! at most 65535, `0` = ephemeral) and `NOTCH_DISABLE_CLAUDE_FOCUS=1` (never bring Claude's
 //! window forward: E2E must not drive the desktop).
 
@@ -49,10 +50,12 @@ pub(crate) const MAIN_THREAD_STOP_WAIT: std::time::Duration = std::time::Duratio
 /// One bridge-config operation on `claude-bridge.json`.
 type ConfigRun = fn(PathBuf) -> BoxFuture<'static, io::Result<BridgeConfig>>;
 
-/// The three dev/E2E switches.
+/// The dev/E2E switches.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Overrides {
     pub settings_file: Option<PathBuf>,
+    /// `NOTCH_CLAUDE_HOME`: the folder where `.claude*` account folders are looked for.
+    pub home: Option<PathBuf>,
     pub port: Option<u16>,
     pub focus_disabled: bool,
 }
@@ -76,6 +79,9 @@ pub fn overrides_from(enabled: bool, var: impl Fn(&str) -> Option<OsString>) -> 
     let text = |name: &str| var(name).and_then(|value| value.into_string().ok());
     Overrides {
         settings_file: var("NOTCH_CLAUDE_SETTINGS")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from),
+        home: var("NOTCH_CLAUDE_HOME")
             .filter(|value| !value.is_empty())
             .map(PathBuf::from),
         port: text("NOTCH_CLAUDE_PORT").as_deref().and_then(parse_port),
@@ -170,7 +176,11 @@ pub fn install(
     forward: HookForward,
 ) -> Option<Arc<ClaudeIntegration>> {
     let overrides = overrides_from(ipc::dev_overrides_enabled(), |name| std::env::var_os(name));
-    let Ok(home) = app.path().home_dir() else {
+    let Some(home) = overrides
+        .home
+        .clone()
+        .or_else(|| app.path().home_dir().ok())
+    else {
         log::error!("Claude: no user folder; the integration stays off");
         return None;
     };
@@ -373,6 +383,7 @@ mod tests {
     fn switches_apply_only_with_dev_overrides() {
         let vars = env(&[
             ("NOTCH_CLAUDE_SETTINGS", "C:\\tmp\\claude-settings.json"),
+            ("NOTCH_CLAUDE_HOME", "C:\\tmp\\home"),
             ("NOTCH_CLAUDE_PORT", "0"),
             ("NOTCH_DISABLE_CLAUDE_FOCUS", "1"),
         ]);
@@ -380,6 +391,7 @@ mod tests {
             overrides_from(true, &vars),
             Overrides {
                 settings_file: Some(PathBuf::from("C:\\tmp\\claude-settings.json")),
+                home: Some(PathBuf::from("C:\\tmp\\home")),
                 port: Some(0),
                 focus_disabled: true,
             }
