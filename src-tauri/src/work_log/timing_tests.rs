@@ -1,0 +1,166 @@
+use super::*;
+use crate::claude::hook_events::{HookEvent, HookEventName, WorkPayload};
+
+const M: i64 = 60_000;
+const CAP: i64 = 30 * M;
+
+fn event(name: HookEventName) -> HookEvent {
+    HookEvent {
+        name,
+        session_id: "s1".into(),
+        cwd: None,
+        tool_name: None,
+        tool_use_id: None,
+        agent_id: None,
+        notification_type: None,
+        preview: None,
+        reason: None,
+        ask_user_question: None,
+        ask_user_question_raw: None,
+        source: None,
+        account_id: "claude".into(),
+        work: None,
+    }
+}
+
+fn prompt(text: &str) -> HookEvent {
+    HookEvent {
+        work: Some(WorkPayload {
+            prompt: Some(text.into()),
+            ..WorkPayload::default()
+        }),
+        ..event(HookEventName::UserPromptSubmit)
+    }
+}
+
+fn tool(name: HookEventName, tool_name: &str) -> HookEvent {
+    HookEvent {
+        tool_name: Some(tool_name.into()),
+        ..event(name)
+    }
+}
+
+fn run(session: &mut Session, steps: &[(i64, HookEvent)]) {
+    for (minutes, ev) in steps {
+        session.apply(ev, minutes * M, CAP);
+    }
+}
+
+#[test]
+fn idle_gap_between_turns_is_capped() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (2, prompt("a")),
+            (12, event(HookEventName::Stop)),
+            (62, prompt("b")),
+            (70, event(HookEventName::Stop)),
+        ],
+    );
+    s.close(70 * M);
+    assert_eq!(s.claude_ms(), 18 * M);
+    assert_eq!(s.total_ms(), 50 * M);
+    assert_eq!(s.turn_totals(), vec![42 * M, 8 * M]);
+    assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
+}
+
+#[test]
+fn long_tool_inside_a_turn_has_no_excess() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (1, tool(HookEventName::PreToolUse, "Bash")),
+            (45, tool(HookEventName::PostToolUse, "Bash")),
+            (46, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.claude_ms(), 46 * M);
+    assert_eq!(s.total_ms(), 46 * M);
+    assert_eq!(s.turns[0].tools.get("Bash"), Some(&1));
+}
+
+#[test]
+fn permission_wait_is_not_claude_time() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (25, tool(HookEventName::PreToolUse, "Bash")),
+            (30, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.claude_ms(), 10 * M);
+    assert_eq!(s.total_ms(), 30 * M);
+}
+
+#[test]
+fn ask_user_question_counts_as_a_wait() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, tool(HookEventName::PreToolUse, "AskUserQuestion")),
+            (25, tool(HookEventName::PostToolUse, "AskUserQuestion")),
+            (30, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.claude_ms(), 10 * M);
+}
+
+#[test]
+fn a_new_prompt_closes_a_turn_left_open_at_its_last_event() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (3, tool(HookEventName::PreToolUse, "Bash")),
+            (20, prompt("b")),
+            (25, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.turns[0].ended_at, Some(3 * M));
+    assert_eq!(s.claude_ms(), 8 * M);
+    assert_eq!(s.total_ms(), 25 * M);
+}
+
+#[test]
+fn session_without_turns_still_caps_idle_time() {
+    let mut s = Session::start(0);
+    run(&mut s, &[(50, event(HookEventName::SessionEnd))]);
+    assert_eq!(s.total_ms(), 30 * M);
+    assert_eq!(s.claude_ms(), 0);
+    assert!(s.turn_totals().is_empty());
+}
+
+#[test]
+fn live_total_adds_the_capped_idle_time() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[(0, prompt("a")), (10, event(HookEventName::Stop))],
+    );
+    assert_eq!(s.live_total_ms(55 * M, CAP), 40 * M);
+}
+
+#[test]
+fn stop_keeps_the_reply_and_prompt_id_names_the_turn() {
+    let mut s = Session::start(0);
+    let mut p = prompt("a");
+    p.work.as_mut().unwrap().prompt_id = Some("p1".into());
+    let mut stop = event(HookEventName::Stop);
+    stop.work = Some(WorkPayload {
+        reply: Some("done".into()),
+        ..WorkPayload::default()
+    });
+    run(&mut s, &[(0, p), (1, stop), (2, prompt("b"))]);
+    assert_eq!(s.turns[0].id, "p1");
+    assert_eq!(s.turns[0].reply.as_deref(), Some("done"));
+    assert_eq!(s.turns[1].id, "t2");
+}
