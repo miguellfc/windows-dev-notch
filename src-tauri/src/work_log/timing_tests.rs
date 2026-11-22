@@ -164,3 +164,100 @@ fn stop_keeps_the_reply_and_prompt_id_names_the_turn() {
     assert_eq!(s.turns[0].reply.as_deref(), Some("done"));
     assert_eq!(s.turns[1].id, "t2");
 }
+
+#[test]
+fn session_end_does_not_stretch_a_stalled_turn() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (3, tool(HookEventName::PreToolUse, "Bash")),
+            (300, event(HookEventName::SessionEnd)),
+        ],
+    );
+    assert_eq!(s.turns[0].ended_at, Some(3 * M));
+    assert_eq!(s.claude_ms(), 3 * M);
+    assert_eq!(s.total_ms(), 33 * M);
+    assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
+}
+
+#[test]
+fn session_start_and_idle_notification_close_a_stalled_turn() {
+    for name in [HookEventName::SessionStart, HookEventName::Notification] {
+        let mut s = Session::start(0);
+        let mut late = event(name);
+        late.notification_type = Some("idle_prompt".into());
+        run(
+            &mut s,
+            &[
+                (0, prompt("a")),
+                (5, tool(HookEventName::PreToolUse, "Bash")),
+                (200, late),
+            ],
+        );
+        assert_eq!(s.turns[0].ended_at, Some(5 * M), "{name:?}");
+        assert_eq!(s.claude_ms(), 5 * M, "{name:?}");
+        assert_eq!(s.total_ms(), 35 * M, "{name:?}");
+    }
+}
+
+#[test]
+fn a_permission_prompt_notification_keeps_the_turn_open() {
+    let mut s = Session::start(0);
+    let mut notice = event(HookEventName::Notification);
+    notice.notification_type = Some("permission_prompt".into());
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (6, notice),
+            (15, tool(HookEventName::PreToolUse, "Bash")),
+            (20, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.turns[0].ended_at, Some(20 * M));
+    assert_eq!(s.claude_ms(), 10 * M);
+    assert_eq!(s.total_ms(), 20 * M);
+}
+
+#[test]
+fn an_earlier_timestamp_never_makes_times_negative() {
+    let mut s = Session::start(10 * M);
+    run(
+        &mut s,
+        &[
+            (12, prompt("a")),
+            (5, tool(HookEventName::PreToolUse, "Bash")),
+            (1, event(HookEventName::Stop)),
+            (0, prompt("b")),
+            (0, event(HookEventName::Stop)),
+        ],
+    );
+    assert!(s.total_ms() >= 0);
+    assert!(s.claude_ms() >= 0);
+    assert!(
+        s.turn_totals().iter().all(|t| *t >= 0),
+        "{:?}",
+        s.turn_totals()
+    );
+    assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
+    assert!(s.turns.iter().all(|t| t.ended_at.unwrap() >= t.started_at));
+}
+
+#[test]
+fn a_permission_still_pending_at_stop_is_waiting_time() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (4, event(HookEventName::PermissionRequest)),
+            (24, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.turns[0].wait_ms, 20 * M);
+    assert_eq!(s.claude_ms(), 4 * M);
+    assert_eq!(s.total_ms(), 24 * M);
+}

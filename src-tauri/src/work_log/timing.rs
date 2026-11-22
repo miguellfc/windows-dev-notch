@@ -40,6 +40,23 @@ pub struct Session {
     pub turns: Vec<Turn>,
 }
 
+/// Notifications that come while Claude waits inside a turn (a permission, an MCP dialog): they
+/// leave the turn open.
+const WAITING_NOTIFICATIONS: [&str; 2] = ["permission_prompt", "elicitation_dialog"];
+
+/// `SessionEnd`, `SessionStart` and an idle `Notification` never belong to a turn: one still open
+/// then stalled (Claude Code may send no `Stop` after Esc).
+fn ends_a_stalled_turn(event: &HookEvent) -> bool {
+    match event.name {
+        HookEventName::SessionEnd | HookEventName::SessionStart => true,
+        HookEventName::Notification => !event
+            .notification_type
+            .as_deref()
+            .is_some_and(|kind| WAITING_NOTIFICATIONS.contains(&kind)),
+        _ => false,
+    }
+}
+
 impl Session {
     pub fn start(at: i64) -> Self {
         Self {
@@ -56,8 +73,12 @@ impl Session {
 
     pub fn apply(&mut self, event: &HookEvent, at: i64, cap_ms: i64) {
         use HookEventName::*;
-        // A new prompt closes a turn left open (Esc gives no Stop) where it last showed signs of life.
-        if event.name == UserPromptSubmit {
+        // Time never runs backwards: a late event counts as arriving with the last one.
+        let at = at.max(self.last_event_at);
+        // A new prompt closes a turn left open (Esc gives no Stop) where it last showed signs of
+        // life; so do the events that say Claude is not working on it, so a stalled turn never
+        // absorbs the idle time before them.
+        if event.name == UserPromptSubmit || ends_a_stalled_turn(event) {
             self.close(at);
         }
         let gap = at - self.last_event_at;
@@ -115,7 +136,10 @@ impl Session {
             PermissionRequest => turn.wait_since = Some(at),
             Stop | StopFailure => {
                 turn.ended_at = Some(at);
-                turn.wait_since = None;
+                // A request never answered (a denied permission) is still waiting, not Claude.
+                if let Some(since) = turn.wait_since.take() {
+                    turn.wait_ms += at - since;
+                }
                 if event.name == Stop {
                     turn.reply = event.work.as_ref().and_then(|w| w.reply.clone());
                 }
@@ -128,7 +152,9 @@ impl Session {
     pub fn close(&mut self, _at: i64) {
         if let Some(turn) = self.open_turn() {
             turn.ended_at = Some(turn.last_event_at);
-            turn.wait_since = None;
+            if let Some(since) = turn.wait_since.take() {
+                turn.wait_ms += (turn.last_event_at - since).max(0);
+            }
         }
     }
 
