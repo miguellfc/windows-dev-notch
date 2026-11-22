@@ -7,6 +7,13 @@ const DEFAULT_IDLE_PAUSE_MS = 30 * 60_000
 /** The work log as main last sent it: empty until the first snapshot. */
 export const useWorkLogStore = create<WorkLogSnapshot>(() => ({ entries: [], idlePauseMs: DEFAULT_IDLE_PAUSE_MS }))
 
+/** The open view's own height (px, border excluded) for the capsule to fit; null while it is closed. */
+export const useWorkLogView = create<{ viewHeight: number | null }>(() => ({ viewHeight: null }))
+
+export function setWorkLogViewHeight(viewHeight: number | null): void {
+  if (useWorkLogView.getState().viewHeight !== viewHeight) useWorkLogView.setState({ viewHeight })
+}
+
 /** Every entry (running and paused first) and the idle pause in force. */
 export function useWorkLog(): WorkLogSnapshot {
   return useWorkLogStore()

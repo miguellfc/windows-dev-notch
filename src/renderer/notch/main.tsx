@@ -12,6 +12,7 @@ import { bindRedmine } from '../shared/redmine-store'
 import { bindReminders } from '../shared/reminders-store'
 import { bindSettings } from '../shared/settings-store'
 import { bindSystem } from '../shared/system-store'
+import { bindWorkLog } from '../shared/work-log-store'
 import '../styles/global.css'
 import { NotchApp } from './NotchApp'
 
@@ -29,6 +30,7 @@ bindGmailPanel()
 bindCodeReview()
 bindCodeReviewContributions()
 bindRedmine()
+bindWorkLog()
 
 createRoot(root).render(
   <StrictMode>

@@ -176,16 +176,18 @@ function buildGeometry(): unknown {
     { x: -1280, y: 0, width: 1280, height: 984 },
     { x: 1920, y: 0, width: 2560, height: 1392 },
   ]
-  // {system: null | without battery | with battery} × claude × mail × reviews (0..2) × redmine.
+  // {system: null | without battery | with battery} × claude × mail × reviews (0..2) × redmine × workLog.
   const systems = [null, { battery: false }, { battery: true }]
   const compactWidths = systems.flatMap((system) =>
     [false, true].flatMap((claude) =>
       [false, true].flatMap((mail) =>
         ([0, 1, 2] as const).flatMap((reviews) =>
-          [false, true].map((redmine) => {
-            const blocks = { claude, mail, reviews, redmine }
-            return { system, blocks, width: compactWidthFor({ system, blocks }) }
-          }),
+          [false, true].flatMap((redmine) =>
+            [false, true].map((workLog) => {
+              const blocks = { claude, mail, reviews, redmine, workLog }
+              return { system, blocks, width: compactWidthFor({ system, blocks }) }
+            }),
+          ),
         ),
       ),
     ),

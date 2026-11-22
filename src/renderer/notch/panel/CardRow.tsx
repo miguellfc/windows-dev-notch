@@ -21,6 +21,7 @@ import { GmailCard } from './cards/GmailCard'
 import { NotesCard } from './cards/NotesCard'
 import { RedmineCard } from './cards/RedmineCard'
 import { RemindersCard } from './cards/RemindersCard'
+import { WorkLogCard } from './cards/WorkLogCard'
 import { CardTabStop, PanelCard } from './PanelCard'
 
 const ICONS: Readonly<Record<IntegrationKey, LucideIcon>> = {
@@ -162,8 +163,7 @@ function CardContent({ cardKey }: { cardKey: IntegrationKey }) {
     case 'redmine':
       return <RedmineCard />
     case 'workLog':
-      // No card content until the work log view lands; the integration starts off.
-      return null
+      return <WorkLogCard />
     case 'reminders':
       return <RemindersCard />
     case 'notes':

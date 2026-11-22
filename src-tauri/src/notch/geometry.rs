@@ -111,6 +111,10 @@ pub const REVIEWS_SIZE: Size = size(520.0, 324.0);
 /// The Redmine panel: the window is sized for the search (the painted rest size is the renderer's).
 pub const REDMINE_SEARCH_SIZE: Size = size(520.0, 560.0);
 
+/// The work log view (`WORK_LOG_SIZE`): the window is sized for its full size, as tall as Redmine's
+/// search (the painted size fits the view, in the renderer).
+pub const WORK_LOG_SIZE: Size = size(480.0, 560.0);
+
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).
 pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
     (VisibleMode::Compact, size(465.0, 36.0)),
@@ -124,8 +128,7 @@ pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
     (VisibleMode::Gmail, GMAIL_READER_SIZE),
     (VisibleMode::Reviews, REVIEWS_SIZE),
     (VisibleMode::Redmine, REDMINE_SEARCH_SIZE),
-    // Same size as Redmine until the work log view sizes itself.
-    (VisibleMode::WorkLog, REDMINE_SEARCH_SIZE),
+    (VisibleMode::WorkLog, WORK_LOG_SIZE),
     (VisibleMode::Mini, size(96.0, 4.0)),
 ];
 
@@ -155,6 +158,7 @@ const BLOCK_CLAUDE: f64 = 22.0;
 const BLOCK_MAIL: f64 = 48.5;
 const BLOCK_REVIEW: f64 = 56.0;
 const BLOCK_REDMINE: f64 = 78.5;
+const BLOCK_WORK_LOG: f64 = 73.5;
 
 /// The system zone of the compact capsule (`system` in `CompactContent`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -169,6 +173,7 @@ pub struct CapsuleBlocks {
     pub mail: bool,
     pub reviews: i64,
     pub redmine: bool,
+    pub work_log: bool,
 }
 
 fn block(shown: bool, width: f64) -> f64 {
@@ -186,7 +191,8 @@ pub fn compact_width_for(system: Option<SystemZone>, blocks: CapsuleBlocks) -> f
     let middle = block(blocks.claude, BLOCK_CLAUDE)
         + block(blocks.mail, BLOCK_MAIL)
         + blocks.reviews.clamp(0, 2) as f64 * BLOCK_REVIEW
-        + block(blocks.redmine, BLOCK_REDMINE);
+        + block(blocks.redmine, BLOCK_REDMINE)
+        + block(blocks.work_log, BLOCK_WORK_LOG);
     if middle > 0.0 {
         width += ZONE_DIVIDER + middle;
     }
@@ -202,9 +208,9 @@ pub const SHADOW_MARGIN_TOP: f64 = 6.0;
 pub const SHADOW_MARGIN_BOTTOM: f64 = 72.0;
 
 /// Constant window width: the widest capsule plus its shadow, rounded up to an even number. The
-/// widest compact capsule (every block, the system zone and the battery) is 741 wide; the
-/// widest panel is 712. A test recomputes it from the formula, so it cannot drift.
-pub const WINDOW_WIDTH: f64 = 854.0;
+/// widest compact capsule (every block, the work log's included, the system zone and the battery)
+/// is 814 wide; the widest panel is 712. A test recomputes it from the formula, so it cannot drift.
+pub const WINDOW_WIDTH: f64 = 926.0;
 
 #[cfg(test)]
 fn computed_window_width() -> f64 {
@@ -215,6 +221,7 @@ fn computed_window_width() -> f64 {
             mail: true,
             reviews: 2,
             redmine: true,
+            work_log: true,
         },
     );
     let widest = CAPSULE_SIZES

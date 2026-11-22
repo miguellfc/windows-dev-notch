@@ -307,6 +307,7 @@ mod tests {
     use std::sync::Mutex;
 
     use super::*;
+    use crate::notch::geometry::WINDOW_WIDTH;
 
     fn monitor(
         device: &str,
@@ -406,7 +407,11 @@ mod tests {
         display.refresh(std::slice::from_ref(&a));
         assert_eq!(display.current().device, "A");
         assert_eq!(scale.get(), 1.0);
-        assert_eq!(surface.0.lock().unwrap().last().unwrap().x, 533.0);
+        // Centred on its 1920 px work area.
+        assert_eq!(
+            surface.0.lock().unwrap().last().unwrap().x,
+            (1920.0 - WINDOW_WIDTH) / 2.0
+        );
     }
 
     #[test]

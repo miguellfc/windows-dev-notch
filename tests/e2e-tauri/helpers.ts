@@ -531,8 +531,8 @@ export function readClaudeBridge(): ClaudeBridge {
   }
 }
 
-/** POSTs a hook payload like Claude Code does. The promise settles when the bridge replies. */
-export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown>): Promise<HookReply> =>
+/** POSTs a hook payload like Claude Code does (`headers`: more of them, `x-notch-account` say). The promise settles when the bridge replies. */
+export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown>, headers: Record<string, string> = {}): Promise<HookReply> =>
   new Promise((done, fail) => {
     const body = JSON.stringify(payload)
     const req = request(
@@ -543,6 +543,7 @@ export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown
           'content-type': 'application/json',
           'content-length': Buffer.byteLength(body),
           'x-notch-token': endpoint.token,
+          ...headers,
         },
       },
       (res) => {
