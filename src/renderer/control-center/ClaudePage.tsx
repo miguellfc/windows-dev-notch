@@ -146,8 +146,19 @@ function AccountItem({
   )
 }
 
-/** «Otra carpeta…»: the project has no folder-picker plugin, so the path is pasted and added. */
-function AddFolder({ busy, onAdd }: { busy: boolean; onAdd: (dir: string) => void }) {
+/**
+ * «Otra carpeta…»: the path is typed or pasted, or chosen with «Examinar…» (main opens the native
+ * folder browser; the chosen path only fills the field, so it can be reviewed before «Añadir»).
+ */
+function AddFolder({
+  busy,
+  onAdd,
+  onBrowse,
+}: {
+  busy: boolean
+  onAdd: (dir: string) => void
+  onBrowse: (fill: (dir: string) => void) => void
+}) {
   const t = useT()
   const [dir, setDir] = useState('')
   const submit = () => {
@@ -171,6 +182,9 @@ function AddFolder({ busy, onAdd }: { busy: boolean; onAdd: (dir: string) => voi
         }}
         className="field h-8 min-w-0 flex-1 px-2.5 font-mono text-small text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60"
       />
+      <button type="button" disabled={busy} onClick={() => onBrowse(setDir)} className={buttonClass}>
+        {t('cc.claude.account.browse')}
+      </button>
       <button type="button" disabled={busy || dir.trim() === ''} onClick={submit} className={buttonClass}>
         {t('cc.claude.account.add')}
       </button>
@@ -252,6 +266,15 @@ export function ClaudePage() {
       setNotice({ tone: 'info', key: 'cc.claude.account.added' })
     })
 
+  // The folder browser is modal: the page is busy until it closes. Cancelling changes nothing.
+  const browseFolder = (fill: (dir: string) => void) =>
+    run(async () => {
+      setNotice(null)
+      const result = await window.notch.claude.pickAccountDir()
+      if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
+      if (result.data) fill(result.data.dir)
+    })
+
   const test = () =>
     run(async () => {
       setNotice(null)
@@ -324,7 +347,7 @@ export function ClaudePage() {
               ) : null}
             </div>
           ))}
-          <AddFolder busy={busy} onAdd={(dir) => void addFolder(dir)} />
+          <AddFolder busy={busy} onAdd={(dir) => void addFolder(dir)} onBrowse={(fill) => void browseFolder(fill)} />
         </div>
       </section>
 

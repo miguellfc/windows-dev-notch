@@ -5,7 +5,9 @@
 //
 // GAP: the accounts come from a temp "home" (`NOTCH_CLAUDE_HOME`, a dev-only switch) holding
 // `.claude-work` with a profile (`.claude.json`), so the spec never reads or writes the user's real
-// `~/.claude*`. «Otra carpeta…» is a text field (the project has no folder-picker plugin).
+// `~/.claude*`. «Otra carpeta…» is a text field with an «Examinar…» button (the native folder
+// browser is modal, so `NOTCH_CLAUDE_ACCOUNT_DIR`, a dev-only switch, answers a folder in its place;
+// the dialog itself is never opened).
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,6 +18,7 @@ const EMAIL = 'ana.e2e@example.test'
 const ORGANIZATION = 'Acme E2E'
 
 let home: string | undefined
+let picked: string | undefined
 
 const textOf = (testId: string) => $(`[data-testid="${testId}"]`).getText()
 
@@ -23,6 +26,7 @@ describe('Control Center: Claude accounts and work log (Tauri)', () => {
   after(async () => {
     await quitApp()
     if (home) rmSync(home, { recursive: true, force: true })
+    if (picked) rmSync(picked, { recursive: true, force: true })
   })
 
   it('lists the accounts, links claude-work with its diff, and the work log asks for an account', async () => {
@@ -33,7 +37,8 @@ describe('Control Center: Claude accounts and work log (Tauri)', () => {
       join(home, '.claude-work', '.claude.json'),
       JSON.stringify({ oauthAccount: { emailAddress: EMAIL, organizationName: ORGANIZATION } }),
     )
-    await launchClaude({ env: { NOTCH_CLAUDE_HOME: home } })
+    picked = mkdtempSync(join(tmpdir(), 'notch-e2e-picked-'))
+    await launchClaude({ env: { NOTCH_CLAUDE_HOME: home, NOTCH_CLAUDE_ACCOUNT_DIR: picked } })
     await openClaudePage()
 
     // Both accounts, the default first; the work one shows its profile and folder.
@@ -56,6 +61,18 @@ describe('Control Center: Claude accounts and work log (Tauri)', () => {
       'claude-work showing its hooks installed',
     )
     expect(readFileSync(join(work, 'settings.json'), 'utf8')).toContain('x-notch-account')
+
+    // «Examinar…» next to the path field fills it with the chosen folder and adds nothing yet.
+    const browse = $('//button[normalize-space()="Examinar…" or normalize-space()="Browse…"]')
+    await browse.waitForDisplayed()
+    const field = $('input[aria-label="Ruta de la carpeta de Claude Code"], input[aria-label="Claude Code folder path"]')
+    await browse.click()
+    await browser.waitUntil(async () => (await field.getValue()) === picked, { timeoutMsg: 'the field to show the chosen folder' })
+    const add = $('//button[normalize-space()="Añadir" or normalize-space()="Add"]')
+    expect(await add.isEnabled()).toBe(true)
+    await add.click()
+    await $('//*[@role="status"][contains(., "Cuenta añadida") or contains(., "Account added")]').waitForDisplayed()
+    expect(await field.getValue()).toBe('')
 
     // The work log page: no account chosen yet.
     await $('//nav//button[normalize-space()="Registro de trabajo" or normalize-space()="Work log"]').click()

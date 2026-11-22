@@ -260,9 +260,11 @@ pub fn check(
             | "claude:test-connection"
             | "claude:rotate-token"
             | "claude:rotate-port"
-            | "claude:get-questions",
+            | "claude:get-questions"
+            | "claude:pick-account-dir",
             Input,
         ) => none(value),
+        ("claude:pick-account-dir", Output) => required::<Option<claude::PickedAccountDir>>(value),
         ("claude:get-state", Output) => required::<claude::ClaudeState>(value),
         ("claude:hooks-preview", Input) => required::<claude::HooksPreviewInput>(value),
         ("claude:hooks-install" | "claude:hooks-uninstall", Input) => {

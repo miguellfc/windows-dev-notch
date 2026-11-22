@@ -13,6 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use super::*;
+use crate::claude::account_dir::FolderPicker;
 use crate::claude::accounts::ClaudeAccount;
 use crate::claude::bridge::{BridgeError, ClaudeBridge, HookRoute, OnEvent, PendingReply};
 use crate::claude::hook_events::{HookEvent, HookEventName, Preview};
@@ -284,6 +285,8 @@ struct Opts {
     bridge: BridgeKind,
     /// Also receives every question list (e.g. the real `QuestionAlerts`).
     on_questions: Option<OnQuestions>,
+    /// What the folder browser answers (`None`: cancelled).
+    folder: Option<PathBuf>,
 }
 
 impl Default for Opts {
@@ -294,7 +297,22 @@ impl Default for Opts {
             port: 47_600,
             bridge: BridgeKind::Fake(Arc::new(|_| Ok(()))),
             on_questions: None,
+            folder: None,
         }
+    }
+}
+
+/// The folder browser: answers the configured folder and counts the calls.
+struct FakeFolder {
+    choice: Option<PathBuf>,
+    calls: AtomicUsize,
+}
+
+impl FolderPicker for FakeFolder {
+    fn pick_folder(&self) -> BoxFuture<'_, Option<PathBuf>> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        let choice = self.choice.clone();
+        Box::pin(async move { choice })
     }
 }
 
@@ -310,6 +328,7 @@ struct Fx {
     installer: Arc<FakeInstaller>,
     accounts: Arc<FakeAccounts>,
     focus_calls: Arc<AtomicUsize>,
+    folder: Arc<FakeFolder>,
     load_calls: Arc<AtomicUsize>,
     /// Calls of `rotate_config` and `rotate_port_config` (each one rewrites claude-bridge.json).
     rotate_calls: Arc<AtomicUsize>,
@@ -347,6 +366,10 @@ fn setup_with(opts: Opts) -> Fx {
     let installer = FakeInstaller::new(opts.hooks);
     let accounts = FakeAccounts::new(Arc::clone(&installer));
     let focus_calls = Arc::new(AtomicUsize::new(0));
+    let folder = Arc::new(FakeFolder {
+        choice: opts.folder.clone(),
+        calls: AtomicUsize::new(0),
+    });
     let load_calls = Arc::new(AtomicUsize::new(0));
     let rotate_calls = Arc::new(AtomicUsize::new(0));
     let current_token = Arc::new(Mutex::new(token()));
@@ -433,6 +456,7 @@ fn setup_with(opts: Opts) -> Fx {
             })
         },
         accounts: Arc::clone(&accounts) as Arc<dyn Accounts>,
+        folder_picker: Arc::clone(&folder) as Arc<dyn FolderPicker>,
         focus_claude: {
             let focus_calls = Arc::clone(&focus_calls);
             Arc::new(move || {
@@ -486,6 +510,7 @@ fn setup_with(opts: Opts) -> Fx {
         installer,
         accounts,
         focus_calls,
+        folder,
         load_calls,
         rotate_calls,
         clock,
@@ -2370,6 +2395,61 @@ async fn adding_a_folder_needs_an_existing_one() {
     .await;
     assert_eq!(response["ok"], json!(true), "{response}");
     assert_eq!(fx.accounts.current().extra_dirs, [dir]);
+}
+
+#[tokio::test]
+async fn picking_a_folder_answers_its_path_and_adds_nothing() {
+    let folder = crate::services::test_dir::TestDir::new("claude-account-pick");
+    let fx = setup_with(Opts {
+        folder: Some(folder.path().to_path_buf()),
+        ..Opts::default()
+    });
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+    assert_eq!(
+        response["data"],
+        json!({ "dir": folder.path().to_string_lossy() })
+    );
+    assert_eq!(fx.folder.calls.load(Ordering::SeqCst), 1);
+    assert!(fx.accounts.current().extra_dirs.is_empty());
+}
+
+#[tokio::test]
+async fn cancelling_the_folder_browser_answers_null() {
+    let fx = setup();
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+    assert_eq!(response["data"], Value::Null);
+    assert_eq!(fx.folder.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn the_folder_browser_takes_no_input_and_never_waits_for_the_service() {
+    let fx = setup();
+    let registry = registry(&fx.service);
+    let with_input = invoke(&registry, "claude:pick-account-dir", Some(json!({}))).await;
+    assert_eq!(error_code(&with_input), "INVALID_INPUT");
+    assert_eq!(fx.folder.calls.load(Ordering::SeqCst), 0);
+    // Not started (the bridge is not running) and with another request holding the turn: still
+    // answers at once.
+    let _turn = fx.service.serial.lock().await;
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+}
+
+#[tokio::test]
+async fn a_folder_path_the_account_input_would_refuse_is_refused() {
+    let fx = setup_with(Opts {
+        folder: Some(PathBuf::from(format!("C:\\{}", "x".repeat(1100)))),
+        ..Opts::default()
+    });
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(error_code(&response), "INVALID_INPUT");
 }
 
 #[tokio::test]

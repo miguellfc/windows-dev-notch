@@ -89,7 +89,7 @@ function buildUnicodeClasses(): unknown {
 }
 
 /** Prefixes of the message keys the Rust crate shows itself (the tray menu and the toasts). */
-const rustMessagePrefixes = ['claude.toast.', 'reminders.toast.', 'tray.'] as const
+const rustMessagePrefixes = ['claude.toast.', 'dialog.', 'reminders.toast.', 'tray.'] as const
 
 /** The texts the Rust crate needs, per language, loaded there with `include_str!`. */
 function buildMainMessages(): unknown {
@@ -264,6 +264,7 @@ const portedChannels = [
   'claude:release-question',
   'claude:accounts',
   'claude:account-add',
+  'claude:pick-account-dir',
   'code-review:get-state',
   'code-review:refresh',
   'code-review:open-profile',

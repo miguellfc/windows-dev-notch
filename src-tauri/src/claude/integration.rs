@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
+use super::account_dir::{app_folder_picker, FolderDialog, FolderPicker};
 use super::accounts::{adopt_legacy_backups, AccountDirectory};
 use super::alerts::{NotchPort, NotchWebview, QuestionAlerts, QuestionAlertsOptions};
 use super::bridge::{now_ms, ClaudeBridge, HookRoute, OnEvent};
@@ -210,6 +211,29 @@ pub fn account_directory(app: &AppHandle, data_dir: &Path) -> Option<Arc<Account
     }))
 }
 
+/// The «Examinar…» folder browser: owned by the Control Center (its handle is read from the
+/// record the main thread keeps), titled in the app's language, starting in the user's folder.
+fn folder_picker(app: &AppHandle, notch: &Arc<NotchRuntime>) -> Arc<dyn FolderPicker> {
+    let owner = {
+        let notch = Arc::clone(notch);
+        Arc::new(move || notch.control_center_hwnd().unwrap_or(0))
+    };
+    let title = {
+        let app = app.clone();
+        Arc::new(move || {
+            i18n::t(
+                app.state::<SettingsStore>().get().language,
+                "dialog.claudeAccountDir",
+            )
+        })
+    };
+    app_folder_picker(FolderDialog {
+        owner,
+        title,
+        start: app.path().home_dir().ok(),
+    })
+}
+
 /// Creates the service, fills `slot`, starts it in the background and then its 60 s tick on the
 /// notch's timers. Call on the main thread, after the notch and before the reminders. `None`
 /// (channels stay UNAVAILABLE) only when there is no user folder for Claude's settings (no
@@ -280,6 +304,7 @@ pub fn install(
             ))
         }),
         accounts,
+        folder_picker: folder_picker(app, notch),
         focus_claude: Arc::new(move || focus::focus_claude(focus_disabled)),
         on_state: {
             let alerts = Arc::clone(&alerts);

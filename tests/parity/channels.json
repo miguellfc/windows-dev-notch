@@ -16,6 +16,7 @@
     "claude:hooks-install",
     "claude:hooks-preview",
     "claude:hooks-uninstall",
+    "claude:pick-account-dir",
     "claude:release-question",
     "claude:rotate-port",
     "claude:rotate-token",

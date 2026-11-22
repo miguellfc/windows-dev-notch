@@ -163,6 +163,9 @@ export const claudeHooksPreviewInputSchema = z.strictObject({ accountId: claudeA
 /** "Otra carpeta…": an existing Claude Code config folder, added by hand. */
 export const claudeAccountAddInputSchema = z.strictObject({ dir: z.string().min(1).max(1024) })
 
+/** The folder chosen in the native folder browser of «Otra carpeta…»; the answer is `null` when it is cancelled. */
+export const claudePickedDirSchema = z.strictObject({ dir: z.string().min(1).max(1024) })
+
 /** The detected and added accounts, the default first; profile fields are null without a profile. */
 export const claudeAccountsSchema = z.strictObject({
   accounts: z.array(
@@ -229,6 +232,7 @@ export const contract = {
   'claude:accounts': { input: none, output: claudeAccountsSchema },
   /** NOT_FOUND when the folder does not exist. */
   'claude:account-add': { input: claudeAccountAddInputSchema, output: claudeAccountsSchema },
+  'claude:pick-account-dir': { input: none, output: claudePickedDirSchema.nullable() },
   'claude:test-connection': { input: none, output: z.strictObject({ ok: z.boolean() }) },
   'claude:rotate-token': { input: none, output: claudeRotateSchema },
   'claude:rotate-port': { input: none, output: claudeRotateSchema },

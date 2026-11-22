@@ -43,6 +43,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+use super::account_dir::FolderPicker;
 use super::accounts::{account_id_for, ClaudeAccount, DEFAULT_ACCOUNT_ID};
 use super::bridge::{BridgeError, ClaudeBridge, HookRoute, OnEvent, PendingReply, TOKEN_HEADER};
 pub use super::bridge_config::BridgeConfig;
@@ -59,8 +60,8 @@ use super::session_registry::{SessionRegistry, SessionRegistryOptions};
 use crate::contract::claude::{
     AccountHookStatus, BoolLiteral, ClaudeAccountView, ClaudeAccounts, ClaudeConnection,
     ClaudeConnectionErrorReason, ClaudeHooksStatus, Decision, DiffLine, HooksPreview,
-    HooksPreviewDiff, HooksPreviewMode, HooksWrite, HooksWritten, InvalidJson, QuestionAnswer,
-    RotateHooks, RotateOutcome,
+    HooksPreviewDiff, HooksPreviewMode, HooksWrite, HooksWritten, InvalidJson, PickedAccountDir,
+    QuestionAnswer, RotateHooks, RotateOutcome, ACCOUNT_DIR_MAX,
 };
 pub use crate::contract::claude::{
     ClaudeState, PendingPermission, PendingQuestionView, TestConnectionResult,
@@ -197,6 +198,8 @@ pub struct ClaudeServiceDeps {
     pub rotate_port_config: ConfigFn,
     pub create_bridge: Arc<dyn Fn(BridgeOptions) -> Arc<dyn Bridge> + Send + Sync>,
     pub accounts: Arc<dyn Accounts>,
+    /// The folder browser of «Otra carpeta…».
+    pub folder_picker: Arc<dyn FolderPicker>,
     pub focus_claude: Arc<dyn Fn() + Send + Sync>,
     /// Called after every state change.
     pub on_state: Arc<dyn Fn(&ClaudeState) + Send + Sync>,
@@ -1058,6 +1061,23 @@ impl ClaudeService {
             });
         }
         Ok(ClaudeAccounts { accounts })
+    }
+
+    /// "Examinar…": the folder the user picks in the native browser, `None` when it is cancelled.
+    /// Only answers the path; [`Self::add_account`] checks and remembers it. It never waits for
+    /// other work (not even the serial turn): the dialog may stay open for minutes.
+    pub async fn pick_account_dir(&self) -> Result<Option<PickedAccountDir>, ExposedError> {
+        let Some(folder) = self.deps.folder_picker.pick_folder().await else {
+            return Ok(None);
+        };
+        let dir = folder.to_string_lossy().into_owned();
+        if dir.chars().count() > ACCOUNT_DIR_MAX {
+            return Err(ExposedError::new(
+                IpcErrorCode::InvalidInput,
+                "The folder path is too long",
+            ));
+        }
+        Ok(Some(PickedAccountDir { dir }))
     }
 
     /// "Otra carpeta…": remembers an existing folder as an account (NOT_FOUND otherwise).

@@ -63,6 +63,10 @@ function appEnv(dataDir: string): Record<string, string> {
     // the empty value here or per launch: the picker reads it as Cancel.
     NOTCH_GMAIL_CLIENT_FILE: join(dataDir, 'no-such-gmail-client-file.json'),
     NOTCH_OPEN_URL_LOG: '1',
+    // The «Examinar…» folder browser of Claude's «Otra carpeta…» answers this path instead of
+    // opening the real dialog (never the empty value: the picker reads it as Cancel). The spec
+    // passes its own folder per launch.
+    NOTCH_CLAUDE_ACCOUNT_DIR: join(dataDir, 'no-such-claude-account-dir'),
     // Work log: never the real `claude` for a summary. A path that does not exist finds none (the
     // entry stays "sin resumen"); work-log.spec passes its fake per launch.
     NOTCH_WORKLOG_CLAUDE: join(dataDir, 'no-such-claude.cmd'),

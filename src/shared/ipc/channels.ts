@@ -41,6 +41,7 @@ export const channels = {
     releaseQuestion: 'claude:release-question',
     accounts: 'claude:accounts',
     accountAdd: 'claude:account-add',
+    pickAccountDir: 'claude:pick-account-dir',
   },
   reminders: {
     list: 'reminders:list',

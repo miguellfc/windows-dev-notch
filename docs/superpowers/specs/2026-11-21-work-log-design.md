@@ -151,7 +151,7 @@ Si `SessionEnd` no llega (ventana cerrada de golpe, notch reiniciado), la entrad
 - **Resumen:** `claude -p --output-format json --settings <archivo>` (el archivo, en la carpeta propia del notch, lleva `disableAllHooks` y reglas `deny` para `Bash`, `Edit`, `Write`, `NotebookEdit`, `WebFetch` y `WebSearch`), `--tools Read`, `--allowedTools Read`, `--disallowedTools …`, `--permission-mode dontAsk` y `--strict-mcp-config`. Al agotar el tiempo se mata el árbol de procesos con `taskkill /T /F`.
 - **`is_own_session`:** el notch ignora los eventos de hook de su propio resumen (su `cwd` es la carpeta del resumidor), para que cada resumen no cree una entrada nueva.
 - **Cápsula:** el bloque del Registro de trabajo mide 73,5 px; la cápsula compacta más ancha pasa de 741 a 814 px y `WINDOW_WIDTH` de 854 a 926.
-- **Control Center:** «Otra carpeta…» al asociar una cuenta de Claude es un campo de texto para pegar la ruta (no hay plugin de selector de carpetas).
+- **Control Center:** «Otra carpeta…» al asociar una cuenta de Claude es un campo de texto para pegar la ruta con un botón «Examinar…» al lado (`claude:pick-account-dir`: main abre el explorador de carpetas de Windows, `SHBrowseForFolderW`, con el Control Center de propietario; la carpeta elegida solo rellena el campo y se añade con «Añadir»; si se cancela no pasa nada).
 - **Desarrollo:** `NOTCH_CLAUDE_HOME` fuerza la carpeta de Claude, solo con los overrides de desarrollo.
 - **Hooks antiguos:** se actualizan solos al arrancar (con copia de seguridad) en las cuentas asociadas.
 - **Ajustes:** una sola `SETTINGS_VERSION` 10 y una sola migración v9 → v10, compartida por las cuentas de Claude (`claudeAccounts`) y el registro (`integrations.workLog` y `workLog`): la 0.4.0 no se publicó entre medias.

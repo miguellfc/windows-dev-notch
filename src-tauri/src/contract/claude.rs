@@ -524,6 +524,24 @@ impl Validate for AccountAddInput {
     }
 }
 
+/// Output of `claude:pick-account-dir` (`null` when the folder browser is cancelled): the folder
+/// the user chose, which fills the «Otra carpeta…» field (nothing is added yet).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct PickedAccountDir {
+    pub dir: String,
+}
+
+impl Validate for PickedAccountDir {
+    fn validate(&self) -> Result<(), String> {
+        if (1..=ACCOUNT_DIR_MAX).contains(&length(&self.dir)) {
+            Ok(())
+        } else {
+            Err(format!("dir must have 1 to {ACCOUNT_DIR_MAX} characters"))
+        }
+    }
+}
+
 string_enum! {
     /// The hooks of one account.
     pub enum AccountHookStatus {

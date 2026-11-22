@@ -1,4 +1,4 @@
-//! The fifteen `claude:*` channels (port of 0.1.0's `claude-ipc.ts`). Guards live in
+//! The sixteen `claude:*` channels (port of 0.1.0's `claude-ipc.ts`). Guards live in
 //! `ipc::GUARDS`: decisions, questions and session actions belong to the notch; accounts, hooks,
 //! token and port to the Control Center; `claude:get-state` to both. No response carries the bridge token
 //! (the state has no field for it and every diff is masked).
@@ -36,10 +36,11 @@ enum Op {
     RotatePort,
     Accounts,
     AccountAdd,
+    PickAccountDir,
 }
 
 /// Every `claude:*` channel with its operation.
-const CHANNELS: [(&str, Op); 15] = [
+const CHANNELS: [(&str, Op); 16] = [
     ("claude:get-state", Op::GetState),
     ("claude:decide", Op::Decide),
     ("claude:focus-app", Op::FocusApp),
@@ -55,6 +56,7 @@ const CHANNELS: [(&str, Op); 15] = [
     ("claude:rotate-port", Op::RotatePort),
     ("claude:accounts", Op::Accounts),
     ("claude:account-add", Op::AccountAdd),
+    ("claude:pick-account-dir", Op::PickAccountDir),
 ];
 
 fn json(value: impl Serialize) -> Result<Value, ExposedError> {
@@ -133,6 +135,10 @@ async fn handle(service: &ClaudeService, op: Op, input: Value) -> Result<Value, 
             let input = AccountAddInput::from_input(input)?;
             json(service.add_account(&input.dir).await?)
         }
+        Op::PickAccountDir => {
+            no_input(&input)?;
+            json(service.pick_account_dir().await?)
+        }
         Op::TestConnection => {
             no_input(&input)?;
             json(service.test_connection().await)
@@ -169,7 +175,7 @@ impl Channel for ClaudeChannel {
     }
 }
 
-/// Registers the fifteen `claude:*` channels; they reach the service through `slot`.
+/// Registers the sixteen `claude:*` channels; they reach the service through `slot`.
 pub fn register(registry: &mut Registry, slot: &Arc<ClaudeSlot>) {
     for (name, op) in CHANNELS {
         registry.register(

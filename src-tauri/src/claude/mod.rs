@@ -1,5 +1,6 @@
 //! Claude Code integration (port of 0.1.0's `claude` module and `src/shared/claude`).
 
+pub mod account_dir;
 pub mod accounts;
 pub mod alerts;
 pub mod bridge;
