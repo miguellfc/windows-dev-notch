@@ -258,6 +258,11 @@ fn apply_event(
     if entry.deleted_at.is_some() {
         return None;
     }
+    // Ended (it has an end, even if paused since the start): late events (background agents)
+    // never reopen it; only a resume does.
+    if entry.ended_at.is_some() && !resume {
+        return None;
+    }
     if resume {
         entry.status = WorkLogStatus::Running;
         entry.invoiced = false;
@@ -479,7 +484,7 @@ impl WorkLogService {
         self.read_only
             .store(outcome == LoadOutcome::ReadOnly, Ordering::SeqCst);
         let now = (self.now)();
-        let pending = {
+        let ended = {
             let mut state = lock(&self.state);
             state.entries = self.store.get().entries;
             let mut changed = prune(&mut state.entries, now);
@@ -494,15 +499,25 @@ impl WorkLogService {
                     changed = true;
                 }
             }
+            // The events that came during the load, in order and before any later one: the lock
+            // is held until `loaded` is set.
+            let cap = (self.config)().idle_pause_ms;
+            let mut ended = Vec::new();
+            for (event, at) in std::mem::take(&mut state.pending) {
+                if let Some(result) = apply_event(&mut state.entries, &event, at, cap) {
+                    changed = true;
+                    ended.extend(result);
+                }
+            }
             if changed {
                 self.generation.fetch_add(1, Ordering::SeqCst);
             }
             state.loaded = true;
-            std::mem::take(&mut state.pending)
+            ended
         };
         self.after_change();
-        for (event, at) in pending {
-            self.on_hook_event(&event, at);
+        for entry in ended {
+            self.summarizer.summarize(&entry);
         }
     }
 
@@ -580,7 +595,8 @@ impl WorkLogService {
                     None => session.last_event_at,
                 };
                 if now - quiet_since > cap {
-                    session.close(now);
+                    // Maybe one long tool call: a later event of that turn reopens it.
+                    session.close_stalled();
                     entry.status = WorkLogStatus::Paused;
                     changed = true;
                 }

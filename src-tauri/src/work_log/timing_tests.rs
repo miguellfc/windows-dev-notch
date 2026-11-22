@@ -261,3 +261,76 @@ fn a_permission_still_pending_at_stop_is_waiting_time() {
     assert_eq!(s.claude_ms(), 4 * M);
     assert_eq!(s.total_ms(), 24 * M);
 }
+
+#[test]
+fn compaction_mid_turn_keeps_the_turn_running() {
+    let mut s = Session::start(0);
+    let mut stop = event(HookEventName::Stop);
+    stop.work = Some(WorkPayload {
+        reply: Some("done".into()),
+        ..WorkPayload::default()
+    });
+    let mut compact = event(HookEventName::SessionStart);
+    compact.source = Some("compact".into());
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (2, tool(HookEventName::PreToolUse, "Bash")),
+            (4, compact),
+            (6, tool(HookEventName::PreToolUse, "Edit")),
+            (8, stop),
+        ],
+    );
+    assert_eq!(s.turns.len(), 1);
+    assert_eq!(s.turns[0].ended_at, Some(8 * M));
+    assert_eq!(s.turns[0].reply.as_deref(), Some("done"));
+    assert_eq!(s.turns[0].tools.get("Edit"), Some(&1));
+    assert_eq!(s.claude_ms(), 8 * M);
+}
+
+#[test]
+fn a_turn_closed_as_stalled_reopens_with_its_next_tool_event() {
+    let mut s = Session::start(0);
+    let mut stop = event(HookEventName::Stop);
+    stop.work = Some(WorkPayload {
+        reply: Some("built".into()),
+        ..WorkPayload::default()
+    });
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (1, tool(HookEventName::PreToolUse, "Bash")),
+        ],
+    );
+    s.close_stalled();
+    assert_eq!(s.turns[0].ended_at, Some(M));
+    run(
+        &mut s,
+        &[(45, tool(HookEventName::PostToolUse, "Bash")), (46, stop)],
+    );
+    assert_eq!(s.claude_ms(), 46 * M);
+    assert_eq!(s.total_ms(), 46 * M);
+    assert_eq!(s.turns[0].reply.as_deref(), Some("built"));
+}
+
+#[test]
+fn a_new_prompt_after_a_stalled_turn_does_not_reopen_it() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (1, tool(HookEventName::PreToolUse, "Bash")),
+        ],
+    );
+    s.close_stalled();
+    run(
+        &mut s,
+        &[(60, prompt("b")), (61, event(HookEventName::Stop))],
+    );
+    assert_eq!(s.turns[0].ended_at, Some(M));
+    assert_eq!(s.claude_ms(), 2 * M);
+    assert_eq!(s.total_ms(), 32 * M);
+}

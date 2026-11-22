@@ -558,6 +558,75 @@ fn never_logs_prompt_or_reply_text() {
         .all(|line| !line.contains("secret prompt")));
 }
 
+#[test]
+fn a_long_tool_call_paused_by_the_tick_counts_fully_when_it_ends() {
+    let fx = Fx::new();
+    let service = fx.started();
+    let mut stop = event(HookEventName::Stop, "s1");
+    stop.work = Some(WorkPayload {
+        reply: Some("built".into()),
+        ..WorkPayload::default()
+    });
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (1, event(HookEventName::PreToolUse, "s1")),
+        ],
+    );
+    service.tick(40 * M);
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Paused);
+    assert_eq!(entry.session.turns[0].ended_at, Some(M));
+    run(
+        &service,
+        &[(45, event(HookEventName::PostToolUse, "s1")), (46, stop)],
+    );
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Running);
+    assert_eq!(entry.session.claude_ms(), 46 * M);
+    assert_eq!(entry.session.total_ms(), 46 * M);
+    assert_eq!(entry.session.turns[0].reply.as_deref(), Some("built"));
+}
+
+#[test]
+fn an_entry_that_ended_reopens_only_with_resume() {
+    let fx = Fx::new();
+    let mut ended = stored("s1", WorkLogStatus::Summarizing);
+    ended.ended_at = Some(10 * M);
+    fx.seed(vec![ended]);
+    let service = fx.started();
+    assert_eq!(only(&service).status, WorkLogStatus::Paused);
+    run(&service, &[(20, event(HookEventName::PostToolUse, "s1"))]);
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Paused);
+    assert_eq!(entry.session.last_event_at, 10 * M);
+    run(&service, &[(30, resume("s1"))]);
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Running);
+    assert_eq!(entry.ended_at, None);
+}
+
+#[test]
+fn buffered_events_are_replayed_in_order_under_the_lock_with_one_snapshot() {
+    let fx = Fx::new();
+    let service = fx.make();
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (5, event(HookEventName::Stop, "s1")),
+            (6, event(HookEventName::SessionEnd, "s1")),
+        ],
+    );
+    block_on(service.start());
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Summarizing);
+    assert_eq!(entry.session.claude_ms(), 5 * M);
+    assert_eq!(fx.emitted.lock().unwrap().len(), 1);
+    assert_eq!(*fx.summarizer.summarized.lock().unwrap(), ["s1"]);
+}
+
 mod copy {
     use super::*;
     use crate::work_log::copy::copy_text;

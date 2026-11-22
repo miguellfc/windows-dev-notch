@@ -25,6 +25,10 @@ pub struct Turn {
     pub wait_since: Option<i64>,
     /// Idle time over the cap right after this turn, not counted in the total.
     pub excess_after_ms: i64,
+    /// Closed by [`Session::close_stalled`] while it may still be running (a long tool call): its
+    /// next in-turn event reopens it.
+    #[serde(default)]
+    pub stalled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -41,17 +45,44 @@ pub struct Session {
 /// leave the turn open.
 const WAITING_NOTIFICATIONS: [&str; 2] = ["permission_prompt", "elicitation_dialog"];
 
-/// `SessionEnd`, `SessionStart` and an idle `Notification` never belong to a turn: one still open
-/// then stalled (Claude Code may send no `Stop` after Esc).
-fn ends_a_stalled_turn(event: &HookEvent) -> bool {
-    match event.name {
-        HookEventName::SessionEnd | HookEventName::SessionStart => true,
-        HookEventName::Notification => !event
+/// `SessionStart.source` of an auto or manual compaction: it can fire mid-turn and Claude keeps
+/// working.
+const COMPACT_SOURCE: &str = "compact";
+
+fn is_waiting_notification(event: &HookEvent) -> bool {
+    event.name == HookEventName::Notification
+        && event
             .notification_type
             .as_deref()
-            .is_some_and(|kind| WAITING_NOTIFICATIONS.contains(&kind)),
+            .is_some_and(|kind| WAITING_NOTIFICATIONS.contains(&kind))
+}
+
+/// `SessionEnd`, `SessionStart` (but a compaction) and an idle `Notification` never belong to a
+/// turn: one still open then stalled (Claude Code may send no `Stop` after Esc).
+fn ends_a_stalled_turn(event: &HookEvent) -> bool {
+    match event.name {
+        HookEventName::SessionEnd => true,
+        HookEventName::SessionStart => event.source.as_deref() != Some(COMPACT_SOURCE),
+        HookEventName::Notification => !is_waiting_notification(event),
         _ => false,
     }
+}
+
+/// Events Claude sends while working inside a turn.
+fn continues_a_turn(event: &HookEvent) -> bool {
+    use HookEventName::*;
+    matches!(
+        event.name,
+        PreToolUse
+            | PostToolUse
+            | PostToolUseFailure
+            | PermissionRequest
+            | PermissionDenied
+            | SubagentStart
+            | SubagentStop
+            | Stop
+            | StopFailure
+    )
 }
 
 impl Session {
@@ -72,6 +103,19 @@ impl Session {
         use HookEventName::*;
         // Time never runs backwards: a late event counts as arriving with the last one.
         let at = at.max(self.last_event_at);
+        // A turn closed as stalled was only quiet (one long tool call): Claude's next in-turn event
+        // reopens it as if it had never closed. Anything else settles it as closed.
+        if let Some(last) = self.turns.last_mut().filter(|turn| turn.stalled) {
+            if continues_a_turn(event) {
+                last.ended_at = None;
+                last.stalled = false;
+            } else if !is_waiting_notification(event) {
+                last.stalled = false;
+                if let Some(since) = last.wait_since.take() {
+                    last.wait_ms += (last.last_event_at - since).max(0);
+                }
+            }
+        }
         // A new prompt closes a turn left open (Esc gives no Stop) where it last showed signs of
         // life; so do the events that say Claude is not working on it, so a stalled turn never
         // absorbs the idle time before them.
@@ -105,6 +149,7 @@ impl Session {
                 wait_ms: 0,
                 wait_since: None,
                 excess_after_ms: 0,
+                stalled: false,
             });
             return;
         }
@@ -152,6 +197,16 @@ impl Session {
             if let Some(since) = turn.wait_since.take() {
                 turn.wait_ms += (turn.last_event_at - since).max(0);
             }
+        }
+    }
+
+    /// [`Self::close`] for a turn that went quiet longer than the cap: it may still be running
+    /// (a long build), so its next in-turn event reopens it.
+    pub fn close_stalled(&mut self) {
+        // A pending wait stays pending: if the turn reopens, it ends with the next tool event.
+        if let Some(turn) = self.open_turn() {
+            turn.ended_at = Some(turn.last_event_at);
+            turn.stalled = true;
         }
     }
 
