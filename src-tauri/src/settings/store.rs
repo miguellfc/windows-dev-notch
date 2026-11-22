@@ -100,8 +100,8 @@ impl SettingsStore {
             );
             return Ok(self.use_settings(self.defaults.clone(), true));
         }
-        // Only v7 to v9 migrate (and v10 gains a missing work log); an older (or missing) version
-        // is not usable.
+        // v7 to v9 migrate up to v10 (v9 to v10 adds the Claude accounts and the work log); an
+        // older (or missing) version is not usable.
         let original = raw.clone();
         let Some(migrated) = migrate(raw) else {
             return self.recover("Settings file has no usable version").await;
