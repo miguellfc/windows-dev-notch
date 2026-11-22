@@ -252,10 +252,13 @@ fn js_round(value: f64) -> f64 {
 }
 
 /// Window bounds for a mode: fixed width, horizontally centred at the top of the given work area.
+/// A work area narrower than the window (1366 px at 150 % is 910 DIP) never gets it past its left
+/// edge (onto the monitor beside it): the window starts there and its transparent right side
+/// overflows.
 pub fn window_bounds_for(mode: VisibleMode, work_area: Rect) -> Rect {
     let width = WINDOW_WIDTH;
     Rect {
-        x: js_round(work_area.x + (work_area.width - width) / 2.0),
+        x: js_round(work_area.x + ((work_area.width - width) / 2.0).max(0.0)),
         y: js_round(work_area.y),
         width,
         height: window_height_for(mode),
@@ -300,6 +303,35 @@ mod tests {
     #[test]
     fn window_width_constant_matches_its_formula() {
         assert_eq!(WINDOW_WIDTH, computed_window_width());
+    }
+
+    fn area(x: f64, width: f64) -> Rect {
+        Rect {
+            x,
+            y: 0.0,
+            width,
+            height: 1040.0,
+        }
+    }
+
+    #[test]
+    fn the_window_is_centred_in_a_work_area_wide_enough() {
+        let bounds = window_bounds_for(VisibleMode::Compact, area(1920.0, 2560.0));
+        assert_eq!(bounds.x, 1920.0 + (2560.0 - WINDOW_WIDTH) / 2.0);
+        assert!(bounds.x + bounds.width <= 1920.0 + 2560.0);
+    }
+
+    #[test]
+    fn a_work_area_narrower_than_the_window_keeps_it_from_its_left_edge() {
+        // 1366 px at 150 %: 910 DIP.
+        assert_eq!(
+            window_bounds_for(VisibleMode::Compact, area(0.0, 910.0)).x,
+            0.0
+        );
+        assert_eq!(
+            window_bounds_for(VisibleMode::Expanded, area(-910.0, 910.0)).x,
+            -910.0
+        );
     }
 
     #[test]

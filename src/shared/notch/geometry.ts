@@ -223,12 +223,14 @@ export function windowHeightFor(mode: VisibleMode): number {
   return capsuleTopFor(mode) + CAPSULE_SIZES[mode].height + SHADOW_MARGIN.bottom
 }
 
-/** Window bounds for a mode: fixed width, horizontally centred at the top of the given work area. */
+/** Window bounds for a mode: fixed width, horizontally centred at the top of the given work area (never past its left edge when narrower than the window). */
 export function windowBoundsFor(mode: VisibleMode, workArea: Rect): Rect {
   const width = WINDOW_WIDTH
   const height = windowHeightFor(mode)
   return {
-    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    // Never left of a work area narrower than the window (1366 px at 150 % is 910 DIP): it starts
+    // there and its transparent right side overflows.
+    x: Math.round(workArea.x + Math.max(0, (workArea.width - width) / 2)),
     y: Math.round(workArea.y),
     width,
     height,

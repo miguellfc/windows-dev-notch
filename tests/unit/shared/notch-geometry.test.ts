@@ -42,6 +42,12 @@ describe('windowBoundsFor', () => {
     expect(bounds.x + bounds.width / 2).toBeCloseTo(1920 + 1280, 0)
   })
 
+  it('never starts left of a work area narrower than the window (1366 px at 150 %)', () => {
+    const bounds = windowBoundsFor('compact', { x: 0, y: 0, width: 910, height: 512 })
+    expect(bounds.x).toBe(0)
+    expect(windowBoundsFor('compact', { x: -910, y: 0, width: 910, height: 512 }).x).toBe(-910)
+  })
+
   it('returns integer pixel values', () => {
     const bounds = windowBoundsFor('peek', { x: 0, y: 0, width: 1365, height: 767 })
     for (const value of Object.values(bounds)) expect(Number.isInteger(value)).toBe(true)

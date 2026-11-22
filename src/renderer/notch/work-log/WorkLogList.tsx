@@ -64,14 +64,14 @@ function Row({ entry, now, idlePauseMs, onOpen }: { entry: WorkLogEntryView; now
   const t = useT()
   const language = useLanguage()
   return (
-    <li className="group relative flex shrink-0">
+    <li className="card group relative flex shrink-0">
       <button
         type="button"
         data-testid="work-log-entry"
         data-session-id={entry.sessionId}
         onClick={onOpen}
         title={entry.title}
-        className="focus-inset flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-tile px-2.5 py-2 text-left transition-colors duration-150 group-hover:bg-veil-tile focus-visible:bg-veil-tile"
+        className="focus-inset flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-[inherit] px-3 py-2.5 text-left transition-colors duration-150 group-hover:bg-veil-tile focus-visible:bg-veil-tile"
       >
         {/* Titles and projects come from the session: always plain text, React escapes them. */}
         <span className="flex w-full min-w-0 items-center gap-2 pr-4">
@@ -91,16 +91,17 @@ function Row({ entry, now, idlePauseMs, onOpen }: { entry: WorkLogEntryView; now
         size={14}
         strokeWidth={1.8}
         aria-hidden="true"
-        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-graphite opacity-0 transition-opacity duration-150 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
+        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-graphite opacity-0 transition-opacity duration-150 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
       />
     </li>
   )
 }
 
 /**
- * Every recorded session as main sorts them (running and paused first, then by end, newest first):
- * title and pill, then the dates with the progress (or the project) and both times. A click or Enter
- * opens the entry's detail; the arrows move between rows. Live totals move with `now`.
+ * Every recorded session as main sorts them (running and paused first, then by end, newest first),
+ * each on its own card 8 px apart: title and pill, then the dates with the progress (or the project)
+ * and both times. A click or Enter opens the entry's detail; the arrows move between rows. Running
+ * totals move with `now`.
  */
 export function WorkLogList({
   entries,
@@ -117,7 +118,7 @@ export function WorkLogList({
 }) {
   const t = useT()
   return (
-    <ul ref={ref} data-testid="work-log-list" aria-label={t('integration.workLog')} onKeyDown={onListKeyDown} className="card flex min-h-0 flex-col overflow-y-auto p-1">
+    <ul ref={ref} data-testid="work-log-list" aria-label={t('integration.workLog')} onKeyDown={onListKeyDown} className="flex min-h-0 flex-col gap-2 overflow-y-auto">
       {entries.map((entry) => (
         <Row key={entry.sessionId} entry={entry} now={now} idlePauseMs={idlePauseMs} onOpen={() => onOpen(entry.sessionId)} />
       ))}

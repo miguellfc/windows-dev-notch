@@ -131,6 +131,21 @@
       }
     },
     {
+      "mode": "compact",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
+        "y": 0,
+        "width": 926,
+        "height": 114
+      }
+    },
+    {
       "mode": "peek",
       "workArea": {
         "x": 0,
@@ -170,6 +185,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 114
+      }
+    },
+    {
+      "mode": "peek",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 114
@@ -221,6 +251,21 @@
       }
     },
     {
+      "mode": "alert",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
+        "y": 0,
+        "width": 926,
+        "height": 122
+      }
+    },
+    {
       "mode": "expanded",
       "workArea": {
         "x": 0,
@@ -260,6 +305,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 378
+      }
+    },
+    {
+      "mode": "expanded",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 378
@@ -311,6 +371,21 @@
       }
     },
     {
+      "mode": "permission",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
+        "y": 0,
+        "width": 926,
+        "height": 378
+      }
+    },
+    {
       "mode": "question",
       "workArea": {
         "x": 0,
@@ -350,6 +425,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 582
+      }
+    },
+    {
+      "mode": "question",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 582
@@ -401,6 +491,21 @@
       }
     },
     {
+      "mode": "reminders",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
+        "y": 0,
+        "width": 926,
+        "height": 398
+      }
+    },
+    {
       "mode": "notes",
       "workArea": {
         "x": 0,
@@ -440,6 +545,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 398
+      }
+    },
+    {
+      "mode": "notes",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 398
@@ -491,6 +611,21 @@
       }
     },
     {
+      "mode": "gmail",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
+        "y": 0,
+        "width": 926,
+        "height": 518
+      }
+    },
+    {
       "mode": "reviews",
       "workArea": {
         "x": 0,
@@ -530,6 +665,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 402
+      }
+    },
+    {
+      "mode": "reviews",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 402
@@ -581,6 +731,21 @@
       }
     },
     {
+      "mode": "redmine",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
+        "y": 0,
+        "width": 926,
+        "height": 638
+      }
+    },
+    {
       "mode": "workLog",
       "workArea": {
         "x": 0,
@@ -620,6 +785,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 638
+      }
+    },
+    {
+      "mode": "workLog",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 638
@@ -665,6 +845,21 @@
       },
       "bounds": {
         "x": 2737,
+        "y": 0,
+        "width": 926,
+        "height": 76
+      }
+    },
+    {
+      "mode": "mini",
+      "workArea": {
+        "x": -910,
+        "y": 0,
+        "width": 910,
+        "height": 512
+      },
+      "bounds": {
+        "x": -910,
         "y": 0,
         "width": 926,
         "height": 76

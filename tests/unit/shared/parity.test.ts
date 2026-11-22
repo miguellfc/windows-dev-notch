@@ -175,6 +175,8 @@ function buildGeometry(): unknown {
     { x: 0, y: 0, width: 1920, height: 1040 },
     { x: -1280, y: 0, width: 1280, height: 984 },
     { x: 1920, y: 0, width: 2560, height: 1392 },
+    // Narrower than the window (1366 px at 150 %), left of the main monitor.
+    { x: -910, y: 0, width: 910, height: 512 },
   ]
   // {system: null | without battery | with battery} × claude × mail × reviews (0..2) × redmine × workLog.
   const systems = [null, { battery: false }, { battery: true }]

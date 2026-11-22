@@ -71,7 +71,7 @@ describe('work log format', () => {
   it('gives one date while running, and start – end once it spans days', () => {
     expect(workLogDates(entry(), 'es')).toBe('20/11 – 21/11')
     expect(workLogDates(entry({ endedAt: START + 2 * H }), 'es')).toBe('20/11')
-    expect(workLogDates(entry({ status: 'running', endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: true } }), 'es')).toBe('20/11')
+    expect(workLogDates(entry({ status: 'running', endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: true, waitSince: null } }), 'es')).toBe('20/11')
   })
 
   it('counts the done subtasks, or names the project before a summary', () => {
@@ -90,7 +90,7 @@ describe('work log format', () => {
 
   it('picks the live entry with the latest event', () => {
     const live = (id: string, at: number, status: 'running' | 'paused' = 'running') =>
-      entry({ sessionId: id, status, endedAt: null, live: { lastEventAt: at, excessMs: 0, turnOpen: false } })
+      entry({ sessionId: id, status, endedAt: null, live: { lastEventAt: at, excessMs: 0, turnOpen: false, waitSince: null } })
     expect(liveWorkLogEntry([entry()])).toBeNull()
     expect(liveWorkLogEntry([live('a', 5), live('b', 9, 'paused'), entry()])?.sessionId).toBe('b')
   })
@@ -129,11 +129,71 @@ describe('WorkLogDetail', () => {
     const keys = (value: WorkLogEntryView) => detailActions(value).map((action) => action.key)
     expect(keys(entry())).toEqual(['copy', 'invoice', 'delete'])
     expect(keys(entry({ invoiced: true }))).toEqual(['copy', 'uninvoice', 'delete'])
-    expect(keys(entry({ status: 'paused', endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: false } }))).toContain('close')
-    expect(keys(entry({ status: 'running', endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: true } }))).not.toContain('close')
+    expect(keys(entry({ status: 'paused', endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: false, waitSince: null } }))).toContain('close')
+    expect(keys(entry({ status: 'running', endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: true, waitSince: null } }))).not.toContain('close')
     const text = textOf(renderToStaticMarkup(createElement(WorkLogDetail, { entry: entry(), now: START + 30 * H, idlePauseMs: 30 * M, onBack: () => {}, onDeleted: () => {} })))
     expect(text).toContain('Hecha 1')
     expect(text).toContain('pendiente')
     expect(text).toContain('3h 10m')
+  })
+})
+
+describe('WorkLogDetail: what each status offers', () => {
+  const live = (status: 'running' | 'paused') => entry({ status, endedAt: null, live: { lastEventAt: START, excessMs: 0, turnOpen: status === 'running', waitSince: null } })
+
+  it('offers neither Borrar nor imputar while summarizing', async () => {
+    const { detailActions } = await importDetail()
+    expect(detailActions(entry({ status: 'summarizing' })).map((action) => action.key)).toEqual(['copy'])
+  })
+
+  it('offers no Copiar while running: its figures still move', async () => {
+    const { detailActions } = await importDetail()
+    expect(detailActions(live('running')).map((action) => action.key)).toEqual([])
+    expect(detailActions(live('paused')).map((action) => action.key)).toEqual(['copy', 'close'])
+  })
+
+  it('shows a paused entry with its stored total, not a growing one', async () => {
+    const { WorkLogDetail } = await importDetail()
+    const paused = { ...live('paused'), totalMs: 50 * M, subtasks: [] }
+    const html = renderToStaticMarkup(createElement(WorkLogDetail, { entry: paused, now: START + 30 * H, idlePauseMs: 30 * M, onBack: () => {}, onDeleted: () => {} }))
+    expect(textOf(html)).toContain('50m')
+  })
+})
+
+describe('WorkLogDetail: subtasks', () => {
+  const twoHalves = entry({
+    claudeMs: 21 * M,
+    totalMs: 21 * M,
+    subtasks: [
+      { title: 'A', status: 'done', claudeMs: 10.5 * M, totalMs: 10.5 * M },
+      { title: 'B', status: 'done', claudeMs: 10.5 * M, totalMs: 10.5 * M },
+      { title: 'C', status: 'pending', claudeMs: null, totalMs: null },
+    ],
+  })
+
+  it('rounds the subtask minutes so they add up to the shown figures', async () => {
+    const { WorkLogDetail } = await importDetail()
+    const text = textOf(renderToStaticMarkup(createElement(WorkLogDetail, { entry: twoHalves, now: START, idlePauseMs: 30 * M, onBack: () => {}, onDeleted: () => {} })))
+    expect(text).toContain('A11m · 11m')
+    expect(text).toContain('B10m · 10m')
+  })
+
+  it('names each subtask button with its times, or pending', async () => {
+    const { WorkLogDetail } = await importDetail()
+    const html = renderToStaticMarkup(createElement(WorkLogDetail, { entry: twoHalves, now: START, idlePauseMs: 30 * M, onBack: () => {}, onDeleted: () => {} }))
+    const labels = [...html.matchAll(/data-testid="work-log-subtask"[^>]*aria-label="([^"]*)"/g)].map((match) => match[1])
+    expect(labels).toEqual(['Copiar la subtarea 1: A, Claude 11m · Total 11m', 'Copiar la subtarea 2: B, Claude 10m · Total 10m', 'Copiar la subtarea 3: C, pendiente'])
+  })
+})
+
+describe('WorkLogList: one card per entry', () => {
+  it('draws each entry as its own card', async () => {
+    const { WorkLogList } = await importList()
+    const html = renderToStaticMarkup(
+      createElement(WorkLogList, { entries: [entry(), entry({ sessionId: 's2' })], now: START + 30 * H, idlePauseMs: 30 * M, onOpen: () => {} }),
+    )
+    const list = /<ul[^>]*>/.exec(html)?.[0] ?? ''
+    expect(list).not.toMatch(/class="[^"]*\bcard\b/)
+    expect([...html.matchAll(/<li[^>]*class="[^"]*\bcard\b[^"]*"/g)]).toHaveLength(2)
   })
 })

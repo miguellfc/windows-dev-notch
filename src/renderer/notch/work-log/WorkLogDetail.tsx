@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type Ref } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { Result } from '../../../shared/ipc/result'
 import { durationText } from '../../../shared/work-log/duration'
+import { roundToMinutes } from '../../../shared/work-log/rounding'
 import type { WorkLogEntryView, WorkLogSubtaskView } from '../../../shared/work-log/schema'
 import { liveTotalMs } from '../../shared/work-log-store'
 import { isLiveEntry, workLogDates } from '../../shared/work-log/format'
@@ -23,16 +24,18 @@ export interface DetailAction {
 }
 
 /**
- * The detail's buttons, in order: Copiar (primary) always; Cerrar y resumir while paused, Reintentar
- * without a summary; once measuring is over, Marcar / Quitar imputada and Borrar.
+ * The detail's buttons, in order: Copiar (primary) unless it runs (its figures still move); Cerrar y
+ * resumir while paused, Reintentar without a summary; once measuring and summarizing are over,
+ * Marcar / Quitar imputada and Borrar (a summary landing during the undo would be lost otherwise).
  */
 export function detailActions(entry: WorkLogEntryView): DetailAction[] {
   const sessionId = entry.sessionId
   const api = () => window.notch.workLog
-  const actions: DetailAction[] = [{ key: 'copy', label: 'workLog.action.copy', primary: true, run: () => api().copy({ sessionId }) }]
+  const actions: DetailAction[] = []
+  if (entry.status !== 'running') actions.push({ key: 'copy', label: 'workLog.action.copy', primary: true, run: () => api().copy({ sessionId }) })
   if (entry.status === 'paused') actions.push({ key: 'close', label: 'workLog.action.close', primary: false, run: () => api().summarize({ sessionId }) })
   if (entry.status === 'unsummarized') actions.push({ key: 'retry', label: 'workLog.action.retry', primary: false, run: () => api().summarize({ sessionId }) })
-  if (!isLiveEntry(entry)) {
+  if (!isLiveEntry(entry) && entry.status !== 'summarizing') {
     actions.push(
       entry.invoiced
         ? { key: 'uninvoice', label: 'workLog.action.uninvoice', primary: false, run: () => api().setInvoiced({ sessionId, invoiced: false }) }
@@ -55,27 +58,54 @@ function Stat({ label, ms, testId }: { label: string; ms: number; testId: string
   )
 }
 
+/** Times of a subtask as shown: whole minutes; null for a pending one. */
+type ShownTimes = { claudeMs: number; totalMs: number } | null
+
+/**
+ * The done subtasks' times in whole minutes that add up to the entry's Claude and Total (largest
+ * remainder, as main's Copiar). Main's view already carries the turns no subtask took in «Otros».
+ */
+export function shownSubtaskTimes(entry: WorkLogEntryView): ShownTimes[] {
+  const done = entry.subtasks.filter((subtask) => subtask.status === 'done')
+  const claude = roundToMinutes(done.map((subtask) => subtask.claudeMs ?? 0), entry.claudeMs)
+  const total = roundToMinutes(done.map((subtask) => subtask.totalMs ?? 0), entry.totalMs)
+  let next = 0
+  return entry.subtasks.map((subtask) => {
+    if (subtask.status !== 'done') return null
+    const i = next++
+    return { claudeMs: claude[i] ?? 0, totalMs: total[i] ?? 0 }
+  })
+}
+
 function SubtaskRow({
   subtask,
+  times,
   index,
   copied,
+  canCopy,
   onCopy,
 }: {
   subtask: WorkLogSubtaskView
+  times: ShownTimes
   index: number
   copied: boolean
+  canCopy: boolean
   onCopy: () => void
 }) {
   const t = useT()
   const done = subtask.status === 'done'
+  const spoken = times
+    ? `${t('workLog.view.claude')} ${durationText(times.claudeMs)} · ${t('workLog.view.total')} ${durationText(times.totalMs)}`
+    : t('workLog.view.pending')
   return (
     <li className="border-t border-line first:border-t-0">
       <button
         type="button"
         data-testid="work-log-subtask"
         data-status={subtask.status}
-        onClick={onCopy}
-        aria-label={`${t('workLog.view.copySubtask', { number: index + 1 })}: ${subtask.title}`}
+        aria-disabled={!canCopy || undefined}
+        onClick={canCopy ? onCopy : undefined}
+        aria-label={`${t('workLog.view.copySubtask', { number: index + 1 })}: ${subtask.title}, ${spoken}`}
         className="focus-inset grid w-full cursor-pointer grid-cols-[18px_1fr_auto] items-start gap-2 rounded-tile px-2 py-1.5 text-left text-small transition-colors duration-150 hover:bg-veil-tile focus-visible:bg-veil-tile"
       >
         <span className="tabular pt-px text-label text-graphite">{index + 1}</span>
@@ -93,9 +123,9 @@ function SubtaskRow({
             <span data-testid="work-log-subtask-copied" className="font-semibold text-[color:var(--int)]">
               {t('workLog.view.copied')}
             </span>
-          ) : done ? (
+          ) : done && times ? (
             <>
-              <b className="font-semibold text-chalk">{durationText(subtask.claudeMs ?? 0)}</b> · {durationText(subtask.totalMs ?? 0)}
+              <b className="font-semibold text-chalk">{durationText(times.claudeMs)}</b> · {durationText(times.totalMs)}
             </>
           ) : (
             t('workLog.view.pending')
@@ -171,6 +201,7 @@ export function WorkLogDetail({
     )
 
   const meta = [workLogDates(entry, language), entry.project].filter((part) => part !== '').join(' · ')
+  const subtaskTimes = shownSubtaskTimes(entry)
 
   return (
     <div ref={ref} tabIndex={-1} data-testid="work-log-detail" data-session-id={entry.sessionId} className="flex min-h-0 flex-col gap-2 outline-none">
@@ -193,7 +224,15 @@ export function WorkLogDetail({
       {entry.subtasks.length > 0 && (
         <ol data-testid="work-log-subtasks" aria-label={t('workLog.view.subtasks')} className="card flex min-h-0 flex-col overflow-y-auto p-1">
           {entry.subtasks.map((subtask, index) => (
-            <SubtaskRow key={index} subtask={subtask} index={index} copied={copied === index} onCopy={() => copySubtask(index)} />
+            <SubtaskRow
+              key={index}
+              subtask={subtask}
+              times={subtaskTimes[index] ?? null}
+              index={index}
+              copied={copied === index}
+              canCopy={entry.status !== 'running'}
+              onCopy={() => copySubtask(index)}
+            />
           ))}
         </ol>
       )}
