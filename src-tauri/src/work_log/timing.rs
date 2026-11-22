@@ -1,9 +1,6 @@
 //! Measures the work of one Claude Code session from its hook events: turns (one per prompt)
 //! and two times, Claude's and the total, where idle gaps between turns are capped.
 
-// Task 5 (the service) is the first caller of this module.
-#![allow(dead_code)]
-
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};

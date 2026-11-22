@@ -17,12 +17,13 @@ use tauri::{AppHandle, Manager};
 
 use super::accounts::{adopt_legacy_backups, AccountDirectory};
 use super::alerts::{NotchPort, NotchWebview, QuestionAlerts, QuestionAlertsOptions};
-use super::bridge::{now_ms, ClaudeBridge};
+use super::bridge::{now_ms, ClaudeBridge, HookRoute, OnEvent};
+use super::hook_events::HookEvent;
 use super::ipc::ClaudeSlot;
 use super::permission_broker::lock;
 use super::service::{
     quit_cleanup, BoxFuture, Bridge, BridgeConfig, BridgeOptions, ClaudeService, ClaudeServiceDeps,
-    ConfigFn, QUIT_STOP_WAIT,
+    ConfigFn, CONNECTION_TEST_SESSION_ID, QUIT_STOP_WAIT,
 };
 use super::toast::ClaudeToasts;
 use super::{bridge_config, focus};
@@ -143,6 +144,20 @@ impl ClaudeIntegration {
     }
 }
 
+/// Every hook event seen on `/hook`, for the work log (which picks its account's).
+pub type HookForward = Arc<dyn Fn(&HookEvent) + Send + Sync>;
+
+/// Wraps the bridge's `on_event` so each hook event also reaches `forward` first: not the
+/// connection test, nor the question route (Claude sends the same call to `/hook` too).
+fn forwarding(inner: OnEvent, forward: HookForward) -> OnEvent {
+    Arc::new(move |event, reply, route| {
+        if route == HookRoute::Hook && event.session_id != CONNECTION_TEST_SESSION_ID {
+            forward(&event);
+        }
+        inner(event, reply, route)
+    })
+}
+
 /// Creates the service, fills `slot`, starts it in the background and then its 60 s tick on the
 /// notch's timers. Call on the main thread, after the notch and before the reminders. `None`
 /// (channels stay UNAVAILABLE) only when there is no user folder for Claude's settings.
@@ -152,6 +167,7 @@ pub fn install(
     notch: &Arc<NotchRuntime>,
     usage: &UsageLog,
     data_dir: &Path,
+    forward: HookForward,
 ) -> Option<Arc<ClaudeIntegration>> {
     let overrides = overrides_from(ipc::dev_overrides_enabled(), |name| std::env::var_os(name));
     let Ok(home) = app.path().home_dir() else {
@@ -228,11 +244,11 @@ pub fn install(
         rotate_port_config: config_fn(|file| {
             Box::pin(async move { bridge_config::rotate_port(&file).await })
         }),
-        create_bridge: Arc::new(|options: BridgeOptions| -> Arc<dyn Bridge> {
+        create_bridge: Arc::new(move |options: BridgeOptions| -> Arc<dyn Bridge> {
             Arc::new(ClaudeBridge::new(
                 options.port,
                 &options.token,
-                options.on_event,
+                forwarding(options.on_event, Arc::clone(&forward)),
             ))
         }),
         accounts: Arc::new(accounts),
@@ -379,5 +395,42 @@ mod tests {
             ("NOTCH_DISABLE_CLAUDE_FOCUS", "true"),
         ]);
         assert_eq!(overrides_from(true, vars), Overrides::default());
+    }
+
+    #[test]
+    fn forwards_hook_events_but_not_the_question_route_or_the_connection_test() {
+        use super::super::hook_events::HookEventName;
+        let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+        let passed: Arc<Mutex<usize>> = Arc::default();
+        let inner: OnEvent = {
+            let passed = Arc::clone(&passed);
+            Arc::new(move |_e, _reply, _route| *passed.lock().unwrap() += 1)
+        };
+        let forward: HookForward = {
+            let seen = Arc::clone(&seen);
+            Arc::new(move |e: &HookEvent| seen.lock().unwrap().push(e.session_id.clone()))
+        };
+        let on_event = forwarding(inner, forward);
+        let event = |session: &str| HookEvent {
+            name: HookEventName::PreToolUse,
+            session_id: session.into(),
+            cwd: None,
+            tool_name: None,
+            tool_use_id: None,
+            agent_id: None,
+            notification_type: None,
+            preview: None,
+            reason: None,
+            ask_user_question: None,
+            ask_user_question_raw: None,
+            source: None,
+            account_id: "claude".into(),
+            work: None,
+        };
+        on_event(event("s1"), None, HookRoute::Hook);
+        on_event(event("s1"), None, HookRoute::Question);
+        on_event(event(CONNECTION_TEST_SESSION_ID), None, HookRoute::Hook);
+        assert_eq!(*seen.lock().unwrap(), ["s1"]);
+        assert_eq!(*passed.lock().unwrap(), 3);
     }
 }
