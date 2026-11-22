@@ -19,6 +19,7 @@ pub mod security;
 pub mod services;
 pub mod settings;
 pub mod system;
+pub mod work_log;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
