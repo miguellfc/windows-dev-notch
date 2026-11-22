@@ -45,6 +45,8 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("claude:hooks-preview", Guard::ControlCenterOnly),
     ("claude:hooks-install", Guard::ControlCenterOnly),
     ("claude:hooks-uninstall", Guard::ControlCenterOnly),
+    ("claude:accounts", Guard::ControlCenterOnly),
+    ("claude:account-add", Guard::ControlCenterOnly),
     ("claude:test-connection", Guard::ControlCenterOnly),
     ("claude:rotate-token", Guard::ControlCenterOnly),
     ("claude:rotate-port", Guard::ControlCenterOnly),

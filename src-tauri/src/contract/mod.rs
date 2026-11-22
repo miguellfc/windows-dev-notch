@@ -255,9 +255,7 @@ pub fn check(
         (
             "claude:get-state"
             | "claude:focus-app"
-            | "claude:hooks-preview"
-            | "claude:hooks-install"
-            | "claude:hooks-uninstall"
+            | "claude:accounts"
             | "claude:test-connection"
             | "claude:rotate-token"
             | "claude:rotate-port"
@@ -265,6 +263,13 @@ pub fn check(
             Input,
         ) => none(value),
         ("claude:get-state", Output) => required::<claude::ClaudeState>(value),
+        ("claude:hooks-preview" | "claude:hooks-install" | "claude:hooks-uninstall", Input) => {
+            required::<claude::AccountInput>(value)
+        }
+        ("claude:account-add", Input) => required::<claude::AccountAddInput>(value),
+        ("claude:accounts" | "claude:account-add", Output) => {
+            required::<claude::ClaudeAccounts>(value)
+        }
         ("claude:decide", Input) => required::<claude::DecideInput>(value),
         ("claude:dismiss-session", Input) => required::<claude::DismissSessionInput>(value),
         ("claude:answer", Input) => required::<claude::AnswerInput>(value),

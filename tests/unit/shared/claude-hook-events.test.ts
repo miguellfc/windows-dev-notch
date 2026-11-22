@@ -29,6 +29,7 @@ describe('parseHookEvent', () => {
         'PostToolUseFailure',
         'PreToolUse',
         'SessionEnd',
+        'SessionStart',
         'Stop',
         'StopFailure',
         'SubagentStart',
@@ -60,6 +61,13 @@ describe('parseHookEvent', () => {
     expect(byName('PreToolUse')?.toolName).toBe('Bash')
     expect(byName('Notification')?.notificationType).toBe('permission_prompt')
     expect(byName('SessionEnd')?.reason).toBe('other')
+    expect(byName('SessionStart')?.source).toBe('resume')
+  })
+
+  it('keeps source only on SessionStart', () => {
+    expect(parseHookEvent({ session_id: 's1', hook_event_name: 'Stop', source: 'resume' })).toEqual({ name: 'Stop', sessionId: 's1' })
+    expect(parseHookEvent({ session_id: 's1', hook_event_name: 'SessionStart', source: 1 })).toEqual({ name: 'SessionStart', sessionId: 's1' })
+    expect(parseHookEvent({ session_id: 's1', hook_event_name: 'SessionStart', source: 'startup' })?.source).toBe('startup')
   })
 
   it('only produces a preview for PermissionRequest', () => {

@@ -144,6 +144,29 @@ export const claudeHooksWriteSchema = z.discriminatedUnion('ok', [
   invalidJsonSchema,
 ])
 
+/** A Claude Code account id: `claude`, `claude-<name>` or `dir-<8 hex>`; also the `x-notch-account` header. */
+export const claudeAccountIdSchema = z.string().regex(/^[a-z0-9-]{1,64}$/)
+
+/** Hooks operations act on one account (Claude Code config folder). */
+export const claudeAccountInputSchema = z.strictObject({ accountId: claudeAccountIdSchema })
+
+/** "Otra carpeta…": an existing Claude Code config folder, added by hand. */
+export const claudeAccountAddInputSchema = z.strictObject({ dir: z.string().min(1).max(1024) })
+
+/** The detected and added accounts, the default first; profile fields are null without a profile. */
+export const claudeAccountsSchema = z.strictObject({
+  accounts: z.array(
+    z.strictObject({
+      id: claudeAccountIdSchema,
+      dir: z.string(),
+      email: z.string().nullable(),
+      organization: z.string().nullable(),
+      linked: z.boolean(),
+      hookStatus: z.enum(['installed', 'outdated', 'missing']),
+    }),
+  ),
+})
+
 /** Full reminders list plus why it may be incomplete (corrupt file moved aside, or read-only session). */
 export const remindersSnapshotSchema = z.strictObject({
   reminders: z.array(reminderSchema),
@@ -189,9 +212,13 @@ export const contract = {
   },
   'claude:focus-app': { input: none, output: ack },
   'claude:dismiss-session': { input: z.strictObject({ sessionId: z.string().min(1).max(256) }), output: ack },
-  'claude:hooks-preview': { input: none, output: claudeHooksPreviewSchema },
-  'claude:hooks-install': { input: none, output: claudeHooksWriteSchema },
-  'claude:hooks-uninstall': { input: none, output: claudeHooksWriteSchema },
+  'claude:hooks-preview': { input: claudeAccountInputSchema, output: claudeHooksPreviewSchema },
+  /** Installing links the account; uninstalling unlinks it. */
+  'claude:hooks-install': { input: claudeAccountInputSchema, output: claudeHooksWriteSchema },
+  'claude:hooks-uninstall': { input: claudeAccountInputSchema, output: claudeHooksWriteSchema },
+  'claude:accounts': { input: none, output: claudeAccountsSchema },
+  /** NOT_FOUND when the folder does not exist. */
+  'claude:account-add': { input: claudeAccountAddInputSchema, output: claudeAccountsSchema },
   'claude:test-connection': { input: none, output: z.strictObject({ ok: z.boolean() }) },
   'claude:rotate-token': { input: none, output: claudeRotateSchema },
   'claude:rotate-port': { input: none, output: claudeRotateSchema },

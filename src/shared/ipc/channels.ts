@@ -39,6 +39,8 @@ export const channels = {
     getQuestions: 'claude:get-questions',
     answer: 'claude:answer',
     releaseQuestion: 'claude:release-question',
+    accounts: 'claude:accounts',
+    accountAdd: 'claude:account-add',
   },
   reminders: {
     list: 'reminders:list',

@@ -258,6 +258,8 @@ const portedChannels = [
   'claude:get-questions',
   'claude:answer',
   'claude:release-question',
+  'claude:accounts',
+  'claude:account-add',
   'code-review:get-state',
   'code-review:refresh',
   'code-review:open-profile',

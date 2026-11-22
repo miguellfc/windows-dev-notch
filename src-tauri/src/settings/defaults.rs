@@ -89,5 +89,6 @@ pub fn default_settings(locale: &str) -> Settings {
             },
         },
         integrations: default_integrations(),
+        claude_accounts: ClaudeAccountsSettings::default(),
     }
 }

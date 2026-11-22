@@ -3,7 +3,7 @@
 //! and the quit cleanup.
 //!
 //! Dev/E2E switches (ignored unless `ipc::dev_overrides_enabled()`): `NOTCH_CLAUDE_SETTINGS`
-//! (Claude's settings.json; else `~/.claude/settings.json`), `NOTCH_CLAUDE_PORT` (`^\d{1,5}$`,
+//! (the default account's settings.json; else `~/.claude/settings.json`), `NOTCH_CLAUDE_PORT` (`^\d{1,5}$`,
 //! at most 65535, `0` = ephemeral) and `NOTCH_DISABLE_CLAUDE_FOCUS=1` (never bring Claude's
 //! window forward: E2E must not drive the desktop).
 
@@ -15,9 +15,9 @@ use std::sync::{Arc, Mutex};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
+use super::accounts::{adopt_legacy_backups, AccountDirectory};
 use super::alerts::{NotchPort, NotchWebview, QuestionAlerts, QuestionAlertsOptions};
 use super::bridge::{now_ms, ClaudeBridge};
-use super::hook_installer::HookInstaller;
 use super::ipc::ClaudeSlot;
 use super::permission_broker::lock;
 use super::service::{
@@ -154,14 +154,31 @@ pub fn install(
     data_dir: &Path,
 ) -> Option<Arc<ClaudeIntegration>> {
     let overrides = overrides_from(ipc::dev_overrides_enabled(), |name| std::env::var_os(name));
-    let settings_file = match overrides.settings_file {
-        Some(file) => file,
-        None => match app.path().home_dir() {
-            Ok(home) => home.join(".claude").join("settings.json"),
-            Err(_) => {
-                log::error!("Claude: no user folder; the integration stays off");
-                return None;
-            }
+    let Ok(home) = app.path().home_dir() else {
+        log::error!("Claude: no user folder; the integration stays off");
+        return None;
+    };
+    let backups = data_dir.join("claude-hooks-backups");
+    adopt_legacy_backups(&backups);
+    let accounts = AccountDirectory {
+        home,
+        default_settings_file: overrides.settings_file.clone(),
+        backups,
+        read: {
+            let app = app.clone();
+            Arc::new(move || app.state::<SettingsStore>().get().claude_accounts)
+        },
+        save: {
+            let app = app.clone();
+            Arc::new(move |change| {
+                let app = app.clone();
+                Box::pin(async move {
+                    app.state::<SettingsStore>()
+                        .update_claude_accounts(change)
+                        .await
+                        .map(drop)
+                })
+            })
         },
     };
     let controller = Arc::clone(&notch.controller);
@@ -218,11 +235,7 @@ pub fn install(
                 options.on_event,
             ))
         }),
-        installer: Arc::new(HookInstaller::new(
-            settings_file,
-            data_dir.join("claude-hooks-backups"),
-            chrono::Utc::now,
-        )),
+        accounts: Arc::new(accounts),
         focus_claude: Arc::new(move || focus::focus_claude(focus_disabled)),
         on_state: {
             let alerts = Arc::clone(&alerts);
@@ -290,6 +303,7 @@ pub fn install(
         let timers = notch.timers();
         tauri::async_runtime::spawn(async move {
             integration.service.start().await;
+            integration.service.update_outdated_hooks().await;
             let service = Arc::clone(&integration.service);
             let mut tick = lock(&integration.tick);
             if tick.closed {

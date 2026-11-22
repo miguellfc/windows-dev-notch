@@ -4,10 +4,11 @@
 
 use url::Url;
 
+use crate::claude::accounts::is_account_id;
 use crate::contract::settings::{
-    CodeReviewSettingsPatch, GmailSettings, IntegrationsSettings, RedmineEndOfDayPatch,
-    RedmineSettingsPatch, RemindersSettings, Settings, SettingsPatch, SystemAlertSettings,
-    SETTINGS_VERSION, SNOOZE_MINUTES_OPTIONS,
+    ClaudeAccountsSettings, CodeReviewSettingsPatch, GmailSettings, IntegrationsSettings,
+    RedmineEndOfDayPatch, RedmineSettingsPatch, RemindersSettings, Settings, SettingsPatch,
+    SystemAlertSettings, SETTINGS_VERSION, SNOOZE_MINUTES_OPTIONS,
 };
 use crate::contract::text::js_trim;
 use crate::contract::{int_in, length};
@@ -194,6 +195,32 @@ fn validate_integrations(integrations: &IntegrationsSettings) -> Result<(), Stri
     Ok(())
 }
 
+/// Most accounts (linked ids, extra folders) the settings keep (`CLAUDE_ACCOUNTS_MAX`).
+pub const CLAUDE_ACCOUNTS_MAX: usize = 32;
+/// Longest extra folder path (`CLAUDE_ACCOUNT_DIR_MAX`).
+pub const CLAUDE_ACCOUNT_DIR_MAX: usize = 1024;
+
+/// Linked ids are account ids; extra folders are non-empty paths; at most
+/// [`CLAUDE_ACCOUNTS_MAX`] of each.
+fn validate_claude_accounts(accounts: &ClaudeAccountsSettings) -> Result<(), String> {
+    if accounts.linked.len() > CLAUDE_ACCOUNTS_MAX
+        || accounts.extra_dirs.len() > CLAUDE_ACCOUNTS_MAX
+    {
+        return Err("Too many Claude accounts".into());
+    }
+    if !accounts.linked.iter().all(|id| is_account_id(id)) {
+        return Err("Invalid Claude account id".into());
+    }
+    if !accounts
+        .extra_dirs
+        .iter()
+        .all(|dir| (1..=CLAUDE_ACCOUNT_DIR_MAX).contains(&length(dir)))
+    {
+        return Err("Invalid Claude account folder".into());
+    }
+    Ok(())
+}
+
 /// Everything `settingsSchema` checks beyond the shape.
 pub fn validate_settings(settings: &Settings) -> Result<(), String> {
     if settings.version != SETTINGS_VERSION {
@@ -207,7 +234,8 @@ pub fn validate_settings(settings: &Settings) -> Result<(), String> {
     validate_redmine_url(&settings.redmine.url)?;
     validate_daily_target(settings.redmine.daily_target_hours)?;
     validate_time(&settings.redmine.end_of_day.time)?;
-    validate_integrations(&settings.integrations)
+    validate_integrations(&settings.integrations)?;
+    validate_claude_accounts(&settings.claude_accounts)
 }
 
 fn is_empty_patch(patch: &SettingsPatch) -> bool {

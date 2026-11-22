@@ -14,6 +14,7 @@ export const HOOK_EVENT_NAMES = [
   'SubagentStart',
   'SubagentStop',
   'SessionEnd',
+  'SessionStart',
 ] as const
 
 export type HookEventName = (typeof HOOK_EVENT_NAMES)[number]
@@ -40,6 +41,8 @@ export type HookEvent = {
   /** Length of the whole sanitised preview, before the cut. */
   previewLength?: number
   reason?: string
+  /** Only for SessionStart: `startup`, `resume`, `clear` or `compact`. */
+  source?: string
   /** Only for PreToolUse of AskUserQuestion: the validated `tool_input`, or null when it does not fit the schema. */
   askUserQuestion?: AskUserQuestionInput | null
   /** Only with a valid `askUserQuestion`: the `tool_input` exactly as received, echoed back to Claude. Never logged. */
@@ -70,6 +73,7 @@ const hookPayloadSchema = z.looseObject({
   agent_id: optionalString,
   notification_type: optionalString,
   reason: optionalString,
+  source: optionalString,
   tool_input: z.unknown().optional(),
 })
 
@@ -150,6 +154,7 @@ export const parseHookEvent = (raw: unknown): HookEvent | null => {
     event.notificationType = data.notification_type
   }
   if (data.hook_event_name === 'SessionEnd' && data.reason !== undefined) event.reason = data.reason
+  if (data.hook_event_name === 'SessionStart' && data.source !== undefined) event.source = data.source
   if (data.hook_event_name === 'PermissionRequest') {
     const preview = previewFromToolInput(data.tool_input)
     if (preview !== undefined) {

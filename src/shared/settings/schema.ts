@@ -11,8 +11,8 @@ import {
 } from '../integrations/colors'
 import { isSafeAccelerator } from './accelerator'
 
-/** v9: `integrations.system` is gone (the System view was removed; its metrics need no switch). */
-export const SETTINGS_VERSION = 9
+/** v10: `claudeAccounts` (the Claude Code accounts the notch installs its hooks in). v9 dropped `integrations.system`. */
+export const SETTINGS_VERSION = 10
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
@@ -154,6 +154,22 @@ export const integrationsSettingsSchema = z
   )
 export type IntegrationsSettings = z.infer<typeof integrationsSettingsSchema>
 
+/** Most linked accounts and extra folders kept. */
+export const CLAUDE_ACCOUNTS_MAX = 32
+export const CLAUDE_ACCOUNT_DIR_MAX = 1024
+
+/**
+ * v10: the Claude Code accounts (config folders). `linked`: ids whose hooks the user installed;
+ * `extraDirs`: folders added by hand; `initialized`: the first start after the update linked
+ * `~/.claude` if it already had our hooks. Only main changes it (never a settings patch).
+ */
+export const claudeAccountsSettingsSchema = z.strictObject({
+  linked: z.array(z.string().regex(/^[a-z0-9-]{1,64}$/)).max(CLAUDE_ACCOUNTS_MAX),
+  extraDirs: z.array(z.string().min(1).max(CLAUDE_ACCOUNT_DIR_MAX)).max(CLAUDE_ACCOUNTS_MAX),
+  initialized: z.boolean(),
+})
+export type ClaudeAccountsSettings = z.infer<typeof claudeAccountsSettingsSchema>
+
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
   language: languageSchema,
@@ -165,12 +181,13 @@ export const settingsSchema = z.strictObject({
   codeReview: codeReviewSettingsSchema,
   redmine: redmineSettingsSchema,
   integrations: integrationsSettingsSchema,
+  claudeAccounts: claudeAccountsSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
-/** What the renderer may change: any subset of user fields, never the version. */
+/** What the renderer may change: any subset of user fields, never the version nor the Claude accounts. */
 export const settingsPatchSchema = settingsSchema
-  .omit({ version: true })
+  .omit({ version: true, claudeAccounts: true })
   // The store merges codeReview one level deep: a patch of its alerts never restores a stale gitlabUrl.
   // Same for redmine, and its endOfDay one level further down.
   .extend({
@@ -257,5 +274,6 @@ export function createDefaultSettings(locale: string): Settings {
     codeReview: cloneDefaultCodeReviewSettings(),
     redmine: cloneDefaultRedmineSettings(),
     integrations: cloneDefaultIntegrations(),
+    claudeAccounts: { linked: [], extraDirs: [], initialized: false },
   }
 }

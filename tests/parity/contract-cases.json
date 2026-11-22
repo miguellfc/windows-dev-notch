@@ -212,7 +212,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -306,6 +306,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -314,7 +319,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -413,6 +418,11 @@
           "capsule": false,
           "color": "teal"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -523,7 +533,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -617,6 +627,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -625,7 +640,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -719,6 +734,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -848,7 +868,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -943,6 +963,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -951,7 +976,7 @@
     "channel": "settings:update",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1045,6 +1070,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -1053,7 +1083,7 @@
     "channel": "settings:update",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "fr",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1147,6 +1177,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -1155,7 +1190,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1249,6 +1284,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -1257,7 +1297,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Space",
       "launchAtLogin": false,
@@ -1351,6 +1391,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -1359,7 +1404,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1453,6 +1498,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -1461,7 +1511,7 @@
     "channel": "settings:changed",
     "direction": "event",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -1555,6 +1605,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -3881,7 +3936,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": {
         "es": null
       },
@@ -3977,6 +4032,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -7872,7 +7932,10 @@
   {
     "channel": "claude:hooks-preview",
     "direction": "input",
-    "accept": true
+    "accept": true,
+    "value": {
+      "accountId": "claude"
+    }
   },
   {
     "channel": "claude:hooks-preview",
@@ -7881,9 +7944,64 @@
     "accept": false
   },
   {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "dir-0123abcd"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "Claude"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "extra": 1
+    },
+    "accept": false
+  },
+  {
     "channel": "claude:hooks-install",
     "direction": "input",
-    "accept": true
+    "accept": true,
+    "value": {
+      "accountId": "claude"
+    }
   },
   {
     "channel": "claude:hooks-install",
@@ -7892,14 +8010,121 @@
     "accept": false
   },
   {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {
+      "accountId": "dir-0123abcd"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {
+      "accountId": "Claude"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {
+      "accountId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {
+      "accountId": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "extra": 1
+    },
+    "accept": false
+  },
+  {
     "channel": "claude:hooks-uninstall",
     "direction": "input",
-    "accept": true
+    "accept": true,
+    "value": {
+      "accountId": "claude"
+    }
   },
   {
     "channel": "claude:hooks-uninstall",
     "direction": "input",
     "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": {
+      "accountId": "dir-0123abcd"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": {
+      "accountId": "Claude"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": {
+      "accountId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": {
+      "accountId": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-uninstall",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "extra": 1
+    },
     "accept": false
   },
   {
@@ -10390,6 +10615,367 @@
     "channel": "claude:release-question",
     "direction": "output",
     "value": false,
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "input",
+    "accept": true
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "input",
+    "value": null,
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude",
+          "dir": "C:\\Users\\me\\.claude",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": false,
+          "hookStatus": "outdated"
+        },
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": null,
+          "organization": null,
+          "linked": true,
+          "hookStatus": "missing"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "unknown"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "Claude Work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed",
+          "token": "x"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": "yes",
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "value": [],
+    "accept": false
+  },
+  {
+    "channel": "claude:accounts",
+    "direction": "output",
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "value": {
+      "dir": "D:\\Profiles\\Claude"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "value": {
+      "dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "value": {
+      "dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "value": {
+      "dir": ""
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "value": {},
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "value": {
+      "dir": "D:\\x",
+      "extra": true
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "input",
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": []
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude",
+          "dir": "C:\\Users\\me\\.claude",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": false,
+          "hookStatus": "outdated"
+        },
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": null,
+          "organization": null,
+          "linked": true,
+          "hookStatus": "missing"
+        }
+      ]
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "unknown"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "Claude Work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": true,
+          "hookStatus": "installed",
+          "token": "x"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": {
+      "accounts": [
+        {
+          "id": "claude-work",
+          "dir": "C:\\Users\\me\\.claude-work",
+          "email": "work@example.test",
+          "organization": "Acme",
+          "linked": "yes",
+          "hookStatus": "installed"
+        }
+      ]
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
+    "value": [],
+    "accept": false
+  },
+  {
+    "channel": "claude:account-add",
+    "direction": "output",
     "accept": false
   },
   {
@@ -22919,7 +23505,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23013,6 +23599,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -23021,7 +23612,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23115,6 +23706,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": true
@@ -23123,7 +23719,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23217,6 +23813,11 @@
           "capsule": true,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -23225,7 +23826,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23319,6 +23920,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -23327,7 +23933,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23426,6 +24032,11 @@
           "capsule": true,
           "color": "teal"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -23434,7 +24045,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23528,6 +24139,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -23536,7 +24152,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23630,6 +24246,11 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -23638,7 +24259,7 @@
     "channel": "settings:get",
     "direction": "output",
     "value": {
-      "version": 9,
+      "version": 10,
       "language": "es",
       "shortcut": "Control+Alt+Space",
       "launchAtLogin": false,
@@ -23733,6 +24354,906 @@
           "capsule": false,
           "color": "violet"
         }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [
+          "claude",
+          "claude-work",
+          "dir-0123abcd"
+        ],
+        "extraDirs": [
+          "D:\\Profiles\\Claude"
+        ],
+        "initialized": true
+      }
+    },
+    "accept": true
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [
+          "Claude"
+        ],
+        "extraDirs": [],
+        "initialized": true
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [
+          ""
+        ],
+        "initialized": true
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [
+          "claude-0",
+          "claude-1",
+          "claude-2",
+          "claude-3",
+          "claude-4",
+          "claude-5",
+          "claude-6",
+          "claude-7",
+          "claude-8",
+          "claude-9",
+          "claude-10",
+          "claude-11",
+          "claude-12",
+          "claude-13",
+          "claude-14",
+          "claude-15",
+          "claude-16",
+          "claude-17",
+          "claude-18",
+          "claude-19",
+          "claude-20",
+          "claude-21",
+          "claude-22",
+          "claude-23",
+          "claude-24",
+          "claude-25",
+          "claude-26",
+          "claude-27",
+          "claude-28",
+          "claude-29",
+          "claude-30",
+          "claude-31",
+          "claude-32"
+        ],
+        "extraDirs": [],
+        "initialized": true
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": true,
+        "extra": 1
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 10,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "initialized": true
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:get",
+    "direction": "output",
+    "value": {
+      "version": 9,
+      "language": "es",
+      "shortcut": "Control+Alt+Space",
+      "launchAtLogin": false,
+      "reminders": {
+        "snoozeMinutes": 10,
+        "sound": true
+      },
+      "systemAlerts": {
+        "cpu": {
+          "enabled": true,
+          "percent": 90,
+          "sustainSeconds": 30
+        },
+        "ram": {
+          "enabled": true,
+          "percent": 90
+        },
+        "battery": {
+          "enabled": true,
+          "percent": 15
+        },
+        "disk": {
+          "enabled": true,
+          "freePercent": 10
+        }
+      },
+      "gmail": {
+        "clientId": "",
+        "clientSecret": "",
+        "alerts": {
+          "enabled": true,
+          "hideContent": false,
+          "sound": true
+        }
+      },
+      "codeReview": {
+        "gitlabUrl": "",
+        "alerts": {
+          "github": {
+            "enabled": true,
+            "sound": true
+          },
+          "gitlab": {
+            "enabled": true,
+            "sound": true
+          }
+        }
+      },
+      "redmine": {
+        "url": "",
+        "dailyTargetHours": 8,
+        "endOfDay": {
+          "enabled": true,
+          "time": "18:00",
+          "sound": true
+        }
+      },
+      "integrations": {
+        "claude": {
+          "enabled": true,
+          "capsule": true,
+          "color": "clay"
+        },
+        "github": {
+          "enabled": true,
+          "capsule": true,
+          "color": "green"
+        },
+        "gitlab": {
+          "enabled": true,
+          "capsule": true,
+          "color": "orange"
+        },
+        "gmail": {
+          "enabled": true,
+          "capsule": true,
+          "color": "salmon"
+        },
+        "redmine": {
+          "enabled": true,
+          "capsule": true,
+          "color": "pink"
+        },
+        "reminders": {
+          "enabled": true,
+          "capsule": false,
+          "color": "blue"
+        },
+        "notes": {
+          "enabled": true,
+          "capsule": false,
+          "color": "violet"
+        }
+      },
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false
@@ -23955,6 +25476,31 @@
     "value": {
       "integrations": {
         "gmail": null
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
+      }
+    },
+    "accept": false
+  },
+  {
+    "channel": "settings:update",
+    "direction": "input",
+    "value": {
+      "language": "en",
+      "claudeAccounts": {
+        "linked": [],
+        "extraDirs": [],
+        "initialized": false
       }
     },
     "accept": false

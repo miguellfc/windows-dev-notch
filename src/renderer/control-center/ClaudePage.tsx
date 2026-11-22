@@ -17,6 +17,9 @@ import { useT } from '../shared/use-t'
 import { SettingRow } from './ControlCenterApp'
 import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
 
+/** Until the accounts list (work log), this page manages `~/.claude` only. */
+const DEFAULT_ACCOUNT = { accountId: 'claude' } as const
+
 const ICONS: Record<StatusIcon, LucideIcon> = {
   check: Check,
   clock: Clock,
@@ -112,16 +115,16 @@ export function ClaudePage() {
   const startInstall = () =>
     run(async () => {
       setNotice(null)
-      const result = await window.notch.claude.hooksPreview()
+      const result = await window.notch.claude.hooksPreview(DEFAULT_ACCOUNT)
       if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
       if (!result.data.ok) return setNotice({ tone: 'error', key: 'cc.claude.invalidJson' })
       setDiff(result.data.diff)
       setStep('confirm-install')
     })
 
-  const write = (call: () => ReturnType<typeof window.notch.claude.hooksInstall>, done: MessageKey) =>
+  const write = (call: typeof window.notch.claude.hooksInstall, done: MessageKey) =>
     run(async () => {
-      const result = await call()
+      const result = await call(DEFAULT_ACCOUNT)
       cancel()
       if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
       if (!result.data.ok) return setNotice({ tone: 'error', key: 'cc.claude.invalidJson' })

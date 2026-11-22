@@ -5,6 +5,8 @@
     "app:hide-notch",
     "app:open-control-center",
     "apps:open",
+    "claude:account-add",
+    "claude:accounts",
     "claude:answer",
     "claude:decide",
     "claude:dismiss-session",

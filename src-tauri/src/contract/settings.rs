@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use super::{present, Validate};
 use crate::settings::validate::{validate_patch, validate_settings};
 
-/// Current settings file version (`SETTINGS_VERSION`). v9 dropped `integrations.system`.
-pub const SETTINGS_VERSION: u32 = 9;
+/// Current settings file version (`SETTINGS_VERSION`). v9 dropped `integrations.system`; v10
+/// adds `claudeAccounts`.
+pub const SETTINGS_VERSION: u32 = 10;
 
 /// `SNOOZE_MINUTES_OPTIONS`.
 pub const SNOOZE_MINUTES_OPTIONS: [u32; 4] = [5, 10, 15, 30];
@@ -224,6 +225,20 @@ pub struct IntegrationsSettings {
     pub notes: IntegrationSettings,
 }
 
+/// `claudeAccountsSettingsSchema` (v10): the Claude Code accounts (config folders) the notch
+/// installs its hooks in. Only main changes it (the `claude:*` account channels), never a
+/// `settings:update` patch.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ClaudeAccountsSettings {
+    /// Ids of the accounts whose hooks the user installed.
+    pub linked: Vec<String>,
+    /// Folders added by hand ("Otra carpeta…").
+    pub extra_dirs: Vec<String>,
+    /// The first start after the update has linked `~/.claude` when it already had our hooks.
+    pub initialized: bool,
+}
+
 /// `settingsSchema`.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -238,6 +253,7 @@ pub struct Settings {
     pub code_review: CodeReviewSettings,
     pub redmine: RedmineSettings,
     pub integrations: IntegrationsSettings,
+    pub claude_accounts: ClaudeAccountsSettings,
 }
 
 impl Validate for Settings {

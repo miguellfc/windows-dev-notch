@@ -10,7 +10,8 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use crate::contract::settings::{
-    IntegrationSettings, IntegrationSettingsPatch, Settings, SettingsPatch, SETTINGS_VERSION,
+    ClaudeAccountsSettings, IntegrationSettings, IntegrationSettingsPatch, Settings, SettingsPatch,
+    SETTINGS_VERSION,
 };
 use crate::ipc::{ExposedError, IpcErrorCode};
 use crate::services::fs_atomic::write_atomic;
@@ -99,7 +100,7 @@ impl SettingsStore {
             );
             return Ok(self.use_settings(self.defaults.clone(), true));
         }
-        // Only v7 and v8 migrate; an older (or missing) version is not usable.
+        // Only v7 to v9 migrate; an older (or missing) version is not usable.
         let Some(migrated) = migrate(raw) else {
             return self.recover("Settings file has no usable version").await;
         };
@@ -134,17 +135,37 @@ impl SettingsStore {
     /// listeners.
     pub async fn update(&self, patch: SettingsPatch) -> Result<Settings, ExposedError> {
         let _turn = self.queue.lock().await;
-        let (mut next, read_only) = {
-            let state = lock(&self.state);
-            (state.current.clone(), state.read_only)
-        };
-        if read_only {
+        let mut next = self.writable()?;
+        apply_patch(&mut next, patch);
+        self.commit(next).await
+    }
+
+    /// Changes `claudeAccounts`, which only main may change (it is not part of a patch), with
+    /// the same checks, write and notification as [`SettingsStore::update`].
+    pub async fn update_claude_accounts(
+        &self,
+        change: impl FnOnce(&mut ClaudeAccountsSettings),
+    ) -> Result<Settings, ExposedError> {
+        let _turn = self.queue.lock().await;
+        let mut next = self.writable()?;
+        change(&mut next.claude_accounts);
+        self.commit(next).await
+    }
+
+    /// The current settings, or READ_ONLY.
+    fn writable(&self) -> Result<Settings, ExposedError> {
+        let state = lock(&self.state);
+        if state.read_only {
             return Err(ExposedError::new(
                 IpcErrorCode::ReadOnly,
                 "Settings are read-only in this session; changes cannot be saved",
             ));
         }
-        apply_patch(&mut next, patch);
+        Ok(state.current.clone())
+    }
+
+    /// Validates, writes and publishes `next`. Called with the update turn held.
+    async fn commit(&self, next: Settings) -> Result<Settings, ExposedError> {
         validate_settings(&next)
             .map_err(|_| ExposedError::new(IpcErrorCode::InvalidInput, "Invalid input"))?;
         write_atomic(&self.path, &serialize(&next))
@@ -192,7 +213,8 @@ impl SettingsStore {
 
 /// Brings a settings file up to [`SETTINGS_VERSION`] one step at a time: v7 gets the default
 /// `integrations` (v8); v8 loses `integrations.system` (v9: the System view is gone and its
-/// metrics need no switch). The current version passes through untouched. Anything older (or
+/// metrics need no switch); v9 gets the default `claudeAccounts` (v10). The current version
+/// passes through untouched. Anything older (or
 /// without a version) is `None`, which sends the file to quarantine. The result still has to
 /// pass the schema.
 pub fn migrate(mut raw: Value) -> Option<Value> {
@@ -206,16 +228,28 @@ pub fn migrate(mut raw: Value) -> Option<Value> {
             .insert("integrations".into(), integrations);
         version = 8;
     }
-    if version != 8 {
+    if version == 8 {
+        // A v8 file without an `integrations` object is left for the schema to reject.
+        if let Some(integrations) = raw.get_mut("integrations").and_then(Value::as_object_mut) {
+            integrations.remove("system");
+        }
+        version = 9;
+    }
+    if version != 9 {
         return None;
     }
-    // A v8 file without an `integrations` object is left for the schema to reject.
-    if let Some(integrations) = raw.get_mut("integrations").and_then(Value::as_object_mut) {
-        integrations.remove("system");
-    }
+    migrate_v9_to_v10(raw.as_object_mut()?)?;
     raw.as_object_mut()?
         .insert("version".into(), SETTINGS_VERSION.into());
     Some(raw)
+}
+
+/// v10: the Claude accounts (none linked yet: the first start links `~/.claude` if it has our
+/// hooks).
+fn migrate_v9_to_v10(raw: &mut serde_json::Map<String, Value>) -> Option<()> {
+    let accounts = serde_json::to_value(ClaudeAccountsSettings::default()).ok()?;
+    raw.insert("claudeAccounts".into(), accounts);
+    Some(())
 }
 
 fn apply_integration_patch(
@@ -411,9 +445,72 @@ mod tests {
             .any(|n| n.starts_with("settings.corrupt-")));
     }
 
+    /// The current defaults as a v9 file: no `claudeAccounts` yet.
+    fn v9_value() -> Value {
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["version"] = 9.into();
+        value.as_object_mut().unwrap().remove("claudeAccounts");
+        value
+    }
+
+    #[test]
+    fn v9_file_migrates_to_v10_with_the_default_claude_accounts() {
+        let mut value = v9_value();
+        value["language"] = "en".into();
+        let migrated = migrate(value).unwrap();
+        assert_eq!(migrated["version"], 10);
+        assert_eq!(migrated["language"], "en");
+        assert_eq!(
+            migrated["claudeAccounts"],
+            serde_json::json!({ "linked": [], "extraDirs": [], "initialized": false })
+        );
+
+        let dir = TempDir::new();
+        write(&dir.file(), &v9_value().to_string());
+        let loaded = block_on(store(&dir.file()).load());
+        assert_eq!(loaded, defaults());
+        assert!(!loaded.claude_accounts.initialized);
+        let raw: Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.file()).unwrap()).unwrap();
+        assert_eq!(raw["version"], 10);
+        assert_eq!(dir.names(), vec!["settings.json"]);
+    }
+
+    #[test]
+    fn a_v10_file_without_claude_accounts_is_quarantined() {
+        let dir = TempDir::new();
+        let mut value = v9_value();
+        value["version"] = 10.into();
+        write(&dir.file(), &value.to_string());
+        assert_eq!(block_on(store(&dir.file()).load()), defaults());
+        assert!(dir
+            .names()
+            .iter()
+            .any(|n| n.starts_with("settings.corrupt-")));
+    }
+
+    #[test]
+    fn claude_accounts_are_changed_only_by_main_and_validated() {
+        let dir = TempDir::new();
+        let s = store(&dir.file());
+        block_on(s.load());
+        let next = block_on(s.update_claude_accounts(|accounts| {
+            accounts.linked.push("claude-work".into());
+            accounts.initialized = true;
+        }))
+        .unwrap();
+        assert_eq!(next.claude_accounts.linked, ["claude-work"]);
+        assert_eq!(saved(&dir.file()).claude_accounts, next.claude_accounts);
+        let refused = block_on(s.update_claude_accounts(|accounts| {
+            accounts.linked.push("Not An Id".into());
+        }));
+        assert!(refused.is_err());
+        assert_eq!(s.get().claude_accounts.linked, ["claude-work"]);
+    }
+
     /// The current defaults as a v8 file: `integrations.system` (teal, on, no capsule) is back.
     fn v8_value() -> Value {
-        let mut value = serde_json::to_value(defaults()).unwrap();
+        let mut value = v9_value();
         value["version"] = 8.into();
         value["integrations"]["system"] =
             serde_json::json!({ "enabled": false, "capsule": false, "color": "#A3B18A" });
@@ -433,12 +530,12 @@ mod tests {
         expected.language = Language::En;
         expected.integrations.gmail.color = IntegrationColor::Palette(PaletteColor::Sand);
         expected.integrations.notes.enabled = false;
-        assert_eq!(loaded.version, 9);
+        assert_eq!(loaded.version, SETTINGS_VERSION);
         assert_eq!(loaded, expected);
         assert_eq!(saved(&dir.file()), expected);
         let raw: Value =
             serde_json::from_str(&std::fs::read_to_string(dir.file()).unwrap()).unwrap();
-        assert_eq!(raw["version"], 9);
+        assert_eq!(raw["version"], SETTINGS_VERSION);
         assert!(raw["integrations"].get("system").is_none());
         assert_eq!(dir.names(), vec!["settings.json"]);
     }
@@ -446,7 +543,7 @@ mod tests {
     #[test]
     fn v8_file_without_a_system_entry_still_migrates() {
         let dir = TempDir::new();
-        let mut value = serde_json::to_value(defaults()).unwrap();
+        let mut value = v9_value();
         value["version"] = 8.into();
         write(&dir.file(), &value.to_string());
         assert_eq!(block_on(store(&dir.file()).load()), defaults());
@@ -482,7 +579,7 @@ mod tests {
     #[test]
     fn v7_file_migrates_to_v9_keeping_other_fields() {
         let dir = TempDir::new();
-        let mut value = serde_json::to_value(defaults()).unwrap();
+        let mut value = v9_value();
         value["version"] = 7.into();
         value["language"] = "en".into();
         value["shortcut"] = "Control+Alt+K".into();
@@ -492,7 +589,7 @@ mod tests {
         let mut expected = defaults();
         expected.language = Language::En;
         expected.shortcut = "Control+Alt+K".into();
-        assert_eq!(loaded.version, 9);
+        assert_eq!(loaded.version, SETTINGS_VERSION);
         assert_eq!(loaded.integrations, default_integrations());
         assert_eq!(loaded, expected);
         assert_eq!(saved(&dir.file()), expected);
@@ -502,7 +599,7 @@ mod tests {
     #[test]
     fn v7_file_that_cannot_be_rewritten_keeps_the_migrated_values_read_only() {
         let dir = TempDir::new();
-        let mut value = serde_json::to_value(defaults()).unwrap();
+        let mut value = v9_value();
         value["version"] = 7.into();
         value["language"] = "en".into();
         value.as_object_mut().unwrap().remove("integrations");
@@ -531,7 +628,7 @@ mod tests {
     #[test]
     fn v7_file_that_does_not_match_the_schema_is_quarantined() {
         let dir = TempDir::new();
-        let mut value = serde_json::to_value(defaults()).unwrap();
+        let mut value = v9_value();
         value["version"] = 7.into();
         value["language"] = "klingon".into();
         value.as_object_mut().unwrap().remove("integrations");
@@ -544,14 +641,15 @@ mod tests {
     }
 
     #[test]
-    fn migrate_handles_only_v7_v8_and_the_current_version() {
+    fn migrate_handles_only_v7_v8_v9_and_the_current_version() {
         let current = serde_json::to_value(defaults()).unwrap();
         assert_eq!(migrate(current.clone()), Some(current.clone()));
-        let mut v7 = current.clone();
+        let mut v7 = v9_value();
         v7["version"] = 7.into();
         v7.as_object_mut().unwrap().remove("integrations");
         assert_eq!(migrate(v7), Some(current.clone()));
         assert_eq!(migrate(v8_value()), Some(current.clone()));
+        assert_eq!(migrate(v9_value()), Some(current.clone()));
         for version in [6, 3, 0] {
             let mut old = current.clone();
             old["version"] = version.into();

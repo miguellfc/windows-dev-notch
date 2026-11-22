@@ -352,6 +352,9 @@ pub(crate) mod test_support {
             reason: None,
             ask_user_question: None,
             ask_user_question_raw: None,
+            source: None,
+            account_id: crate::claude::accounts::DEFAULT_ACCOUNT_ID.into(),
+            work: None,
         }
     }
 

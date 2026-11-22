@@ -2,6 +2,9 @@
 //! 0.1.0's `hook-installer.ts`): pure planning functions that work on the file's text,
 //! and [`HookInstaller`], the adapter that reads, backs up and atomically writes the file.
 //!
+//! Every hook of ours also carries `x-notch-account: <account id>`; one without it (0.3.0) is still
+//! ours, but `outdated`.
+//!
 //! A group of ours is one whose hooks are all `type: "http"` with the `x-notch-hook: 1` header;
 //! a mixed group is someone else's and is never touched. Files that are not a JSON object whose
 //! `hooks` is an object of arrays (bad JSON, a BOM, other shapes) are refused untouched, and so
@@ -22,6 +25,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Local, Utc};
 use serde_json::{json, Map, Value};
 
+use super::accounts::ACCOUNT_HEADER;
 pub use super::diff::{diff_lines, mask_diff};
 use super::hook_events::{HookEventName, ASK_USER_QUESTION_TOOL, HOOK_EVENT_NAMES};
 use super::js_json;
@@ -38,11 +42,14 @@ string_enum! {
     }
 }
 
-/// `HookInstallOptions`: where the bridge listens and the token Claude must send.
+/// `HookInstallOptions`: where the bridge listens, the token Claude must send and the account
+/// (Claude Code config folder) the hooks are written for.
 #[derive(Clone, PartialEq, Eq)]
 pub struct HookInstallOptions {
     pub port: u16,
     pub token: String,
+    /// Sent back by every hook in [`ACCOUNT_HEADER`].
+    pub account: String,
 }
 
 /// Never shows the token (like `BridgeConfig`).
@@ -51,6 +58,7 @@ impl std::fmt::Debug for HookInstallOptions {
         f.debug_struct("HookInstallOptions")
             .field("port", &self.port)
             .field("token", &"••••••")
+            .field("account", &self.account)
             .finish()
     }
 }
@@ -126,7 +134,11 @@ fn our_hook(options: &HookInstallOptions, path: &str, timeout: u32) -> Value {
     json!({
         "type": "http",
         "url": format!("http://127.0.0.1:{}{path}", options.port),
-        "headers": { TOKEN_HEADER: options.token, HOOK_MARKER_HEADER: "1" },
+        "headers": {
+            TOKEN_HEADER: options.token,
+            HOOK_MARKER_HEADER: "1",
+            ACCOUNT_HEADER: options.account,
+        },
         "timeout": timeout,
     })
 }

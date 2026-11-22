@@ -9,6 +9,7 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+use super::accounts::DEFAULT_ACCOUNT_ID;
 use super::js_json;
 use super::questions::{parse_ask_user_question, AskUserQuestionInput};
 use crate::contract::claude::Decision;
@@ -30,6 +31,7 @@ string_enum! {
         SubagentStart = "SubagentStart",
         SubagentStop = "SubagentStop",
         SessionEnd = "SessionEnd",
+        SessionStart = "SessionStart",
     }
 }
 
@@ -62,6 +64,24 @@ pub const ASK_USER_QUESTION_TOOL: &str = "AskUserQuestion";
 pub const PREVIEW_MAX_CHARS: usize = 2_000;
 /// Longest tool name, in UTF-16 code units.
 pub const TOOL_NAME_MAX_CHARS: usize = 64;
+/// Longest prompt kept for the work log, in Unicode characters.
+pub const WORK_PROMPT_MAX_CHARS: usize = 500;
+/// Longest final reply kept for the work log, in Unicode characters.
+pub const WORK_REPLY_MAX_CHARS: usize = 1_000;
+
+/// What the work log needs of an event: the (cut) prompt of a UserPromptSubmit, the (cut) last
+/// reply of a Stop and the transcript's path. Only the work log reads it; it is never logged,
+/// serialized or sent to a renderer.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct WorkPayload {
+    /// UserPromptSubmit's `prompt`, cut at [`WORK_PROMPT_MAX_CHARS`].
+    pub prompt: Option<String>,
+    /// UserPromptSubmit's `prompt_id`.
+    pub prompt_id: Option<String>,
+    /// Stop's `last_assistant_message`, cut at [`WORK_REPLY_MAX_CHARS`].
+    pub reply: Option<String>,
+    pub transcript_path: Option<String>,
+}
 
 /// The permission preview: the sanitised text, cut at [`PREVIEW_MAX_CHARS`].
 #[derive(Serialize, Clone, Debug, PartialEq, Eq)]
@@ -74,9 +94,11 @@ pub struct Preview {
     pub preview_length: usize,
 }
 
-/// Sanitised view of a Claude Code hook payload. It carries no prompt, message, tool_response or
-/// last_assistant_message; `preview` exists only for PermissionRequest and the AskUserQuestion
-/// fields only for its PreToolUse. None of it may be logged. Serializes as the TS object would.
+/// Sanitised view of a Claude Code hook payload. It carries no message or tool_response;
+/// `preview` exists only for PermissionRequest and the AskUserQuestion fields only for its
+/// PreToolUse. `work` (the cut prompt, reply and transcript path) and `account_id` go only to the
+/// work log: they are never serialized, never sent to a renderer and never logged, like the rest
+/// of it. Serializes as the TS object would.
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct HookEvent {
@@ -105,6 +127,20 @@ pub struct HookEvent {
     /// kept), echoed back to Claude.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ask_user_question_raw: Option<Map<String, Value>>,
+    /// Only for SessionStart: `startup`, `resume`, `clear` or `compact`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    /// The account the hook was installed for (the bridge sets it from `x-notch-account`).
+    #[serde(skip)]
+    pub account_id: String,
+    /// The work log's fields, when the event has any of them.
+    #[serde(skip)]
+    pub work: Option<WorkPayload>,
+}
+
+/// The first `max` Unicode characters of `text`.
+fn first_chars(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
 }
 
 /// C0/C1 controls except `\t` and `\n`: `[\u0000-\u0008\u000b-\u001f\u007f-\u009f]`.
@@ -240,7 +276,24 @@ pub fn parse_hook_event(raw: &Value) -> Option<HookEvent> {
         reason: optional("reason").filter(|_| name == HookEventName::SessionEnd),
         ask_user_question: None,
         ask_user_question_raw: None,
+        source: optional("source").filter(|_| name == HookEventName::SessionStart),
+        account_id: DEFAULT_ACCOUNT_ID.to_owned(),
+        work: None,
     };
+    let is_prompt = name == HookEventName::UserPromptSubmit;
+    let work = WorkPayload {
+        prompt: optional("prompt")
+            .filter(|_| is_prompt)
+            .map(|prompt| first_chars(&prompt, WORK_PROMPT_MAX_CHARS)),
+        prompt_id: optional("prompt_id").filter(|_| is_prompt),
+        reply: optional("last_assistant_message")
+            .filter(|_| name == HookEventName::Stop)
+            .map(|reply| first_chars(&reply, WORK_REPLY_MAX_CHARS)),
+        transcript_path: optional("transcript_path"),
+    };
+    if work != WorkPayload::default() {
+        event.work = Some(work);
+    }
     if name == HookEventName::PermissionRequest {
         event.preview = preview_from_tool_input(tool_input);
     }
@@ -345,6 +398,7 @@ mod tests {
                 "SubagentStart",
                 "SubagentStop",
                 "SessionEnd",
+                "SessionStart",
             ]
         );
     }
@@ -372,6 +426,9 @@ mod tests {
                 "last_assistant_message",
                 "lastAssistantMessage",
                 "toolInput",
+                "work",
+                "accountId",
+                "transcriptPath",
             ] {
                 assert!(!keys.iter().any(|key| *key == forbidden), "{forbidden}");
             }
@@ -811,6 +868,112 @@ mod tests {
         assert!(serialized.get("askUserQuestionRaw").is_none());
         let valid = parse_hook_event(&ask(Some(json!({"questions": [question()]})))).unwrap();
         assert_eq!(valid.preview, None);
+    }
+
+    // describe('work log fields')
+
+    fn fixture(file: &str) -> Value {
+        fixtures()
+            .into_iter()
+            .find(|(name, _)| name == file)
+            .map(|(_, raw)| raw)
+            .expect("fixture")
+    }
+
+    #[test]
+    fn parses_session_start_with_its_source() {
+        let event = parse_hook_event(&fixture("session-start.json")).unwrap();
+        assert_eq!(event.name, HookEventName::SessionStart);
+        assert_eq!(event.source.as_deref(), Some("resume"));
+        assert_eq!(
+            event.work.and_then(|work| work.transcript_path).as_deref(),
+            Some("/fake/t.jsonl")
+        );
+        // `source` belongs to SessionStart only.
+        let stop = parse_hook_event(
+            &json!({"session_id": "s1", "hook_event_name": "Stop", "source": "resume"}),
+        )
+        .unwrap();
+        assert_eq!(stop.source, None);
+        let wrong = parse_hook_event(
+            &json!({"session_id": "s1", "hook_event_name": "SessionStart", "source": 1}),
+        )
+        .unwrap();
+        assert_eq!(wrong.source, None);
+    }
+
+    #[test]
+    fn keeps_the_prompt_of_a_user_prompt_submit_cut_to_500_characters() {
+        let event = parse_hook_event(&fixture("user-prompt-submit.json")).unwrap();
+        assert_eq!(
+            event.work,
+            Some(WorkPayload {
+                prompt: Some("fake prompt text".into()),
+                prompt_id: Some("p1".into()),
+                reply: None,
+                transcript_path: Some("/fake/t.jsonl".into()),
+            })
+        );
+        // Unicode characters, not bytes nor UTF-16 units.
+        let prompt = format!("{}{}", "\u{e9}".repeat(300), "\u{1F600}".repeat(300));
+        let event = parse_hook_event(
+            &json!({"session_id": "s1", "hook_event_name": "UserPromptSubmit", "prompt": prompt}),
+        )
+        .unwrap();
+        let kept = event.work.unwrap().prompt.unwrap();
+        assert_eq!(kept.chars().count(), 500);
+        assert!(prompt.starts_with(&kept));
+    }
+
+    #[test]
+    fn keeps_the_last_reply_of_a_stop_cut_to_1000_characters() {
+        let event = parse_hook_event(&json!({
+            "session_id": "s1", "hook_event_name": "Stop", "transcript_path": "C:/t.jsonl",
+            "last_assistant_message": "done", "stop_hook_active": false
+        }))
+        .unwrap();
+        let work = event.work.unwrap();
+        assert_eq!(work.reply.as_deref(), Some("done"));
+        assert_eq!(work.transcript_path.as_deref(), Some("C:/t.jsonl"));
+        assert_eq!(work.prompt, None);
+        let reply = "x".repeat(1200);
+        let event = parse_hook_event(
+            &json!({"session_id": "s1", "hook_event_name": "Stop", "last_assistant_message": reply}),
+        )
+        .unwrap();
+        assert_eq!(event.work.unwrap().reply.unwrap().len(), 1000);
+    }
+
+    #[test]
+    fn keeps_prompt_and_reply_only_on_their_own_events() {
+        let event = parse_hook_event(&json!({
+            "session_id": "s1", "hook_event_name": "PreToolUse", "prompt": "p",
+            "last_assistant_message": "r", "prompt_id": "p1"
+        }))
+        .unwrap();
+        assert_eq!(event.work, None);
+        let event = parse_hook_event(&json!({
+            "session_id": "s1", "hook_event_name": "UserPromptSubmit", "last_assistant_message": "r"
+        }))
+        .unwrap();
+        assert_eq!(event.work, None);
+        // Wrongly typed fields are dropped.
+        let event = parse_hook_event(&json!({
+            "session_id": "s1", "hook_event_name": "UserPromptSubmit", "prompt": 3, "transcript_path": []
+        }))
+        .unwrap();
+        assert_eq!(event.work, None);
+    }
+
+    #[test]
+    fn every_parsed_event_belongs_to_the_default_account() {
+        for (file, raw) in fixtures() {
+            assert_eq!(
+                parse_hook_event(&raw).unwrap().account_id,
+                "claude",
+                "{file}"
+            );
+        }
     }
 
     // Response bodies (map §3): byte for byte what Electron writes.

@@ -24,13 +24,17 @@
 //!   refresh also runs under `serial` (skipped when busy), so it never overwrites the status an
 //!   operation has just set.
 //!
+//! Hooks live in each linked account (Claude Code config folder): the state's `hooks` sums them
+//! up and a rotation reinstalls them in every linked account that had them.
+//!
 //! Logs carry ids, enum names and counts only: never a question, an option, an answer, a
-//! command, a path or the token.
+//! command, a path, a profile or the token.
 
 use std::collections::HashSet;
 use std::io;
 use std::net::Ipv4Addr;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread::ThreadId;
@@ -39,6 +43,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+use super::accounts::{account_id_for, ClaudeAccount, DEFAULT_ACCOUNT_ID};
 use super::bridge::{BridgeError, ClaudeBridge, HookRoute, OnEvent, PendingReply, TOKEN_HEADER};
 pub use super::bridge_config::BridgeConfig;
 use super::diff::mask_diff;
@@ -52,13 +57,15 @@ use super::question_broker::{QuestionBroker, QuestionBrokerOptions};
 use super::questions::display_questions;
 use super::session_registry::{SessionRegistry, SessionRegistryOptions};
 use crate::contract::claude::{
-    BoolLiteral, ClaudeConnection, ClaudeConnectionErrorReason, ClaudeHooksStatus, Decision,
-    DiffLine, HooksPreview, HooksPreviewDiff, HooksWrite, HooksWritten, InvalidJson,
-    QuestionAnswer, RotateHooks, RotateOutcome,
+    AccountHookStatus, BoolLiteral, ClaudeAccountView, ClaudeAccounts, ClaudeConnection,
+    ClaudeConnectionErrorReason, ClaudeHooksStatus, Decision, DiffLine, HooksPreview,
+    HooksPreviewDiff, HooksWrite, HooksWritten, InvalidJson, QuestionAnswer, RotateHooks,
+    RotateOutcome,
 };
 pub use crate::contract::claude::{
     ClaudeState, PendingPermission, PendingQuestionView, TestConnectionResult,
 };
+pub use crate::contract::settings::ClaudeAccountsSettings;
 use crate::contract::text::is_uuid;
 pub use crate::ipc::BoxFuture;
 use crate::ipc::{ExposedError, IpcErrorCode};
@@ -148,6 +155,23 @@ impl Installer for HookInstaller {
     }
 }
 
+/// A change of the `claudeAccounts` settings.
+pub type AccountsChange = Box<dyn FnOnce(&mut ClaudeAccountsSettings) + Send>;
+
+/// The Claude Code accounts as the service uses them: who they are, their installers and the
+/// `claudeAccounts` settings.
+pub trait Accounts: Send + Sync {
+    /// Every known account (detected, linked or added), the default first.
+    fn list(&self) -> Vec<ClaudeAccount>;
+    /// The installer of one known account; `None` for an id no folder answers to.
+    fn installer(&self, id: &str) -> Option<Arc<dyn Installer>>;
+    fn settings(&self) -> ClaudeAccountsSettings;
+    /// Saves a change of the `claudeAccounts` settings.
+    fn update(&self, change: AccountsChange) -> BoxFuture<'_, Result<(), ExposedError>>;
+    /// The user folder account ids are relative to (`~`).
+    fn home(&self) -> PathBuf;
+}
+
 /// Loads or replaces the persisted bridge config.
 pub type ConfigFn = Arc<dyn Fn() -> BoxFuture<'static, io::Result<BridgeConfig>> + Send + Sync>;
 
@@ -166,7 +190,7 @@ pub struct ClaudeServiceDeps {
     /// Persists a new random port (same token).
     pub rotate_port_config: ConfigFn,
     pub create_bridge: Arc<dyn Fn(BridgeOptions) -> Arc<dyn Bridge> + Send + Sync>,
-    pub installer: Arc<dyn Installer>,
+    pub accounts: Arc<dyn Accounts>,
     pub focus_claude: Arc<dyn Fn() + Send + Sync>,
     /// Called after every state change.
     pub on_state: Arc<dyn Fn(&ClaudeState) + Send + Sync>,
@@ -237,19 +261,39 @@ impl Drop for InEvent<'_> {
     }
 }
 
-fn install_options(config: &BridgeConfig) -> HookInstallOptions {
+fn install_options(config: &BridgeConfig, account: &str) -> HookInstallOptions {
     HookInstallOptions {
         port: config.port,
         token: config.token.clone(),
+        account: account.to_owned(),
     }
 }
 
-fn hooks_status(status: HookStatus) -> ClaudeHooksStatus {
-    match status {
-        HookStatus::Installed => ClaudeHooksStatus::Installed,
-        HookStatus::Outdated => ClaudeHooksStatus::Outdated,
-        HookStatus::Missing => ClaudeHooksStatus::Missing,
+/// The linked accounts' statuses summed up: `installed` only when every one is, `missing` when
+/// none is linked or none has them, `outdated` otherwise.
+fn summed_status(statuses: &[HookStatus]) -> ClaudeHooksStatus {
+    if statuses.is_empty() || statuses.iter().all(|status| *status == HookStatus::Missing) {
+        ClaudeHooksStatus::Missing
+    } else if statuses
+        .iter()
+        .all(|status| *status == HookStatus::Installed)
+    {
+        ClaudeHooksStatus::Installed
+    } else {
+        ClaudeHooksStatus::Outdated
     }
+}
+
+fn account_hook_status(status: HookStatus) -> AccountHookStatus {
+    match status {
+        HookStatus::Installed => AccountHookStatus::Installed,
+        HookStatus::Outdated => AccountHookStatus::Outdated,
+        HookStatus::Missing => AccountHookStatus::Missing,
+    }
+}
+
+fn unknown_account() -> ExposedError {
+    ExposedError::new(IpcErrorCode::NotFound, "Unknown Claude account")
 }
 
 /// `EADDRINUSE`, and (deviation) `PermissionDenied`: on Windows a port inside a Hyper-V or WinNAT
@@ -613,18 +657,102 @@ impl ClaudeService {
         let config = lock(&self.core).config.clone();
         let next = match config {
             None => ClaudeHooksStatus::Unknown,
-            Some(config) => match self.deps.installer.status(&install_options(&config)).await {
-                Ok(status) => hooks_status(status),
-                Err(error) => {
-                    log::warn!("Could not read Claude settings ({:?})", error.kind());
-                    ClaudeHooksStatus::Unknown
-                }
-            },
+            Some(config) => self.linked_status(&config).await,
         };
         let mut core = lock(&self.core);
         let changed = core.hooks != next;
         core.hooks = next;
         changed
+    }
+
+    /// The summed status of the linked accounts (one whose folder is gone does not count);
+    /// `unknown` when one of their settings files cannot be read.
+    async fn linked_status(&self, config: &BridgeConfig) -> ClaudeHooksStatus {
+        let mut statuses = Vec::new();
+        for (id, installer) in self.linked_installers() {
+            match installer.status(&install_options(config, &id)).await {
+                Ok(status) => statuses.push(status),
+                Err(error) => {
+                    log::warn!("Could not read Claude settings ({:?})", error.kind());
+                    return ClaudeHooksStatus::Unknown;
+                }
+            }
+        }
+        summed_status(&statuses)
+    }
+
+    /// The linked accounts that still have a folder, with their installers.
+    fn linked_installers(&self) -> Vec<(String, Arc<dyn Installer>)> {
+        let accounts = &self.deps.accounts;
+        accounts
+            .settings()
+            .linked
+            .into_iter()
+            .filter_map(|id| accounts.installer(&id).map(|installer| (id, installer)))
+            .collect()
+    }
+
+    fn installer_of(&self, account_id: &str) -> Result<Arc<dyn Installer>, ExposedError> {
+        self.deps
+            .accounts
+            .installer(account_id)
+            .ok_or_else(unknown_account)
+    }
+
+    /// Adds or removes `account_id` in `claudeAccounts.linked`.
+    async fn set_linked(&self, account_id: &str, linked: bool) -> Result<(), ExposedError> {
+        let already = self
+            .deps
+            .accounts
+            .settings()
+            .linked
+            .iter()
+            .any(|id| id == account_id);
+        if already == linked {
+            return Ok(());
+        }
+        let id = account_id.to_owned();
+        self.deps
+            .accounts
+            .update(Box::new(move |accounts| {
+                accounts.linked.retain(|known| *known != id);
+                if linked {
+                    accounts.linked.push(id);
+                }
+                accounts.initialized = true;
+            }))
+            .await
+    }
+
+    /// First start after the update (`initialized` false): `~/.claude` becomes linked when it
+    /// already has hooks of ours, without asking.
+    async fn adopt_default_account(&self, config: &BridgeConfig) {
+        if self.deps.accounts.settings().initialized {
+            return;
+        }
+        let has_ours = match self.deps.accounts.installer(DEFAULT_ACCOUNT_ID) {
+            Some(installer) => matches!(
+                installer
+                    .status(&install_options(config, DEFAULT_ACCOUNT_ID))
+                    .await,
+                Ok(HookStatus::Installed | HookStatus::Outdated)
+            ),
+            None => false,
+        };
+        let saved = self
+            .deps
+            .accounts
+            .update(Box::new(move |accounts| {
+                if has_ours && !accounts.linked.iter().any(|id| id == DEFAULT_ACCOUNT_ID) {
+                    accounts.linked.insert(0, DEFAULT_ACCOUNT_ID.to_owned());
+                }
+                accounts.initialized = true;
+            }))
+            .await;
+        match saved {
+            Ok(()) => log::info!("Claude accounts initialized default_linked={has_ours}"),
+            Err(_) => log::warn!("Could not save the Claude accounts"),
+        }
     }
 
     async fn start_bridge(&self, current: BridgeConfig) {
@@ -742,6 +870,7 @@ impl ClaudeService {
             }
             let config = lock(&self.core).config.clone();
             if let Some(config) = config {
+                self.adopt_default_account(&config).await;
                 self.start_bridge(config).await;
             }
         } else {
@@ -844,13 +973,114 @@ impl ClaudeService {
         (self.deps.focus_claude)();
     }
 
-    pub async fn preview_hooks(&self) -> Result<HooksPreview, ExposedError> {
+    /// Reinstalls (with a backup, without asking) the hooks of every linked account that are
+    /// `outdated`, e.g. the 0.3.0 hooks without the account header. Run once after `start`.
+    pub async fn update_outdated_hooks(&self) {
+        let _turn = self.serial.lock().await;
+        if self.is_stopped() {
+            return;
+        }
+        let Some(config) = lock(&self.core).config.clone() else {
+            return;
+        };
+        let mut updated = false;
+        for (id, installer) in self.linked_installers() {
+            let options = install_options(&config, &id);
+            if !matches!(installer.status(&options).await, Ok(HookStatus::Outdated)) {
+                continue;
+            }
+            match installer.install(&options).await {
+                Ok(Ok(_)) => {
+                    updated = true;
+                    log::info!("hooks updated for account {id}");
+                }
+                Ok(Err(_)) => {
+                    log::warn!("Could not update the hooks of account {id} (invalid-json)")
+                }
+                Err(error) => log::warn!(
+                    "Could not update the hooks of account {id} ({:?})",
+                    error.kind()
+                ),
+            }
+        }
+        if updated && self.refresh_hooks().await {
+            self.publish();
+        }
+    }
+
+    /// Every known account with its hooks, for the Control Center.
+    pub async fn accounts(&self) -> Result<ClaudeAccounts, ExposedError> {
+        let _turn = self.serial.lock().await;
+        self.account_list().await
+    }
+
+    async fn account_list(&self) -> Result<ClaudeAccounts, ExposedError> {
+        let config = self.require_config()?;
+        let linked = self.deps.accounts.settings().linked;
+        let mut accounts = Vec::new();
+        for account in self.deps.accounts.list() {
+            let status = match self.deps.accounts.installer(&account.id) {
+                Some(installer) => installer
+                    .status(&install_options(&config, &account.id))
+                    .await
+                    .unwrap_or_else(|error| {
+                        log::warn!(
+                            "Could not read Claude settings of account {} ({:?})",
+                            account.id,
+                            error.kind()
+                        );
+                        HookStatus::Missing
+                    }),
+                None => HookStatus::Missing,
+            };
+            accounts.push(ClaudeAccountView {
+                linked: linked.contains(&account.id),
+                id: account.id,
+                dir: account.dir.to_string_lossy().into_owned(),
+                email: account.email,
+                organization: account.organization,
+                hook_status: account_hook_status(status),
+            });
+        }
+        Ok(ClaudeAccounts { accounts })
+    }
+
+    /// "Otra carpeta…": remembers an existing folder as an account (NOT_FOUND otherwise).
+    pub async fn add_account(&self, dir: &str) -> Result<ClaudeAccounts, ExposedError> {
+        let _turn = self.serial.lock().await;
+        self.require_running()?;
+        let folder = Path::new(dir);
+        if !folder.is_absolute() || !folder.is_dir() {
+            return Err(ExposedError::new(
+                IpcErrorCode::NotFound,
+                "The folder does not exist",
+            ));
+        }
+        let home = self.deps.accounts.home();
+        let id = account_id_for(folder, &home);
+        let known = self
+            .deps
+            .accounts
+            .list()
+            .iter()
+            .any(|account| account.id == id);
+        if !known {
+            let dir = dir.to_owned();
+            self.deps
+                .accounts
+                .update(Box::new(move |accounts| accounts.extra_dirs.push(dir)))
+                .await?;
+            log::info!("Claude account added {id}");
+        }
+        self.account_list().await
+    }
+
+    pub async fn preview_hooks(&self, account_id: &str) -> Result<HooksPreview, ExposedError> {
         let _turn = self.serial.lock().await;
         let config = self.require_config()?;
-        let plan = self
-            .deps
-            .installer
-            .preview(&install_options(&config))
+        let installer = self.installer_of(account_id)?;
+        let plan = installer
+            .preview(&install_options(&config, account_id))
             .await
             .map_err(io_failure)?;
         Ok(match plan {
@@ -862,27 +1092,41 @@ impl ClaudeService {
         })
     }
 
-    pub async fn install_hooks(&self) -> Result<HooksWrite, ExposedError> {
+    /// Installs the hooks in one account and links it.
+    pub async fn install_hooks(&self, account_id: &str) -> Result<HooksWrite, ExposedError> {
         let _turn = self.serial.lock().await;
         self.require_running()?;
         let config = self.require_config()?;
-        let result = self
-            .deps
-            .installer
-            .install(&install_options(&config))
+        let installer = self.installer_of(account_id)?;
+        let result = installer
+            .install(&install_options(&config, account_id))
             .await
             .map_err(io_failure)?;
+        let linked = if result.is_ok() {
+            self.set_linked(account_id, true).await
+        } else {
+            Ok(())
+        };
         self.refresh_hooks().await;
         self.publish();
+        linked?;
         Ok(self.written(result))
     }
 
-    pub async fn uninstall_hooks(&self) -> Result<HooksWrite, ExposedError> {
+    /// Removes the hooks from one account and unlinks it.
+    pub async fn uninstall_hooks(&self, account_id: &str) -> Result<HooksWrite, ExposedError> {
         let _turn = self.serial.lock().await;
         self.require_running()?;
-        let result = self.deps.installer.uninstall().await.map_err(io_failure)?;
+        let installer = self.installer_of(account_id)?;
+        let result = installer.uninstall().await.map_err(io_failure)?;
+        let unlinked = if result.is_ok() {
+            self.set_linked(account_id, false).await
+        } else {
+            Ok(())
+        };
         self.refresh_hooks().await;
         self.publish();
+        unlinked?;
         Ok(self.written(result))
     }
 
@@ -913,34 +1157,44 @@ impl ClaudeService {
     async fn rotate(&self, next: &ConfigFn, what: &str) -> Result<RotateOutcome, ExposedError> {
         let _turn = self.serial.lock().await;
         self.require_running()?;
-        self.require_config()?;
-        let reinstall = matches!(
-            lock(&self.core).hooks,
-            ClaudeHooksStatus::Installed | ClaudeHooksStatus::Outdated
-        );
+        let before = self.require_config()?;
+        // The linked accounts that have hooks of ours, read before the config changes.
+        let mut reinstall = Vec::new();
+        for (id, installer) in self.linked_installers() {
+            if matches!(
+                installer.status(&install_options(&before, &id)).await,
+                Ok(HookStatus::Installed | HookStatus::Outdated)
+            ) {
+                reinstall.push((id, installer));
+            }
+        }
         let rotated = next().await.map_err(io_failure)?;
         self.stop_bridge().await;
         lock(&self.core).config = Some(rotated.clone());
         self.start_bridge(rotated.clone()).await;
         let mut outcome = RotateHooks::NotInstalled;
-        if reinstall {
-            let config = lock(&self.core).config.clone().unwrap_or(rotated);
-            outcome = match self.deps.installer.install(&install_options(&config)).await {
+        let config = lock(&self.core).config.clone().unwrap_or(rotated);
+        for (id, installer) in reinstall {
+            let result = match installer.install(&install_options(&config, &id)).await {
                 Ok(Ok(_)) => RotateHooks::Reinstalled,
                 Ok(Err(_)) => {
                     log::warn!(
-                        "Could not reinstall Claude hooks after rotating the {what} (invalid-json)"
+                        "Could not reinstall Claude hooks of account {id} after rotating the {what} (invalid-json)"
                     );
                     RotateHooks::ReinstallFailed
                 }
                 Err(error) => {
                     log::warn!(
-                        "Could not reinstall Claude hooks after rotating the {what} ({:?})",
+                        "Could not reinstall Claude hooks of account {id} after rotating the {what} ({:?})",
                         error.kind()
                     );
                     RotateHooks::ReinstallFailed
                 }
             };
+            // One failure makes the whole rotation a failed reinstall.
+            if outcome != RotateHooks::ReinstallFailed {
+                outcome = result;
+            }
         }
         self.refresh_hooks().await;
         self.publish();

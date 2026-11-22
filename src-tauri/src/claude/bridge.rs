@@ -2,7 +2,8 @@
 //! HTTP/1.1 server Claude Code's `http` hooks POST to.
 //!
 //! Every request is checked on its head, in this order, before any of its body is read: Host,
-//! token, path, method, content type, declared size. Then the body is read up to
+//! token, account (`x-notch-account`: absent means the default account; repeated or not
+//! `[a-z0-9-]{1,64}` is a 400), path, method, content type, declared size. Then the body is read up to
 //! [`MAX_BODY_BYTES`] (with or without `content-length`), parsed and turned into a [`HookEvent`].
 //! Every answer but a held one is the status alone (`connection: close`, empty body). A held
 //! request stays open until the app answers it, Claude disconnects or the bridge stops.
@@ -37,6 +38,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::Instant;
 
+use super::accounts::{is_account_id, ACCOUNT_HEADER, DEFAULT_ACCOUNT_ID};
 use super::hook_events::{parse_hook_event, HookEvent, HookEventName, ASK_USER_QUESTION_TOOL};
 use crate::contract::string_enum;
 use crate::contract::text::is_js_whitespace;
@@ -393,6 +395,9 @@ async fn handle(request: Request<Incoming>, shared: &Shared) -> Response<Full<By
     if !token_matches(&shared.token, &tokens) {
         return finish(403, None);
     }
+    let Some(account_id) = account_of(headers.get_all(ACCOUNT_HEADER).iter()) else {
+        return finish(400, None);
+    };
     let route = match path.as_str() {
         "/hook" => HookRoute::Hook,
         "/hook/question" => HookRoute::Question,
@@ -421,9 +426,10 @@ async fn handle(request: Request<Incoming>, shared: &Shared) -> Response<Full<By
     let Ok(parsed) = serde_json::from_str::<Value>(&String::from_utf8_lossy(&bytes)) else {
         return finish(400, None);
     };
-    let Some(event) = parse_hook_event(&parsed) else {
+    let Some(mut event) = parse_hook_event(&parsed) else {
         return finish(400, None);
     };
+    event.account_id = account_id;
 
     if !holds(&event, route) {
         let response = finish(200, Some(event.name));
@@ -641,6 +647,22 @@ fn token_matches(expected: &[u8], received: &[&[u8]]) -> bool {
         .zip(expected)
         .fold(0u8, |difference, (a, b)| difference | (a ^ b));
     std::hint::black_box(difference) == 0
+}
+
+/// The account of a request: [`DEFAULT_ACCOUNT_ID`] without [`ACCOUNT_HEADER`] (hooks installed by
+/// 0.3.0), else its one valid value. A repeated or invalid header is `None` (400).
+fn account_of<'a>(mut values: impl Iterator<Item = &'a HeaderValue>) -> Option<String> {
+    let Some(first) = values.next() else {
+        return Some(DEFAULT_ACCOUNT_ID.to_owned());
+    };
+    if values.next().is_some() {
+        return None;
+    }
+    first
+        .to_str()
+        .ok()
+        .filter(|value| is_account_id(value))
+        .map(str::to_owned)
 }
 
 /// `/^application\/json\s*(;|$)/i` on the header as Node reads it (latin1).
