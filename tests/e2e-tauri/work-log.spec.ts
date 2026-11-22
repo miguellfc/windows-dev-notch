@@ -14,7 +14,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { $, $$, expect } from '@wdio/globals'
-import { compactWidthFor } from '../../src/shared/notch/geometry'
+import { COMPACT_ZONE, compactWidthFor } from '../../src/shared/notch/geometry'
 import {
   advanceClock,
   capsuleBox,
@@ -106,10 +106,14 @@ describe('Work log (Tauri)', () => {
     await post('SessionStart', { source: 'startup' })
     await post('UserPromptSubmit', { prompt: 'Analiza la API de pagos', prompt_id: 'p-1' })
 
-    // At rest, the peek shows it too: a play sign and the live total after the time and date.
+    // At rest, the peek shows only the play sign after the time and date, and fits it with no spare room.
     await expectMode('peek')
     await $(present('metric-work-log')).waitForDisplayed({ timeout: 15_000 })
     expect(await $(present('work-log-play')).isExisting()).toBe(true)
+    expect(await $(present('work-log-total')).isExisting()).toBe(false)
+    await settle()
+    const peekZone = await $(present('capsule-zone-left')).getSize('width')
+    expect(Math.abs((await capsuleBox()).width - Math.ceil(COMPACT_ZONE.padding + peekZone))).toBeLessThanOrEqual(1)
 
     // While it runs, the compact capsule shows its live total after Claude's mark.
     await pointer(true)

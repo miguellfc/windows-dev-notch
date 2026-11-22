@@ -190,11 +190,12 @@ const WIDEST_TOTAL = durationText((99 * 60 + 59) * 60_000)
 
 /**
  * The work log's live session (a play sign and its Total, "1h 25m", in Nunito and the integration's
- * color), after Claude's mark, in the compact capsule and the peek. Only rendered while an entry is
- * running or paused (the latest one); it reserves "99h 59m" so CAPSULE_BLOCK.workLog holds, and moves
- * once a minute. Paused, the play sign dims.
+ * color), after Claude's mark. Only rendered while an entry is running or paused (the latest one); in
+ * the compact capsule it reserves "99h 59m" so CAPSULE_BLOCK.workLog holds, and moves once a minute.
+ * In the peek (`iconOnly`) it is the play sign alone (PEEK_BLOCK.workLog), its label still saying the
+ * total. Paused, the play sign dims.
  */
-export function CapsuleWorkLog({ entry }: { entry: WorkLogEntryView }) {
+export function CapsuleWorkLog({ entry, iconOnly = false }: { entry: WorkLogEntryView; iconOnly?: boolean }) {
   const language = useLanguage()
   const now = useClock().getTime()
   const idlePauseMs = useWorkLogStore((store) => store.idlePauseMs)
@@ -211,10 +212,12 @@ export function CapsuleWorkLog({ entry }: { entry: WorkLogEntryView }) {
       style={integrationStyle(color)}
     >
       <Play aria-hidden="true" data-testid="work-log-play" className={`size-2.5 shrink-0 fill-current ${paused ? 'opacity-40' : ''}`} strokeWidth={2.5} />
-      <span className="tabular grid whitespace-nowrap text-small font-semibold" aria-hidden="true">
-        <span className="invisible [grid-area:1/1]">{WIDEST_TOTAL}</span>
-        <span className="text-left [grid-area:1/1]">{total}</span>
-      </span>
+      {!iconOnly && (
+        <span data-testid="work-log-total" className="tabular grid whitespace-nowrap text-small font-semibold" aria-hidden="true">
+          <span className="invisible [grid-area:1/1]">{WIDEST_TOTAL}</span>
+          <span className="text-left [grid-area:1/1]">{total}</span>
+        </span>
+      )}
     </span>
   )
 }

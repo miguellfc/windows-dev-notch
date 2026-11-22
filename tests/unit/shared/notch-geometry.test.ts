@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, PEEK_MAX_WIDTH, gmailSizeFor, REDMINE_SIZES, redmineSizeFor, reviewsSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, WORK_LOG_SIZE, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, workLogSizeFor, type CompactContent } from '../../../src/shared/notch/geometry'
+import { CAPSULE_BLOCK, CAPSULE_SIZES, capsuleTopFor, COMPACT_ZONE, GMAIL_SIZES, PEEK_BLOCK, PEEK_MAX_WIDTH, gmailSizeFor, REDMINE_SIZES, redmineSizeFor, reviewsSizeFor, SHADOW_MARGIN, WIDEST_COMPACT_WIDTH, WINDOW_WIDTH, WORK_LOG_SIZE, compactWidthFor, growsWindow, resizeOrder, windowBoundsFor, windowHeightFor, workLogSizeFor, type CompactContent } from '../../../src/shared/notch/geometry'
 
 /** The widest compact capsule (every block, the work log's included, the system and the battery) and the window it sets. */
 const WIDEST_PX = 814
@@ -322,9 +322,10 @@ describe('capsule modes geometry (peek at rest, compact on hover, pinned mini)',
     expect(CAPSULE_SIZES.peek.width).toBe(174)
   })
 
-  it('the widest peek fits Claude\'s mark and the work log\'s live block after the time and date', () => {
-    expect(PEEK_MAX_WIDTH).toBe(Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude + CAPSULE_BLOCK.workLog))
-    expect(PEEK_MAX_WIDTH).toBe(269)
+  it('the widest peek fits Claude\'s mark and the work log\'s play sign (no total) after the time and date', () => {
+    expect(PEEK_BLOCK.workLog).toBe(20)
+    expect(PEEK_MAX_WIDTH).toBe(Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude + PEEK_BLOCK.workLog))
+    expect(PEEK_MAX_WIDTH).toBe(216)
     expect(windowHeightFor('peek')).toBe(windowHeightFor('compact'))
   })
 

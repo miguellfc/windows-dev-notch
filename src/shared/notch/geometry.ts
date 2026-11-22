@@ -131,16 +131,21 @@ export const CAPSULE_BLOCK = {
   review: 56,
   /** Redmine's mark and the month's hours, "744,75h" / "744.75h". */
   redmine: 78.5,
-  /** The work log's dot and the live total, "99h 59m" (Nunito figures; 63.3 + 10, ES and EN alike). */
+  /** The work log's play sign and the live total, "99h 59m" (Nunito figures; 63.3 + 10, ES and EN alike). */
   workLog: 73.5,
+} as const
+
+/** The peek's own blocks with their 10 px gap, in px: there the work log shows only its 10 px play sign, no total. */
+export const PEEK_BLOCK = {
+  workLog: 20,
 } as const
 
 /**
  * The widest peek: the time and date at their widest, then Claude's mark (while some session has a
- * dot) and the work log's live block (while a measured session is running or paused). The peek fits
+ * dot) and the work log's play sign (while a measured session is running or paused). The peek fits
  * what it shows; this is its ceiling.
  */
-export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude + CAPSULE_BLOCK.workLog)
+export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude + PEEK_BLOCK.workLog)
 
 /** What the compact capsule shows: the system zone (null: no sample) and the integration blocks. */
 export interface CompactContent {
