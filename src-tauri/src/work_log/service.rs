@@ -298,6 +298,10 @@ fn apply_event(
     if entry.deleted_at.is_some() {
         return None;
     }
+    // Claude Code does not send `SessionStart` to HTTP hooks, so a `--resume` / `--continue`
+    // usually arrives as a new prompt in a session that already ended: that reopens it too.
+    let resume =
+        resume || (entry.ended_at.is_some() && event.name == HookEventName::UserPromptSubmit);
     // Ended (it has an end, even if paused since the start): late events (background agents)
     // never reopen it; only a resume does.
     if entry.ended_at.is_some() && !resume {

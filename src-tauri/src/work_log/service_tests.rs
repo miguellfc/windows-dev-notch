@@ -613,6 +613,29 @@ fn an_entry_that_ended_reopens_only_with_resume() {
     assert_eq!(entry.ended_at, None);
 }
 
+/// Claude Code does not send `SessionStart` to HTTP hooks, so `claude --resume` / `--continue`
+/// shows up as a new prompt in a session that already ended: that prompt reopens it.
+#[test]
+fn a_new_prompt_in_an_ended_session_reopens_it_as_a_resume() {
+    let fx = Fx::new();
+    let mut ended = stored("s1", WorkLogStatus::Ready);
+    ended.ended_at = Some(10 * M);
+    ended.invoiced = true;
+    fx.seed(vec![ended]);
+    let service = fx.started();
+    run(&service, &[(20, event(HookEventName::PostToolUse, "s1"))]);
+    assert_eq!(only(&service).status, WorkLogStatus::Ready);
+    run(&service, &[(30, prompt("s1", "sigue"))]);
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Running);
+    assert_eq!(entry.ended_at, None);
+    assert!(!entry.invoiced);
+    assert_eq!(
+        entry.session.turns.last().map(|turn| turn.started_at),
+        Some(30 * M)
+    );
+}
+
 #[test]
 fn buffered_events_are_replayed_in_order_under_the_lock_with_one_snapshot() {
     let fx = Fx::new();
