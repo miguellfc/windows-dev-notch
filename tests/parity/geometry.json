@@ -45,6 +45,10 @@
       "width": 520,
       "height": 560
     },
+    "workLog": {
+      "width": 520,
+      "height": 560
+    },
     "mini": {
       "width": 96,
       "height": 4
@@ -62,6 +66,7 @@
     "gmail": 6,
     "reviews": 6,
     "redmine": 6,
+    "workLog": 6,
     "mini": 0
   },
   "windowHeight": {
@@ -76,6 +81,7 @@
     "gmail": 518,
     "reviews": 402,
     "redmine": 638,
+    "workLog": 638,
     "mini": 76
   },
   "windowBounds": [
@@ -575,6 +581,51 @@
       }
     },
     {
+      "mode": "workLog",
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1040
+      },
+      "bounds": {
+        "x": 533,
+        "y": 0,
+        "width": 854,
+        "height": 638
+      }
+    },
+    {
+      "mode": "workLog",
+      "workArea": {
+        "x": -1280,
+        "y": 0,
+        "width": 1280,
+        "height": 984
+      },
+      "bounds": {
+        "x": -1067,
+        "y": 0,
+        "width": 854,
+        "height": 638
+      }
+    },
+    {
+      "mode": "workLog",
+      "workArea": {
+        "x": 1920,
+        "y": 0,
+        "width": 2560,
+        "height": 1392
+      },
+      "bounds": {
+        "x": 2773,
+        "y": 0,
+        "width": 854,
+        "height": 638
+      }
+    },
+    {
       "mode": "mini",
       "workArea": {
         "x": 0,
@@ -678,6 +729,11 @@
     },
     {
       "from": "compact",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "compact",
       "to": "mini",
       "order": "animate-first"
     },
@@ -738,6 +794,11 @@
     },
     {
       "from": "peek",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "peek",
       "to": "mini",
       "order": "animate-first"
     },
@@ -798,6 +859,11 @@
     },
     {
       "from": "alert",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "alert",
       "to": "mini",
       "order": "animate-first"
     },
@@ -858,6 +924,11 @@
     },
     {
       "from": "expanded",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "expanded",
       "to": "mini",
       "order": "animate-first"
     },
@@ -918,6 +989,11 @@
     },
     {
       "from": "permission",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "permission",
       "to": "mini",
       "order": "animate-first"
     },
@@ -978,6 +1054,11 @@
     },
     {
       "from": "question",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "question",
       "to": "mini",
       "order": "animate-first"
     },
@@ -1038,6 +1119,11 @@
     },
     {
       "from": "reminders",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "reminders",
       "to": "mini",
       "order": "animate-first"
     },
@@ -1098,6 +1184,11 @@
     },
     {
       "from": "notes",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "notes",
       "to": "mini",
       "order": "animate-first"
     },
@@ -1158,6 +1249,11 @@
     },
     {
       "from": "gmail",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "gmail",
       "to": "mini",
       "order": "animate-first"
     },
@@ -1218,6 +1314,11 @@
     },
     {
       "from": "reviews",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "reviews",
       "to": "mini",
       "order": "animate-first"
     },
@@ -1278,6 +1379,76 @@
     },
     {
       "from": "redmine",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "redmine",
+      "to": "mini",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "compact",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "peek",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "alert",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "expanded",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "permission",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "question",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "reminders",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "notes",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "gmail",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "reviews",
+      "order": "animate-first"
+    },
+    {
+      "from": "workLog",
+      "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "workLog",
+      "to": "workLog",
+      "order": "resize-first"
+    },
+    {
+      "from": "workLog",
       "to": "mini",
       "order": "animate-first"
     },
@@ -1334,6 +1505,11 @@
     {
       "from": "mini",
       "to": "redmine",
+      "order": "resize-first"
+    },
+    {
+      "from": "mini",
+      "to": "workLog",
       "order": "resize-first"
     },
     {

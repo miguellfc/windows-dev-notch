@@ -77,7 +77,14 @@
     "reminders:update",
     "settings:get",
     "settings:update",
-    "usage:summary"
+    "usage:summary",
+    "work-log:claude-available",
+    "work-log:copy",
+    "work-log:delete",
+    "work-log:list",
+    "work-log:restore",
+    "work-log:set-invoiced",
+    "work-log:summarize"
   ],
   "events": [
     "claude:questions",
@@ -98,6 +105,7 @@
     "reminders:changed",
     "reminders:fired",
     "settings:changed",
-    "system:metrics"
+    "system:metrics",
+    "work-log:changed"
   ]
 }

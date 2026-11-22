@@ -168,6 +168,8 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
   redmine: REDMINE_SIZES.search,
+  // Same size as Redmine until the work log view sizes itself.
+  workLog: REDMINE_SIZES.search,
   mini: { width: 96, height: 4 },
 }
 

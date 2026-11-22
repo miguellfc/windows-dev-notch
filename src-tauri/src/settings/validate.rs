@@ -8,7 +8,8 @@ use crate::claude::accounts::is_account_id;
 use crate::contract::settings::{
     ClaudeAccountsSettings, CodeReviewSettingsPatch, GmailSettings, IntegrationsSettings,
     RedmineEndOfDayPatch, RedmineSettingsPatch, RemindersSettings, Settings, SettingsPatch,
-    SystemAlertSettings, SETTINGS_VERSION, SNOOZE_MINUTES_OPTIONS,
+    SystemAlertSettings, WorkLogSettings, WorkLogSettingsPatch, SETTINGS_VERSION,
+    SNOOZE_MINUTES_OPTIONS, WORK_LOG_IDLE_PAUSE_MAX, WORK_LOG_IDLE_PAUSE_MIN,
 };
 use crate::contract::text::js_trim;
 use crate::contract::{int_in, length};
@@ -183,8 +184,8 @@ fn validate_time(time: &str) -> Result<(), String> {
     }
 }
 
-/// Only the capsule integrations (claude, github, gitlab, gmail, redmine) may show a block in
-/// the capsule.
+/// Only the capsule integrations (claude, github, gitlab, gmail, redmine, work log) may show a
+/// block in the capsule.
 fn validate_integrations(integrations: &IntegrationsSettings) -> Result<(), String> {
     let IntegrationsSettings {
         reminders, notes, ..
@@ -193,6 +194,31 @@ fn validate_integrations(integrations: &IntegrationsSettings) -> Result<(), Stri
         return Err("Reminders and notes have no capsule block".into());
     }
     Ok(())
+}
+
+/// `workLogSettingsSchema`: an account id (or none) and 5-240 idle minutes.
+fn validate_work_log_account(account_id: &str) -> Result<(), String> {
+    if is_account_id(account_id) {
+        Ok(())
+    } else {
+        Err("Invalid work log account id".into())
+    }
+}
+
+fn validate_idle_pause(minutes: u32) -> Result<(), String> {
+    int_in(
+        "idlePauseMinutes",
+        minutes,
+        WORK_LOG_IDLE_PAUSE_MIN,
+        WORK_LOG_IDLE_PAUSE_MAX,
+    )
+}
+
+fn validate_work_log(work_log: &WorkLogSettings) -> Result<(), String> {
+    if let Some(account_id) = &work_log.account_id {
+        validate_work_log_account(account_id)?;
+    }
+    validate_idle_pause(work_log.idle_pause_minutes)
 }
 
 /// Most accounts (linked ids, extra folders) the settings keep (`CLAUDE_ACCOUNTS_MAX`).
@@ -234,6 +260,7 @@ pub fn validate_settings(settings: &Settings) -> Result<(), String> {
     validate_redmine_url(&settings.redmine.url)?;
     validate_daily_target(settings.redmine.daily_target_hours)?;
     validate_time(&settings.redmine.end_of_day.time)?;
+    validate_work_log(&settings.work_log)?;
     validate_integrations(&settings.integrations)?;
     validate_claude_accounts(&settings.claude_accounts)
 }
@@ -248,6 +275,7 @@ fn is_empty_patch(patch: &SettingsPatch) -> bool {
         gmail,
         code_review,
         redmine,
+        work_log,
         integrations,
     } = patch;
     language.is_none()
@@ -258,6 +286,7 @@ fn is_empty_patch(patch: &SettingsPatch) -> bool {
         && gmail.is_none()
         && code_review.is_none()
         && redmine.is_none()
+        && work_log.is_none()
         && integrations.is_none()
 }
 
@@ -302,6 +331,18 @@ pub fn validate_patch(patch: &SettingsPatch) -> Result<(), String> {
         }) = end_of_day
         {
             validate_time(time)?;
+        }
+    }
+    if let Some(WorkLogSettingsPatch {
+        account_id,
+        idle_pause_minutes,
+    }) = &patch.work_log
+    {
+        if let Some(Some(account_id)) = account_id {
+            validate_work_log_account(account_id)?;
+        }
+        if let Some(minutes) = idle_pause_minutes {
+            validate_idle_pause(*minutes)?;
         }
     }
     Ok(())

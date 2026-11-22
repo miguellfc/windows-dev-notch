@@ -1,5 +1,5 @@
 /** Integrations that open as a mini tool inside the notch. */
-export const viewIntegrationIds = ['reminders', 'notes', 'gmail', 'reviews', 'redmine'] as const
+export const viewIntegrationIds = ['reminders', 'notes', 'gmail', 'reviews', 'redmine', 'workLog'] as const
 
 /** The mini tools `notch:open-integration` opens. `reviews` has no card of its own: the GitHub and GitLab cards open it. */
 export type IntegrationId = (typeof viewIntegrationIds)[number]

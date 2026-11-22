@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::contract::settings::{
     ClaudeAccountsSettings, IntegrationSettings, IntegrationSettingsPatch, Settings, SettingsPatch,
-    SETTINGS_VERSION,
+    WorkLogSettings, SETTINGS_VERSION,
 };
 use crate::ipc::{ExposedError, IpcErrorCode};
 use crate::services::fs_atomic::write_atomic;
@@ -100,16 +100,18 @@ impl SettingsStore {
             );
             return Ok(self.use_settings(self.defaults.clone(), true));
         }
-        // Only v7 to v9 migrate; an older (or missing) version is not usable.
+        // Only v7 to v9 migrate (and v10 gains a missing work log); an older (or missing) version
+        // is not usable.
+        let original = raw.clone();
         let Some(migrated) = migrate(raw) else {
             return self.recover("Settings file has no usable version").await;
         };
-        let Ok(settings) = crate::contract::parse::<Settings>(migrated) else {
+        let Ok(settings) = crate::contract::parse::<Settings>(migrated.clone()) else {
             return self
                 .recover("Settings file does not match the schema")
                 .await;
         };
-        if version != Some(u64::from(SETTINGS_VERSION)) {
+        if version != Some(u64::from(SETTINGS_VERSION)) || migrated != original {
             // The migration replaces any `integrations` key a v7 file had with the defaults and
             // drops a v8 file's `integrations.system`. If the migrated file cannot be written
             // back, the session keeps the migrated values (not the defaults) in read-only mode,
@@ -213,13 +215,15 @@ impl SettingsStore {
 
 /// Brings a settings file up to [`SETTINGS_VERSION`] one step at a time: v7 gets the default
 /// `integrations` (v8); v8 loses `integrations.system` (v9: the System view is gone and its
-/// metrics need no switch); v9 gets the default `claudeAccounts` (v10). The current version
-/// passes through untouched. Anything older (or
+/// metrics need no switch); v9 gets the default `claudeAccounts` and work log (v10). A v10
+/// file that lacks the work log (a dev build from before it existed) gets its defaults too;
+/// otherwise the current version passes through untouched. Anything older (or
 /// without a version) is `None`, which sends the file to quarantine. The result still has to
 /// pass the schema.
 pub fn migrate(mut raw: Value) -> Option<Value> {
     let mut version = raw.get("version").and_then(Value::as_u64)?;
     if version == u64::from(SETTINGS_VERSION) {
+        add_missing_work_log(raw.as_object_mut()?)?;
         return Some(raw);
     }
     if version == 7 {
@@ -239,9 +243,27 @@ pub fn migrate(mut raw: Value) -> Option<Value> {
         return None;
     }
     migrate_v9_to_v10(raw.as_object_mut()?)?;
+    add_missing_work_log(raw.as_object_mut()?)?;
     raw.as_object_mut()?
         .insert("version".into(), SETTINGS_VERSION.into());
     Some(raw)
+}
+
+/// v10: the work log, off and following no account. Only what is missing is added, so a file
+/// that already has it keeps its own values.
+fn add_missing_work_log(raw: &mut serde_json::Map<String, Value>) -> Option<()> {
+    if !raw.contains_key("workLog") {
+        let work_log = serde_json::to_value(WorkLogSettings::default()).ok()?;
+        raw.insert("workLog".into(), work_log);
+    }
+    // An `integrations` that is not an object is left for the schema to reject.
+    if let Some(integrations) = raw.get_mut("integrations").and_then(Value::as_object_mut) {
+        if !integrations.contains_key("workLog") {
+            let entry = serde_json::to_value(default_integrations().work_log).ok()?;
+            integrations.insert("workLog".into(), entry);
+        }
+    }
+    Some(())
 }
 
 /// v10: the Claude accounts (none linked yet: the first start links `~/.claude` if it has our
@@ -315,6 +337,14 @@ fn apply_patch(settings: &mut Settings, patch: SettingsPatch) {
             }
         }
     }
+    if let Some(work_log) = patch.work_log {
+        if let Some(account_id) = work_log.account_id {
+            settings.work_log.account_id = account_id;
+        }
+        if let Some(minutes) = work_log.idle_pause_minutes {
+            settings.work_log.idle_pause_minutes = minutes;
+        }
+    }
     if let Some(integrations) = patch.integrations {
         let target = &mut settings.integrations;
         apply_integration_patch(&mut target.claude, integrations.claude);
@@ -322,6 +352,7 @@ fn apply_patch(settings: &mut Settings, patch: SettingsPatch) {
         apply_integration_patch(&mut target.gitlab, integrations.gitlab);
         apply_integration_patch(&mut target.gmail, integrations.gmail);
         apply_integration_patch(&mut target.redmine, integrations.redmine);
+        apply_integration_patch(&mut target.work_log, integrations.work_log);
         apply_integration_patch(&mut target.reminders, integrations.reminders);
         apply_integration_patch(&mut target.notes, integrations.notes);
     }
@@ -445,12 +476,99 @@ mod tests {
             .any(|n| n.starts_with("settings.corrupt-")));
     }
 
-    /// The current defaults as a v9 file: no `claudeAccounts` yet.
+    /// The current defaults as a v9 file: no `claudeAccounts`, no work log yet.
     fn v9_value() -> Value {
         let mut value = serde_json::to_value(defaults()).unwrap();
         value["version"] = 9.into();
         value.as_object_mut().unwrap().remove("claudeAccounts");
+        value.as_object_mut().unwrap().remove("workLog");
+        value["integrations"]
+            .as_object_mut()
+            .unwrap()
+            .remove("workLog");
         value
+    }
+
+    #[test]
+    fn v9_file_migrates_to_v10_with_the_default_work_log() {
+        let mut value = v9_value();
+        value["integrations"]["gmail"]["color"] = "sand".into();
+        let migrated = migrate(value).unwrap();
+        assert_eq!(
+            migrated["integrations"]["workLog"],
+            serde_json::json!({ "enabled": false, "capsule": true, "color": "cyan" })
+        );
+        assert_eq!(
+            migrated["workLog"],
+            serde_json::json!({ "accountId": null, "idlePauseMinutes": 30 })
+        );
+        assert_eq!(migrated["integrations"]["gmail"]["color"], "sand");
+
+        let dir = TempDir::new();
+        write(&dir.file(), &v9_value().to_string());
+        let loaded = block_on(store(&dir.file()).load());
+        assert_eq!(loaded, defaults());
+        assert!(!loaded.integrations.work_log.enabled);
+        assert_eq!(saved(&dir.file()), defaults());
+    }
+
+    #[test]
+    fn a_v10_file_without_the_work_log_is_filled_in_and_rewritten() {
+        // Dev builds between the claude accounts and the work log wrote v10 without it.
+        let dir = TempDir::new();
+        let mut value = v9_value();
+        value["version"] = 10.into();
+        value["language"] = "en".into();
+        value["claudeAccounts"] =
+            serde_json::json!({ "linked": ["claude"], "extraDirs": [], "initialized": true });
+        write(&dir.file(), &value.to_string());
+        let loaded = block_on(store(&dir.file()).load());
+        let mut expected = defaults();
+        expected.language = Language::En;
+        expected.claude_accounts.linked = vec!["claude".into()];
+        expected.claude_accounts.initialized = true;
+        assert_eq!(loaded, expected);
+        assert_eq!(saved(&dir.file()), expected);
+        assert_eq!(dir.names(), vec!["settings.json"]);
+    }
+
+    #[test]
+    fn a_v10_file_keeps_the_work_log_it_has() {
+        let mut value = serde_json::to_value(defaults()).unwrap();
+        value["workLog"] = serde_json::json!({ "accountId": "claude-work", "idlePauseMinutes": 60 });
+        value["integrations"]["workLog"]["enabled"] = true.into();
+        assert_eq!(migrate(value.clone()), Some(value));
+    }
+
+    #[test]
+    fn work_log_patches_merge_and_are_validated() {
+        let dir = TempDir::new();
+        let s = store(&dir.file());
+        block_on(s.load());
+        let patch = |value: Value| serde_json::from_value::<SettingsPatch>(value).unwrap();
+        let next = block_on(s.update(patch(serde_json::json!({
+            "workLog": { "idlePauseMinutes": 45 },
+            "integrations": { "workLog": { "enabled": true } },
+        }))))
+        .unwrap();
+        assert_eq!(next.work_log.idle_pause_minutes, 45);
+        assert_eq!(next.work_log.account_id, None);
+        assert!(next.integrations.work_log.enabled);
+        assert!(next.integrations.work_log.capsule);
+        let next = block_on(s.update(patch(
+            serde_json::json!({ "workLog": { "accountId": "claude-work" } }),
+        )))
+        .unwrap();
+        assert_eq!(next.work_log.account_id.as_deref(), Some("claude-work"));
+        assert_eq!(next.work_log.idle_pause_minutes, 45);
+        for bad in [
+            serde_json::json!({ "workLog": { "idlePauseMinutes": 4 } }),
+            serde_json::json!({ "workLog": { "idlePauseMinutes": 241 } }),
+            serde_json::json!({ "workLog": { "accountId": "Not An Id" } }),
+        ] {
+            assert!(block_on(s.update(patch(bad.clone()))).is_err(), "{bad}");
+        }
+        assert_eq!(s.get().work_log.idle_pause_minutes, 45);
     }
 
     #[test]

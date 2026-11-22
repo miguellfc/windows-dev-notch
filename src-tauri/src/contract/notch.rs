@@ -18,6 +18,7 @@ string_enum! {
         Gmail = "gmail",
         Reviews = "reviews",
         Redmine = "redmine",
+        WorkLog = "workLog",
         Mini = "mini",
         Hidden = "hidden",
     }
@@ -60,6 +61,7 @@ string_enum! {
         Gmail = "gmail",
         Reviews = "reviews",
         Redmine = "redmine",
+        WorkLog = "workLog",
     }
 }
 

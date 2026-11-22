@@ -272,7 +272,7 @@ describe('integrations (v9)', () => {
     expect(SETTINGS_VERSION).toBe(10)
   })
 
-  it('defaults: all enabled, capsule only for the five capsule integrations', () => {
+  it('defaults: all enabled, capsule only for the six capsule integrations (the work log starts off)', () => {
     const integrations = createDefaultSettings('es').integrations
     expect(integrations).toEqual(cloneDefaultIntegrations())
     expect(integrations).toEqual({
@@ -281,6 +281,7 @@ describe('integrations (v9)', () => {
       gitlab: { enabled: true, capsule: true, color: 'orange' },
       gmail: { enabled: true, capsule: true, color: 'salmon' },
       redmine: { enabled: true, capsule: true, color: 'pink' },
+      workLog: { enabled: false, capsule: true, color: 'cyan' },
       reminders: { enabled: true, capsule: false, color: 'blue' },
       notes: { enabled: true, capsule: false, color: 'violet' },
     })
@@ -324,6 +325,29 @@ describe('integrations (v9)', () => {
     const withSystem = { ...settings, integrations: { ...settings.integrations, system: { enabled: true, capsule: false, color: 'teal' } } }
     expect(settingsSchema.safeParse(withSystem).success).toBe(false)
     expect(settingsPatchSchema.safeParse({ integrations: { system: { enabled: false } } }).success).toBe(false)
+  })
+})
+
+describe('work log settings (v10)', () => {
+  it('defaults to no account and a 30 minute idle pause', () => {
+    expect(createDefaultSettings('es').workLog).toEqual({ accountId: null, idlePauseMinutes: 30 })
+  })
+
+  it('accepts a linked account id and an idle pause of 5 to 240 minutes', () => {
+    const withWorkLog = (workLog: unknown) => settingsSchema.safeParse({ ...createDefaultSettings('es'), workLog }).success
+    expect(withWorkLog({ accountId: 'claude-work', idlePauseMinutes: 5 })).toBe(true)
+    expect(withWorkLog({ accountId: null, idlePauseMinutes: 240 })).toBe(true)
+    for (const idlePauseMinutes of [4, 241, 30.5, '30']) expect(withWorkLog({ accountId: null, idlePauseMinutes }), String(idlePauseMinutes)).toBe(false)
+    expect(withWorkLog({ accountId: 'Not An Id', idlePauseMinutes: 30 })).toBe(false)
+    expect(withWorkLog({ idlePauseMinutes: 30 })).toBe(false)
+    expect(withWorkLog({ accountId: null, idlePauseMinutes: 30, extra: 1 })).toBe(false)
+  })
+
+  it('lets the renderer patch the work log and its integration entry, one field at a time', () => {
+    expect(settingsPatchSchema.parse({ workLog: { idlePauseMinutes: 45 } })).toEqual({ workLog: { idlePauseMinutes: 45 } })
+    expect(settingsPatchSchema.parse({ workLog: { accountId: null } })).toEqual({ workLog: { accountId: null } })
+    expect(settingsPatchSchema.safeParse({ workLog: { idlePauseMinutes: 4 } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ integrations: { workLog: { enabled: true, capsule: false } } }).success).toBe(true)
   })
 })
 

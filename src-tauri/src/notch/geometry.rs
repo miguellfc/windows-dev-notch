@@ -37,11 +37,12 @@ pub enum VisibleMode {
     Gmail,
     Reviews,
     Redmine,
+    WorkLog,
     Mini,
 }
 
 impl VisibleMode {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Compact,
         Self::Peek,
         Self::Alert,
@@ -53,6 +54,7 @@ impl VisibleMode {
         Self::Gmail,
         Self::Reviews,
         Self::Redmine,
+        Self::WorkLog,
         Self::Mini,
     ];
 
@@ -74,6 +76,7 @@ impl VisibleMode {
             Self::Gmail => NotchMode::Gmail,
             Self::Reviews => NotchMode::Reviews,
             Self::Redmine => NotchMode::Redmine,
+            Self::WorkLog => NotchMode::WorkLog,
             Self::Mini => NotchMode::Mini,
         }
     }
@@ -109,7 +112,7 @@ pub const REVIEWS_SIZE: Size = size(520.0, 324.0);
 pub const REDMINE_SEARCH_SIZE: Size = size(520.0, 560.0);
 
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).
-pub const CAPSULE_SIZES: [(VisibleMode, Size); 12] = [
+pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
     (VisibleMode::Compact, size(465.0, 36.0)),
     (VisibleMode::Peek, size(174.0, 36.0)),
     (VisibleMode::Alert, size(320.0, 44.0)),
@@ -121,6 +124,8 @@ pub const CAPSULE_SIZES: [(VisibleMode, Size); 12] = [
     (VisibleMode::Gmail, GMAIL_READER_SIZE),
     (VisibleMode::Reviews, REVIEWS_SIZE),
     (VisibleMode::Redmine, REDMINE_SEARCH_SIZE),
+    // Same size as Redmine until the work log view sizes itself.
+    (VisibleMode::WorkLog, REDMINE_SEARCH_SIZE),
     (VisibleMode::Mini, size(96.0, 4.0)),
 ];
 

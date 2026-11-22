@@ -1,4 +1,4 @@
-import { AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
+import { AlarmClock, ClipboardList, StickyNote, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
 import type { MessageKey } from '../../../shared/i18n/messages'
 import type { IntegrationKey } from '../../../shared/integrations/colors'
@@ -29,6 +29,7 @@ const ICONS: Readonly<Record<IntegrationKey, LucideIcon>> = {
   gitlab: GitlabMark,
   gmail: GmailMark,
   redmine: RedmineMark,
+  workLog: ClipboardList,
   reminders: AlarmClock,
   notes: StickyNote,
 }
@@ -39,6 +40,7 @@ const TITLES: Readonly<Record<IntegrationKey, MessageKey>> = {
   gitlab: 'integration.gitlab',
   gmail: 'integration.gmail',
   redmine: 'integration.redmine',
+  workLog: 'integration.workLog',
   reminders: 'integration.reminders',
   notes: 'integration.notes',
 }
@@ -159,6 +161,9 @@ function CardContent({ cardKey }: { cardKey: IntegrationKey }) {
       return <GmailCard />
     case 'redmine':
       return <RedmineCard />
+    case 'workLog':
+      // No card content until the work log view lands; the integration starts off.
+      return null
     case 'reminders':
       return <RemindersCard />
     case 'notes':

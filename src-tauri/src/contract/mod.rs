@@ -102,6 +102,7 @@ pub mod settings;
 pub mod system;
 pub mod text;
 pub mod usage;
+pub mod work_log;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -392,6 +393,19 @@ pub fn check(
             Output,
         ) => required::<reminders::Reminder>(value),
         ("reminders:delete", Output) => required::<Ack>(value),
+        ("work-log:list" | "work-log:claude-available", Input) => none(value),
+        ("work-log:list", Output) => required::<work_log::WorkLogSnapshot>(value),
+        ("work-log:set-invoiced", Input) => required::<work_log::WorkLogSetInvoicedInput>(value),
+        ("work-log:delete" | "work-log:restore" | "work-log:summarize", Input) => {
+            required::<work_log::WorkLogSessionInput>(value)
+        }
+        ("work-log:copy", Input) => required::<work_log::WorkLogCopyInput>(value),
+        (
+            "work-log:set-invoiced" | "work-log:delete" | "work-log:restore" | "work-log:copy"
+            | "work-log:summarize",
+            Output,
+        ) => required::<Ack>(value),
+        ("work-log:claude-available", Output) => required::<work_log::WorkLogClaudeAvailable>(value),
         ("notch:mode-changed", Event) => required::<notch::NotchMode>(value),
         ("notch:mail-alert" | "notch:review-alert" | "notch:redmine-alert", Event) => {
             required::<bool>(value)
@@ -399,6 +413,7 @@ pub fn check(
         ("settings:changed", Event) => required::<settings::Settings>(value),
         ("system:metrics", Event) => required::<system::SystemMetrics>(value),
         ("notes:changed", Event) => required::<notes::NotesSnapshot>(value),
+        ("work-log:changed", Event) => required::<work_log::WorkLogSnapshot>(value),
         ("reminders:changed", Event) => required::<reminders::RemindersSnapshot>(value),
         ("reminders:fired", Event) => required::<reminders::ReminderFired>(value),
         ("claude:state-changed", Event) => required::<claude::ClaudeState>(value),
