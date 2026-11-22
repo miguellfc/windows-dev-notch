@@ -731,12 +731,21 @@ impl ClaudeService {
             return;
         }
         let has_ours = match self.deps.accounts.installer(DEFAULT_ACCOUNT_ID) {
-            Some(installer) => matches!(
-                installer
-                    .status(&install_options(config, DEFAULT_ACCOUNT_ID))
-                    .await,
-                Ok(HookStatus::Installed | HookStatus::Outdated)
-            ),
+            Some(installer) => match installer
+                .status(&install_options(config, DEFAULT_ACCOUNT_ID))
+                .await
+            {
+                Ok(status) => matches!(status, HookStatus::Installed | HookStatus::Outdated),
+                // Unreadable for now (locked, not UTF-8...): decide on a later start, never
+                // leave a 0.3.0 install unlinked for good.
+                Err(error) => {
+                    log::warn!(
+                        "Could not read the default Claude settings; accounts not initialized ({:?})",
+                        error.kind()
+                    );
+                    return;
+                }
+            },
             None => false,
         };
         let saved = self

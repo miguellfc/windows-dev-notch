@@ -96,6 +96,8 @@ struct FakeInstaller {
     status_calls: AtomicUsize,
     installs: Mutex<Vec<HookInstallOptions>>,
     install_results: Mutex<VecDeque<io::Result<HookWriteResult>>>,
+    /// `status` fails with this while set.
+    status_error: Mutex<Option<io::ErrorKind>>,
 }
 
 impl FakeInstaller {
@@ -105,6 +107,7 @@ impl FakeInstaller {
             status_calls: AtomicUsize::new(0),
             installs: Mutex::default(),
             install_results: Mutex::default(),
+            status_error: Mutex::default(),
         })
     }
 
@@ -166,7 +169,13 @@ impl Installer for FakeInstaller {
     ) -> BoxFuture<'a, io::Result<HookStatus>> {
         self.status_calls.fetch_add(1, Ordering::SeqCst);
         let status = *lock(&self.status);
-        Box::pin(async move { Ok(status) })
+        let error = *lock(&self.status_error);
+        Box::pin(async move {
+            match error {
+                Some(kind) => Err(io::Error::from(kind)),
+                None => Ok(status),
+            }
+        })
     }
 }
 
@@ -2325,4 +2334,26 @@ async fn adding_a_folder_needs_an_existing_one() {
     .await;
     assert_eq!(response["ok"], json!(true), "{response}");
     assert_eq!(fx.accounts.current().extra_dirs, [dir]);
+}
+
+#[tokio::test]
+async fn an_unreadable_default_settings_file_retries_the_adoption_on_the_next_start() {
+    let fx = hooks(HookStatus::Outdated);
+    fx.accounts.set(accounts_settings(&[], false));
+    *lock(&fx.installer.status_error) = Some(io::ErrorKind::PermissionDenied);
+    fx.service.start().await;
+    let settings = fx.accounts.current();
+    assert!(!settings.initialized);
+    assert!(settings.linked.is_empty());
+    assert_eq!(fx.accounts.updates.load(Ordering::SeqCst), 0);
+
+    // Readable again: the next start links `claude` and the outdated hooks get updated.
+    *lock(&fx.installer.status_error) = None;
+    fx.service.start().await;
+    let settings = fx.accounts.current();
+    assert!(settings.initialized);
+    assert_eq!(settings.linked, ["claude"]);
+    fx.service.update_outdated_hooks().await;
+    assert_eq!(fx.installer.installs().len(), 1);
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Installed);
 }
