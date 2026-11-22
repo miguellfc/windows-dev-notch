@@ -210,4 +210,8 @@ pub struct WorkLogClaudeAvailable {
 
 impl Validate for WorkLogClaudeAvailable {}
 
-input_entry!(WorkLogSessionInput, WorkLogSetInvoicedInput, WorkLogCopyInput);
+input_entry!(
+    WorkLogSessionInput,
+    WorkLogSetInvoicedInput,
+    WorkLogCopyInput
+);

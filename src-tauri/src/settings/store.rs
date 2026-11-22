@@ -535,7 +535,8 @@ mod tests {
     #[test]
     fn a_v10_file_keeps_the_work_log_it_has() {
         let mut value = serde_json::to_value(defaults()).unwrap();
-        value["workLog"] = serde_json::json!({ "accountId": "claude-work", "idlePauseMinutes": 60 });
+        value["workLog"] =
+            serde_json::json!({ "accountId": "claude-work", "idlePauseMinutes": 60 });
         value["integrations"]["workLog"]["enabled"] = true.into();
         assert_eq!(migrate(value.clone()), Some(value));
     }

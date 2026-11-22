@@ -401,11 +401,16 @@ pub fn check(
         }
         ("work-log:copy", Input) => required::<work_log::WorkLogCopyInput>(value),
         (
-            "work-log:set-invoiced" | "work-log:delete" | "work-log:restore" | "work-log:copy"
+            "work-log:set-invoiced"
+            | "work-log:delete"
+            | "work-log:restore"
+            | "work-log:copy"
             | "work-log:summarize",
             Output,
         ) => required::<Ack>(value),
-        ("work-log:claude-available", Output) => required::<work_log::WorkLogClaudeAvailable>(value),
+        ("work-log:claude-available", Output) => {
+            required::<work_log::WorkLogClaudeAvailable>(value)
+        }
         ("notch:mode-changed", Event) => required::<notch::NotchMode>(value),
         ("notch:mail-alert" | "notch:review-alert" | "notch:redmine-alert", Event) => {
             required::<bool>(value)
