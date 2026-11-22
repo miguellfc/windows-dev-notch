@@ -75,7 +75,7 @@ fn task4_session() -> Session {
     s.apply(&event(HookEventName::Stop), 12 * M, CAP);
     s.apply(&prompt("b"), 62 * M, CAP);
     s.apply(&event(HookEventName::Stop), 70 * M, CAP);
-    s.close(70 * M);
+    s.close(30 * M);
     s
 }
 
@@ -204,7 +204,7 @@ mod assigning {
                 ("Otros", WorkLogSubtaskStatus::Done, vec!["t3", "t4"]),
             ]
         );
-        let done_total: i64 = subtask_times(&summary, &session)
+        let done_total: i64 = subtask_times(&summary.subtasks, &session)
             .iter()
             .filter_map(|(_, total)| *total)
             .sum();
@@ -270,7 +270,7 @@ mod assigning {
             ],
         };
         assert_eq!(
-            subtask_times(&summary, &session),
+            subtask_times(&summary.subtasks, &session),
             vec![(Some(18 * M), Some(50 * M)), (None, None)]
         );
     }
@@ -618,5 +618,54 @@ exit /b 0",
         };
         service.on_hook_event(&mine, 200 * M);
         assert_eq!(service.entries().len(), 2);
+    }
+}
+
+mod account_folder {
+    use super::*;
+    use crate::claude::accounts::ClaudeAccount;
+
+    fn account(id: &str, dir: &str) -> ClaudeAccount {
+        ClaudeAccount {
+            id: id.into(),
+            dir: PathBuf::from(dir),
+            settings_file: PathBuf::from(dir).join("settings.json"),
+            email: None,
+            organization: None,
+        }
+    }
+
+    fn accounts() -> Vec<ClaudeAccount> {
+        vec![
+            account("claude", "C:/home/.claude"),
+            // A linked folder that lost its profile is still listed by the directory.
+            account("claude-work", "C:/home/.claude-work"),
+            account("dir-0123abcd", "D:/other/claude"),
+        ]
+    }
+
+    #[test]
+    fn the_account_list_gives_each_folder_and_the_real_default_runs_without_it() {
+        assert_eq!(
+            config_dir_for(&accounts(), "claude", true),
+            Some(ConfigDir::Default)
+        );
+        assert_eq!(
+            config_dir_for(&accounts(), "claude-work", true),
+            Some(ConfigDir::Dir(PathBuf::from("C:/home/.claude-work")))
+        );
+        assert_eq!(
+            config_dir_for(&accounts(), "dir-0123abcd", true),
+            Some(ConfigDir::Dir(PathBuf::from("D:/other/claude")))
+        );
+        assert_eq!(config_dir_for(&accounts(), "claude-gone", true), None);
+    }
+
+    #[test]
+    fn with_another_home_the_default_account_runs_with_its_folder() {
+        assert_eq!(
+            config_dir_for(&accounts(), "claude", false),
+            Some(ConfigDir::Dir(PathBuf::from("C:/home/.claude")))
+        );
     }
 }

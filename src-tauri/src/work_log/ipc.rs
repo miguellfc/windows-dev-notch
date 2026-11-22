@@ -367,6 +367,10 @@ mod tests {
             ),
             ack
         );
+        // Running: nothing to copy until it pauses or ends.
+        let running = fx.call(NOTCH, "work-log:copy", Some(id.clone()));
+        assert_eq!(running["error"]["code"], "INVALID_INPUT");
+        assert_eq!(fx.call(NOTCH, "work-log:summarize", Some(id.clone())), ack);
         assert_eq!(fx.call(NOTCH, "work-log:copy", Some(id.clone())), ack);
         let copied = fx.copied.lock().unwrap().clone();
         assert_eq!(copied.len(), 1);
@@ -377,7 +381,6 @@ mod tests {
             Some(json!({ "sessionId": "s1", "subtask": 0 })),
         );
         assert_eq!(missing["error"]["code"], "NOT_FOUND");
-        assert_eq!(fx.call(NOTCH, "work-log:summarize", Some(id.clone())), ack);
         assert_eq!(fx.call(NOTCH, "work-log:delete", Some(id.clone())), ack);
         assert_eq!(
             fx.call(NOTCH, "work-log:list", None)["data"]["entries"],

@@ -204,7 +204,14 @@ pub fn run() {
             // Electron. The bridge starts in the background; the channels reach it through the slot.
             // The work log (`work-log.json`) before Claude: it records the hook events of the
             // chosen account. Its load and tick start below, with the other stores.
-            let work_log = install_work_log(app.handle(), &work_log_slot, &data_dir, &wall_clock);
+            let claude_accounts = claude::integration::account_directory(app.handle(), &data_dir);
+            let work_log = install_work_log(
+                app.handle(),
+                &work_log_slot,
+                &data_dir,
+                &wall_clock,
+                claude_accounts.clone(),
+            );
             let claude = {
                 let service = Arc::clone(work_log.service());
                 let clock = Arc::clone(&wall_clock);
@@ -214,6 +221,7 @@ pub fn run() {
                     &notch,
                     &usage,
                     &data_dir,
+                    claude_accounts,
                     Arc::new(move |event| {
                         service.on_hook_event(event, clock.now().timestamp_millis())
                     }),
@@ -494,35 +502,22 @@ fn work_log_config(settings: &Settings) -> work_log::service::WorkLogConfig {
     }
 }
 
-/// `claude -p` for the work log's summaries: the account's folder from the accounts on disk and
-/// the `claudeAccounts` settings (the default account runs without `CLAUDE_CONFIG_DIR`), in the
-/// app's language, in `<data dir>/work-log-summarizer`.
+/// `claude -p` for the work log's summaries: the account's folder as the Control Center lists it
+/// ([`claude::accounts::AccountDirectory`]; the default account of the real home runs without
+/// `CLAUDE_CONFIG_DIR`), in the app's language, in `<data dir>/work-log-summarizer`.
 fn work_log_summarizer(
     app: &AppHandle,
     data_dir: &std::path::Path,
+    accounts: Option<Arc<claude::accounts::AccountDirectory>>,
 ) -> Arc<work_log::summarizer::ClaudeSummarizer> {
-    use work_log::summarizer::{ClaudeSummarizer, ConfigDir, SummarizerDeps};
-    let home = app.path().home_dir().ok();
-    let config_dir = {
-        let app = app.clone();
-        Arc::new(move |id: &str| {
-            if id == claude::accounts::DEFAULT_ACCOUNT_ID {
-                return Some(ConfigDir::Default);
-            }
-            let home = home.as_deref()?;
-            let settings = app.state::<settings::SettingsStore>().get();
-            let extra: Vec<std::path::PathBuf> = settings
-                .claude_accounts
-                .extra_dirs
-                .iter()
-                .map(std::path::PathBuf::from)
-                .collect();
-            claude::accounts::detect_accounts(home, &extra)
-                .into_iter()
-                .find(|account| account.id == id)
-                .map(|account| ConfigDir::Dir(account.dir))
-        })
-    };
+    use claude::service::Accounts;
+    use work_log::summarizer::{config_dir_for, ClaudeSummarizer, SummarizerDeps};
+    let real_home = app.path().home_dir().ok();
+    let config_dir = Arc::new(move |id: &str| {
+        let accounts = accounts.as_deref()?;
+        let default_home = real_home.as_deref() == Some(accounts.home.as_path());
+        config_dir_for(&accounts.list(), id, default_home)
+    });
     let language = {
         let app = app.clone();
         Arc::new(move || app.state::<settings::SettingsStore>().get().language)
@@ -546,13 +541,14 @@ fn install_work_log(
     slot: &WorkLogSlot,
     data_dir: &std::path::Path,
     wall_clock: &Arc<services::clock::WallClock>,
+    accounts: Option<Arc<claude::accounts::AccountDirectory>>,
 ) -> Arc<WorkLog> {
     let clock = Arc::clone(wall_clock);
     let config = {
         let app = app.clone();
         Arc::new(move || work_log_config(&app.state::<settings::SettingsStore>().get()))
     };
-    let summarizer = work_log_summarizer(app, data_dir);
+    let summarizer = work_log_summarizer(app, data_dir, accounts);
     let service = work_log::service::WorkLogService::new(work_log::service::WorkLogDeps {
         file: data_dir.join("work-log.json"),
         clock: Arc::new(services::clock::WallClock::real()),

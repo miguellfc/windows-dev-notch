@@ -6,6 +6,7 @@ pub mod assign;
 pub mod copy;
 pub mod duration;
 pub mod ipc;
+pub mod rounding;
 pub mod service;
 pub mod summarizer;
 pub mod timing;

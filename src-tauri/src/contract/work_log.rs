@@ -80,12 +80,20 @@ pub struct WorkLogLive {
     pub last_event_at: f64,
     pub excess_ms: f64,
     pub turn_open: bool,
+    /// Since when the open turn waits for the user (a permission, a question): that wait counts
+    /// in the total only up to the idle pause.
+    #[serde(deserialize_with = "nullable")]
+    pub wait_since: Option<f64>,
 }
 
 impl Validate for WorkLogLive {
     fn validate(&self) -> Result<(), String> {
         non_negative("lastEventAt", self.last_event_at)?;
-        non_negative("excessMs", self.excess_ms)
+        non_negative("excessMs", self.excess_ms)?;
+        match self.wait_since {
+            Some(at) => non_negative("waitSince", at),
+            None => Ok(()),
+        }
     }
 }
 

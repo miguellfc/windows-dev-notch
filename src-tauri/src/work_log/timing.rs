@@ -45,13 +45,24 @@ impl Turn {
     }
 
     /// A stalled turn becomes closed for good: its pending wait is counted as a wait.
-    fn settle(&mut self) {
+    fn settle(&mut self, cap_ms: i64) {
         if !self.stalled {
             return;
         }
         self.stalled = false;
-        if let (Some(since), Some(end)) = (self.wait_since.take(), self.ended_at) {
-            self.wait_ms += (end - since).max(0);
+        if let Some(end) = self.ended_at {
+            self.end_wait(end, cap_ms);
+        }
+    }
+
+    /// Ends a pending wait at `at`: none of it is Claude's, and what passes the idle cap is not in
+    /// the total either (waiting for the user is idle time), so the turn's share and
+    /// [`Session::total_ms`] lose the same excess.
+    fn end_wait(&mut self, at: i64, cap_ms: i64) {
+        if let Some(since) = self.wait_since.take() {
+            let wait = (at - since).max(0);
+            self.wait_ms += wait;
+            self.excess_after_ms += (wait - cap_ms).max(0);
         }
     }
 }
@@ -136,14 +147,14 @@ impl Session {
                 last.ended_at = None;
                 last.stalled = false;
             } else {
-                last.settle();
+                last.settle(cap_ms);
             }
         }
         // A new prompt closes a turn left open (Esc gives no Stop) where it last showed signs of
         // life; so do the events that say Claude is not working on it, so a stalled turn never
         // absorbs the idle time before them.
         if event.name == UserPromptSubmit || ends_a_stalled_turn(event) {
-            self.close(at);
+            self.close(cap_ms);
         }
         let gap = at - self.last_event_at;
         if self.open_turn().is_none() && gap > cap_ms {
@@ -188,9 +199,7 @@ impl Session {
                         *turn.tools.entry(name.clone()).or_insert(0) += 1;
                     }
                 }
-                if let Some(since) = turn.wait_since.take() {
-                    turn.wait_ms += at - since;
-                }
+                turn.end_wait(at, cap_ms);
                 // The question is the user's to answer: Claude waits from here.
                 if event.name == PreToolUse
                     && event.tool_name.as_deref() == Some(ASK_USER_QUESTION_TOOL)
@@ -202,9 +211,7 @@ impl Session {
             Stop | StopFailure => {
                 turn.ended_at = Some(at);
                 // A request never answered (a denied permission) is still waiting, not Claude.
-                if let Some(since) = turn.wait_since.take() {
-                    turn.wait_ms += at - since;
-                }
+                turn.end_wait(at, cap_ms);
                 if event.name == Stop {
                     turn.reply = event.work.as_ref().and_then(|w| w.reply.clone());
                 }
@@ -213,16 +220,16 @@ impl Session {
         }
     }
 
-    /// Closes the open turn at its last event (the session is over or went quiet).
-    pub fn close(&mut self, _at: i64) {
+    /// Closes the open turn at its last event (the session is over or went quiet); a pending
+    /// wait ends there too, capped at `cap_ms` in the total.
+    pub fn close(&mut self, cap_ms: i64) {
         if let Some(last) = self.turns.last_mut() {
-            last.settle();
+            last.settle(cap_ms);
         }
         if let Some(turn) = self.open_turn() {
             turn.ended_at = Some(turn.last_event_at);
-            if let Some(since) = turn.wait_since.take() {
-                turn.wait_ms += (turn.last_event_at - since).max(0);
-            }
+            let last = turn.last_event_at;
+            turn.end_wait(last, cap_ms);
         }
     }
 
@@ -267,12 +274,24 @@ impl Session {
     }
 
     /// The total as of `now`: time since the last event counts, with idle time capped unless a
-    /// turn is open.
+    /// turn is open; while that turn waits for the user, the wait so far is capped as well (what
+    /// [`Turn::end_wait`] will remove once it ends).
     pub fn live_total_ms(&self, now: i64, cap_ms: i64) -> i64 {
         let since = (now - self.last_event_at).max(0);
-        let open = self.turns.last().is_some_and(|t| t.ended_at.is_none());
-        let idle = if open { 0 } else { (since - cap_ms).max(0) };
+        let idle = match self.open_wait_since() {
+            Some(Some(wait_since)) => (now - wait_since - cap_ms).max(0),
+            Some(None) => 0,
+            None => (since - cap_ms).max(0),
+        };
         self.total_ms() + since - idle
+    }
+
+    /// `Some(wait_since)` while a turn is open (its pending wait, if any); `None` otherwise.
+    pub fn open_wait_since(&self) -> Option<Option<i64>> {
+        self.turns
+            .last()
+            .filter(|turn| turn.ended_at.is_none())
+            .map(|turn| turn.wait_since)
     }
 }
 

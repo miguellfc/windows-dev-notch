@@ -123,6 +123,23 @@ pub enum ConfigDir {
 }
 
 pub type ConfigDirOf = Arc<dyn Fn(&str) -> Option<ConfigDir> + Send + Sync>;
+
+/// The folder `claude -p` runs with for `account_id`, among the accounts the Control Center
+/// lists ([`crate::claude::accounts::AccountDirectory`]: `NOTCH_CLAUDE_HOME`, added folders and
+/// linked folders without a profile included). The default account of the user's real home
+/// (`default_home`) runs without `CLAUDE_CONFIG_DIR`; any other with its folder. `None` for an
+/// account that is not there.
+pub fn config_dir_for(
+    accounts: &[crate::claude::accounts::ClaudeAccount],
+    account_id: &str,
+    default_home: bool,
+) -> Option<ConfigDir> {
+    let account = accounts.iter().find(|account| account.id == account_id)?;
+    if default_home && account.id == crate::claude::accounts::DEFAULT_ACCOUNT_ID {
+        return Some(ConfigDir::Default);
+    }
+    Some(ConfigDir::Dir(account.dir.clone()))
+}
 pub type LanguageSource = Arc<dyn Fn() -> Language + Send + Sync>;
 
 pub struct SummarizerDeps {

@@ -29,7 +29,7 @@ describe('work log schemas', () => {
   })
 
   it('accepts live data on a running entry', () => {
-    const running = { ...entry, status: 'running', endedAt: null, live: { lastEventAt: 1_700_000_800_000, excessMs: 0, turnOpen: true } }
+    const running = { ...entry, status: 'running', endedAt: null, live: { lastEventAt: 1_700_000_800_000, excessMs: 0, turnOpen: true, waitSince: null } }
     expect(workLogEntryViewSchema.safeParse(running).success).toBe(true)
   })
 

@@ -7,7 +7,7 @@
 //! 2 - Validar la firma con el vector oficial (pendiente)
 //! ```
 
-use super::assign::subtask_times;
+use super::assign::{rounded_subtask_times, shown_subtasks};
 use super::duration::duration_text;
 use super::service::{entry_times, title_of, StoredEntry, StoredSubtask};
 use crate::contract::settings::Language;
@@ -57,24 +57,24 @@ fn subtask_line(
 }
 
 /// The whole entry, or with `subtask = Some(i)` only the `i`-th subtask's line (0-based, without
-/// its number; empty if there is no such subtask). An entry without a summary copies only its
-/// provisional title and times.
+/// its number; empty if there is no such subtask). The subtasks are those the view shows
+/// ([`shown_subtasks`]), their times in whole minutes that add up to the task's. An entry without
+/// a summary copies only its provisional title and times.
 pub fn copy_text(entry: &StoredEntry, language: Language, subtask: Option<usize>) -> String {
     let words = words(language);
-    let (subtasks, subtask_times) = match entry.summary.as_ref() {
-        Some(summary) => (
-            &summary.subtasks[..],
-            subtask_times(summary, &entry.session),
-        ),
-        None => (&[][..], Vec::new()),
-    };
+    let (claude, total) = entry_times(entry);
+    let subtasks = entry
+        .summary
+        .as_ref()
+        .map(|summary| shown_subtasks(summary, &entry.session, language))
+        .unwrap_or_default();
+    let subtask_times = rounded_subtask_times(&subtasks, &entry.session, (claude, total));
     if let Some(index) = subtask {
         return subtasks
             .get(index)
             .map(|subtask| subtask_line(subtask, subtask_times[index], &words))
             .unwrap_or_default();
     }
-    let (claude, total) = entry_times(entry);
     let mut lines = vec![format!(
         "{}: {} {}",
         words.task,

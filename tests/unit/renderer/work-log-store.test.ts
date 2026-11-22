@@ -26,7 +26,7 @@ function entry(overrides: Partial<WorkLogEntryView> = {}): WorkLogEntryView {
     endedAt: null,
     claudeMs: 10 * M,
     totalMs: 10 * M,
-    live: { lastEventAt: 10 * M, excessMs: 0, turnOpen: false },
+    live: { lastEventAt: 10 * M, excessMs: 0, turnOpen: false, waitSince: null },
     title: 'Sesión',
     subtasks: [],
     ...overrides,
@@ -63,13 +63,27 @@ describe('liveTotalMs', () => {
 
   it('counts all the time while a turn is open', async () => {
     const { liveTotalMs } = await importStore()
-    expect(liveTotalMs(entry({ live: { lastEventAt: 10 * M, excessMs: 0, turnOpen: true } }), 55 * M, 30 * M)).toBe(55 * M)
+    expect(liveTotalMs(entry({ live: { lastEventAt: 10 * M, excessMs: 0, turnOpen: true, waitSince: null } }), 55 * M, 30 * M)).toBe(55 * M)
   })
 
   it('is the stored total for an ended entry and never goes back with an early clock', async () => {
     const { liveTotalMs } = await importStore()
     expect(liveTotalMs(entry({ status: 'ready', live: null, endedAt: 10 * M }), 99 * M, 30 * M)).toBe(10 * M)
     expect(liveTotalMs(entry(), 5 * M, 30 * M)).toBe(10 * M)
+  })
+})
+
+describe('liveTotalMs: paused entries and waits', () => {
+  it('keeps the stored total of a paused entry (no live growth)', async () => {
+    const { liveTotalMs } = await importStore()
+    expect(liveTotalMs(entry({ status: 'paused' }), 55 * M, 30 * M)).toBe(10 * M)
+  })
+
+  it('caps a pending wait for the user like an idle pause (main rules: 5 min work, wait from 5 min)', async () => {
+    const { liveTotalMs } = await importStore()
+    const waiting = entry({ totalMs: 5 * M, live: { lastEventAt: 5 * M, excessMs: 0, turnOpen: true, waitSince: 5 * M } })
+    expect(liveTotalMs(waiting, 20 * M, 30 * M)).toBe(20 * M)
+    expect(liveTotalMs(waiting, 125 * M, 30 * M)).toBe(35 * M)
   })
 })
 

@@ -8113,6 +8113,51 @@
     "accept": false
   },
   {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "mode": "install"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "claude-work",
+      "mode": "uninstall"
+    },
+    "accept": true
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "mode": "remove"
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-preview",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "mode": null
+    },
+    "accept": false
+  },
+  {
+    "channel": "claude:hooks-install",
+    "direction": "input",
+    "value": {
+      "accountId": "claude",
+      "mode": "install"
+    },
+    "accept": false
+  },
+  {
     "channel": "claude:hooks-install",
     "direction": "input",
     "accept": true,
@@ -29447,7 +29492,8 @@
           "live": {
             "lastEventAt": 1700000800000,
             "excessMs": 0,
-            "turnOpen": true
+            "turnOpen": true,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -29471,8 +29517,146 @@
     "accept": true
   },
   {
-    "channel": "work-log:changed",
-    "direction": "event",
+    "channel": "work-log:list",
+    "direction": "output",
+    "value": {
+      "entries": [
+        {
+          "sessionId": "s-1",
+          "accountId": "claude",
+          "project": "windows-dev-notch",
+          "status": "ready",
+          "invoiced": false,
+          "startedAt": 1700000000000,
+          "endedAt": 1700000900000,
+          "claudeMs": 600000,
+          "totalMs": 900000,
+          "live": null,
+          "title": "Arreglar el login",
+          "subtasks": [
+            {
+              "title": "Arreglar el login",
+              "status": "done",
+              "claudeMs": 600000,
+              "totalMs": 900000
+            },
+            {
+              "title": "Añadir pruebas",
+              "status": "pending",
+              "claudeMs": null,
+              "totalMs": null
+            }
+          ]
+        },
+        {
+          "sessionId": "s-1",
+          "accountId": "claude",
+          "project": "windows-dev-notch",
+          "status": "running",
+          "invoiced": false,
+          "startedAt": 1700000000000,
+          "endedAt": null,
+          "claudeMs": 600000,
+          "totalMs": 900000,
+          "live": {
+            "lastEventAt": 1700000800000,
+            "excessMs": 0,
+            "turnOpen": true,
+            "waitSince": 1700000000000
+          },
+          "title": "Arreglar el login",
+          "subtasks": [
+            {
+              "title": "Arreglar el login",
+              "status": "done",
+              "claudeMs": 600000,
+              "totalMs": 900000
+            },
+            {
+              "title": "Añadir pruebas",
+              "status": "pending",
+              "claudeMs": null,
+              "totalMs": null
+            }
+          ]
+        }
+      ],
+      "idlePauseMs": 1800000
+    },
+    "accept": true
+  },
+  {
+    "channel": "work-log:list",
+    "direction": "output",
+    "value": {
+      "entries": [
+        {
+          "sessionId": "s-1",
+          "accountId": "claude",
+          "project": "windows-dev-notch",
+          "status": "ready",
+          "invoiced": false,
+          "startedAt": 1700000000000,
+          "endedAt": 1700000900000,
+          "claudeMs": 600000,
+          "totalMs": 900000,
+          "live": null,
+          "title": "Arreglar el login",
+          "subtasks": [
+            {
+              "title": "Arreglar el login",
+              "status": "done",
+              "claudeMs": 600000,
+              "totalMs": 900000
+            },
+            {
+              "title": "Añadir pruebas",
+              "status": "pending",
+              "claudeMs": null,
+              "totalMs": null
+            }
+          ]
+        },
+        {
+          "sessionId": "s-1",
+          "accountId": "claude",
+          "project": "windows-dev-notch",
+          "status": "running",
+          "invoiced": false,
+          "startedAt": 1700000000000,
+          "endedAt": null,
+          "claudeMs": 600000,
+          "totalMs": 900000,
+          "live": {
+            "lastEventAt": 1700000800000,
+            "excessMs": 0,
+            "turnOpen": true,
+            "waitSince": -1
+          },
+          "title": "Arreglar el login",
+          "subtasks": [
+            {
+              "title": "Arreglar el login",
+              "status": "done",
+              "claudeMs": 600000,
+              "totalMs": 900000
+            },
+            {
+              "title": "Añadir pruebas",
+              "status": "pending",
+              "claudeMs": null,
+              "totalMs": null
+            }
+          ]
+        }
+      ],
+      "idlePauseMs": 1800000
+    },
+    "accept": false
+  },
+  {
+    "channel": "work-log:list",
+    "direction": "output",
     "value": {
       "entries": [
         {
@@ -29536,6 +29720,75 @@
       ],
       "idlePauseMs": 1800000
     },
+    "accept": false
+  },
+  {
+    "channel": "work-log:changed",
+    "direction": "event",
+    "value": {
+      "entries": [
+        {
+          "sessionId": "s-1",
+          "accountId": "claude",
+          "project": "windows-dev-notch",
+          "status": "ready",
+          "invoiced": false,
+          "startedAt": 1700000000000,
+          "endedAt": 1700000900000,
+          "claudeMs": 600000,
+          "totalMs": 900000,
+          "live": null,
+          "title": "Arreglar el login",
+          "subtasks": [
+            {
+              "title": "Arreglar el login",
+              "status": "done",
+              "claudeMs": 600000,
+              "totalMs": 900000
+            },
+            {
+              "title": "Añadir pruebas",
+              "status": "pending",
+              "claudeMs": null,
+              "totalMs": null
+            }
+          ]
+        },
+        {
+          "sessionId": "s-1",
+          "accountId": "claude",
+          "project": "windows-dev-notch",
+          "status": "running",
+          "invoiced": false,
+          "startedAt": 1700000000000,
+          "endedAt": null,
+          "claudeMs": 600000,
+          "totalMs": 900000,
+          "live": {
+            "lastEventAt": 1700000800000,
+            "excessMs": 0,
+            "turnOpen": true,
+            "waitSince": null
+          },
+          "title": "Arreglar el login",
+          "subtasks": [
+            {
+              "title": "Arreglar el login",
+              "status": "done",
+              "claudeMs": 600000,
+              "totalMs": 900000
+            },
+            {
+              "title": "Añadir pruebas",
+              "status": "pending",
+              "claudeMs": null,
+              "totalMs": null
+            }
+          ]
+        }
+      ],
+      "idlePauseMs": 1800000
+    },
     "accept": true
   },
   {
@@ -29604,7 +29857,8 @@
           "live": {
             "lastEventAt": 0,
             "excessMs": 1.5,
-            "turnOpen": false
+            "turnOpen": false,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -29645,7 +29899,8 @@
           "live": {
             "lastEventAt": 0,
             "excessMs": 1.5,
-            "turnOpen": false
+            "turnOpen": false,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -31556,7 +31811,8 @@
           "live": {
             "lastEventAt": 1,
             "excessMs": 0,
-            "turnOpen": true
+            "turnOpen": true,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -31597,7 +31853,8 @@
           "live": {
             "lastEventAt": 1,
             "excessMs": 0,
-            "turnOpen": true
+            "turnOpen": true,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -31718,7 +31975,8 @@
           "live": {
             "lastEventAt": 1,
             "excessMs": -1,
-            "turnOpen": true
+            "turnOpen": true,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -31759,7 +32017,8 @@
           "live": {
             "lastEventAt": 1,
             "excessMs": -1,
-            "turnOpen": true
+            "turnOpen": true,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -31801,7 +32060,8 @@
             "lastEventAt": 1,
             "excessMs": 0,
             "turnOpen": true,
-            "x": 1
+            "x": 1,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [
@@ -31843,7 +32103,8 @@
             "lastEventAt": 1,
             "excessMs": 0,
             "turnOpen": true,
-            "x": 1
+            "x": 1,
+            "waitSince": null
           },
           "title": "Arreglar el login",
           "subtasks": [

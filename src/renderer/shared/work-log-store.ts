@@ -20,13 +20,17 @@ export function useWorkLog(): WorkLogSnapshot {
 }
 
 /**
- * The total as of `now` (main's `Session::live_total_ms`): the time since the last event counts,
- * with idle time over `idlePauseMs` left out unless a turn is open. An ended entry keeps its total.
+ * The total as of `now` (main's `Session::live_total_ms`) of a running entry: the time since the
+ * last event counts, with idle time over `idlePauseMs` left out unless a turn is open, and a wait
+ * for the user (`live.waitSince`) counted only up to `idlePauseMs` too. A paused or ended entry
+ * shows its stored total: what Copiar copies.
  */
 export function liveTotalMs(entry: WorkLogEntryView, now: number, idlePauseMs: number): number {
-  if (entry.live === null) return entry.totalMs
-  const since = Math.max(0, now - entry.live.lastEventAt)
-  const idle = entry.live.turnOpen ? 0 : Math.max(0, since - idlePauseMs)
+  if (entry.live === null || entry.status !== 'running') return entry.totalMs
+  const { lastEventAt, turnOpen, waitSince } = entry.live
+  const since = Math.max(0, now - lastEventAt)
+  let idle = Math.max(0, since - idlePauseMs)
+  if (turnOpen) idle = waitSince === null ? 0 : Math.max(0, now - waitSince - idlePauseMs)
   return entry.totalMs + since - idle
 }
 

@@ -260,7 +260,10 @@ fn start_pauses_saved_running_entries_and_an_event_resumes_them() {
     let fx = Fx::new();
     fx.seed(vec![
         stored("s1", WorkLogStatus::Running),
-        stored("s2", WorkLogStatus::Summarizing),
+        StoredEntry {
+            ended_at: Some(10 * M),
+            ..stored("s2", WorkLogStatus::Summarizing)
+        },
         stored("s3", WorkLogStatus::Ready),
     ]);
     let service = fx.started();
@@ -273,7 +276,9 @@ fn start_pauses_saved_running_entries_and_an_event_resumes_them() {
             .status
     };
     assert_eq!(status("s1"), WorkLogStatus::Paused);
-    assert_eq!(status("s2"), WorkLogStatus::Paused);
+    // Its session had ended: the summary is asked again, never shown as live.
+    assert_eq!(status("s2"), WorkLogStatus::Summarizing);
+    assert_eq!(*fx.summarizer.summarized.lock().unwrap(), ["s2"]);
     assert_eq!(status("s3"), WorkLogStatus::Ready);
     run(
         &service,
@@ -597,10 +602,10 @@ fn an_entry_that_ended_reopens_only_with_resume() {
     ended.ended_at = Some(10 * M);
     fx.seed(vec![ended]);
     let service = fx.started();
-    assert_eq!(only(&service).status, WorkLogStatus::Paused);
+    assert_eq!(only(&service).status, WorkLogStatus::Summarizing);
     run(&service, &[(20, event(HookEventName::PostToolUse, "s1"))]);
     let entry = only(&service);
-    assert_eq!(entry.status, WorkLogStatus::Paused);
+    assert_eq!(entry.status, WorkLogStatus::Summarizing);
     assert_eq!(entry.session.last_event_at, 10 * M);
     run(&service, &[(30, resume("s1"))]);
     let entry = only(&service);
@@ -704,7 +709,41 @@ mod copy {
             "Tarea: Integrar la pasarela Cashela en ms-pay (Claude 3h 10m · Total 5h 45m)\n\
              Subtareas:\n\
              1 - Analizar la API Pay-In de Cashela (Claude 25m · Total 50m)\n\
-             2 - Validar la firma con el vector oficial (pendiente)"
+             2 - Validar la firma con el vector oficial (pendiente)\n\
+             3 - Otros (Claude 2h 45m · Total 4h 55m)"
+        );
+    }
+
+    #[test]
+    fn subtask_minutes_add_up_to_the_task_minutes() {
+        let mut session = Session::start(0);
+        session.apply(&prompt("s1", "a"), 0, CAP);
+        session.apply(&event(HookEventName::Stop, "s1"), 630_000, CAP);
+        session.apply(&prompt("s1", "b"), 630_000, CAP);
+        session.apply(&event(HookEventName::Stop, "s1"), 1_260_000, CAP);
+        let done = |title: &str, turn: &str| StoredSubtask {
+            title: title.into(),
+            status: WorkLogSubtaskStatus::Done,
+            turn_ids: vec![turn.into()],
+        };
+        let entry = StoredEntry {
+            session,
+            summary: Some(Summary {
+                title: "X".into(),
+                subtasks: vec![done("A", "t1"), done("B", "t2")],
+            }),
+            ..stored("s1", WorkLogStatus::Ready)
+        };
+        assert_eq!(
+            copy_text(&entry, Language::Es, None),
+            "Tarea: X (Claude 21m · Total 21m)\n\
+             Subtareas:\n\
+             1 - A (Claude 11m · Total 11m)\n\
+             2 - B (Claude 10m · Total 10m)"
+        );
+        assert_eq!(
+            copy_text(&entry, Language::Es, Some(1)),
+            "B (Claude 10m · Total 10m)"
         );
     }
 
@@ -725,7 +764,13 @@ mod copy {
         let text = copy_text(&cashela(), Language::En, None);
         assert!(text.starts_with("Task: Integrar"), "{text}");
         assert!(text.contains("\nSubtasks:\n1 - "), "{text}");
-        assert!(text.ends_with("(pending)"), "{text}");
+        assert!(
+            text.contains(
+                "(pending)
+3 - Other ("
+            ),
+            "{text}"
+        );
     }
 
     #[test]
@@ -739,4 +784,215 @@ mod copy {
         assert!(text.ends_with("(Claude 10m · Total 10m)"), "{text}");
         assert!(!text.contains("Subtareas"), "{text}");
     }
+}
+
+#[test]
+fn a_summary_landing_during_the_undo_window_shows_after_restore() {
+    let fx = Fx::new();
+    let service = fx.started();
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (10, event(HookEventName::Stop, "s1")),
+            (11, event(HookEventName::SessionEnd, "s1")),
+        ],
+    );
+    assert_eq!(only(&service).status, WorkLogStatus::Summarizing);
+    fx.set_now(12 * M);
+    block_on(service.delete("s1")).unwrap();
+    service.finish_summary(
+        "s1",
+        Some(Summary {
+            title: "Cashela".into(),
+            subtasks: Vec::new(),
+        }),
+    );
+    block_on(service.restore("s1")).unwrap();
+    let entry = only(&service);
+    assert_eq!(entry.status, WorkLogStatus::Ready);
+    assert_eq!(entry.summary.unwrap().title, "Cashela");
+}
+
+#[test]
+fn restoring_a_summarizing_entry_with_no_summary_running_offers_retry() {
+    let fx = Fx::new();
+    fx.seed(vec![StoredEntry {
+        ended_at: Some(10 * M),
+        deleted_at: Some(0),
+        ..stored("s1", WorkLogStatus::Summarizing)
+    }]);
+    fx.set_now(1_000);
+    let service = fx.started();
+    // Deleted: not asked again at the start.
+    assert!(fx.summarizer.summarized.lock().unwrap().is_empty());
+    block_on(service.restore("s1")).unwrap();
+    assert_eq!(only(&service).status, WorkLogStatus::Unsummarized);
+}
+
+#[test]
+fn restoring_a_summarizing_entry_whose_summary_runs_keeps_it_summarizing() {
+    let fx = Fx::new();
+    let service = fx.started();
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (11, event(HookEventName::SessionEnd, "s1")),
+        ],
+    );
+    fx.set_now(12 * M);
+    block_on(service.delete("s1")).unwrap();
+    block_on(service.restore("s1")).unwrap();
+    assert_eq!(only(&service).status, WorkLogStatus::Summarizing);
+}
+
+#[test]
+fn turns_no_subtask_has_go_to_an_implicit_other_subtask() {
+    let fx = Fx::new();
+    let service = fx.started();
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (10, event(HookEventName::Stop, "s1")),
+            (20, prompt("s1", "b")),
+            (25, event(HookEventName::Stop, "s1")),
+            (26, event(HookEventName::SessionEnd, "s1")),
+        ],
+    );
+    // The summary from before a resume: only t1.
+    service.finish_summary(
+        "s1",
+        Some(Summary {
+            title: "Cashela".into(),
+            subtasks: vec![
+                StoredSubtask {
+                    title: "Analizar".into(),
+                    status: WorkLogSubtaskStatus::Done,
+                    turn_ids: vec!["t1".into()],
+                },
+                StoredSubtask {
+                    title: "Validar".into(),
+                    status: WorkLogSubtaskStatus::Pending,
+                    turn_ids: Vec::new(),
+                },
+            ],
+        }),
+    );
+    let view = service.snapshot().entries.remove(0);
+    view.validate().unwrap();
+    let titles: Vec<&str> = view.subtasks.iter().map(|s| s.title.as_str()).collect();
+    assert_eq!(titles, ["Analizar", "Validar", "Otros"]);
+    assert_eq!(view.subtasks[2].status, WorkLogSubtaskStatus::Done);
+    assert_eq!(view.subtasks[2].claude_ms, Some((5 * M) as f64));
+    assert_eq!(view.subtasks[2].total_ms, Some((6 * M) as f64));
+    let total: f64 = view.subtasks.iter().filter_map(|s| s.total_ms).sum();
+    assert_eq!(total, view.total_ms);
+    // Copying the implicit subtask by its position works too.
+    assert_eq!(
+        service.copy_text("s1", Some(2)).unwrap(),
+        "Otros (Claude 5m · Total 6m)"
+    );
+}
+
+#[test]
+fn a_stored_other_subtask_takes_the_new_turns_instead_of_a_second_one() {
+    let mut entry = stored("s1", WorkLogStatus::Ready);
+    entry.session.apply(&prompt("s1", "b"), 20 * M, CAP);
+    entry
+        .session
+        .apply(&event(HookEventName::Stop, "s1"), 25 * M, CAP);
+    entry.summary = Some(Summary {
+        title: "Cashela".into(),
+        subtasks: vec![StoredSubtask {
+            title: "Otros".into(),
+            status: WorkLogSubtaskStatus::Done,
+            turn_ids: vec!["t1".into()],
+        }],
+    });
+    let fx = Fx::new();
+    fx.seed(vec![entry]);
+    let service = fx.started();
+    let view = service.snapshot().entries.remove(0);
+    assert_eq!(view.subtasks.len(), 1);
+    assert_eq!(view.subtasks[0].total_ms, Some(view.total_ms));
+}
+
+#[test]
+fn dates_run_from_the_first_to_the_last_activity() {
+    let fx = Fx::new();
+    let service = fx.started();
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (10, event(HookEventName::Stop, "s1")),
+            // Closed the next morning.
+            (23 * 60, event(HookEventName::SessionEnd, "s1")),
+        ],
+    );
+    let view = service.snapshot().entries.remove(0);
+    assert_eq!(view.ended_at, Some((10 * M) as f64));
+}
+
+#[test]
+fn copy_refuses_a_running_entry_and_a_paused_one_copies_its_stored_times() {
+    let fx = Fx::new();
+    fx.seed(vec![stored("paused", WorkLogStatus::Paused)]);
+    let service = fx.started();
+    run(&service, &[(0, prompt("live", "a"))]);
+    let refused = service.copy_text("live", None).unwrap_err();
+    assert_eq!(refused.code(), IpcErrorCode::InvalidInput);
+    let text = service.copy_text("paused", None).unwrap();
+    assert!(text.ends_with("(Claude 10m · Total 10m)"), "{text}");
+}
+
+#[test]
+fn the_live_figures_carry_a_pending_wait() {
+    let fx = Fx::new();
+    let service = fx.started();
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (5, event(HookEventName::PermissionRequest, "s1")),
+        ],
+    );
+    let live = service.snapshot().entries[0].live.unwrap();
+    assert_eq!(live.wait_since, Some((5 * M) as f64));
+}
+
+#[test]
+fn tool_events_inside_an_open_turn_are_saved_but_not_emitted() {
+    let fx = Fx::new();
+    let service = fx.started();
+    run(&service, &[(0, prompt("s1", "a"))]);
+    let before = fx.emitted.lock().unwrap().len();
+    let bash = |name| HookEvent {
+        tool_name: Some("Bash".into()),
+        ..event(name, "s1")
+    };
+    run(
+        &service,
+        &[
+            (1, bash(HookEventName::PreToolUse)),
+            (2, bash(HookEventName::PostToolUse)),
+        ],
+    );
+    // Nothing the view shows moved: an open turn's live total does not depend on its last event.
+    assert_eq!(fx.emitted.lock().unwrap().len(), before);
+    assert_eq!(only(&service).session.turns[0].tools.get("Bash"), Some(&1));
+    run(
+        &service,
+        &[
+            (3, event(HookEventName::PermissionRequest, "s1")),
+            (4, event(HookEventName::Stop, "s1")),
+        ],
+    );
+    assert_eq!(fx.emitted.lock().unwrap().len(), before + 2);
+    assert_eq!(
+        fx.emitted.lock().unwrap().last().unwrap(),
+        &service.snapshot()
+    );
 }

@@ -58,7 +58,7 @@ fn idle_gap_between_turns_is_capped() {
             (70, event(HookEventName::Stop)),
         ],
     );
-    s.close(70 * M);
+    s.close(CAP);
     assert_eq!(s.claude_ms(), 18 * M);
     assert_eq!(s.total_ms(), 50 * M);
     assert_eq!(s.turn_totals(), vec![42 * M, 8 * M]);
@@ -352,7 +352,7 @@ fn a_stalled_turn_waiting_for_a_permission_counts_the_wait_as_wait() {
     assert_eq!(s.claude_ms(), 5 * M);
     assert_eq!(s.turns[0].claude_ms(), 5 * M);
     // Settled for good (restart, Cerrar y resumir): still a wait.
-    s.close(99 * M);
+    s.close(CAP);
     assert_eq!(s.claude_ms(), 5 * M);
     assert!(!s.turns[0].stalled);
 }
@@ -381,4 +381,99 @@ fn a_waiting_notification_on_a_stalled_turn_is_never_counted_twice() {
     assert_eq!(s.total_ms(), 46 * M);
     assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
     assert_eq!(s.turns[0].excess_after_ms, 0);
+}
+
+/// Controller's ruling (I2): waiting for the user is idle time for the Total cap.
+#[test]
+fn a_wait_longer_than_the_cap_counts_only_the_cap_in_the_total() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (125, tool(HookEventName::PostToolUse, "Bash")),
+            (126, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.claude_ms(), 6 * M);
+    assert_eq!(s.total_ms(), 36 * M);
+    assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
+}
+
+#[test]
+fn a_long_wait_on_a_stalled_turn_is_capped_when_answered() {
+    let mut s = Session::start(0);
+    let mut notice = event(HookEventName::Notification);
+    notice.notification_type = Some("permission_prompt".into());
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (5, notice.clone()),
+        ],
+    );
+    s.close_stalled();
+    // A reminder notification much later reopens it; the wait still ends capped.
+    run(
+        &mut s,
+        &[
+            (100, notice),
+            (125, tool(HookEventName::PostToolUse, "Bash")),
+            (126, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.claude_ms(), 6 * M);
+    assert_eq!(s.total_ms(), 36 * M);
+    assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
+}
+
+#[test]
+fn a_long_wait_ended_by_stop_or_close_is_capped() {
+    let mut denied = Session::start(0);
+    run(
+        &mut denied,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (125, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(denied.claude_ms(), 5 * M);
+    assert_eq!(denied.total_ms(), 35 * M);
+
+    let mut closed = Session::start(0);
+    let mut notice = event(HookEventName::Notification);
+    notice.notification_type = Some("permission_prompt".into());
+    run(
+        &mut closed,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (5, notice.clone()),
+            (100, notice),
+        ],
+    );
+    closed.close(CAP);
+    assert_eq!(closed.claude_ms(), 5 * M);
+    assert_eq!(closed.total_ms(), 35 * M);
+    assert_eq!(closed.turn_totals().iter().sum::<i64>(), closed.total_ms());
+}
+
+#[test]
+fn live_total_caps_a_pending_wait() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+        ],
+    );
+    assert_eq!(s.live_total_ms(20 * M, CAP), 20 * M);
+    assert_eq!(s.live_total_ms(125 * M, CAP), 35 * M);
+    // The same figure once answered.
+    run(&mut s, &[(125, tool(HookEventName::PostToolUse, "Bash"))]);
+    assert_eq!(s.live_total_ms(125 * M, CAP), 35 * M);
 }

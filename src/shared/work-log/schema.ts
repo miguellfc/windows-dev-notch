@@ -24,11 +24,16 @@ export type WorkLogSubtaskView = z.infer<typeof workLogSubtaskViewSchema>
 export const workLogStatusSchema = z.enum(['running', 'paused', 'summarizing', 'unsummarized', 'ready'])
 export type WorkLogStatus = z.infer<typeof workLogStatusSchema>
 
-/** What the work log view needs to draw a running or paused session's clock. */
+/**
+ * What the work log view needs to draw a running or paused session's clock. `waitSince`: since when
+ * the open turn waits for the user (a permission, a question); that wait counts in the total only
+ * up to the idle pause.
+ */
 export const workLogLiveSchema = z.strictObject({
   lastEventAt: z.number().nonnegative(),
   excessMs: nonNegativeMs,
   turnOpen: z.boolean(),
+  waitSince: z.number().nonnegative().nullable(),
 })
 export type WorkLogLive = z.infer<typeof workLogLiveSchema>
 
