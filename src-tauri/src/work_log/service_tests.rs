@@ -627,6 +627,35 @@ fn buffered_events_are_replayed_in_order_under_the_lock_with_one_snapshot() {
     assert_eq!(*fx.summarizer.summarized.lock().unwrap(), ["s1"]);
 }
 
+#[test]
+fn a_pending_permission_of_a_stalled_turn_stays_a_wait_through_restart_and_close() {
+    let fx = Fx::new();
+    let service = fx.started();
+    let notice = HookEvent {
+        notification_type: Some("permission_prompt".into()),
+        ..event(HookEventName::Notification, "s1")
+    };
+    run(
+        &service,
+        &[
+            (0, prompt("s1", "a")),
+            (5, event(HookEventName::PermissionRequest, "s1")),
+            (6, notice),
+        ],
+    );
+    service.tick(40 * M);
+    assert_eq!(only(&service).status, WorkLogStatus::Paused);
+    assert_eq!(only(&service).session.claude_ms(), 5 * M);
+    block_on(service.flush());
+    let restarted = fx.started();
+    assert_eq!(only(&restarted).session.claude_ms(), 5 * M);
+    block_on(restarted.summarize("s1")).unwrap();
+    let entry = only(&restarted);
+    assert_eq!(entry.status, WorkLogStatus::Summarizing);
+    assert_eq!(entry.session.claude_ms(), 5 * M);
+    assert!(!entry.session.turns[0].stalled);
+}
+
 mod copy {
     use super::*;
     use crate::work_log::copy::copy_text;

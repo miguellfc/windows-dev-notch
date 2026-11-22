@@ -334,3 +334,51 @@ fn a_new_prompt_after_a_stalled_turn_does_not_reopen_it() {
     assert_eq!(s.claude_ms(), 2 * M);
     assert_eq!(s.total_ms(), 32 * M);
 }
+
+#[test]
+fn a_stalled_turn_waiting_for_a_permission_counts_the_wait_as_wait() {
+    let mut s = Session::start(0);
+    let mut notice = event(HookEventName::Notification);
+    notice.notification_type = Some("permission_prompt".into());
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (5, event(HookEventName::PermissionRequest)),
+            (6, notice),
+        ],
+    );
+    s.close_stalled();
+    assert_eq!(s.claude_ms(), 5 * M);
+    assert_eq!(s.turns[0].claude_ms(), 5 * M);
+    // Settled for good (restart, Cerrar y resumir): still a wait.
+    s.close(99 * M);
+    assert_eq!(s.claude_ms(), 5 * M);
+    assert!(!s.turns[0].stalled);
+}
+
+#[test]
+fn a_waiting_notification_on_a_stalled_turn_is_never_counted_twice() {
+    let mut s = Session::start(0);
+    run(
+        &mut s,
+        &[
+            (0, prompt("a")),
+            (1, tool(HookEventName::PreToolUse, "Bash")),
+        ],
+    );
+    s.close_stalled();
+    let mut notice = event(HookEventName::Notification);
+    notice.notification_type = Some("permission_prompt".into());
+    run(
+        &mut s,
+        &[
+            (41, notice),
+            (45, tool(HookEventName::PostToolUse, "Bash")),
+            (46, event(HookEventName::Stop)),
+        ],
+    );
+    assert_eq!(s.total_ms(), 46 * M);
+    assert_eq!(s.turn_totals().iter().sum::<i64>(), s.total_ms());
+    assert_eq!(s.turns[0].excess_after_ms, 0);
+}

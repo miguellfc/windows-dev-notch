@@ -370,10 +370,7 @@ pub(crate) fn subtask_times(entry: &StoredEntry, subtask: &StoredSubtask) -> (i6
         .zip(totals)
         .filter(|(turn, _)| subtask.turn_ids.contains(&turn.id))
         .fold((0, 0), |(claude, total), (turn, turn_total)| {
-            let turn_claude = turn
-                .ended_at
-                .map_or(0, |end| (end - turn.started_at - turn.wait_ms).max(0));
-            (claude + turn_claude, total + turn_total.max(0))
+            (claude + turn.claude_ms(), total + turn_total.max(0))
         })
 }
 

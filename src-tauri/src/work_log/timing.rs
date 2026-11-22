@@ -31,6 +31,31 @@ pub struct Turn {
     pub stalled: bool,
 }
 
+impl Turn {
+    /// Claude's time in this turn: its span without the waits (0 while open). A stalled turn's
+    /// pending wait is a wait too.
+    pub fn claude_ms(&self) -> i64 {
+        self.ended_at.map_or(0, |end| {
+            let pending = match self.wait_since {
+                Some(since) if self.stalled => (end - since).max(0),
+                _ => 0,
+            };
+            (end - self.started_at - self.wait_ms - pending).max(0)
+        })
+    }
+
+    /// A stalled turn becomes closed for good: its pending wait is counted as a wait.
+    fn settle(&mut self) {
+        if !self.stalled {
+            return;
+        }
+        self.stalled = false;
+        if let (Some(since), Some(end)) = (self.wait_since.take(), self.ended_at) {
+            self.wait_ms += (end - since).max(0);
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
@@ -68,21 +93,22 @@ fn ends_a_stalled_turn(event: &HookEvent) -> bool {
     }
 }
 
-/// Events Claude sends while working inside a turn.
+/// Events Claude sends while working (or waiting) inside a turn.
 fn continues_a_turn(event: &HookEvent) -> bool {
     use HookEventName::*;
-    matches!(
-        event.name,
-        PreToolUse
-            | PostToolUse
-            | PostToolUseFailure
-            | PermissionRequest
-            | PermissionDenied
-            | SubagentStart
-            | SubagentStop
-            | Stop
-            | StopFailure
-    )
+    is_waiting_notification(event)
+        || matches!(
+            event.name,
+            PreToolUse
+                | PostToolUse
+                | PostToolUseFailure
+                | PermissionRequest
+                | PermissionDenied
+                | SubagentStart
+                | SubagentStop
+                | Stop
+                | StopFailure
+        )
 }
 
 impl Session {
@@ -109,11 +135,8 @@ impl Session {
             if continues_a_turn(event) {
                 last.ended_at = None;
                 last.stalled = false;
-            } else if !is_waiting_notification(event) {
-                last.stalled = false;
-                if let Some(since) = last.wait_since.take() {
-                    last.wait_ms += (last.last_event_at - since).max(0);
-                }
+            } else {
+                last.settle();
             }
         }
         // A new prompt closes a turn left open (Esc gives no Stop) where it last showed signs of
@@ -192,6 +215,9 @@ impl Session {
 
     /// Closes the open turn at its last event (the session is over or went quiet).
     pub fn close(&mut self, _at: i64) {
+        if let Some(last) = self.turns.last_mut() {
+            last.settle();
+        }
         if let Some(turn) = self.open_turn() {
             turn.ended_at = Some(turn.last_event_at);
             if let Some(since) = turn.wait_since.take() {
@@ -211,13 +237,7 @@ impl Session {
     }
 
     pub fn claude_ms(&self) -> i64 {
-        self.turns
-            .iter()
-            .filter_map(|t| {
-                t.ended_at
-                    .map(|end| (end - t.started_at - t.wait_ms).max(0))
-            })
-            .sum()
+        self.turns.iter().map(Turn::claude_ms).sum()
     }
 
     pub fn total_ms(&self) -> i64 {
