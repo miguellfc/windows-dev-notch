@@ -89,7 +89,7 @@ function buildUnicodeClasses(): unknown {
 }
 
 /** Prefixes of the message keys the Rust crate shows itself (the tray menu and the toasts). */
-const rustMessagePrefixes = ['claude.toast.', 'reminders.toast.', 'tray.'] as const
+const rustMessagePrefixes = ['claude.toast.', 'dialog.', 'reminders.toast.', 'tray.'] as const
 
 /** The texts the Rust crate needs, per language, loaded there with `include_str!`. */
 function buildMainMessages(): unknown {
@@ -175,17 +175,21 @@ function buildGeometry(): unknown {
     { x: 0, y: 0, width: 1920, height: 1040 },
     { x: -1280, y: 0, width: 1280, height: 984 },
     { x: 1920, y: 0, width: 2560, height: 1392 },
+    // Narrower than the window (1366 px at 150 %), left of the main monitor.
+    { x: -910, y: 0, width: 910, height: 512 },
   ]
-  // {system: null | without battery | with battery} × claude × mail × reviews (0..2) × redmine.
+  // {system: null | without battery | with battery} × claude × mail × reviews (0..2) × redmine × workLog.
   const systems = [null, { battery: false }, { battery: true }]
   const compactWidths = systems.flatMap((system) =>
     [false, true].flatMap((claude) =>
       [false, true].flatMap((mail) =>
         ([0, 1, 2] as const).flatMap((reviews) =>
-          [false, true].map((redmine) => {
-            const blocks = { claude, mail, reviews, redmine }
-            return { system, blocks, width: compactWidthFor({ system, blocks }) }
-          }),
+          [false, true].flatMap((redmine) =>
+            [false, true].map((workLog) => {
+              const blocks = { claude, mail, reviews, redmine, workLog }
+              return { system, blocks, width: compactWidthFor({ system, blocks }) }
+            }),
+          ),
         ),
       ),
     ),
@@ -258,6 +262,9 @@ const portedChannels = [
   'claude:get-questions',
   'claude:answer',
   'claude:release-question',
+  'claude:accounts',
+  'claude:account-add',
+  'claude:pick-account-dir',
   'code-review:get-state',
   'code-review:refresh',
   'code-review:open-profile',
@@ -279,6 +286,13 @@ const portedChannels = [
   'redmine:open',
   'redmine:set-key',
   'redmine:clear',
+  'work-log:list',
+  'work-log:set-invoiced',
+  'work-log:delete',
+  'work-log:restore',
+  'work-log:copy',
+  'work-log:summarize',
+  'work-log:claude-available',
   'gmail:get-state',
   'gmail:recent',
   'gmail:view',
@@ -312,6 +326,7 @@ const portedEvents = [
   'redmine:state',
   'redmine:summary-changed',
   'redmine:alert',
+  'work-log:changed',
   'gmail:state',
   'gmail:new-mail',
 ] as const satisfies readonly EventName[]

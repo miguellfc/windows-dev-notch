@@ -1,4 +1,4 @@
-import { AlarmClock, StickyNote, type LucideIcon } from 'lucide-react'
+import { AlarmClock, ClipboardList, StickyNote, type LucideIcon } from 'lucide-react'
 import { capsuleIntegrationKeys, integrationKeys, type IntegrationKey } from '../../shared/integrations/colors'
 import type { MessageKey } from '../../shared/i18n/messages'
 import type { Settings } from '../../shared/settings/schema'
@@ -16,6 +16,7 @@ const ROWS: Readonly<Record<IntegrationKey, { label: MessageKey; icon: LucideIco
   gitlab: { label: 'integration.gitlab', icon: GitlabMark },
   gmail: { label: 'integration.gmail', icon: GmailMark },
   redmine: { label: 'integration.redmine', icon: RedmineMark },
+  workLog: { label: 'integration.workLog', icon: ClipboardList },
   reminders: { label: 'integration.reminders', icon: AlarmClock },
   notes: { label: 'integration.notes', icon: StickyNote },
 }

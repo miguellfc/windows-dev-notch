@@ -28,6 +28,13 @@ import {
   gmailStateSchema,
 } from '../gmail/schema'
 import { appIds, viewIntegrationIds } from '../integrations/registry'
+import {
+  workLogClaudeAvailableSchema,
+  workLogCopyInputSchema,
+  workLogSessionInputSchema,
+  workLogSetInvoicedInputSchema,
+  workLogSnapshotSchema,
+} from '../work-log/schema'
 import { createNoteInputSchema, noteIdInputSchema, noteSchema, pinNoteInputSchema, updateNoteInputSchema } from '../notes/schema'
 import {
   logTimeInputSchema,
@@ -57,7 +64,7 @@ interface ChannelContract {
   readonly output: z.ZodType
 }
 
-export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'notes', 'gmail', 'reviews', 'redmine', 'mini', 'hidden'])
+export const notchModeSchema = z.enum(['compact', 'peek', 'alert', 'expanded', 'permission', 'question', 'reminders', 'notes', 'gmail', 'reviews', 'redmine', 'workLog', 'mini', 'hidden'])
 
 /**
  * Control Center pages the notch may open directly (default page when omitted). A page id added
@@ -144,6 +151,35 @@ export const claudeHooksWriteSchema = z.discriminatedUnion('ok', [
   invalidJsonSchema,
 ])
 
+/** A Claude Code account id: `claude`, `claude-<name>` or `dir-<8 hex>`; also the `x-notch-account` header. */
+export const claudeAccountIdSchema = z.string().regex(/^[a-z0-9-]{1,64}$/)
+
+/** Hooks operations act on one account (Claude Code config folder). */
+export const claudeAccountInputSchema = z.strictObject({ accountId: claudeAccountIdSchema })
+
+/** The diff of installing the hooks in one account (the default) or of removing them. */
+export const claudeHooksPreviewInputSchema = z.strictObject({ accountId: claudeAccountIdSchema, mode: z.enum(['install', 'uninstall']).optional() })
+
+/** "Otra carpeta…": an existing Claude Code config folder, added by hand. */
+export const claudeAccountAddInputSchema = z.strictObject({ dir: z.string().min(1).max(1024) })
+
+/** The folder chosen in the native folder browser of «Otra carpeta…»; the answer is `null` when it is cancelled. */
+export const claudePickedDirSchema = z.strictObject({ dir: z.string().min(1).max(1024) })
+
+/** The detected and added accounts, the default first; profile fields are null without a profile. */
+export const claudeAccountsSchema = z.strictObject({
+  accounts: z.array(
+    z.strictObject({
+      id: claudeAccountIdSchema,
+      dir: z.string(),
+      email: z.string().nullable(),
+      organization: z.string().nullable(),
+      linked: z.boolean(),
+      hookStatus: z.enum(['installed', 'outdated', 'missing']),
+    }),
+  ),
+})
+
 /** Full reminders list plus why it may be incomplete (corrupt file moved aside, or read-only session). */
 export const remindersSnapshotSchema = z.strictObject({
   reminders: z.array(reminderSchema),
@@ -189,9 +225,14 @@ export const contract = {
   },
   'claude:focus-app': { input: none, output: ack },
   'claude:dismiss-session': { input: z.strictObject({ sessionId: z.string().min(1).max(256) }), output: ack },
-  'claude:hooks-preview': { input: none, output: claudeHooksPreviewSchema },
-  'claude:hooks-install': { input: none, output: claudeHooksWriteSchema },
-  'claude:hooks-uninstall': { input: none, output: claudeHooksWriteSchema },
+  'claude:hooks-preview': { input: claudeHooksPreviewInputSchema, output: claudeHooksPreviewSchema },
+  /** Installing links the account; uninstalling unlinks it. */
+  'claude:hooks-install': { input: claudeAccountInputSchema, output: claudeHooksWriteSchema },
+  'claude:hooks-uninstall': { input: claudeAccountInputSchema, output: claudeHooksWriteSchema },
+  'claude:accounts': { input: none, output: claudeAccountsSchema },
+  /** NOT_FOUND when the folder does not exist. */
+  'claude:account-add': { input: claudeAccountAddInputSchema, output: claudeAccountsSchema },
+  'claude:pick-account-dir': { input: none, output: claudePickedDirSchema.nullable() },
   'claude:test-connection': { input: none, output: z.strictObject({ ok: z.boolean() }) },
   'claude:rotate-token': { input: none, output: claudeRotateSchema },
   'claude:rotate-port': { input: none, output: claudeRotateSchema },
@@ -267,6 +308,17 @@ export const contract = {
   /** Validates the key against the server before saving the URL and the key; the key never comes back. */
   'redmine:set-key': { input: setKeyInputSchema, output: redmineSetKeyResultSchema },
   'redmine:clear': { input: none, output: ack },
+  /** The work log: every recorded session. The notch lists it; deleting is undoable with restore. */
+  'work-log:list': { input: none, output: workLogSnapshotSchema },
+  'work-log:set-invoiced': { input: workLogSetInvoicedInputSchema, output: ack },
+  'work-log:delete': { input: workLogSessionInputSchema, output: ack },
+  'work-log:restore': { input: workLogSessionInputSchema, output: ack },
+  /** Copies the session (or one subtask) to the clipboard as text. */
+  'work-log:copy': { input: workLogCopyInputSchema, output: ack },
+  /** Asks Claude for the session's summary again (the one that failed or was skipped). */
+  'work-log:summarize': { input: workLogSessionInputSchema, output: ack },
+  /** Whether the `claude` command exists on this machine (the summaries need it). */
+  'work-log:claude-available': { input: none, output: workLogClaudeAvailableSchema },
 } as const satisfies Record<ChannelName, ChannelContract>
 
 /** Payloads of the events the main process pushes to renderers. */
@@ -303,6 +355,8 @@ export const eventContract = {
   'redmine:summary-changed': redmineSummaryChangedSchema,
   /** Hours logged today are under the daily target at the end of the day, to the notch only. */
   'redmine:alert': redmineAlertSchema,
+  /** The work log changed (a session ticked, ended or got its summary). */
+  'work-log:changed': workLogSnapshotSchema,
 } as const satisfies Record<EventName, z.ZodType>
 
 export type Contract = typeof contract

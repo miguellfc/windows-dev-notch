@@ -2,6 +2,9 @@
 //! 0.1.0's `hook-installer.ts`): pure planning functions that work on the file's text,
 //! and [`HookInstaller`], the adapter that reads, backs up and atomically writes the file.
 //!
+//! Every hook of ours also carries `x-notch-account: <account id>`; one without it (0.3.0) is still
+//! ours, but `outdated`.
+//!
 //! A group of ours is one whose hooks are all `type: "http"` with the `x-notch-hook: 1` header;
 //! a mixed group is someone else's and is never touched. Files that are not a JSON object whose
 //! `hooks` is an object of arrays (bad JSON, a BOM, other shapes) are refused untouched, and so
@@ -22,6 +25,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Local, Utc};
 use serde_json::{json, Map, Value};
 
+use super::accounts::ACCOUNT_HEADER;
 pub use super::diff::{diff_lines, mask_diff};
 use super::hook_events::{HookEventName, ASK_USER_QUESTION_TOOL, HOOK_EVENT_NAMES};
 use super::js_json;
@@ -38,11 +42,14 @@ string_enum! {
     }
 }
 
-/// `HookInstallOptions`: where the bridge listens and the token Claude must send.
+/// `HookInstallOptions`: where the bridge listens, the token Claude must send and the account
+/// (Claude Code config folder) the hooks are written for.
 #[derive(Clone, PartialEq, Eq)]
 pub struct HookInstallOptions {
     pub port: u16,
     pub token: String,
+    /// Sent back by every hook in [`ACCOUNT_HEADER`].
+    pub account: String,
 }
 
 /// Never shows the token (like `BridgeConfig`).
@@ -51,6 +58,7 @@ impl std::fmt::Debug for HookInstallOptions {
         f.debug_struct("HookInstallOptions")
             .field("port", &self.port)
             .field("token", &"••••••")
+            .field("account", &self.account)
             .finish()
     }
 }
@@ -126,7 +134,11 @@ fn our_hook(options: &HookInstallOptions, path: &str, timeout: u32) -> Value {
     json!({
         "type": "http",
         "url": format!("http://127.0.0.1:{}{path}", options.port),
-        "headers": { TOKEN_HEADER: options.token, HOOK_MARKER_HEADER: "1" },
+        "headers": {
+            TOKEN_HEADER: options.token,
+            HOOK_MARKER_HEADER: "1",
+            ACCOUNT_HEADER: options.account,
+        },
         "timeout": timeout,
     })
 }
@@ -568,17 +580,13 @@ impl HookInstaller {
         }))
     }
 
-    pub async fn uninstall(&self) -> io::Result<HookWriteResult> {
-        let file = self.target()?;
-        let Some(current) = read_text_opt(&file).await? else {
-            return Ok(Ok(WriteOutcome {
-                changed: false,
-                diff: Vec::new(),
-                backup_file: None,
-            }));
+    /// The current text and the stored pre-install original, if any. An unreadable original
+    /// (locked, a directory, not UTF-8) only loses the byte-for-byte restore: the uninstall still
+    /// removes our groups by re-serializing.
+    async fn uninstall_inputs(&self) -> io::Result<Option<(String, Option<String>)>> {
+        let Some(current) = read_text_opt(&self.target()?).await? else {
+            return Ok(None);
         };
-        // An unreadable original (locked, a directory, not UTF-8) only loses the byte-for-byte
-        // restore: the uninstall still removes our groups by re-serializing.
         let original = match read_text_opt(&self.original_path()).await {
             Ok(original) => original,
             Err(error) => {
@@ -588,6 +596,30 @@ impl HookInstaller {
                 );
                 None
             }
+        };
+        Ok(Some((current, original)))
+    }
+
+    /// The uninstall plan for the file as it is now (what [`Self::uninstall`] would write);
+    /// nothing is written. Without a file, an empty diff.
+    pub async fn preview_uninstall(&self) -> io::Result<HookPlan> {
+        Ok(match self.uninstall_inputs().await? {
+            Some((current, original)) => plan_uninstall(&current, original.as_deref()),
+            None => Ok(Plan {
+                next: String::new(),
+                diff: Vec::new(),
+            }),
+        })
+    }
+
+    pub async fn uninstall(&self) -> io::Result<HookWriteResult> {
+        let file = self.target()?;
+        let Some((current, original)) = self.uninstall_inputs().await? else {
+            return Ok(Ok(WriteOutcome {
+                changed: false,
+                diff: Vec::new(),
+                backup_file: None,
+            }));
         };
         let Plan { next, diff } = match plan_uninstall(&current, original.as_deref()) {
             Ok(plan) => plan,

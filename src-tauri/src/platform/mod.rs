@@ -3,6 +3,7 @@
 
 pub mod autostart;
 pub mod clipboard;
+pub mod dialog;
 pub mod foreground;
 pub mod power;
 pub mod shortcut;

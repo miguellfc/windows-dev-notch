@@ -145,7 +145,7 @@ mod tests {
             );
         }
         let widths = geometry["compactWidths"].as_array().unwrap();
-        assert_eq!(widths.len(), 3 * 2 * 2 * 3 * 2);
+        assert_eq!(widths.len(), 3 * 2 * 2 * 3 * 2 * 2);
         for case in widths {
             let system = case["system"].as_object().map(|system| SystemZone {
                 battery: system["battery"].as_bool().unwrap(),
@@ -158,6 +158,7 @@ mod tests {
                     mail: blocks["mail"].as_bool().unwrap(),
                     reviews: blocks["reviews"].as_i64().unwrap(),
                     redmine: blocks["redmine"].as_bool().unwrap(),
+                    work_log: blocks["workLog"].as_bool().unwrap(),
                 },
             );
             assert_number(actual, &case["width"], &format!("compact width {case}"));

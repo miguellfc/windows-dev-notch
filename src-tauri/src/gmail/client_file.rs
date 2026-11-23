@@ -37,6 +37,7 @@ use std::sync::Arc;
 pub use crate::contract::gmail::parse_client_file;
 use crate::contract::gmail::GmailClientFile;
 use crate::ipc::{BoxFuture, ExposedError, IpcErrorCode};
+use crate::platform::dialog::{live_owner, ComApartment};
 
 /// Google's client JSON is under 1 KB; anything above this is not one.
 pub const CLIENT_FILE_MAX_BYTES: u64 = 64 * 1024;
@@ -207,24 +208,13 @@ impl Win32FilePicker {
     }
 }
 
-/// Clears the "dialog open" flag when the dialog thread ends, whatever happens on it.
-struct OpenFlag(Arc<std::sync::atomic::AtomicBool>);
-
-impl Drop for OpenFlag {
-    fn drop(&mut self) {
-        self.0.store(false, std::sync::atomic::Ordering::SeqCst);
-    }
-}
-
 impl FilePicker for Win32FilePicker {
     fn pick_file(&self, filter: FileFilter) -> BoxFuture<'_, Option<PathBuf>> {
-        use std::sync::atomic::Ordering;
         Box::pin(async move {
-            if self.open.swap(true, Ordering::SeqCst) {
+            let Some(flag) = crate::platform::dialog::claim(&self.open) else {
                 log::info!(target: super::integration::LOG_TARGET, "Gmail client file dialog already open");
                 return None;
-            }
-            let flag = OpenFlag(Arc::clone(&self.open));
+            };
             let owner = (self.owner)();
             let (answer, chosen) = tokio::sync::oneshot::channel();
             let spawned = std::thread::Builder::new()
@@ -263,32 +253,18 @@ fn filter_spec(filter: FileFilter) -> Vec<u16> {
 /// dialog and restored after it, whatever the outcome.
 fn open_file_dialog(owner: isize, filter: FileFilter) -> Option<PathBuf> {
     use std::os::windows::ffi::OsStringExt;
-    use windows_sys::Win32::System::Com::{
-        CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
-    };
     use windows_sys::Win32::UI::Controls::Dialogs::{
         CommDlgExtendedError, GetOpenFileNameW, OFN_EXPLORER, OFN_FILEMUSTEXIST, OFN_HIDEREADONLY,
         OFN_PATHMUSTEXIST, OPENFILENAMEW,
     };
-    use windows_sys::Win32::UI::WindowsAndMessaging::IsWindow;
 
     // Long paths included (the API's own limit for `nMaxFile`).
     const PATH_CAPACITY: usize = 32_768;
     let spec = filter_spec(filter);
     let mut file = vec![0u16; PATH_CAPACITY];
-    let mut owner = owner as windows_sys::Win32::Foundation::HWND;
     // The Control Center may have closed since its handle was read: then no owner.
-    // SAFETY: `IsWindow` accepts any value.
-    if !owner.is_null() && unsafe { IsWindow(owner) } == 0 {
-        owner = std::ptr::null_mut();
-    }
-    // SAFETY: the reserved pointer is null and the flags are valid `COINIT` values.
-    let com = unsafe {
-        CoInitializeEx(
-            std::ptr::null(),
-            (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32,
-        )
-    };
+    let owner = live_owner(owner);
+    let com = ComApartment::enter();
     // SAFETY: all zeros is valid for every field (null pointers, zero sizes, no hook).
     let mut request: OPENFILENAMEW = unsafe { std::mem::zeroed() };
     request.lStructSize = std::mem::size_of::<OPENFILENAMEW>() as u32;
@@ -314,10 +290,7 @@ fn open_file_dialog(owner: isize, filter: FileFilter) -> Option<PathBuf> {
             log::warn!(target: super::integration::LOG_TARGET, "Gmail client file dialog failed error=restore-current-dir");
         }
     }
-    if com >= 0 {
-        // SAFETY: balances the successful `CoInitializeEx` above, on the same thread.
-        unsafe { CoUninitialize() };
-    }
+    drop(com);
     if !picked {
         // 0: the user cancelled.
         if error != 0 {

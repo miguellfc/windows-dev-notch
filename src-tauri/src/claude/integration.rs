@@ -3,7 +3,8 @@
 //! and the quit cleanup.
 //!
 //! Dev/E2E switches (ignored unless `ipc::dev_overrides_enabled()`): `NOTCH_CLAUDE_SETTINGS`
-//! (Claude's settings.json; else `~/.claude/settings.json`), `NOTCH_CLAUDE_PORT` (`^\d{1,5}$`,
+//! (the default account's settings.json; else `~/.claude/settings.json`), `NOTCH_CLAUDE_HOME`
+//! (where account folders are detected, instead of the user's home), `NOTCH_CLAUDE_PORT` (`^\d{1,5}$`,
 //! at most 65535, `0` = ephemeral) and `NOTCH_DISABLE_CLAUDE_FOCUS=1` (never bring Claude's
 //! window forward: E2E must not drive the desktop).
 
@@ -15,14 +16,16 @@ use std::sync::{Arc, Mutex};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
+use super::account_dir::{app_folder_picker, FolderDialog, FolderPicker};
+use super::accounts::{adopt_legacy_backups, AccountDirectory};
 use super::alerts::{NotchPort, NotchWebview, QuestionAlerts, QuestionAlertsOptions};
-use super::bridge::{now_ms, ClaudeBridge};
-use super::hook_installer::HookInstaller;
+use super::bridge::{now_ms, ClaudeBridge, HookRoute, OnEvent};
+use super::hook_events::HookEvent;
 use super::ipc::ClaudeSlot;
 use super::permission_broker::lock;
 use super::service::{
     quit_cleanup, BoxFuture, Bridge, BridgeConfig, BridgeOptions, ClaudeService, ClaudeServiceDeps,
-    ConfigFn, QUIT_STOP_WAIT,
+    ConfigFn, CONNECTION_TEST_SESSION_ID, QUIT_STOP_WAIT,
 };
 use super::toast::ClaudeToasts;
 use super::{bridge_config, focus};
@@ -48,10 +51,12 @@ pub(crate) const MAIN_THREAD_STOP_WAIT: std::time::Duration = std::time::Duratio
 /// One bridge-config operation on `claude-bridge.json`.
 type ConfigRun = fn(PathBuf) -> BoxFuture<'static, io::Result<BridgeConfig>>;
 
-/// The three dev/E2E switches.
+/// The dev/E2E switches.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Overrides {
     pub settings_file: Option<PathBuf>,
+    /// `NOTCH_CLAUDE_HOME`: the folder where `.claude*` account folders are looked for.
+    pub home: Option<PathBuf>,
     pub port: Option<u16>,
     pub focus_disabled: bool,
 }
@@ -75,6 +80,9 @@ pub fn overrides_from(enabled: bool, var: impl Fn(&str) -> Option<OsString>) -> 
     let text = |name: &str| var(name).and_then(|value| value.into_string().ok());
     Overrides {
         settings_file: var("NOTCH_CLAUDE_SETTINGS")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from),
+        home: var("NOTCH_CLAUDE_HOME")
             .filter(|value| !value.is_empty())
             .map(PathBuf::from),
         port: text("NOTCH_CLAUDE_PORT").as_deref().and_then(parse_port),
@@ -143,27 +151,104 @@ impl ClaudeIntegration {
     }
 }
 
+/// Every hook event seen on `/hook`, for the work log (which picks its account's).
+pub type HookForward = Arc<dyn Fn(&HookEvent) + Send + Sync>;
+
+/// Wraps the bridge's `on_event` so each hook event also reaches `forward`, after Claude's own
+/// handling (permissions and questions never wait on the work log), and a panic in it stays
+/// there: not the connection test, nor the question route (Claude sends the same call to
+/// `/hook` too).
+fn forwarding(inner: OnEvent, forward: HookForward) -> OnEvent {
+    Arc::new(move |event, reply, route| {
+        let forwarded = (route == HookRoute::Hook
+            && event.session_id != CONNECTION_TEST_SESSION_ID)
+            .then(|| event.clone());
+        inner(event, reply, route);
+        if let Some(event) = forwarded {
+            let outcome =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| forward(&event)));
+            if outcome.is_err() {
+                log::error!("Work log: a hook event failed");
+            }
+        }
+    })
+}
+
+/// The Claude Code accounts on disk and in the settings (see [`AccountDirectory`]), shared by
+/// the integration and the work log's summarizer. `None` when there is no user folder.
+pub fn account_directory(app: &AppHandle, data_dir: &Path) -> Option<Arc<AccountDirectory>> {
+    let overrides = overrides_from(ipc::dev_overrides_enabled(), |name| std::env::var_os(name));
+    let Some(home) = overrides
+        .home
+        .clone()
+        .or_else(|| app.path().home_dir().ok())
+    else {
+        log::error!("Claude: no user folder; the integration stays off");
+        return None;
+    };
+    let backups = data_dir.join("claude-hooks-backups");
+    adopt_legacy_backups(&backups);
+    Some(Arc::new(AccountDirectory {
+        home,
+        default_settings_file: overrides.settings_file,
+        backups,
+        read: {
+            let app = app.clone();
+            Arc::new(move || app.state::<SettingsStore>().get().claude_accounts)
+        },
+        save: {
+            let app = app.clone();
+            Arc::new(move |change| {
+                let app = app.clone();
+                Box::pin(async move {
+                    app.state::<SettingsStore>()
+                        .update_claude_accounts(change)
+                        .await
+                        .map(drop)
+                })
+            })
+        },
+    }))
+}
+
+/// The «Examinar…» folder browser: owned by the Control Center (its handle is read from the
+/// record the main thread keeps), titled in the app's language, starting in the user's folder.
+fn folder_picker(app: &AppHandle, notch: &Arc<NotchRuntime>) -> Arc<dyn FolderPicker> {
+    let owner = {
+        let notch = Arc::clone(notch);
+        Arc::new(move || notch.control_center_hwnd().unwrap_or(0))
+    };
+    let title = {
+        let app = app.clone();
+        Arc::new(move || {
+            i18n::t(
+                app.state::<SettingsStore>().get().language,
+                "dialog.claudeAccountDir",
+            )
+        })
+    };
+    app_folder_picker(FolderDialog {
+        owner,
+        title,
+        start: app.path().home_dir().ok(),
+    })
+}
+
 /// Creates the service, fills `slot`, starts it in the background and then its 60 s tick on the
 /// notch's timers. Call on the main thread, after the notch and before the reminders. `None`
-/// (channels stay UNAVAILABLE) only when there is no user folder for Claude's settings.
+/// (channels stay UNAVAILABLE) only when there is no user folder for Claude's settings (no
+/// `accounts`).
 pub fn install(
     app: &AppHandle,
     slot: &ClaudeSlot,
     notch: &Arc<NotchRuntime>,
     usage: &UsageLog,
     data_dir: &Path,
+    accounts: Option<Arc<AccountDirectory>>,
+    forward: HookForward,
 ) -> Option<Arc<ClaudeIntegration>> {
+    let accounts = accounts?;
     let overrides = overrides_from(ipc::dev_overrides_enabled(), |name| std::env::var_os(name));
-    let settings_file = match overrides.settings_file {
-        Some(file) => file,
-        None => match app.path().home_dir() {
-            Ok(home) => home.join(".claude").join("settings.json"),
-            Err(_) => {
-                log::error!("Claude: no user folder; the integration stays off");
-                return None;
-            }
-        },
-    };
     let controller = Arc::clone(&notch.controller);
     let toasts = {
         let app = app.clone();
@@ -211,18 +296,15 @@ pub fn install(
         rotate_port_config: config_fn(|file| {
             Box::pin(async move { bridge_config::rotate_port(&file).await })
         }),
-        create_bridge: Arc::new(|options: BridgeOptions| -> Arc<dyn Bridge> {
+        create_bridge: Arc::new(move |options: BridgeOptions| -> Arc<dyn Bridge> {
             Arc::new(ClaudeBridge::new(
                 options.port,
                 &options.token,
-                options.on_event,
+                forwarding(options.on_event, Arc::clone(&forward)),
             ))
         }),
-        installer: Arc::new(HookInstaller::new(
-            settings_file,
-            data_dir.join("claude-hooks-backups"),
-            chrono::Utc::now,
-        )),
+        accounts,
+        folder_picker: folder_picker(app, notch),
         focus_claude: Arc::new(move || focus::focus_claude(focus_disabled)),
         on_state: {
             let alerts = Arc::clone(&alerts);
@@ -290,6 +372,7 @@ pub fn install(
         let timers = notch.timers();
         tauri::async_runtime::spawn(async move {
             integration.service.start().await;
+            integration.service.update_outdated_hooks().await;
             let service = Arc::clone(&integration.service);
             let mut tick = lock(&integration.tick);
             if tick.closed {
@@ -343,6 +426,7 @@ mod tests {
     fn switches_apply_only_with_dev_overrides() {
         let vars = env(&[
             ("NOTCH_CLAUDE_SETTINGS", "C:\\tmp\\claude-settings.json"),
+            ("NOTCH_CLAUDE_HOME", "C:\\tmp\\home"),
             ("NOTCH_CLAUDE_PORT", "0"),
             ("NOTCH_DISABLE_CLAUDE_FOCUS", "1"),
         ]);
@@ -350,6 +434,7 @@ mod tests {
             overrides_from(true, &vars),
             Overrides {
                 settings_file: Some(PathBuf::from("C:\\tmp\\claude-settings.json")),
+                home: Some(PathBuf::from("C:\\tmp\\home")),
                 port: Some(0),
                 focus_disabled: true,
             }
@@ -365,5 +450,90 @@ mod tests {
             ("NOTCH_DISABLE_CLAUDE_FOCUS", "true"),
         ]);
         assert_eq!(overrides_from(true, vars), Overrides::default());
+    }
+
+    #[test]
+    fn forwards_hook_events_but_not_the_question_route_or_the_connection_test() {
+        use super::super::hook_events::HookEventName;
+        let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+        let passed: Arc<Mutex<usize>> = Arc::default();
+        let inner: OnEvent = {
+            let passed = Arc::clone(&passed);
+            Arc::new(move |_e, _reply, _route| *passed.lock().unwrap() += 1)
+        };
+        let forward: HookForward = {
+            let seen = Arc::clone(&seen);
+            Arc::new(move |e: &HookEvent| seen.lock().unwrap().push(e.session_id.clone()))
+        };
+        let on_event = forwarding(inner, forward);
+        let event = |session: &str| HookEvent {
+            name: HookEventName::PreToolUse,
+            session_id: session.into(),
+            cwd: None,
+            tool_name: None,
+            tool_use_id: None,
+            agent_id: None,
+            notification_type: None,
+            preview: None,
+            reason: None,
+            ask_user_question: None,
+            ask_user_question_raw: None,
+            source: None,
+            account_id: "claude".into(),
+            work: None,
+        };
+        on_event(event("s1"), None, HookRoute::Hook);
+        on_event(event("s1"), None, HookRoute::Question);
+        on_event(event(CONNECTION_TEST_SESSION_ID), None, HookRoute::Hook);
+        assert_eq!(*seen.lock().unwrap(), ["s1"]);
+        assert_eq!(*passed.lock().unwrap(), 3);
+    }
+
+    fn tool_event() -> HookEvent {
+        HookEvent {
+            name: super::super::hook_events::HookEventName::PreToolUse,
+            session_id: "s1".into(),
+            cwd: None,
+            tool_name: None,
+            tool_use_id: None,
+            agent_id: None,
+            notification_type: None,
+            preview: None,
+            reason: None,
+            ask_user_question: None,
+            ask_user_question_raw: None,
+            source: None,
+            account_id: "claude".into(),
+            work: None,
+        }
+    }
+
+    #[test]
+    fn claude_handles_the_event_before_the_work_log() {
+        let order: Arc<Mutex<Vec<&str>>> = Arc::default();
+        let inner: OnEvent = {
+            let order = Arc::clone(&order);
+            Arc::new(move |_e, _reply, _route| order.lock().unwrap().push("claude"))
+        };
+        let forward: HookForward = {
+            let order = Arc::clone(&order);
+            Arc::new(move |_e: &HookEvent| order.lock().unwrap().push("work log"))
+        };
+        forwarding(inner, forward)(tool_event(), None, HookRoute::Hook);
+        assert_eq!(*order.lock().unwrap(), ["claude", "work log"]);
+    }
+
+    #[test]
+    fn a_panic_in_the_work_log_never_reaches_the_bridge() {
+        let passed: Arc<Mutex<usize>> = Arc::default();
+        let inner: OnEvent = {
+            let passed = Arc::clone(&passed);
+            Arc::new(move |_e, _reply, _route| *passed.lock().unwrap() += 1)
+        };
+        let forward: HookForward = Arc::new(|_e: &HookEvent| panic!("work log failed"));
+        let on_event = forwarding(inner, forward);
+        on_event(tool_event(), None, HookRoute::Hook);
+        on_event(tool_event(), None, HookRoute::Hook);
+        assert_eq!(*passed.lock().unwrap(), 2);
     }
 }

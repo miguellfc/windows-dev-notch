@@ -474,9 +474,11 @@ export async function launchClaude(
 }
 
 const ccButton = (...names: string[]) => $(`//button[${names.map((name) => `normalize-space()="${name}"`).join(' or ')}]`)
-export const ccInstall = () => ccButton('Instalar hooks', 'Install hooks')
+/** The link switch of an account's row, by its folder (`~/.claude`, `~/.claude-work`): on = hooks installed. */
+export const ccAccountSwitch = (folder: string) => $(`//button[@role="switch" and (@aria-label="Enlazar ${folder}" or @aria-label="Link ${folder}")]`)
+export const ccInstall = () => ccAccountSwitch('~/.claude')
 export const ccConfirmInstall = () => ccButton('Confirmar instalación', 'Confirm installation')
-export const ccUninstall = () => ccButton('Desinstalar hooks', 'Uninstall hooks')
+export const ccUninstall = () => ccAccountSwitch('~/.claude')
 export const ccConfirmUninstall = () => ccButton('Confirmar desinstalación', 'Confirm uninstall')
 export const ccDiff = () => $('pre')
 
@@ -531,8 +533,8 @@ export function readClaudeBridge(): ClaudeBridge {
   }
 }
 
-/** POSTs a hook payload like Claude Code does. The promise settles when the bridge replies. */
-export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown>): Promise<HookReply> =>
+/** POSTs a hook payload like Claude Code does (`headers`: more of them, `x-notch-account` say). The promise settles when the bridge replies. */
+export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown>, headers: Record<string, string> = {}): Promise<HookReply> =>
   new Promise((done, fail) => {
     const body = JSON.stringify(payload)
     const req = request(
@@ -543,6 +545,7 @@ export const postHook = (endpoint: HookEndpoint, payload: Record<string, unknown
           'content-type': 'application/json',
           'content-length': Buffer.byteLength(body),
           'x-notch-token': endpoint.token,
+          ...headers,
         },
       },
       (res) => {

@@ -26,8 +26,8 @@ describe('integration palette', () => {
   })
 
   it('lists the integrations in order, capsule ones first', () => {
-    expect(integrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes'])
-    expect(capsuleIntegrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine'])
+    expect(integrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine', 'workLog', 'reminders', 'notes'])
+    expect(capsuleIntegrationKeys).toEqual(['claude', 'github', 'gitlab', 'gmail', 'redmine', 'workLog'])
   })
 
   it('has the default colors of the global constraints', () => {
@@ -37,6 +37,7 @@ describe('integration palette', () => {
       gitlab: 'orange',
       gmail: 'salmon',
       redmine: 'pink',
+      workLog: 'cyan',
       reminders: 'blue',
       notes: 'violet',
     })

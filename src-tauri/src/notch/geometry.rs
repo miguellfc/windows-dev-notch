@@ -37,11 +37,12 @@ pub enum VisibleMode {
     Gmail,
     Reviews,
     Redmine,
+    WorkLog,
     Mini,
 }
 
 impl VisibleMode {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Compact,
         Self::Peek,
         Self::Alert,
@@ -53,6 +54,7 @@ impl VisibleMode {
         Self::Gmail,
         Self::Reviews,
         Self::Redmine,
+        Self::WorkLog,
         Self::Mini,
     ];
 
@@ -74,6 +76,7 @@ impl VisibleMode {
             Self::Gmail => NotchMode::Gmail,
             Self::Reviews => NotchMode::Reviews,
             Self::Redmine => NotchMode::Redmine,
+            Self::WorkLog => NotchMode::WorkLog,
             Self::Mini => NotchMode::Mini,
         }
     }
@@ -108,8 +111,12 @@ pub const REVIEWS_SIZE: Size = size(520.0, 324.0);
 /// The Redmine panel: the window is sized for the search (the painted rest size is the renderer's).
 pub const REDMINE_SEARCH_SIZE: Size = size(520.0, 560.0);
 
+/// The work log view (`WORK_LOG_SIZE`): the window is sized for its full size, as tall as Redmine's
+/// search (the painted size fits the view, in the renderer).
+pub const WORK_LOG_SIZE: Size = size(480.0, 560.0);
+
 /// Size of the visible capsule per mode, in DIP (`CAPSULE_SIZES`).
-pub const CAPSULE_SIZES: [(VisibleMode, Size); 12] = [
+pub const CAPSULE_SIZES: [(VisibleMode, Size); 13] = [
     (VisibleMode::Compact, size(465.0, 36.0)),
     (VisibleMode::Peek, size(174.0, 36.0)),
     (VisibleMode::Alert, size(320.0, 44.0)),
@@ -121,6 +128,7 @@ pub const CAPSULE_SIZES: [(VisibleMode, Size); 12] = [
     (VisibleMode::Gmail, GMAIL_READER_SIZE),
     (VisibleMode::Reviews, REVIEWS_SIZE),
     (VisibleMode::Redmine, REDMINE_SEARCH_SIZE),
+    (VisibleMode::WorkLog, WORK_LOG_SIZE),
     (VisibleMode::Mini, size(96.0, 4.0)),
 ];
 
@@ -150,6 +158,7 @@ const BLOCK_CLAUDE: f64 = 22.0;
 const BLOCK_MAIL: f64 = 48.5;
 const BLOCK_REVIEW: f64 = 56.0;
 const BLOCK_REDMINE: f64 = 78.5;
+const BLOCK_WORK_LOG: f64 = 73.5;
 
 /// The system zone of the compact capsule (`system` in `CompactContent`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -164,6 +173,7 @@ pub struct CapsuleBlocks {
     pub mail: bool,
     pub reviews: i64,
     pub redmine: bool,
+    pub work_log: bool,
 }
 
 fn block(shown: bool, width: f64) -> f64 {
@@ -181,7 +191,8 @@ pub fn compact_width_for(system: Option<SystemZone>, blocks: CapsuleBlocks) -> f
     let middle = block(blocks.claude, BLOCK_CLAUDE)
         + block(blocks.mail, BLOCK_MAIL)
         + blocks.reviews.clamp(0, 2) as f64 * BLOCK_REVIEW
-        + block(blocks.redmine, BLOCK_REDMINE);
+        + block(blocks.redmine, BLOCK_REDMINE)
+        + block(blocks.work_log, BLOCK_WORK_LOG);
     if middle > 0.0 {
         width += ZONE_DIVIDER + middle;
     }
@@ -197,9 +208,9 @@ pub const SHADOW_MARGIN_TOP: f64 = 6.0;
 pub const SHADOW_MARGIN_BOTTOM: f64 = 72.0;
 
 /// Constant window width: the widest capsule plus its shadow, rounded up to an even number. The
-/// widest compact capsule (every block, the system zone and the battery) is 741 wide; the
-/// widest panel is 712. A test recomputes it from the formula, so it cannot drift.
-pub const WINDOW_WIDTH: f64 = 854.0;
+/// widest compact capsule (every block, the work log's included, the system zone and the battery)
+/// is 814 wide; the widest panel is 712. A test recomputes it from the formula, so it cannot drift.
+pub const WINDOW_WIDTH: f64 = 926.0;
 
 #[cfg(test)]
 fn computed_window_width() -> f64 {
@@ -210,6 +221,7 @@ fn computed_window_width() -> f64 {
             mail: true,
             reviews: 2,
             redmine: true,
+            work_log: true,
         },
     );
     let widest = CAPSULE_SIZES
@@ -240,10 +252,13 @@ fn js_round(value: f64) -> f64 {
 }
 
 /// Window bounds for a mode: fixed width, horizontally centred at the top of the given work area.
+/// A work area narrower than the window (1366 px at 150 % is 910 DIP) never gets it past its left
+/// edge (onto the monitor beside it): the window starts there and its transparent right side
+/// overflows.
 pub fn window_bounds_for(mode: VisibleMode, work_area: Rect) -> Rect {
     let width = WINDOW_WIDTH;
     Rect {
-        x: js_round(work_area.x + (work_area.width - width) / 2.0),
+        x: js_round(work_area.x + ((work_area.width - width) / 2.0).max(0.0)),
         y: js_round(work_area.y),
         width,
         height: window_height_for(mode),
@@ -288,6 +303,35 @@ mod tests {
     #[test]
     fn window_width_constant_matches_its_formula() {
         assert_eq!(WINDOW_WIDTH, computed_window_width());
+    }
+
+    fn area(x: f64, width: f64) -> Rect {
+        Rect {
+            x,
+            y: 0.0,
+            width,
+            height: 1040.0,
+        }
+    }
+
+    #[test]
+    fn the_window_is_centred_in_a_work_area_wide_enough() {
+        let bounds = window_bounds_for(VisibleMode::Compact, area(1920.0, 2560.0));
+        assert_eq!(bounds.x, 1920.0 + (2560.0 - WINDOW_WIDTH) / 2.0);
+        assert!(bounds.x + bounds.width <= 1920.0 + 2560.0);
+    }
+
+    #[test]
+    fn a_work_area_narrower_than_the_window_keeps_it_from_its_left_edge() {
+        // 1366 px at 150 %: 910 DIP.
+        assert_eq!(
+            window_bounds_for(VisibleMode::Compact, area(0.0, 910.0)).x,
+            0.0
+        );
+        assert_eq!(
+            window_bounds_for(VisibleMode::Expanded, area(-910.0, 910.0)).x,
+            -910.0
+        );
     }
 
     #[test]

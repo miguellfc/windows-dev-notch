@@ -39,6 +39,9 @@ export const channels = {
     getQuestions: 'claude:get-questions',
     answer: 'claude:answer',
     releaseQuestion: 'claude:release-question',
+    accounts: 'claude:accounts',
+    accountAdd: 'claude:account-add',
+    pickAccountDir: 'claude:pick-account-dir',
   },
   reminders: {
     list: 'reminders:list',
@@ -101,6 +104,15 @@ export const channels = {
     setKey: 'redmine:set-key',
     clear: 'redmine:clear',
   },
+  workLog: {
+    list: 'work-log:list',
+    setInvoiced: 'work-log:set-invoiced',
+    delete: 'work-log:delete',
+    restore: 'work-log:restore',
+    copy: 'work-log:copy',
+    summarize: 'work-log:summarize',
+    claudeAvailable: 'work-log:claude-available',
+  },
 } as const
 
 /** Events the main process pushes to renderers. */
@@ -124,6 +136,7 @@ export const eventChannels = {
   redmineState: 'redmine:state',
   redmineSummaryChanged: 'redmine:summary-changed',
   redmineAlert: 'redmine:alert',
+  workLogChanged: 'work-log:changed',
 } as const
 
 type ChannelGroups = typeof channels

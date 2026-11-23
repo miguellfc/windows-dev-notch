@@ -63,6 +63,8 @@ fn next_status(event: &HookEvent, current: Option<ClaudeSessionStatus>) -> Claud
             }
         }
         HookEventName::StopFailure => Error,
+        // Activity without a status of its own (a resumed or compacted session).
+        HookEventName::SessionStart => current.unwrap_or(Done),
         // UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart,
         // PermissionDenied (SessionEnd never gets here).
         _ => Working,
@@ -112,6 +114,11 @@ impl SessionRegistry {
             return;
         }
         let existing = self.get(&event.session_id);
+        // SessionStart refreshes a known session but never makes one appear: the notch shows a
+        // session once Claude does something in it.
+        if event.name == HookEventName::SessionStart && existing.is_none() {
+            return;
+        }
         // Any event revives an idle session to the status it had before going idle.
         let current = existing.map(|entry| {
             if entry.status == ClaudeSessionStatus::Idle {
@@ -319,6 +326,24 @@ mod tests {
         s.send(PostToolUse);
         assert_eq!(s.status(), Some(Working));
         s.send(Stop);
+        assert_eq!(s.status(), Some(Done));
+    }
+
+    #[test]
+    fn session_start_is_activity_that_keeps_the_status_and_never_adds_a_session() {
+        let mut s = Setup::new();
+        s.send(SessionStart);
+        assert_eq!(s.status(), None);
+        s.send(Stop);
+        let before = s.registry.sessions()[0].updated_at;
+        s.send(SessionStart);
+        assert_eq!(s.status(), Some(Done));
+        assert!(s.registry.sessions()[0].updated_at > before);
+        // It revives an idle session to the status it had.
+        s.advance(DEFAULT_IDLE_AFTER_MS);
+        assert!(s.tick());
+        assert_eq!(s.status(), Some(Idle));
+        s.send(SessionStart);
         assert_eq!(s.status(), Some(Done));
     }
 

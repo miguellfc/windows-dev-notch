@@ -106,6 +106,18 @@ describe('IPC contract', () => {
       expect(eventChannels.claudeQuestions).toBe('claude:questions')
     })
 
+    it('the account folder browser takes no input and answers a folder or null', () => {
+      expect(channels.claude.pickAccountDir).toBe('claude:pick-account-dir')
+      const pick = contract['claude:pick-account-dir']
+      expect(pick.input.safeParse(undefined).success).toBe(true)
+      expect(pick.input.safeParse({}).success).toBe(false)
+      expect(pick.output.safeParse(null).success).toBe(true)
+      expect(pick.output.safeParse({ dir: 'D:/Profiles/Claude' }).success).toBe(true)
+      expect(pick.output.safeParse({ dir: '' }).success).toBe(false)
+      expect(pick.output.safeParse({ dir: 'x'.repeat(1025) }).success).toBe(false)
+      expect(pick.output.safeParse({ dir: 'D:/x', extra: 1 }).success).toBe(false)
+    })
+
     it('pending questions are strict and never carry the session id', () => {
       for (const schema of [eventContract['claude:questions'], contract['claude:get-questions'].output]) {
         expect(schema.safeParse([view]).success).toBe(true)

@@ -195,8 +195,8 @@ describe('code review settings', () => {
   const alerts = { github: { enabled: true, sound: true }, gitlab: { enabled: true, sound: true } }
   const withCodeReview = (codeReview: unknown) => settingsSchema.safeParse({ ...valid, codeReview }).success
 
-  it('is at version 9 with an empty GitLab URL and every alert on', () => {
-    expect(SETTINGS_VERSION).toBe(9)
+  it('is at version 10 with an empty GitLab URL and every alert on', () => {
+    expect(SETTINGS_VERSION).toBe(10)
     expect(DEFAULT_CODE_REVIEW_SETTINGS).toEqual({ gitlabUrl: '', alerts })
     expect(valid.codeReview).toEqual({ gitlabUrl: '', alerts })
   })
@@ -268,11 +268,11 @@ describe('redmine settings', () => {
 })
 
 describe('integrations (v9)', () => {
-  it('is version 9', () => {
-    expect(SETTINGS_VERSION).toBe(9)
+  it('is version 10', () => {
+    expect(SETTINGS_VERSION).toBe(10)
   })
 
-  it('defaults: all enabled, capsule only for the five capsule integrations', () => {
+  it('defaults: all enabled, capsule only for the six capsule integrations (the work log starts off)', () => {
     const integrations = createDefaultSettings('es').integrations
     expect(integrations).toEqual(cloneDefaultIntegrations())
     expect(integrations).toEqual({
@@ -281,6 +281,7 @@ describe('integrations (v9)', () => {
       gitlab: { enabled: true, capsule: true, color: 'orange' },
       gmail: { enabled: true, capsule: true, color: 'salmon' },
       redmine: { enabled: true, capsule: true, color: 'pink' },
+      workLog: { enabled: false, capsule: true, color: 'cyan' },
       reminders: { enabled: true, capsule: false, color: 'blue' },
       notes: { enabled: true, capsule: false, color: 'violet' },
     })
@@ -324,5 +325,50 @@ describe('integrations (v9)', () => {
     const withSystem = { ...settings, integrations: { ...settings.integrations, system: { enabled: true, capsule: false, color: 'teal' } } }
     expect(settingsSchema.safeParse(withSystem).success).toBe(false)
     expect(settingsPatchSchema.safeParse({ integrations: { system: { enabled: false } } }).success).toBe(false)
+  })
+})
+
+describe('work log settings (v10)', () => {
+  it('defaults to no account and a 30 minute idle pause', () => {
+    expect(createDefaultSettings('es').workLog).toEqual({ accountId: null, idlePauseMinutes: 30 })
+  })
+
+  it('accepts a linked account id and an idle pause of 5 to 240 minutes', () => {
+    const withWorkLog = (workLog: unknown) => settingsSchema.safeParse({ ...createDefaultSettings('es'), workLog }).success
+    expect(withWorkLog({ accountId: 'claude-work', idlePauseMinutes: 5 })).toBe(true)
+    expect(withWorkLog({ accountId: null, idlePauseMinutes: 240 })).toBe(true)
+    for (const idlePauseMinutes of [4, 241, 30.5, '30']) expect(withWorkLog({ accountId: null, idlePauseMinutes }), String(idlePauseMinutes)).toBe(false)
+    expect(withWorkLog({ accountId: 'Not An Id', idlePauseMinutes: 30 })).toBe(false)
+    expect(withWorkLog({ idlePauseMinutes: 30 })).toBe(false)
+    expect(withWorkLog({ accountId: null, idlePauseMinutes: 30, extra: 1 })).toBe(false)
+  })
+
+  it('lets the renderer patch the work log and its integration entry, one field at a time', () => {
+    expect(settingsPatchSchema.parse({ workLog: { idlePauseMinutes: 45 } })).toEqual({ workLog: { idlePauseMinutes: 45 } })
+    expect(settingsPatchSchema.parse({ workLog: { accountId: null } })).toEqual({ workLog: { accountId: null } })
+    expect(settingsPatchSchema.safeParse({ workLog: { idlePauseMinutes: 4 } }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ integrations: { workLog: { enabled: true, capsule: false } } }).success).toBe(true)
+  })
+})
+
+describe('claude accounts (v10)', () => {
+  const valid = createDefaultSettings('es')
+  const withAccounts = (claudeAccounts: unknown) => settingsSchema.safeParse({ ...valid, claudeAccounts }).success
+
+  it('defaults to nothing linked and not initialized', () => {
+    expect(valid.claudeAccounts).toEqual({ linked: [], extraDirs: [], initialized: false })
+  })
+
+  it('takes account ids and existing-looking folders only', () => {
+    expect(withAccounts({ linked: ['claude', 'claude-work', 'dir-0123abcd'], extraDirs: ['D:/Claude'], initialized: true })).toBe(true)
+    expect(withAccounts({ linked: ['Claude'], extraDirs: [], initialized: true })).toBe(false)
+    expect(withAccounts({ linked: ['a'.repeat(65)], extraDirs: [], initialized: true })).toBe(false)
+    expect(withAccounts({ linked: [], extraDirs: [''], initialized: true })).toBe(false)
+    expect(withAccounts({ linked: [], extraDirs: [], initialized: true, extra: 1 })).toBe(false)
+    expect(withAccounts({ linked: Array.from({ length: 33 }, (_, i) => `claude-${i}`), extraDirs: [], initialized: true })).toBe(false)
+  })
+
+  it('is never part of a settings patch', () => {
+    expect(settingsPatchSchema.safeParse({ claudeAccounts: valid.claudeAccounts }).success).toBe(false)
   })
 })

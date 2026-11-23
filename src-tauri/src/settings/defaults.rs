@@ -11,7 +11,7 @@ pub fn language_from_locale(locale: &str) -> Language {
     }
 }
 
-/// `cloneDefaultIntegrations`: all on, capsule only where it exists, the default palette colors.
+/// `cloneDefaultIntegrations`: all on but the work log (opt-in), capsule only where it exists, the default palette colors.
 pub fn default_integrations() -> IntegrationsSettings {
     let entry = |capsule: bool, color: PaletteColor| IntegrationSettings {
         enabled: true,
@@ -24,6 +24,10 @@ pub fn default_integrations() -> IntegrationsSettings {
         gitlab: entry(true, PaletteColor::Orange),
         gmail: entry(true, PaletteColor::Salmon),
         redmine: entry(true, PaletteColor::Pink),
+        work_log: IntegrationSettings {
+            enabled: false,
+            ..entry(true, PaletteColor::Cyan)
+        },
         reminders: entry(false, PaletteColor::Blue),
         notes: entry(false, PaletteColor::Violet),
     }
@@ -88,6 +92,8 @@ pub fn default_settings(locale: &str) -> Settings {
                 sound: true,
             },
         },
+        work_log: WorkLogSettings::default(),
         integrations: default_integrations(),
+        claude_accounts: ClaudeAccountsSettings::default(),
     }
 }

@@ -1,0 +1,12 @@
+{
+  "description": "Largest-remainder rounding of subtask times to whole minutes (src/shared/work-log/rounding.ts and src-tauri/src/work_log/rounding.rs): each value is cut to its minute, and the minutes still missing to reach the target's minute go one each to the largest remainders (the first on a tie). Values and results in ms.",
+  "cases": [
+    { "name": "already whole minutes", "values": [600000, 1200000], "targetMs": 1800000, "expected": [600000, 1200000] },
+    { "name": "two minutes to the largest remainders", "values": [640000, 1230000, 350000], "targetMs": 2220000, "expected": [660000, 1200000, 360000] },
+    { "name": "a tie goes to the first", "values": [30000, 30000], "targetMs": 60000, "expected": [60000, 0] },
+    { "name": "target with seconds keeps its whole minutes", "values": [1530000, 1470000, 59000], "targetMs": 3059000, "expected": [1500000, 1440000, 60000] },
+    { "name": "nothing to round", "values": [], "targetMs": 0, "expected": [] },
+    { "name": "values above the target lose from the smallest remainders, the last on a tie", "values": [600000, 610000], "targetMs": 1140000, "expected": [540000, 600000] },
+    { "name": "negative values read as zero", "values": [-5000, 125000], "targetMs": 120000, "expected": [0, 120000] }
+  ]
+}

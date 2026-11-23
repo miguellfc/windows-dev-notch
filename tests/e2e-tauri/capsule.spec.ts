@@ -123,6 +123,7 @@ async function expectedCompactWidth(): Promise<number> {
       mail: (await count(present('metric-mail'))) > 0,
       reviews: ((await count(present('metric-review-github'))) + (await count(present('metric-review-gitlab')))) as 0 | 1 | 2,
       redmine: (await count(present('metric-redmine'))) > 0,
+      workLog: (await count(present('metric-work-log'))) > 0,
     },
   })
 }
@@ -266,7 +267,7 @@ describe('Compact capsule (Tauri)', () => {
 
     const all = ['capsule-zone-left', 'capsule-zone-blocks', 'capsule-zone-system', 'claude-dots', 'metric-mail', 'metric-review-github', 'metric-review-gitlab', 'metric-redmine', 'metric-cpu', 'metric-ram', 'metric-storage', 'metric-connection']
     await expectCompactFits(all)
-    expect(await expectedCompactWidth()).toBe(compactWidthFor({ system: { battery: (await count(present('metric-battery'))) > 0 }, blocks: { claude: true, mail: true, reviews: 2, redmine: true } }))
+    expect(await expectedCompactWidth()).toBe(compactWidthFor({ system: { battery: (await count(present('metric-battery'))) > 0 }, blocks: { claude: true, mail: true, reviews: 2, redmine: true, workLog: false } }))
 
     await setLanguage('en')
     await eventually(() => labelOf(present('claude-dots')), (label) => label === 'Claude Code: 8 working, 3 waiting, 3 with errors', 'the English Claude label')

@@ -1,4 +1,4 @@
-import { BatteryCharging, BatteryLow, BatteryMedium, Database, Microchip, Server, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
+import { BatteryCharging, BatteryLow, BatteryMedium, Database, Microchip, Play, Server, Wifi, WifiOff, type LucideIcon } from 'lucide-react'
 import { GmailMark, RedmineMark } from '../../shared/brand-icons'
 import type { Platform } from '../../../shared/code-review/schema'
 import { capsuleContributionsLabel, capsuleContributionsText, CAPSULE_CONTRIBUTIONS_CAP } from '../../shared/code-review/contributions-format'
@@ -12,6 +12,10 @@ import type { CapsuleView } from './capsule-latch'
 import type { IntegrationColor } from '../../../shared/integrations/colors'
 import { integrationStyle, useIntegration } from '../../shared/integration-color'
 import { formatPercent } from './format'
+import { durationText } from '../../../shared/work-log/duration'
+import type { WorkLogEntryView } from '../../../shared/work-log/schema'
+import { useClock } from '../../shared/use-clock'
+import { liveTotalMs, useWorkLogStore } from '../../shared/work-log-store'
 
 /** Below this charge the battery icon turns to its low variant; the colour follows the alert only. */
 const LOW_BATTERY = 20
@@ -178,6 +182,43 @@ export function CapsuleRedmine({ hours }: { hours: number }) {
       label={translate(language, 'redmine.capsule.month', { hours: hoursLong(hours, language) })}
       testId="metric-redmine"
     />
+  )
+}
+
+/** The widest live total the block reserves, two-digit hours ("99h 59m"; tabular figures, so any digits measure alike). */
+const WIDEST_TOTAL = durationText((99 * 60 + 59) * 60_000)
+
+/**
+ * The work log's live session (a play sign and its Total, "1h 25m", in Nunito and the integration's
+ * color), after Claude's mark. Only rendered while an entry is running or paused (the latest one); in
+ * the compact capsule it reserves "99h 59m" so CAPSULE_BLOCK.workLog holds, and moves once a minute.
+ * In the peek (`iconOnly`) it is the play sign alone (PEEK_BLOCK.workLog), its label still saying the
+ * total. Paused, the play sign dims.
+ */
+export function CapsuleWorkLog({ entry, iconOnly = false }: { entry: WorkLogEntryView; iconOnly?: boolean }) {
+  const language = useLanguage()
+  const now = useClock().getTime()
+  const idlePauseMs = useWorkLogStore((store) => store.idlePauseMs)
+  const { color } = useIntegration('workLog')
+  const total = durationText(liveTotalMs(entry, now, idlePauseMs))
+  const paused = entry.status === 'paused'
+  return (
+    <span
+      role="img"
+      aria-label={translate(language, paused ? 'workLog.capsule.paused' : 'workLog.capsule.running', { total })}
+      data-testid="metric-work-log"
+      data-status={entry.status}
+      className="flex items-center gap-1.5 text-[color:var(--int)]"
+      style={integrationStyle(color)}
+    >
+      <Play aria-hidden="true" data-testid="work-log-play" className={`size-2.5 shrink-0 fill-current ${paused ? 'opacity-40' : ''}`} strokeWidth={2.5} />
+      {!iconOnly && (
+        <span data-testid="work-log-total" className="tabular grid whitespace-nowrap text-small font-semibold" aria-hidden="true">
+          <span className="invisible [grid-area:1/1]">{WIDEST_TOTAL}</span>
+          <span className="text-left [grid-area:1/1]">{total}</span>
+        </span>
+      )}
+    </span>
   )
 }
 

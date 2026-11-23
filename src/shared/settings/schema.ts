@@ -11,8 +11,8 @@ import {
 } from '../integrations/colors'
 import { isSafeAccelerator } from './accelerator'
 
-/** v9: `integrations.system` is gone (the System view was removed; its metrics need no switch). */
-export const SETTINGS_VERSION = 9
+/** v10: `claudeAccounts` (the Claude Code accounts the notch installs its hooks in), `workLog` and `integrations.workLog`. v9 dropped `integrations.system`. */
+export const SETTINGS_VERSION = 10
 
 export const DEFAULT_REMINDERS_SETTINGS = { snoozeMinutes: 10, sound: true } as const
 
@@ -33,6 +33,12 @@ export const DEFAULT_REDMINE_SETTINGS = {
   dailyTargetHours: 8,
   endOfDay: { enabled: true, time: '18:00', sound: true },
 } as const
+
+/** v10: the work log follows no account yet (the user picks one) and pauses the clock after 30 idle minutes. */
+export const DEFAULT_WORK_LOG_SETTINGS = { accountId: null, idlePauseMinutes: 30 } as const
+
+export const WORK_LOG_IDLE_PAUSE_MIN = 5
+export const WORK_LOG_IDLE_PAUSE_MAX = 240
 
 export const DEFAULT_SYSTEM_ALERTS = {
   cpu: { enabled: true, percent: 90, sustainSeconds: 30 },
@@ -121,6 +127,13 @@ export const redmineSettingsSchema = z.strictObject({
 })
 export type RedmineSettings = z.infer<typeof redmineSettingsSchema>
 
+/** Work log: the Claude account whose sessions it records (`null` = none yet) and the idle minutes after which the clock pauses. */
+export const workLogSettingsSchema = z.strictObject({
+  accountId: z.string().regex(/^[a-z0-9-]{1,64}$/).nullable(),
+  idlePauseMinutes: z.int().min(WORK_LOG_IDLE_PAUSE_MIN).max(WORK_LOG_IDLE_PAUSE_MAX),
+})
+export type WorkLogSettings = z.infer<typeof workLogSettingsSchema>
+
 /** A palette id, or a custom color as uppercase `#RRGGBB`. */
 export const integrationColorSchema = z.union([
   z.enum(integrationColorIds),
@@ -137,7 +150,7 @@ export type IntegrationSettings = z.infer<typeof integrationSettingsSchema>
 
 const capsuleKeySet: ReadonlySet<IntegrationKey> = new Set(capsuleIntegrationKeys)
 
-/** v9: the seven integrations (v8 also had `system`); only the capsule ones may have `capsule: true`. */
+/** The eight integrations (v10 added `workLog`; v8 also had `system`); only the capsule ones may have `capsule: true`. */
 export const integrationsSettingsSchema = z
   .strictObject({
     claude: integrationSettingsSchema,
@@ -145,6 +158,7 @@ export const integrationsSettingsSchema = z
     gitlab: integrationSettingsSchema,
     gmail: integrationSettingsSchema,
     redmine: integrationSettingsSchema,
+    workLog: integrationSettingsSchema,
     reminders: integrationSettingsSchema,
     notes: integrationSettingsSchema,
   })
@@ -153,6 +167,22 @@ export const integrationsSettingsSchema = z
     'Reminders and notes have no capsule block',
   )
 export type IntegrationsSettings = z.infer<typeof integrationsSettingsSchema>
+
+/** Most linked accounts and extra folders kept. */
+export const CLAUDE_ACCOUNTS_MAX = 32
+export const CLAUDE_ACCOUNT_DIR_MAX = 1024
+
+/**
+ * v10: the Claude Code accounts (config folders). `linked`: ids whose hooks the user installed;
+ * `extraDirs`: folders added by hand; `initialized`: the first start after the update linked
+ * `~/.claude` if it already had our hooks. Only main changes it (never a settings patch).
+ */
+export const claudeAccountsSettingsSchema = z.strictObject({
+  linked: z.array(z.string().regex(/^[a-z0-9-]{1,64}$/)).max(CLAUDE_ACCOUNTS_MAX),
+  extraDirs: z.array(z.string().min(1).max(CLAUDE_ACCOUNT_DIR_MAX)).max(CLAUDE_ACCOUNTS_MAX),
+  initialized: z.boolean(),
+})
+export type ClaudeAccountsSettings = z.infer<typeof claudeAccountsSettingsSchema>
 
 export const settingsSchema = z.strictObject({
   version: z.literal(SETTINGS_VERSION),
@@ -164,18 +194,21 @@ export const settingsSchema = z.strictObject({
   gmail: gmailSettingsSchema,
   codeReview: codeReviewSettingsSchema,
   redmine: redmineSettingsSchema,
+  workLog: workLogSettingsSchema,
   integrations: integrationsSettingsSchema,
+  claudeAccounts: claudeAccountsSettingsSchema,
 })
 export type Settings = z.infer<typeof settingsSchema>
 
-/** What the renderer may change: any subset of user fields, never the version. */
+/** What the renderer may change: any subset of user fields, never the version nor the Claude accounts. */
 export const settingsPatchSchema = settingsSchema
-  .omit({ version: true })
+  .omit({ version: true, claudeAccounts: true })
   // The store merges codeReview one level deep: a patch of its alerts never restores a stale gitlabUrl.
   // Same for redmine, and its endOfDay one level further down.
   .extend({
     codeReview: codeReviewSettingsSchema.partial(),
     redmine: redmineSettingsSchema.extend({ endOfDay: redmineEndOfDaySettingsSchema.partial() }).partial(),
+    workLog: workLogSettingsSchema.partial(),
     // Per integration and per field, so recoloring one never touches the others.
     integrations: z
       .strictObject({
@@ -184,6 +217,7 @@ export const settingsPatchSchema = settingsSchema
         gitlab: integrationSettingsSchema.partial(),
         gmail: integrationSettingsSchema.partial(),
         redmine: integrationSettingsSchema.partial(),
+        workLog: integrationSettingsSchema.partial(),
         reminders: integrationSettingsSchema.partial(),
         notes: integrationSettingsSchema.partial(),
       })
@@ -223,10 +257,15 @@ export function cloneDefaultRedmineSettings(): RedmineSettings {
   }
 }
 
-/** A fresh, mutable copy of the integration defaults: all on, capsule only where it exists. */
+/** A fresh, mutable copy of the work log defaults. */
+export function cloneDefaultWorkLogSettings(): WorkLogSettings {
+  return { ...DEFAULT_WORK_LOG_SETTINGS }
+}
+
+/** A fresh, mutable copy of the integration defaults: all on but the work log (opt-in), capsule only where it exists. */
 export function cloneDefaultIntegrations(): IntegrationsSettings {
   const entry = (key: IntegrationKey): IntegrationSettings => ({
-    enabled: true,
+    enabled: key !== 'workLog',
     capsule: capsuleKeySet.has(key),
     color: DEFAULT_INTEGRATION_COLORS[key],
   })
@@ -236,6 +275,7 @@ export function cloneDefaultIntegrations(): IntegrationsSettings {
     gitlab: entry('gitlab'),
     gmail: entry('gmail'),
     redmine: entry('redmine'),
+    workLog: entry('workLog'),
     reminders: entry('reminders'),
     notes: entry('notes'),
   }
@@ -256,6 +296,8 @@ export function createDefaultSettings(locale: string): Settings {
     gmail: { ...DEFAULT_GMAIL_SETTINGS, alerts: { ...DEFAULT_GMAIL_ALERTS } },
     codeReview: cloneDefaultCodeReviewSettings(),
     redmine: cloneDefaultRedmineSettings(),
+    workLog: cloneDefaultWorkLogSettings(),
     integrations: cloneDefaultIntegrations(),
+    claudeAccounts: { linked: [], extraDirs: [], initialized: false },
   }
 }

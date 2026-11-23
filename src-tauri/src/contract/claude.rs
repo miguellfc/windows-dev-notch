@@ -8,7 +8,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::text::uuid;
-use super::{length, present, Validate, MAX_SAFE_INTEGER};
+use super::{length, nullable, present, Validate, MAX_SAFE_INTEGER};
 
 /// `QUESTION_LIMITS` (`src/shared/claude/questions.ts`).
 pub mod limits {
@@ -455,11 +455,140 @@ pub struct RotateOutcome {
 
 impl Validate for RotateOutcome {}
 
+/// Input of `claude:hooks-install` and `claude:hooks-uninstall`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AccountInput {
+    pub account_id: String,
+}
+
+impl Validate for AccountInput {
+    fn validate(&self) -> Result<(), String> {
+        account_id(&self.account_id)
+    }
+}
+
+string_enum! {
+    /// `claudeHooksPreviewInputSchema.mode`: the diff of installing or of removing the hooks.
+    pub enum HooksPreviewMode {
+        Install = "install",
+        Uninstall = "uninstall",
+    }
+}
+
+/// `claudeHooksPreviewInputSchema`: input of `claude:hooks-preview`; without `mode`, install.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct HooksPreviewInput {
+    pub account_id: String,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mode: Option<HooksPreviewMode>,
+}
+
+impl Validate for HooksPreviewInput {
+    fn validate(&self) -> Result<(), String> {
+        account_id(&self.account_id)
+    }
+}
+
+/// `^[a-z0-9-]{1,64}$`.
+fn account_id(value: &str) -> Result<(), String> {
+    if crate::claude::accounts::is_account_id(value) {
+        Ok(())
+    } else {
+        Err("accountId must be 1 to 64 of a-z, 0-9 and -".into())
+    }
+}
+
+/// Longest folder `claude:account-add` takes.
+pub const ACCOUNT_DIR_MAX: usize = 1024;
+
+/// Input of `claude:account-add`: a folder added by hand.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AccountAddInput {
+    pub dir: String,
+}
+
+impl Validate for AccountAddInput {
+    fn validate(&self) -> Result<(), String> {
+        if (1..=ACCOUNT_DIR_MAX).contains(&length(&self.dir)) {
+            Ok(())
+        } else {
+            Err(format!("dir must have 1 to {ACCOUNT_DIR_MAX} characters"))
+        }
+    }
+}
+
+/// Output of `claude:pick-account-dir` (`null` when the folder browser is cancelled): the folder
+/// the user chose, which fills the «Otra carpeta…» field (nothing is added yet).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct PickedAccountDir {
+    pub dir: String,
+}
+
+impl Validate for PickedAccountDir {
+    fn validate(&self) -> Result<(), String> {
+        if (1..=ACCOUNT_DIR_MAX).contains(&length(&self.dir)) {
+            Ok(())
+        } else {
+            Err(format!("dir must have 1 to {ACCOUNT_DIR_MAX} characters"))
+        }
+    }
+}
+
+string_enum! {
+    /// The hooks of one account.
+    pub enum AccountHookStatus {
+        Installed = "installed",
+        Outdated = "outdated",
+        Missing = "missing",
+    }
+}
+
+/// One account as the Control Center lists it. `email` and `organization` are `null` without a
+/// profile.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ClaudeAccountView {
+    pub id: String,
+    pub dir: String,
+    #[serde(deserialize_with = "nullable")]
+    pub email: Option<String>,
+    #[serde(deserialize_with = "nullable")]
+    pub organization: Option<String>,
+    pub linked: bool,
+    pub hook_status: AccountHookStatus,
+}
+
+/// `claudeAccountsSchema`: output of `claude:accounts` and `claude:account-add`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ClaudeAccounts {
+    pub accounts: Vec<ClaudeAccountView>,
+}
+
+impl Validate for ClaudeAccounts {
+    fn validate(&self) -> Result<(), String> {
+        self.accounts
+            .iter()
+            .try_for_each(|account| account_id(&account.id))
+    }
+}
+
 input_entry!(
     DecideInput,
     DismissSessionInput,
     AnswerInput,
-    ReleaseQuestionInput
+    ReleaseQuestionInput,
+    AccountInput,
+    HooksPreviewInput,
+    AccountAddInput
 );
 
 #[cfg(test)]

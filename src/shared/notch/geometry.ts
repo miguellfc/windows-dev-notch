@@ -86,6 +86,20 @@ export function redmineSizeFor(searching: boolean, viewHeight: number | null = n
 }
 
 /**
+ * The work log view: the list of sessions and one session's detail, both the `workLog` mode. The
+ * window is sized for its full size, as tall as Redmine's search (going from one to the other never
+ * resizes the window); the capsule fits what the view shows, as Redmine does, up to that size, where
+ * the list or the subtasks scroll.
+ */
+export const WORK_LOG_SIZE = { width: 480, height: 560 } as const
+
+/** Size of the work log capsule: the view's own height plus the 2 px border, never past {@link WORK_LOG_SIZE}. */
+export function workLogSizeFor(viewHeight: number | null): { width: number; height: number } {
+  if (viewHeight === null) return WORK_LOG_SIZE
+  return { width: WORK_LOG_SIZE.width, height: Math.min(viewHeight + 2, WORK_LOG_SIZE.height) }
+}
+
+/**
  * The zones of the compact capsule (time and date | integration blocks | system), in px, measured
  * with `getBoundingClientRect` in the real WebView2 (debug e2e build) in ES and EN, every value at
  * its reserved width ("100 %", "99+", "999+", "744,75h", 4 dots and "+9"); each is the worst of
@@ -117,18 +131,26 @@ export const CAPSULE_BLOCK = {
   review: 56,
   /** Redmine's mark and the month's hours, "744,75h" / "744.75h". */
   redmine: 78.5,
+  /** The work log's play sign and the live total, "99h 59m" (Nunito figures; 63.3 + 10, ES and EN alike). */
+  workLog: 73.5,
+} as const
+
+/** The peek's own blocks with their 10 px gap, in px: there the work log shows only its 10 px play sign, no total. */
+export const PEEK_BLOCK = {
+  workLog: 20,
 } as const
 
 /**
- * The widest peek: the time and date at their widest and Claude's mark after them (while some session
- * has a dot). The peek fits what it shows; this is its ceiling.
+ * The widest peek: the time and date at their widest, then Claude's mark (while some session has a
+ * dot) and the work log's play sign (while a measured session is running or paused). The peek fits
+ * what it shows; this is its ceiling.
  */
-export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude)
+export const PEEK_MAX_WIDTH = Math.ceil(COMPACT_ZONE.padding + COMPACT_ZONE.left + CAPSULE_BLOCK.claude + PEEK_BLOCK.workLog)
 
 /** What the compact capsule shows: the system zone (null: no sample) and the integration blocks. */
 export interface CompactContent {
   system: { battery: boolean } | null
-  blocks: { claude: boolean; mail: boolean; reviews: 0 | 1 | 2; redmine: boolean }
+  blocks: { claude: boolean; mail: boolean; reviews: 0 | 1 | 2; redmine: boolean; workLog: boolean }
 }
 
 /**
@@ -142,7 +164,8 @@ export function compactWidthFor({ system, blocks }: CompactContent): number {
     (blocks.claude ? CAPSULE_BLOCK.claude : 0) +
     (blocks.mail ? CAPSULE_BLOCK.mail : 0) +
     blocks.reviews * CAPSULE_BLOCK.review +
-    (blocks.redmine ? CAPSULE_BLOCK.redmine : 0)
+    (blocks.redmine ? CAPSULE_BLOCK.redmine : 0) +
+    (blocks.workLog ? CAPSULE_BLOCK.workLog : 0)
   if (middle > 0) width += COMPACT_ZONE.divider + middle
   if (system) width += COMPACT_ZONE.divider + COMPACT_ZONE.system + (system.battery ? COMPACT_ZONE.battery : 0)
   return Math.ceil(width)
@@ -168,6 +191,7 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
   gmail: GMAIL_SIZES.reader,
   reviews: REVIEWS_SIZE,
   redmine: REDMINE_SIZES.search,
+  workLog: WORK_LOG_SIZE,
   mini: { width: 96, height: 4 },
 }
 
@@ -177,10 +201,10 @@ export const CAPSULE_SIZES: Readonly<Record<VisibleMode, { width: number; height
  */
 export const SHADOW_MARGIN = { side: 56, top: 6, bottom: 72 } as const
 
-/** The widest the compact capsule gets: every integration block (both code-review ones), the system zone and the battery. */
+/** The widest the compact capsule gets: every integration block (both code-review ones and the work log), the system zone and the battery. */
 export const WIDEST_COMPACT_WIDTH = compactWidthFor({
   system: { battery: true },
-  blocks: { claude: true, mail: true, reviews: 2, redmine: true },
+  blocks: { claude: true, mail: true, reviews: 2, redmine: true, workLog: true },
 })
 
 /**
@@ -188,7 +212,7 @@ export const WIDEST_COMPACT_WIDTH = compactWidthFor({
  * showing) plus its shadow. The width never changes between modes because Motion suspends layout
  * animations for 250 ms whenever `innerWidth` changes, which turned every growing morph into a
  * jump. Only the height follows the mode. Rounded up to an even number so the window centres
- * on the screen without a half pixel: the widest compact capsule (741 px) makes it 854.
+ * on the screen without a half pixel: the widest compact capsule (814 px, with the work log's block) makes it 926.
  */
 export const WINDOW_WIDTH = Math.ceil((Math.max(WIDEST_COMPACT_WIDTH, ...Object.values(CAPSULE_SIZES).map((size) => size.width)) + SHADOW_MARGIN.side * 2) / 2) * 2
 
@@ -205,12 +229,14 @@ export function windowHeightFor(mode: VisibleMode): number {
   return capsuleTopFor(mode) + CAPSULE_SIZES[mode].height + SHADOW_MARGIN.bottom
 }
 
-/** Window bounds for a mode: fixed width, horizontally centred at the top of the given work area. */
+/** Window bounds for a mode: fixed width, horizontally centred at the top of the given work area (never past its left edge when narrower than the window). */
 export function windowBoundsFor(mode: VisibleMode, workArea: Rect): Rect {
   const width = WINDOW_WIDTH
   const height = windowHeightFor(mode)
   return {
-    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    // Never left of a work area narrower than the window (1366 px at 150 % is 910 DIP): it starts
+    // there and its transparent right side overflows.
+    x: Math.round(workArea.x + Math.max(0, (workArea.width - width) / 2)),
     y: Math.round(workArea.y),
     width,
     height,

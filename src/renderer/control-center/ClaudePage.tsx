@@ -1,10 +1,9 @@
 import { AlertTriangle, Check, CircleHelp, Clock, Minus, type LucideIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { MessageKey } from '../../shared/i18n/messages'
 import {
   connectionView,
   diffMarker,
-  hooksView,
   portInUse,
   rotateNotice,
   type DiffLine,
@@ -14,8 +13,10 @@ import {
 } from '../../shared/claude/page-status'
 import { useClaude } from '../shared/claude-store'
 import { useT } from '../shared/use-t'
+import { Switch } from '../ui/Switch'
 import { SettingRow } from './ControlCenterApp'
 import { IntegrationDisabledNotice } from './IntegrationDisabledNotice'
+import { accountFolderLabel, accountInitial, type AccountRow } from './work-log-account'
 
 const ICONS: Record<StatusIcon, LucideIcon> = {
   check: Check,
@@ -38,7 +39,7 @@ const DIFF_CLASS: Record<DiffLine['kind'], string> = {
   same: 'text-graphite',
 }
 
-type Step = 'idle' | 'confirm-install' | 'confirm-uninstall'
+type Step = { accountId: string; mode: 'install' | 'uninstall' } | null
 type Notice = { tone: 'info' | 'error'; key: MessageKey; params?: Record<string, string> } | null
 
 const buttonClass =
@@ -85,13 +86,130 @@ function DiffView({ diff }: { diff: readonly DiffLine[] }) {
   )
 }
 
+const HOOK_LABEL: Record<AccountRow['hookStatus'], MessageKey> = {
+  installed: 'cc.claude.account.hooks.installed',
+  outdated: 'cc.claude.account.hooks.outdated',
+  missing: 'cc.claude.account.hooks.missing',
+}
+
+const HOOK_TONE: Record<AccountRow['hookStatus'], string> = {
+  installed: 'text-ok',
+  outdated: 'text-wait',
+  missing: 'text-graphite',
+}
+
+/** One account: avatar, e-mail (else folder), «organización · carpeta», hooks status and its link switch. */
+function AccountItem({
+  account,
+  busy,
+  onToggle,
+  onUpdate,
+}: {
+  account: AccountRow
+  busy: boolean
+  onToggle: () => void
+  onUpdate: () => void
+}) {
+  const t = useT()
+  const folder = accountFolderLabel(account)
+  const title = account.email ?? folder
+  const subtitle = account.email ? [account.organization, folder].filter(Boolean).join(' · ') : account.organization
+  return (
+    <div data-testid={`claude-account-${account.id}`} className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-veil text-small font-semibold text-chalk"
+      >
+        {accountInitial(account)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-body text-chalk">{title}</div>
+        {subtitle ? <div className="truncate text-small text-graphite">{subtitle}</div> : null}
+        <div className="flex items-center gap-2 text-small">
+          <span data-testid={`claude-account-status-${account.id}`} data-status={account.hookStatus} className={HOOK_TONE[account.hookStatus]}>
+            {t(HOOK_LABEL[account.hookStatus])}
+          </span>
+          {account.linked && account.hookStatus === 'outdated' ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onUpdate}
+              className="cursor-pointer text-chalk underline decoration-line underline-offset-2 hover:decoration-chalk"
+            >
+              {t('cc.claude.install')}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <Switch checked={account.linked} disabled={busy} label={t('cc.claude.account.link', { name: folder })} onChange={onToggle} />
+    </div>
+  )
+}
+
+/**
+ * «Otra carpeta…»: the path is typed or pasted, or chosen with «Examinar…» (main opens the native
+ * folder browser; the chosen path only fills the field, so it can be reviewed before «Añadir»).
+ */
+function AddFolder({
+  busy,
+  onAdd,
+  onBrowse,
+}: {
+  busy: boolean
+  onAdd: (dir: string) => void
+  onBrowse: (fill: (dir: string) => void) => void
+}) {
+  const t = useT()
+  const [dir, setDir] = useState('')
+  const submit = () => {
+    const value = dir.trim()
+    if (!value) return
+    onAdd(value)
+    setDir('')
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        autoComplete="off"
+        spellCheck={false}
+        aria-label={t('cc.claude.account.folder')}
+        placeholder={`${t('cc.claude.account.other')} ${t('cc.claude.account.folderPlaceholder')}`}
+        value={dir}
+        onChange={(event) => setDir(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') submit()
+        }}
+        className="field h-8 min-w-0 flex-1 px-2.5 font-mono text-small text-chalk outline-none transition-colors duration-150 placeholder:text-graphite focus:border-select/60"
+      />
+      <button type="button" disabled={busy} onClick={() => onBrowse(setDir)} className={buttonClass}>
+        {t('cc.claude.account.browse')}
+      </button>
+      <button type="button" disabled={busy || dir.trim() === ''} onClick={submit} className={buttonClass}>
+        {t('cc.claude.account.add')}
+      </button>
+    </div>
+  )
+}
+
 export function ClaudePage() {
   const t = useT()
   const state = useClaude((s) => s.state)
-  const [step, setStep] = useState<Step>('idle')
+  const [accounts, setAccounts] = useState<readonly AccountRow[] | null>(null)
+  const [step, setStep] = useState<Step>(null)
   const [diff, setDiff] = useState<readonly DiffLine[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice>(null)
+
+  const loadAccounts = useCallback(async () => {
+    const result = await window.notch.claude.accounts()
+    if (result.ok) setAccounts(result.data.accounts)
+  }, [])
+  // Again when main reports the hooks changed (installed or removed outside this page).
+  const hooksState = state?.hooks
+  useEffect(() => {
+    void loadAccounts()
+  }, [loadAccounts, hooksState])
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -105,30 +223,56 @@ export function ClaudePage() {
   }
 
   const cancel = () => {
-    setStep('idle')
+    setStep(null)
     setDiff(null)
   }
 
-  const startInstall = () =>
+  const start = (accountId: string, mode: 'install' | 'uninstall') =>
     run(async () => {
       setNotice(null)
-      const result = await window.notch.claude.hooksPreview()
+      setDiff(null)
+      setStep(null)
+      // Turning an account off shows what removing the hooks writes, not the install diff.
+      const result = await window.notch.claude.hooksPreview({ accountId, mode })
       if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
       if (!result.data.ok) return setNotice({ tone: 'error', key: 'cc.claude.invalidJson' })
       setDiff(result.data.diff)
-      setStep('confirm-install')
+      setStep({ accountId, mode })
     })
 
-  const write = (call: () => ReturnType<typeof window.notch.claude.hooksInstall>, done: MessageKey) =>
+  const confirm = () =>
+    step &&
     run(async () => {
-      const result = await call()
-      cancel()
+      const { accountId, mode } = step
+      const call = mode === 'install' ? window.notch.claude.hooksInstall : window.notch.claude.hooksUninstall
+      const result = await call({ accountId })
+      setStep(null)
+      setDiff(null)
       if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
       if (!result.data.ok) return setNotice({ tone: 'error', key: 'cc.claude.invalidJson' })
       const { changed, backupFile, diff: applied } = result.data
       setDiff(changed ? applied : null)
       if (backupFile) setNotice({ tone: 'info', key: 'cc.claude.backup', params: { file: backupFile } })
-      else setNotice({ tone: 'info', key: changed ? done : 'cc.claude.unchanged' })
+      else setNotice({ tone: 'info', key: changed ? (mode === 'install' ? 'cc.claude.installed' : 'cc.claude.uninstalled') : 'cc.claude.unchanged' })
+      await loadAccounts()
+    })
+
+  const addFolder = (dir: string) =>
+    run(async () => {
+      setNotice(null)
+      const result = await window.notch.claude.accountAdd({ dir })
+      if (!result.ok) return setNotice({ tone: 'error', key: result.error.code === 'NOT_FOUND' ? 'cc.claude.account.notFound' : 'error.generic' })
+      setAccounts(result.data.accounts)
+      setNotice({ tone: 'info', key: 'cc.claude.account.added' })
+    })
+
+  // The folder browser is modal: the page is busy until it closes. Cancelling changes nothing.
+  const browseFolder = (fill: (dir: string) => void) =>
+    run(async () => {
+      setNotice(null)
+      const result = await window.notch.claude.pickAccountDir()
+      if (!result.ok) return setNotice({ tone: 'error', key: 'error.generic' })
+      if (result.data) fill(result.data.dir)
     })
 
   const test = () =>
@@ -144,6 +288,7 @@ export function ClaudePage() {
       setNotice(null)
       const result = await (what === 'token' ? window.notch.claude.rotateToken() : window.notch.claude.rotatePort())
       setNotice(result.ok ? rotateNotice(what, result.data) : { tone: 'error', key: 'error.generic' })
+      await loadAccounts()
     })
 
   if (!state) return null
@@ -169,51 +314,44 @@ export function ClaudePage() {
       <SettingRow label={t('cc.claude.connection.title')}>
         <StatusValue view={connectionView(state.connection)} />
       </SettingRow>
-      <SettingRow label={t('cc.claude.hooks.title')}>
-        <StatusValue view={hooksView(state.hooks)} />
-      </SettingRow>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-line py-4">
-        {step === 'confirm-install' ? (
-          <>
-            <button type="button" disabled={busy} onClick={() => void write(window.notch.claude.hooksInstall, 'cc.claude.installed')} className={primaryClass}>
-              {t('cc.claude.confirmInstall')}
-            </button>
-            <button type="button" disabled={busy} onClick={cancel} className={buttonClass}>
-              {t('cc.claude.cancel')}
-            </button>
-          </>
-        ) : step === 'confirm-uninstall' ? (
-          <>
-            <button type="button" disabled={busy} onClick={() => void write(window.notch.claude.hooksUninstall, 'cc.claude.uninstalled')} className={`${buttonClass} btn-danger`}>
-              {t('cc.claude.confirmUninstall')}
-            </button>
-            <button type="button" disabled={busy} onClick={cancel} className={buttonClass}>
-              {t('cc.claude.cancel')}
-            </button>
-          </>
-        ) : (
-          <>
-            <button type="button" disabled={busy} onClick={() => void startInstall()} className={buttonClass}>
-              {t('cc.claude.install')}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setNotice(null)
-                setDiff(null)
-                setStep('confirm-uninstall')
-              }}
-              className={buttonClass}
-            >
-              {t('cc.claude.uninstall')}
-            </button>
-          </>
-        )}
-      </div>
+      <section data-testid="claude-accounts" className="border-b border-line py-4">
+        <h2 className="text-body font-medium text-chalk">{t('cc.claude.accounts.title')}</h2>
+        <p className="mb-3 mt-1 text-small text-graphite">{t('cc.claude.accounts.hint')}</p>
+        <div className="flex flex-col gap-4">
+          {(accounts ?? []).map((account) => (
+            <div key={account.id} className="flex flex-col gap-3">
+              <AccountItem
+                account={account}
+                busy={busy}
+                onToggle={() => void start(account.id, account.linked ? 'uninstall' : 'install')}
+                onUpdate={() => void start(account.id, 'install')}
+              />
+              {step?.accountId === account.id ? (
+                <div className="flex flex-col gap-3">
+                  {diff ? <DiffView diff={diff} /> : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void confirm()}
+                      className={step.mode === 'install' ? primaryClass : `${buttonClass} btn-danger`}
+                    >
+                      {t(step.mode === 'install' ? 'cc.claude.confirmInstall' : 'cc.claude.confirmUninstall')}
+                    </button>
+                    <button type="button" disabled={busy} onClick={cancel} className={buttonClass}>
+                      {t('cc.claude.cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+          <AddFolder busy={busy} onAdd={(dir) => void addFolder(dir)} onBrowse={(fill) => void browseFolder(fill)} />
+        </div>
+      </section>
 
-      {diff ? (
+      {diff && !step ? (
         <div className="border-b border-line py-4">
           <DiffView diff={diff} />
         </div>

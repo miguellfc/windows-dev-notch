@@ -4,11 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{present, Validate};
+use super::{nullable, present, Validate};
 use crate::settings::validate::{validate_patch, validate_settings};
 
-/// Current settings file version (`SETTINGS_VERSION`). v9 dropped `integrations.system`.
-pub const SETTINGS_VERSION: u32 = 9;
+/// Current settings file version (`SETTINGS_VERSION`). v9 dropped `integrations.system`; v10
+/// adds `claudeAccounts`, `workLog` and `integrations.workLog`.
+pub const SETTINGS_VERSION: u32 = 10;
 
 /// `SNOOZE_MINUTES_OPTIONS`.
 pub const SNOOZE_MINUTES_OPTIONS: [u32; 4] = [5, 10, 15, 30];
@@ -124,6 +125,30 @@ pub struct RedmineSettings {
     pub end_of_day: RedmineEndOfDaySettings,
 }
 
+/// Fewest and most idle minutes before the work log pauses the clock (`WORK_LOG_IDLE_PAUSE_MIN` /
+/// `_MAX`).
+pub const WORK_LOG_IDLE_PAUSE_MIN: u32 = 5;
+pub const WORK_LOG_IDLE_PAUSE_MAX: u32 = 240;
+
+/// `workLogSettingsSchema` (v10): the Claude account whose sessions the work log records (`None` =
+/// none yet) and the idle minutes after which the clock pauses.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct WorkLogSettings {
+    #[serde(deserialize_with = "nullable")]
+    pub account_id: Option<String>,
+    pub idle_pause_minutes: u32,
+}
+
+impl Default for WorkLogSettings {
+    fn default() -> Self {
+        Self {
+            account_id: None,
+            idle_pause_minutes: 30,
+        }
+    }
+}
+
 /// `integrationColorIds` (`src/shared/integrations/colors.ts`): the 21 palette ids, in display
 /// order.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -210,8 +235,9 @@ pub struct IntegrationSettings {
     pub color: IntegrationColor,
 }
 
-/// `integrationsSettingsSchema` (v9): the seven integrations, in `integrationKeys` order. Only
-/// claude, github, gitlab, gmail and redmine may have `capsule: true` (checked in `validate`).
+/// `integrationsSettingsSchema` (v10): the eight integrations, in `integrationKeys` order. Only
+/// claude, github, gitlab, gmail, redmine and the work log may have `capsule: true` (checked in
+/// `validate`).
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct IntegrationsSettings {
@@ -220,8 +246,23 @@ pub struct IntegrationsSettings {
     pub gitlab: IntegrationSettings,
     pub gmail: IntegrationSettings,
     pub redmine: IntegrationSettings,
+    pub work_log: IntegrationSettings,
     pub reminders: IntegrationSettings,
     pub notes: IntegrationSettings,
+}
+
+/// `claudeAccountsSettingsSchema` (v10): the Claude Code accounts (config folders) the notch
+/// installs its hooks in. Only main changes it (the `claude:*` account channels), never a
+/// `settings:update` patch.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ClaudeAccountsSettings {
+    /// Ids of the accounts whose hooks the user installed.
+    pub linked: Vec<String>,
+    /// Folders added by hand ("Otra carpeta…").
+    pub extra_dirs: Vec<String>,
+    /// The first start after the update has linked `~/.claude` when it already had our hooks.
+    pub initialized: bool,
 }
 
 /// `settingsSchema`.
@@ -237,7 +278,9 @@ pub struct Settings {
     pub gmail: GmailSettings,
     pub code_review: CodeReviewSettings,
     pub redmine: RedmineSettings,
+    pub work_log: WorkLogSettings,
     pub integrations: IntegrationsSettings,
+    pub claude_accounts: ClaudeAccountsSettings,
 }
 
 impl Validate for Settings {
@@ -312,6 +355,24 @@ pub struct RedmineSettingsPatch {
     pub end_of_day: Option<RedmineEndOfDayPatch>,
 }
 
+/// `workLogSettingsSchema.partial()`: `accountId` may be sent as `null` (follow no account).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct WorkLogSettingsPatch {
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub account_id: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub idle_pause_minutes: Option<u32>,
+}
+
 /// `integrationSettingsSchema.partial()`.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -371,6 +432,12 @@ pub struct IntegrationsPatch {
         skip_serializing_if = "Option::is_none"
     )]
     pub redmine: Option<IntegrationSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub work_log: Option<IntegrationSettingsPatch>,
     #[serde(
         default,
         deserialize_with = "present",
@@ -437,6 +504,12 @@ pub struct SettingsPatch {
         skip_serializing_if = "Option::is_none"
     )]
     pub redmine: Option<RedmineSettingsPatch>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub work_log: Option<WorkLogSettingsPatch>,
     #[serde(
         default,
         deserialize_with = "present",

@@ -19,6 +19,7 @@ pub mod security;
 pub mod services;
 pub mod settings;
 pub mod system;
+pub mod work_log;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -50,6 +51,7 @@ use reminders::Reminders;
 use services::quit::{ExitDecision, QuitFlush};
 use services::usage::{UsageEvent, UsageLog};
 use system::integration::SystemIntegration;
+use work_log::ipc::{WorkLog, WorkLogSlot};
 
 /// Shared state managed by Tauri; later tasks add their services here.
 pub struct App {
@@ -88,6 +90,7 @@ pub fn run() {
         code_review: code_review_slot,
         redmine: redmine_slot,
         gmail: gmail_slot,
+        work_log: work_log_slot,
     } = slots;
 
     let app = tauri::Builder::default()
@@ -137,6 +140,7 @@ pub fn run() {
             // The wall clock the part-2 modules read (`__e2e:advance-clock` moves it in tests).
             let wall_clock = Arc::new(services::clock::WallClock::real());
             app.manage(Arc::clone(&wall_clock));
+            let wall_clock_for_work_log = Arc::clone(&wall_clock);
 
             // Daily counts kept only on this PC (`usage.json`) for the About page. Loading does
             // not hold up startup; `usage:summary` waits for it.
@@ -198,8 +202,31 @@ pub fn run() {
 
             // Claude Code: after the notch (it drives the alerts), before the reminders, as in
             // Electron. The bridge starts in the background; the channels reach it through the slot.
-            let claude =
-                claude::integration::install(app.handle(), &claude_slot, &notch, &usage, &data_dir);
+            // The work log (`work-log.json`) before Claude: it records the hook events of the
+            // chosen account. Its load and tick start below, with the other stores.
+            let claude_accounts = claude::integration::account_directory(app.handle(), &data_dir);
+            let work_log = install_work_log(
+                app.handle(),
+                &work_log_slot,
+                &data_dir,
+                &wall_clock,
+                claude_accounts.clone(),
+            );
+            let claude = {
+                let service = Arc::clone(work_log.service());
+                let clock = Arc::clone(&wall_clock);
+                claude::integration::install(
+                    app.handle(),
+                    &claude_slot,
+                    &notch,
+                    &usage,
+                    &data_dir,
+                    claude_accounts,
+                    Arc::new(move |event| {
+                        service.on_hook_event(event, clock.now().timestamp_millis())
+                    }),
+                )
+            };
 
             // With `NOTCH_OPEN_URL_LOG=1` (dev/E2E only) the URLs Gmail and code review would
             // open are recorded instead; both openers check for the recorder when built.
@@ -283,6 +310,15 @@ pub fn run() {
                 let notes = Arc::clone(&notes);
                 tauri::async_runtime::spawn(async move { notes.start().await });
             }
+            {
+                let work_log = Arc::clone(&work_log);
+                let timers = notch.timers();
+                let clock = Arc::clone(&wall_clock_for_work_log);
+                tauri::async_runtime::spawn(async move {
+                    work_log.start().await;
+                    work_log.start_tick(timers, Arc::new(move || clock.now().timestamp_millis()));
+                });
+            }
 
             install_shortcut(app.handle(), &saved.shortcut);
             if let Err(error) =
@@ -297,6 +333,17 @@ pub fn run() {
                     let notes = Arc::clone(&notes);
                     Box::pin(async move { notes.flush().await })
                 });
+            {
+                let work_log = Arc::clone(&work_log);
+                app.state::<Arc<services::quit::QuitTasks>>()
+                    .add_flusher(move || {
+                        let work_log = Arc::clone(&work_log);
+                        Box::pin(async move {
+                            work_log.dispose();
+                            work_log.flush().await;
+                        })
+                    });
+            }
             // After the notch's cleanup (registered by `install`) and before the reminders', as in
             // Electron: every held permission and question is answered (Claude falls back to its
             // own prompt) and the bridge is stopped, waited for within the cleanup budget.
@@ -422,6 +469,7 @@ pub struct Slots {
     pub code_review: Arc<CodeReviewSlot>,
     pub redmine: Arc<RedmineSlot>,
     pub gmail: Arc<GmailSlot>,
+    pub work_log: Arc<WorkLogSlot>,
 }
 
 /// Every channel of `window.notch` with its handler, plus the `__e2e:*` test channels in the
@@ -438,9 +486,92 @@ pub fn build_registry(slots: &Slots) -> ipc::Registry {
     code_review::ipc::register(&mut registry, &slots.code_review);
     redmine::ipc::register(&mut registry, &slots.redmine);
     gmail::ipc::register(&mut registry, &slots.gmail);
+    work_log::ipc::register(&mut registry, &slots.work_log);
     #[cfg(feature = "e2e")]
     e2e::register(&mut registry);
     registry
+}
+
+/// What the work log reads from the settings.
+fn work_log_config(settings: &Settings) -> work_log::service::WorkLogConfig {
+    work_log::service::WorkLogConfig {
+        enabled: settings.integrations.work_log.enabled,
+        account_id: settings.work_log.account_id.clone(),
+        idle_pause_ms: i64::from(settings.work_log.idle_pause_minutes) * 60_000,
+        language: settings.language,
+    }
+}
+
+/// `claude -p` for the work log's summaries: the account's folder as the Control Center lists it
+/// ([`claude::accounts::AccountDirectory`]; the default account of the real home runs without
+/// `CLAUDE_CONFIG_DIR`), in the app's language, in `<data dir>/work-log-summarizer`.
+fn work_log_summarizer(
+    app: &AppHandle,
+    data_dir: &std::path::Path,
+    accounts: Option<Arc<claude::accounts::AccountDirectory>>,
+) -> Arc<work_log::summarizer::ClaudeSummarizer> {
+    use claude::service::Accounts;
+    use work_log::summarizer::{config_dir_for, ClaudeSummarizer, SummarizerDeps};
+    let real_home = app.path().home_dir().ok();
+    let config_dir = Arc::new(move |id: &str| {
+        let accounts = accounts.as_deref()?;
+        let default_home = real_home.as_deref() == Some(accounts.home.as_path());
+        config_dir_for(&accounts.list(), id, default_home)
+    });
+    let language = {
+        let app = app.clone();
+        Arc::new(move || app.state::<settings::SettingsStore>().get().language)
+    };
+    ClaudeSummarizer::new(SummarizerDeps {
+        claude_override: ipc::dev_env_var_os(work_log::summarizer::CLAUDE_OVERRIDE_ENV)
+            .filter(|value| !value.is_empty())
+            .map(std::path::PathBuf::from),
+        config_dir,
+        language,
+        work_dir: data_dir.join("work-log-summarizer"),
+        timeout: work_log::summarizer::SUMMARY_TIMEOUT,
+    })
+}
+
+/// The work log on `work-log.json`, its channels' slot filled and a new snapshot sent whenever
+/// the settings change (account, pause, language). Not started: `setup` starts it with the
+/// other stores. Its clock is the shared wall clock (the E2E test clock moves it).
+fn install_work_log(
+    app: &AppHandle,
+    slot: &WorkLogSlot,
+    data_dir: &std::path::Path,
+    wall_clock: &Arc<services::clock::WallClock>,
+    accounts: Option<Arc<claude::accounts::AccountDirectory>>,
+) -> Arc<WorkLog> {
+    let clock = Arc::clone(wall_clock);
+    let config = {
+        let app = app.clone();
+        Arc::new(move || work_log_config(&app.state::<settings::SettingsStore>().get()))
+    };
+    let summarizer = work_log_summarizer(app, data_dir, accounts);
+    let service = work_log::service::WorkLogService::new(work_log::service::WorkLogDeps {
+        file: data_dir.join("work-log.json"),
+        clock: Arc::new(services::clock::WallClock::real()),
+        now: Arc::new(move || clock.now().timestamp_millis()),
+        config,
+        summarizer: Arc::clone(&summarizer) as Arc<dyn work_log::service::Summarizer>,
+        on_change: work_log::ipc::notch_emitter(app),
+    });
+    summarizer.bind(&service);
+    {
+        let service = Arc::downgrade(&service);
+        app.state::<settings::SettingsStore>()
+            .on_change(move |_settings: &Settings| {
+                if let Some(service) = service.upgrade() {
+                    service.emit_snapshot();
+                }
+            });
+    }
+    let work_log = WorkLog::new(service, work_log::ipc::system_clipboard());
+    if slot.set(Arc::clone(&work_log)).is_err() {
+        log::error!("work log: installed twice");
+    }
+    work_log
 }
 
 /// The app launcher behind `apps:open`. The user folder is read here, on the main thread. With

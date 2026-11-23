@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use crate::contract::notch::{IntegrationId, NotchMode};
 
 /// Modes that show the panel and therefore own the keyboard focus.
-pub const PANEL_MODES: [NotchMode; 8] = [
+pub const PANEL_MODES: [NotchMode; 9] = [
     NotchMode::Expanded,
     NotchMode::Permission,
     NotchMode::Question,
@@ -16,6 +16,7 @@ pub const PANEL_MODES: [NotchMode; 8] = [
     NotchMode::Gmail,
     NotchMode::Reviews,
     NotchMode::Redmine,
+    NotchMode::WorkLog,
 ];
 
 /// How long the new-mail alert stays in the capsule (main owns the timer).
@@ -181,6 +182,7 @@ fn integration_mode(id: IntegrationId) -> NotchMode {
         IntegrationId::Gmail => NotchMode::Gmail,
         IntegrationId::Reviews => NotchMode::Reviews,
         IntegrationId::Redmine => NotchMode::Redmine,
+        IntegrationId::WorkLog => NotchMode::WorkLog,
     }
 }
 

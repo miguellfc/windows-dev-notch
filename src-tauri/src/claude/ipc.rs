@@ -1,6 +1,6 @@
-//! The thirteen `claude:*` channels (port of 0.1.0's `claude-ipc.ts`). Guards live in
-//! `ipc::GUARDS`: decisions, questions and session actions belong to the notch; hooks, token and
-//! port to the Control Center; `claude:get-state` to both. No response carries the bridge token
+//! The sixteen `claude:*` channels (port of 0.1.0's `claude-ipc.ts`). Guards live in
+//! `ipc::GUARDS`: decisions, questions and session actions belong to the notch; accounts, hooks,
+//! token and port to the Control Center; `claude:get-state` to both. No response carries the bridge token
 //! (the state has no field for it and every diff is masked).
 
 use std::sync::{Arc, OnceLock};
@@ -10,9 +10,9 @@ use serde_json::Value;
 
 use super::service::{AnswerResult, ClaudeService};
 use crate::contract::claude::{
-    AnswerInput, AnswerOutcome, DecideInput, DismissSessionInput, PendingQuestions,
-    ReleaseQuestionInput, ANSWERS_DO_NOT_FIT_MESSAGE, NO_IDLE_SESSION_MESSAGE,
-    NO_PENDING_REQUEST_MESSAGE,
+    AccountAddInput, AccountInput, AnswerInput, AnswerOutcome, DecideInput, DismissSessionInput,
+    HooksPreviewInput, HooksPreviewMode, PendingQuestions, ReleaseQuestionInput,
+    ANSWERS_DO_NOT_FIT_MESSAGE, NO_IDLE_SESSION_MESSAGE, NO_PENDING_REQUEST_MESSAGE,
 };
 use crate::ipc::{no_input, BoxFuture, Channel, Ctx, ExposedError, IpcErrorCode, Registry};
 
@@ -34,10 +34,13 @@ enum Op {
     TestConnection,
     RotateToken,
     RotatePort,
+    Accounts,
+    AccountAdd,
+    PickAccountDir,
 }
 
 /// Every `claude:*` channel with its operation.
-const CHANNELS: [(&str, Op); 13] = [
+const CHANNELS: [(&str, Op); 16] = [
     ("claude:get-state", Op::GetState),
     ("claude:decide", Op::Decide),
     ("claude:focus-app", Op::FocusApp),
@@ -51,6 +54,9 @@ const CHANNELS: [(&str, Op); 13] = [
     ("claude:test-connection", Op::TestConnection),
     ("claude:rotate-token", Op::RotateToken),
     ("claude:rotate-port", Op::RotatePort),
+    ("claude:accounts", Op::Accounts),
+    ("claude:account-add", Op::AccountAdd),
+    ("claude:pick-account-dir", Op::PickAccountDir),
 ];
 
 fn json(value: impl Serialize) -> Result<Value, ExposedError> {
@@ -109,16 +115,29 @@ async fn handle(service: &ClaudeService, op: Op, input: Value) -> Result<Value, 
             Ok(Value::Null)
         }
         Op::HooksPreview => {
-            no_input(&input)?;
-            json(service.preview_hooks().await?)
+            let input = HooksPreviewInput::from_input(input)?;
+            let mode = input.mode.unwrap_or(HooksPreviewMode::Install);
+            json(service.preview_hooks(&input.account_id, mode).await?)
         }
         Op::HooksInstall => {
-            no_input(&input)?;
-            json(service.install_hooks().await?)
+            let input = AccountInput::from_input(input)?;
+            json(service.install_hooks(&input.account_id).await?)
         }
         Op::HooksUninstall => {
+            let input = AccountInput::from_input(input)?;
+            json(service.uninstall_hooks(&input.account_id).await?)
+        }
+        Op::Accounts => {
             no_input(&input)?;
-            json(service.uninstall_hooks().await?)
+            json(service.accounts().await?)
+        }
+        Op::AccountAdd => {
+            let input = AccountAddInput::from_input(input)?;
+            json(service.add_account(&input.dir).await?)
+        }
+        Op::PickAccountDir => {
+            no_input(&input)?;
+            json(service.pick_account_dir().await?)
         }
         Op::TestConnection => {
             no_input(&input)?;
@@ -156,7 +175,7 @@ impl Channel for ClaudeChannel {
     }
 }
 
-/// Registers the thirteen `claude:*` channels; they reach the service through `slot`.
+/// Registers the sixteen `claude:*` channels; they reach the service through `slot`.
 pub fn register(registry: &mut Registry, slot: &Arc<ClaudeSlot>) {
     for (name, op) in CHANNELS {
         registry.register(

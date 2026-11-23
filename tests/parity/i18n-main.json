@@ -2,6 +2,7 @@
   "en": {
     "claude.toast.question": "Claude asks",
     "claude.toast.title": "Claude needs permission",
+    "dialog.claudeAccountDir": "Choose the Claude account folder",
     "reminders.toast.missedMany": "You have {count} missed reminders",
     "reminders.toast.missedOne": "You have 1 missed reminder",
     "reminders.toast.missedTitle": "Missed reminders",
@@ -16,6 +17,7 @@
   "es": {
     "claude.toast.question": "Claude te pregunta",
     "claude.toast.title": "Claude espera permiso",
+    "dialog.claudeAccountDir": "Elige la carpeta de la cuenta de Claude",
     "reminders.toast.missedMany": "Tienes {count} recordatorios perdidos",
     "reminders.toast.missedOne": "Tienes 1 recordatorio perdido",
     "reminders.toast.missedTitle": "Recordatorios perdidos",

@@ -37,6 +37,8 @@ struct Req {
     content_type: Option<String>,
     /// `None`: `127.0.0.1:<port>`.
     host: Option<String>,
+    /// Extra headers, sent as given.
+    headers: Vec<(String, String)>,
     body: Vec<u8>,
 }
 
@@ -47,6 +49,7 @@ fn req(body: impl Into<Vec<u8>>) -> Req {
         token: Some(TOKEN.into()),
         content_type: Some("application/json".into()),
         host: None,
+        headers: Vec::new(),
         body: body.into(),
     }
 }
@@ -72,6 +75,10 @@ impl Req {
         self.host = Some(host.into());
         self
     }
+    fn header(mut self, name: &str, value: &str) -> Self {
+        self.headers.push((name.into(), value.into()));
+        self
+    }
 
     /// Request line and headers (with content-length), up to the blank line.
     fn head(&self, port: u16) -> String {
@@ -85,6 +92,9 @@ impl Req {
         }
         if let Some(content_type) = &self.content_type {
             head.push_str(&format!("content-type: {content_type}\r\n"));
+        }
+        for (name, value) in &self.headers {
+            head.push_str(&format!("{name}: {value}\r\n"));
         }
         head.push_str(&format!("content-length: {}\r\n\r\n", self.body.len()));
         head
@@ -1053,4 +1063,57 @@ async fn stop_does_not_wait_for_a_client_that_keeps_an_answered_connection_open(
         started.elapsed()
     );
     drop(stream);
+}
+
+// --- Account header (work log) ---------------------------------------------------------------
+
+#[tokio::test]
+async fn an_event_without_the_account_header_belongs_to_the_default_account() {
+    let fx = Fx::boot().await;
+    assert_eq!(send(fx.port, req(plain("Stop"))).await.unwrap(), ok(""));
+    assert_eq!(fx.events()[0].event.account_id, "claude");
+}
+
+#[tokio::test]
+async fn the_account_header_tags_the_event() {
+    let fx = Fx::boot().await;
+    let request = req(plain("Stop")).header("x-notch-account", "claude-work");
+    assert_eq!(send(fx.port, request).await.unwrap(), ok(""));
+    assert_eq!(fx.events()[0].event.account_id, "claude-work");
+}
+
+#[tokio::test]
+async fn an_invalid_account_header_is_a_400_and_delivers_nothing() {
+    let fx = Fx::boot().await;
+    let long = "a".repeat(65);
+    for value in [
+        long.as_str(),
+        "Claude",
+        "claude_work",
+        "claude work",
+        "dir-%",
+    ] {
+        let request = req(plain("Stop")).header("x-notch-account", value);
+        assert_eq!(status(fx.port, request).await, 400, "{value:?}");
+    }
+    // Repeated, even with the same valid value.
+    let twice = req(plain("Stop"))
+        .header("x-notch-account", "claude")
+        .header("x-notch-account", "claude");
+    assert_eq!(status(fx.port, twice).await, 400);
+    assert_eq!(fx.count(), 0);
+    // 64 characters is still fine.
+    let longest = "a".repeat(64);
+    let request = req(plain("Stop")).header("x-notch-account", &longest);
+    assert_eq!(status(fx.port, request).await, 200);
+    assert_eq!(fx.events()[0].event.account_id, longest);
+}
+
+#[tokio::test]
+async fn the_token_is_checked_before_the_account_header() {
+    let fx = Fx::boot().await;
+    let request = req(plain("Stop"))
+        .token(None)
+        .header("x-notch-account", "Not Valid");
+    assert_eq!(status(fx.port, request).await, 403);
 }

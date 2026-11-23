@@ -102,6 +102,7 @@ pub mod settings;
 pub mod system;
 pub mod text;
 pub mod usage;
+pub mod work_log;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -255,16 +256,24 @@ pub fn check(
         (
             "claude:get-state"
             | "claude:focus-app"
-            | "claude:hooks-preview"
-            | "claude:hooks-install"
-            | "claude:hooks-uninstall"
+            | "claude:accounts"
             | "claude:test-connection"
             | "claude:rotate-token"
             | "claude:rotate-port"
-            | "claude:get-questions",
+            | "claude:get-questions"
+            | "claude:pick-account-dir",
             Input,
         ) => none(value),
+        ("claude:pick-account-dir", Output) => required::<Option<claude::PickedAccountDir>>(value),
         ("claude:get-state", Output) => required::<claude::ClaudeState>(value),
+        ("claude:hooks-preview", Input) => required::<claude::HooksPreviewInput>(value),
+        ("claude:hooks-install" | "claude:hooks-uninstall", Input) => {
+            required::<claude::AccountInput>(value)
+        }
+        ("claude:account-add", Input) => required::<claude::AccountAddInput>(value),
+        ("claude:accounts" | "claude:account-add", Output) => {
+            required::<claude::ClaudeAccounts>(value)
+        }
         ("claude:decide", Input) => required::<claude::DecideInput>(value),
         ("claude:dismiss-session", Input) => required::<claude::DismissSessionInput>(value),
         ("claude:answer", Input) => required::<claude::AnswerInput>(value),
@@ -387,6 +396,24 @@ pub fn check(
             Output,
         ) => required::<reminders::Reminder>(value),
         ("reminders:delete", Output) => required::<Ack>(value),
+        ("work-log:list" | "work-log:claude-available", Input) => none(value),
+        ("work-log:list", Output) => required::<work_log::WorkLogSnapshot>(value),
+        ("work-log:set-invoiced", Input) => required::<work_log::WorkLogSetInvoicedInput>(value),
+        ("work-log:delete" | "work-log:restore" | "work-log:summarize", Input) => {
+            required::<work_log::WorkLogSessionInput>(value)
+        }
+        ("work-log:copy", Input) => required::<work_log::WorkLogCopyInput>(value),
+        (
+            "work-log:set-invoiced"
+            | "work-log:delete"
+            | "work-log:restore"
+            | "work-log:copy"
+            | "work-log:summarize",
+            Output,
+        ) => required::<Ack>(value),
+        ("work-log:claude-available", Output) => {
+            required::<work_log::WorkLogClaudeAvailable>(value)
+        }
         ("notch:mode-changed", Event) => required::<notch::NotchMode>(value),
         ("notch:mail-alert" | "notch:review-alert" | "notch:redmine-alert", Event) => {
             required::<bool>(value)
@@ -394,6 +421,7 @@ pub fn check(
         ("settings:changed", Event) => required::<settings::Settings>(value),
         ("system:metrics", Event) => required::<system::SystemMetrics>(value),
         ("notes:changed", Event) => required::<notes::NotesSnapshot>(value),
+        ("work-log:changed", Event) => required::<work_log::WorkLogSnapshot>(value),
         ("reminders:changed", Event) => required::<reminders::RemindersSnapshot>(value),
         ("reminders:fired", Event) => required::<reminders::ReminderFired>(value),
         ("claude:state-changed", Event) => required::<claude::ClaudeState>(value),

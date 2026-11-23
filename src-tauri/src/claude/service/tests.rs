@@ -13,6 +13,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use super::*;
+use crate::claude::account_dir::FolderPicker;
+use crate::claude::accounts::ClaudeAccount;
 use crate::claude::bridge::{BridgeError, ClaudeBridge, HookRoute, OnEvent, PendingReply};
 use crate::claude::hook_events::{HookEvent, HookEventName, Preview};
 use crate::claude::hook_installer::{
@@ -95,6 +97,8 @@ struct FakeInstaller {
     status_calls: AtomicUsize,
     installs: Mutex<Vec<HookInstallOptions>>,
     install_results: Mutex<VecDeque<io::Result<HookWriteResult>>>,
+    /// `status` fails with this while set.
+    status_error: Mutex<Option<io::ErrorKind>>,
 }
 
 impl FakeInstaller {
@@ -104,6 +108,7 @@ impl FakeInstaller {
             status_calls: AtomicUsize::new(0),
             installs: Mutex::default(),
             install_results: Mutex::default(),
+            status_error: Mutex::default(),
         })
     }
 
@@ -144,6 +149,17 @@ impl Installer for FakeInstaller {
         Box::pin(async move { result })
     }
 
+    fn preview_uninstall(&self) -> BoxFuture<'_, io::Result<HookPlan>> {
+        let plan = Plan {
+            next: "{}".into(),
+            diff: vec![DiffLine {
+                kind: DiffKind::Remove,
+                text: format!("\"x-notch-token\": \"{}\"", token()),
+            }],
+        };
+        Box::pin(async move { Ok(Ok(plan)) })
+    }
+
     fn uninstall(&self) -> BoxFuture<'_, io::Result<HookWriteResult>> {
         *lock(&self.status) = HookStatus::Missing;
         let diff = vec![DiffLine {
@@ -165,7 +181,90 @@ impl Installer for FakeInstaller {
     ) -> BoxFuture<'a, io::Result<HookStatus>> {
         self.status_calls.fetch_add(1, Ordering::SeqCst);
         let status = *lock(&self.status);
-        Box::pin(async move { Ok(status) })
+        let error = *lock(&self.status_error);
+        Box::pin(async move {
+            match error {
+                Some(kind) => Err(io::Error::from(kind)),
+                None => Ok(status),
+            }
+        })
+    }
+}
+
+/// The accounts: `claude` (the fake installer above) and whatever a test adds; the
+/// `claudeAccounts` settings in memory.
+struct FakeAccounts {
+    home: PathBuf,
+    installers: Mutex<Vec<(ClaudeAccount, Arc<FakeInstaller>)>>,
+    settings: Mutex<ClaudeAccountsSettings>,
+    updates: AtomicUsize,
+}
+
+impl FakeAccounts {
+    fn new(default: Arc<FakeInstaller>) -> Arc<Self> {
+        let home = PathBuf::from("C:\\Users\\me");
+        let accounts = Arc::new(Self {
+            installers: Mutex::default(),
+            settings: Mutex::new(ClaudeAccountsSettings {
+                linked: vec!["claude".into()],
+                extra_dirs: Vec::new(),
+                initialized: true,
+            }),
+            updates: AtomicUsize::new(0),
+            home,
+        });
+        accounts.add("claude", default);
+        accounts
+    }
+
+    fn add(&self, id: &str, installer: Arc<FakeInstaller>) {
+        let dir = self.home.join(format!(".{id}"));
+        let account = ClaudeAccount {
+            id: id.into(),
+            settings_file: dir.join("settings.json"),
+            dir,
+            email: Some(format!("{id}@example.test")),
+            organization: None,
+        };
+        lock(&self.installers).push((account, installer));
+    }
+
+    fn set(&self, settings: ClaudeAccountsSettings) {
+        *lock(&self.settings) = settings;
+    }
+
+    fn current(&self) -> ClaudeAccountsSettings {
+        lock(&self.settings).clone()
+    }
+}
+
+impl Accounts for FakeAccounts {
+    fn list(&self) -> Vec<ClaudeAccount> {
+        lock(&self.installers)
+            .iter()
+            .map(|(account, _)| account.clone())
+            .collect()
+    }
+
+    fn installer(&self, id: &str) -> Option<Arc<dyn Installer>> {
+        lock(&self.installers)
+            .iter()
+            .find(|(account, _)| account.id == id)
+            .map(|(_, installer)| Arc::clone(installer) as Arc<dyn Installer>)
+    }
+
+    fn settings(&self) -> ClaudeAccountsSettings {
+        self.current()
+    }
+
+    fn update(&self, change: AccountsChange) -> BoxFuture<'_, Result<(), ExposedError>> {
+        self.updates.fetch_add(1, Ordering::SeqCst);
+        change(&mut lock(&self.settings));
+        Box::pin(async { Ok(()) })
+    }
+
+    fn home(&self) -> PathBuf {
+        self.home.clone()
     }
 }
 
@@ -186,6 +285,8 @@ struct Opts {
     bridge: BridgeKind,
     /// Also receives every question list (e.g. the real `QuestionAlerts`).
     on_questions: Option<OnQuestions>,
+    /// What the folder browser answers (`None`: cancelled).
+    folder: Option<PathBuf>,
 }
 
 impl Default for Opts {
@@ -196,7 +297,22 @@ impl Default for Opts {
             port: 47_600,
             bridge: BridgeKind::Fake(Arc::new(|_| Ok(()))),
             on_questions: None,
+            folder: None,
         }
+    }
+}
+
+/// The folder browser: answers the configured folder and counts the calls.
+struct FakeFolder {
+    choice: Option<PathBuf>,
+    calls: AtomicUsize,
+}
+
+impl FolderPicker for FakeFolder {
+    fn pick_folder(&self) -> BoxFuture<'_, Option<PathBuf>> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        let choice = self.choice.clone();
+        Box::pin(async move { choice })
     }
 }
 
@@ -210,7 +326,9 @@ struct Fx {
     new_questions: Arc<Mutex<Vec<PendingQuestionView>>>,
     order: Arc<Mutex<Vec<String>>>,
     installer: Arc<FakeInstaller>,
+    accounts: Arc<FakeAccounts>,
     focus_calls: Arc<AtomicUsize>,
+    folder: Arc<FakeFolder>,
     load_calls: Arc<AtomicUsize>,
     /// Calls of `rotate_config` and `rotate_port_config` (each one rewrites claude-bridge.json).
     rotate_calls: Arc<AtomicUsize>,
@@ -246,7 +364,12 @@ fn setup_with(opts: Opts) -> Fx {
     let new_questions: Arc<Mutex<Vec<PendingQuestionView>>> = Arc::default();
     let order: Arc<Mutex<Vec<String>>> = Arc::default();
     let installer = FakeInstaller::new(opts.hooks);
+    let accounts = FakeAccounts::new(Arc::clone(&installer));
     let focus_calls = Arc::new(AtomicUsize::new(0));
+    let folder = Arc::new(FakeFolder {
+        choice: opts.folder.clone(),
+        calls: AtomicUsize::new(0),
+    });
     let load_calls = Arc::new(AtomicUsize::new(0));
     let rotate_calls = Arc::new(AtomicUsize::new(0));
     let current_token = Arc::new(Mutex::new(token()));
@@ -332,7 +455,8 @@ fn setup_with(opts: Opts) -> Fx {
                 }
             })
         },
-        installer: Arc::clone(&installer) as Arc<dyn Installer>,
+        accounts: Arc::clone(&accounts) as Arc<dyn Accounts>,
+        folder_picker: Arc::clone(&folder) as Arc<dyn FolderPicker>,
         focus_claude: {
             let focus_calls = Arc::clone(&focus_calls);
             Arc::new(move || {
@@ -384,7 +508,9 @@ fn setup_with(opts: Opts) -> Fx {
         new_questions,
         order,
         installer,
+        accounts,
         focus_calls,
+        folder,
         load_calls,
         rotate_calls,
         clock,
@@ -1171,14 +1297,18 @@ async fn dismisses_only_idle_sessions() {
 async fn masks_the_token_in_previews_and_write_results_and_refreshes_the_hook_status() {
     let fx = hooks(HookStatus::Missing);
     fx.service.start().await;
-    let preview = fx.service.preview_hooks().await.unwrap();
+    let preview = fx
+        .service
+        .preview_hooks("claude", HooksPreviewMode::Install)
+        .await
+        .unwrap();
     assert!(!serde_json::to_string(&preview).unwrap().contains(&token()));
     assert_eq!(
         serde_json::to_value(&preview).unwrap(),
         json!({"ok": true, "diff": [{"kind": "add", "text": "          \"x-notch-token\": \"••••••\","}]})
     );
 
-    let installed = fx.service.install_hooks().await.unwrap();
+    let installed = fx.service.install_hooks("claude").await.unwrap();
     let installed = serde_json::to_value(&installed).unwrap();
     assert!(!installed.to_string().contains(&token()));
     assert_eq!(installed["ok"], json!(true));
@@ -1188,11 +1318,28 @@ async fn masks_the_token_in_previews_and_write_results_and_refreshes_the_hook_st
     assert_eq!(state.hooks, ClaudeHooksStatus::Installed);
     assert_eq!(state.connection, ClaudeConnection::WaitingForEvents);
 
-    let removed = fx.service.uninstall_hooks().await.unwrap();
+    let removed = fx.service.uninstall_hooks("claude").await.unwrap();
     assert!(!serde_json::to_string(&removed).unwrap().contains(&token()));
     let state = fx.service.state();
     assert_eq!(state.hooks, ClaudeHooksStatus::Missing);
     assert_eq!(state.connection, ClaudeConnection::NotInstalled);
+}
+
+#[tokio::test]
+async fn the_uninstall_preview_is_the_masked_removal_diff() {
+    let fx = hooks(HookStatus::Installed);
+    fx.service.start().await;
+    let preview = fx
+        .service
+        .preview_hooks("claude", HooksPreviewMode::Uninstall)
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&preview).unwrap(),
+        json!({"ok": true, "diff": [{"kind": "remove", "text": "\"x-notch-token\": \"••••••\""}]})
+    );
+    // Only a preview: the hooks are still there.
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Installed);
 }
 
 #[tokio::test]
@@ -1202,9 +1349,13 @@ async fn refuses_hook_installs_without_a_bridge_config() {
         ..Opts::default()
     });
     fx.service.start().await;
-    let install = fx.service.install_hooks().await.unwrap_err();
+    let install = fx.service.install_hooks("claude").await.unwrap_err();
     assert_eq!(install.code(), IpcErrorCode::Unavailable);
-    let preview = fx.service.preview_hooks().await.unwrap_err();
+    let preview = fx
+        .service
+        .preview_hooks("claude", HooksPreviewMode::Install)
+        .await
+        .unwrap_err();
     assert_eq!(preview.code(), IpcErrorCode::Unavailable);
 }
 
@@ -1228,7 +1379,8 @@ async fn rotating_the_token_restarts_the_bridge_and_reinstalls_installed_hooks()
         fx.installer.installs(),
         [HookInstallOptions {
             port: 47_600,
-            token: new_token()
+            token: new_token(),
+            account: "claude".into(),
         }]
     );
 }
@@ -1331,7 +1483,8 @@ async fn rotate_port_moves_the_bridge_reinstalls_installed_hooks_and_clears_port
         fx.installer.installs(),
         [HookInstallOptions {
             port: NEW_PORT,
-            token: token()
+            token: token(),
+            account: "claude".into(),
         }]
     );
     let state = fx.service.state();
@@ -1660,8 +1813,12 @@ async fn no_claude_response_carries_the_token() {
         "claude:rotate-token",
         "claude:rotate-port",
         "claude:get-state",
+        "claude:accounts",
     ] {
-        let response = invoke(&registry, channel, None).await;
+        let input = channel
+            .starts_with("claude:hooks-")
+            .then(|| json!({ "accountId": "claude" }));
+        let response = invoke(&registry, channel, input).await;
         assert_eq!(response["ok"], json!(true), "{channel}: {response}");
         results.push(response);
     }
@@ -1682,8 +1839,8 @@ async fn after_stop_rotations_and_hook_operations_write_nothing() {
     for result in [
         fx.service.rotate_token().await.map(|_| ()),
         fx.service.rotate_port().await.map(|_| ()),
-        fx.service.install_hooks().await.map(|_| ()),
-        fx.service.uninstall_hooks().await.map(|_| ()),
+        fx.service.install_hooks("claude").await.map(|_| ()),
+        fx.service.uninstall_hooks("claude").await.map(|_| ()),
     ] {
         assert_eq!(result.unwrap_err().code(), IpcErrorCode::Unavailable);
     }
@@ -1984,4 +2141,335 @@ async fn not_intercepting_still_observes_session_events() {
     fx.service.set_intercept(false);
     fx.send(e(HookEventName::UserPromptSubmit));
     assert_eq!(fx.status(), Some(ClaudeSessionStatus::Working));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Accounts (work log): hooks per Claude Code config folder.
+
+fn accounts_settings(linked: &[&str], initialized: bool) -> ClaudeAccountsSettings {
+    ClaudeAccountsSettings {
+        linked: linked.iter().map(|id| id.to_string()).collect(),
+        extra_dirs: Vec::new(),
+        initialized,
+    }
+}
+
+#[tokio::test]
+async fn installing_links_the_account_and_uninstalling_unlinks_it() {
+    let fx = hooks(HookStatus::Missing);
+    let work = FakeInstaller::new(HookStatus::Missing);
+    fx.accounts.add("claude-work", Arc::clone(&work));
+    fx.service.start().await;
+
+    fx.service.install_hooks("claude-work").await.unwrap();
+    assert_eq!(fx.accounts.current().linked, ["claude", "claude-work"]);
+    assert_eq!(work.installs()[0].account, "claude-work");
+    assert!(fx.installer.installs().is_empty());
+    // `claude` is still missing: the sum is outdated.
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Outdated);
+
+    fx.service.uninstall_hooks("claude").await.unwrap();
+    assert_eq!(fx.accounts.current().linked, ["claude-work"]);
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Installed);
+    fx.service.uninstall_hooks("claude-work").await.unwrap();
+    assert!(fx.accounts.current().linked.is_empty());
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Missing);
+    assert_eq!(
+        fx.service.state().connection,
+        ClaudeConnection::NotInstalled
+    );
+}
+
+#[tokio::test]
+async fn an_invalid_settings_file_does_not_link_the_account() {
+    let fx = hooks(HookStatus::Missing);
+    fx.accounts.set(accounts_settings(&[], true));
+    fx.service.start().await;
+    lock(&fx.installer.install_results).push_back(Ok(Err(InvalidJson)));
+    let result = fx.service.install_hooks("claude").await.unwrap();
+    assert!(matches!(result, HooksWrite::InvalidJson(_)));
+    assert!(fx.accounts.current().linked.is_empty());
+}
+
+#[tokio::test]
+async fn hook_operations_on_an_unknown_account_are_not_found() {
+    let fx = setup();
+    fx.service.start().await;
+    for code in [
+        fx.service
+            .preview_hooks("claude-nope", HooksPreviewMode::Install)
+            .await
+            .map(drop)
+            .unwrap_err()
+            .code(),
+        fx.service
+            .install_hooks("claude-nope")
+            .await
+            .map(drop)
+            .unwrap_err()
+            .code(),
+        fx.service
+            .uninstall_hooks("claude-nope")
+            .await
+            .map(drop)
+            .unwrap_err()
+            .code(),
+    ] {
+        assert_eq!(code, IpcErrorCode::NotFound);
+    }
+    assert!(fx.installer.installs().is_empty());
+}
+
+#[tokio::test]
+async fn the_first_start_links_the_default_account_when_it_has_our_hooks() {
+    for (status, linked) in [
+        (HookStatus::Installed, vec!["claude".to_string()]),
+        (HookStatus::Outdated, vec!["claude".to_string()]),
+        (HookStatus::Missing, Vec::new()),
+    ] {
+        let fx = hooks(status);
+        fx.accounts.set(accounts_settings(&[], false));
+        fx.service.start().await;
+        let settings = fx.accounts.current();
+        assert_eq!(settings.linked, linked, "{status:?}");
+        assert!(settings.initialized);
+        // Later starts leave the choice alone.
+        let updates = fx.accounts.updates.load(Ordering::SeqCst);
+        fx.installer.set_status(HookStatus::Installed);
+        fx.accounts.set(accounts_settings(&[], true));
+        fx.service.start().await;
+        assert_eq!(fx.accounts.updates.load(Ordering::SeqCst), updates);
+        assert!(fx.accounts.current().linked.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn outdated_hooks_of_linked_accounts_are_updated_after_start() {
+    let capture = crate::services::test_log::capture().expect("the test logger");
+    let fx = hooks(HookStatus::Outdated);
+    let work = FakeInstaller::new(HookStatus::Installed);
+    let other = FakeInstaller::new(HookStatus::Outdated);
+    fx.accounts.add("claude-work", Arc::clone(&work));
+    fx.accounts.add("claude-other", Arc::clone(&other));
+    fx.accounts
+        .set(accounts_settings(&["claude", "claude-work"], true));
+    fx.service.start().await;
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Outdated);
+
+    fx.service.update_outdated_hooks().await;
+    let installs = fx.installer.installs();
+    assert_eq!(installs.len(), 1);
+    assert_eq!(installs[0].account, "claude");
+    assert_eq!(installs[0].token, token());
+    // Installed ones and accounts that are not linked are left alone.
+    assert!(work.installs().is_empty());
+    assert!(other.installs().is_empty());
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Installed);
+    assert_eq!(
+        fx.states.lock().unwrap().last().map(|state| state.hooks),
+        Some(ClaudeHooksStatus::Installed)
+    );
+    assert!(capture
+        .lines()
+        .iter()
+        .any(|line| line.ends_with("hooks updated for account claude")));
+}
+
+#[tokio::test]
+async fn rotating_reinstalls_the_hooks_of_every_linked_account_that_had_them() {
+    let fx = hooks(HookStatus::Installed);
+    let work = FakeInstaller::new(HookStatus::Outdated);
+    let gone = FakeInstaller::new(HookStatus::Missing);
+    fx.accounts.add("claude-work", Arc::clone(&work));
+    fx.accounts.add("claude-gone", Arc::clone(&gone));
+    fx.accounts.set(accounts_settings(
+        &["claude", "claude-work", "claude-gone"],
+        true,
+    ));
+    fx.service.start().await;
+    let outcome = fx.service.rotate_token().await.unwrap();
+    assert_eq!(outcome.hooks, RotateHooks::Reinstalled);
+    for installer in [&fx.installer, &work] {
+        assert_eq!(installer.installs().len(), 1);
+        assert_eq!(installer.installs()[0].token, new_token());
+    }
+    assert_eq!(work.installs()[0].account, "claude-work");
+    assert!(gone.installs().is_empty());
+
+    // One account that fails makes the rotation a failed reinstall.
+    lock(&work.install_results).push_back(Ok(Err(InvalidJson)));
+    let outcome = fx.service.rotate_token().await.unwrap();
+    assert_eq!(outcome.hooks, RotateHooks::ReinstallFailed);
+}
+
+#[tokio::test]
+async fn lists_the_accounts_with_their_hooks_and_whether_they_are_linked() {
+    let fx = hooks(HookStatus::Outdated);
+    fx.accounts
+        .add("claude-work", FakeInstaller::new(HookStatus::Installed));
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:accounts", None).await;
+    assert_eq!(
+        response["data"],
+        json!({ "accounts": [
+            { "id": "claude", "dir": "C:\\Users\\me\\.claude", "email": "claude@example.test",
+              "organization": null, "linked": true, "hookStatus": "outdated" },
+            { "id": "claude-work", "dir": "C:\\Users\\me\\.claude-work",
+              "email": "claude-work@example.test", "organization": null, "linked": false,
+              "hookStatus": "installed" },
+        ]}),
+        "{response}"
+    );
+    // Only the Control Center may ask.
+    let ctx = Ctx::for_test(Sender {
+        label: NOTCH.into(),
+        url: "http://tauri.localhost/notch/index.html".parse().unwrap(),
+    });
+    let refused = registry.dispatch(&ctx, "claude:accounts", None).await;
+    assert_eq!(refused["ok"], json!(false));
+}
+
+#[tokio::test]
+async fn hooks_channels_take_an_account_id() {
+    let fx = hooks(HookStatus::Missing);
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    for channel in [
+        "claude:hooks-preview",
+        "claude:hooks-install",
+        "claude:hooks-uninstall",
+    ] {
+        assert_eq!(
+            error_code(&invoke(&registry, channel, None).await),
+            "INVALID_INPUT",
+            "{channel}"
+        );
+        let bad = json!({ "accountId": "Not Valid" });
+        assert_eq!(
+            error_code(&invoke(&registry, channel, Some(bad)).await),
+            "INVALID_INPUT",
+            "{channel}"
+        );
+        let unknown = json!({ "accountId": "claude-nope" });
+        assert_eq!(
+            error_code(&invoke(&registry, channel, Some(unknown)).await),
+            "NOT_FOUND",
+            "{channel}"
+        );
+    }
+    let response = invoke(
+        &registry,
+        "claude:hooks-install",
+        Some(json!({ "accountId": "claude" })),
+    )
+    .await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+    assert_eq!(fx.accounts.current().linked, ["claude"]);
+}
+
+#[tokio::test]
+async fn adding_a_folder_needs_an_existing_one() {
+    let fx = setup();
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    let missing = json!({ "dir": "C:\\definitely\\not\\here\\claude" });
+    assert_eq!(
+        error_code(&invoke(&registry, "claude:account-add", Some(missing)).await),
+        "NOT_FOUND"
+    );
+    let relative = json!({ "dir": "." });
+    assert_eq!(
+        error_code(&invoke(&registry, "claude:account-add", Some(relative)).await),
+        "NOT_FOUND"
+    );
+    assert!(fx.accounts.current().extra_dirs.is_empty());
+
+    let folder = crate::services::test_dir::TestDir::new("claude-account-add");
+    let dir = folder.path().to_string_lossy().into_owned();
+    let response = invoke(
+        &registry,
+        "claude:account-add",
+        Some(json!({ "dir": dir.clone() })),
+    )
+    .await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+    assert_eq!(fx.accounts.current().extra_dirs, [dir]);
+}
+
+#[tokio::test]
+async fn picking_a_folder_answers_its_path_and_adds_nothing() {
+    let folder = crate::services::test_dir::TestDir::new("claude-account-pick");
+    let fx = setup_with(Opts {
+        folder: Some(folder.path().to_path_buf()),
+        ..Opts::default()
+    });
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+    assert_eq!(
+        response["data"],
+        json!({ "dir": folder.path().to_string_lossy() })
+    );
+    assert_eq!(fx.folder.calls.load(Ordering::SeqCst), 1);
+    assert!(fx.accounts.current().extra_dirs.is_empty());
+}
+
+#[tokio::test]
+async fn cancelling_the_folder_browser_answers_null() {
+    let fx = setup();
+    fx.service.start().await;
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+    assert_eq!(response["data"], Value::Null);
+    assert_eq!(fx.folder.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn the_folder_browser_takes_no_input_and_never_waits_for_the_service() {
+    let fx = setup();
+    let registry = registry(&fx.service);
+    let with_input = invoke(&registry, "claude:pick-account-dir", Some(json!({}))).await;
+    assert_eq!(error_code(&with_input), "INVALID_INPUT");
+    assert_eq!(fx.folder.calls.load(Ordering::SeqCst), 0);
+    // Not started (the bridge is not running) and with another request holding the turn: still
+    // answers at once.
+    let _turn = fx.service.serial.lock().await;
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(response["ok"], json!(true), "{response}");
+}
+
+#[tokio::test]
+async fn a_folder_path_the_account_input_would_refuse_is_refused() {
+    let fx = setup_with(Opts {
+        folder: Some(PathBuf::from(format!("C:\\{}", "x".repeat(1100)))),
+        ..Opts::default()
+    });
+    let registry = registry(&fx.service);
+    let response = invoke(&registry, "claude:pick-account-dir", None).await;
+    assert_eq!(error_code(&response), "INVALID_INPUT");
+}
+
+#[tokio::test]
+async fn an_unreadable_default_settings_file_retries_the_adoption_on_the_next_start() {
+    let fx = hooks(HookStatus::Outdated);
+    fx.accounts.set(accounts_settings(&[], false));
+    *lock(&fx.installer.status_error) = Some(io::ErrorKind::PermissionDenied);
+    fx.service.start().await;
+    let settings = fx.accounts.current();
+    assert!(!settings.initialized);
+    assert!(settings.linked.is_empty());
+    assert_eq!(fx.accounts.updates.load(Ordering::SeqCst), 0);
+
+    // Readable again: the next start links `claude` and the outdated hooks get updated.
+    *lock(&fx.installer.status_error) = None;
+    fx.service.start().await;
+    let settings = fx.accounts.current();
+    assert!(settings.initialized);
+    assert_eq!(settings.linked, ["claude"]);
+    fx.service.update_outdated_hooks().await;
+    assert_eq!(fx.installer.installs().len(), 1);
+    assert_eq!(fx.service.state().hooks, ClaudeHooksStatus::Installed);
 }

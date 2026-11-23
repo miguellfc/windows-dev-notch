@@ -45,6 +45,9 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("claude:hooks-preview", Guard::ControlCenterOnly),
     ("claude:hooks-install", Guard::ControlCenterOnly),
     ("claude:hooks-uninstall", Guard::ControlCenterOnly),
+    ("claude:accounts", Guard::ControlCenterOnly),
+    ("claude:account-add", Guard::ControlCenterOnly),
+    ("claude:pick-account-dir", Guard::ControlCenterOnly),
     ("claude:test-connection", Guard::ControlCenterOnly),
     ("claude:rotate-token", Guard::ControlCenterOnly),
     ("claude:rotate-port", Guard::ControlCenterOnly),
@@ -103,6 +106,14 @@ pub const GUARDS: &[(&str, Guard)] = &[
     ("redmine:open", Guard::NotchOnly),
     ("redmine:set-key", Guard::ControlCenterOnly),
     ("redmine:clear", Guard::ControlCenterOnly),
+    // work log
+    ("work-log:list", Guard::NotchOnly),
+    ("work-log:set-invoiced", Guard::NotchOnly),
+    ("work-log:delete", Guard::NotchOnly),
+    ("work-log:restore", Guard::NotchOnly),
+    ("work-log:copy", Guard::NotchOnly),
+    ("work-log:summarize", Guard::NotchOnly),
+    ("work-log:claude-available", Guard::ControlCenterOnly),
 ];
 
 pub fn guard_for(channel: &str) -> Guard {

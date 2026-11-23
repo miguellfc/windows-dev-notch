@@ -3,7 +3,7 @@ import { appIds, viewIntegrationIds } from '../../../src/shared/integrations/reg
 
 describe('integrations registry', () => {
   it('lists the mini tools the notch opens', () => {
-    expect(viewIntegrationIds).toEqual(['reminders', 'notes', 'gmail', 'reviews', 'redmine'])
+    expect(viewIntegrationIds).toEqual(['reminders', 'notes', 'gmail', 'reviews', 'redmine', 'workLog'])
   })
 
   it('makes only Terminal and Claude apps', () => {

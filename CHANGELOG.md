@@ -4,6 +4,22 @@ Todos los cambios relevantes de Developer Notch se documentan en este archivo.
 
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+Registro de trabajo: cada sesión de Claude Code queda registrada con su tiempo y un resumen listo para imputar.
+
+### Añadido
+
+- Registro de trabajo, una integración nueva con su tarjeta en el panel, su vista y su bloque en la cápsula. Registra las sesiones de Claude Code de la cuenta elegida: el tiempo que trabajó Claude y el tiempo total, con las pausas largas recortadas. Al terminar la sesión, Claude redacta un título y las subtareas; cada entrada se puede copiar entera o por subtareas, marcar como imputada o borrar (con Deshacer).
+- Varias cuentas de Claude en Control Center: cada cuenta de Claude Code tiene sus propios hooks y se puede asociar otra con «Otra carpeta…». La cuenta personal se asocia sola al actualizar y los hooks de la 0.3.0 se actualizan solos.
+- Página «Registro de trabajo» en Control Center: la cuenta que se mide, la pausa máxima y si `claude` está en el PATH.
+
+### Notas
+
+- El resumen usa la suscripción de la cuenta elegida y necesita `claude` en el PATH; si falla, la entrada queda «sin resumen» con sus tiempos y se puede reintentar.
+- Los hooks se reinstalan solos al arrancar, con copia de seguridad.
+- La ventana del notch es más ancha para dar sitio al bloque nuevo de la cápsula.
+
 ## [0.3.0] - 2026-11-21
 
 Rediseño visual completo y integraciones configurables. La cápsula, el panel, las vistas, las alertas y Control Center adoptan un lenguaje nuevo, más compacto y casi monocromo, en el que cada integración tiene su propio color.

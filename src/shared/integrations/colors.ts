@@ -1,9 +1,9 @@
-/** The seven configurable integrations, in the order the Control Center lists them. */
-export const integrationKeys = ['claude', 'github', 'gitlab', 'gmail', 'redmine', 'reminders', 'notes'] as const
+/** The eight configurable integrations, in the order the Control Center lists them. */
+export const integrationKeys = ['claude', 'github', 'gitlab', 'gmail', 'redmine', 'workLog', 'reminders', 'notes'] as const
 export type IntegrationKey = (typeof integrationKeys)[number]
 
 /** Only these can show a block in the capsule. */
-export const capsuleIntegrationKeys = ['claude', 'github', 'gitlab', 'gmail', 'redmine'] as const
+export const capsuleIntegrationKeys = ['claude', 'github', 'gitlab', 'gmail', 'redmine', 'workLog'] as const
 export type CapsuleIntegrationKey = (typeof capsuleIntegrationKeys)[number]
 
 /** The 21 palette ids (ASCII), in display order. */
@@ -68,6 +68,7 @@ export const DEFAULT_INTEGRATION_COLORS: Readonly<Record<IntegrationKey, Palette
   gitlab: 'orange',
   gmail: 'salmon',
   redmine: 'pink',
+  workLog: 'cyan',
   reminders: 'blue',
   notes: 'violet',
 }
