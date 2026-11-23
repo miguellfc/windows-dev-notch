@@ -12,6 +12,7 @@ import { formatUpdated } from '../../shared/gmail/format'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { ContributionGraph } from './ContributionGraph'
 import { ContributionSummary } from './ContributionSummary'
 
@@ -271,6 +272,7 @@ export function ReviewsView() {
             <RefreshCw size={14} strokeWidth={1.8} aria-hidden="true" />
           </button>
         )}
+        <PinnedIssueShortcut className={live ? '' : 'ml-auto'} />
       </header>
 
       <div className={`flex min-h-0 flex-col gap-1.5 ${fitted ? '' : 'flex-1'}`}>

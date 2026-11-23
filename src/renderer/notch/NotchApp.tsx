@@ -19,6 +19,7 @@ import { PermissionCard } from './claude/PermissionCard'
 import { ReviewAlert } from './code-review/ReviewAlert'
 import { ReviewsView } from './code-review/ReviewsView'
 import { RedmineAlert } from './redmine/RedmineAlert'
+import { PinnedIssueShortcut } from './redmine/PinnedIssueShortcut'
 import { RedmineView } from './redmine/RedmineView'
 import { QuestionCard } from './claude/QuestionCard'
 import { StatusDots, useClaudeDots } from './claude/StatusDots'
@@ -600,6 +601,7 @@ function Panel({ time, date }: { time: string; date: string }) {
         </span>
         <span className="flex items-center gap-1">
           <PanelSystem />
+          <PinnedIssueShortcut buttonClass={panelIconButton} />
           <button
             type="button"
             aria-label={t('notch.panel.controlCenter')}

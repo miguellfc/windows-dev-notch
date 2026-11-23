@@ -770,6 +770,183 @@ describe('Redmine (Tauri)', () => {
     expectCleanLogs()
   })
 
+  it('pins an issue from its detail; the shortcut in the panel and other views opens it; pinning another replaces it; unpinning hides it', async () => {
+    const server = fake!
+    const PIN = inDetail('redmine-pin')
+    // The copy that is shown: a view on its way out keeps an aria-hidden copy for a moment.
+    const SHORTCUT = present('redmine-pinned-shortcut')
+    const PANEL_SHORTCUT = `[data-notch-panel] ${SHORTCUT}`
+    const LIST_SHORTCUT = `${PANEL} header ${SHORTCUT}`
+    const SUBJECT_4012 = 'Revisar los permisos del informe mensual'
+    const SUBJECT_412 = 'Corregir el cálculo de las vacaciones'
+    const NOTES_SHORTCUT = `[data-testid="notes-panel"] header ${SHORTCUT}`
+    const expectDetailOf = (id: number) => eventually(() => $(DETAIL).getAttribute('data-issue-id'), (value) => value === String(id), `the detail of #${id}`)
+    /** The shortcut's detail gets the focus, as a row's does (Esc then goes back from it). */
+    const expectFocusInDetail = (id: number) =>
+      eventually(
+        () =>
+          inPage((sel: string) => {
+            const doc = (globalThis as unknown as { document: { activeElement: { closest(s: string): unknown } | null } }).document
+            return Boolean(doc.activeElement?.closest(sel))
+          }, `${DETAIL}[data-issue-id="${id}"]`),
+        (inside) => inside,
+        `the focus inside the detail of #${id}`,
+      )
+    /** The computed colour of the icon (svg) in the first match of `selector`; null when absent. */
+    const iconColour = (selector: string): Promise<string | null> =>
+      inPage((sel: string) => {
+        const w = globalThis as unknown as { document: { querySelector(s: string): unknown }; getComputedStyle(el: unknown): { color: string } }
+        const svg = w.document.querySelector(`${sel} svg`)
+        return svg ? w.getComputedStyle(svg).color : null
+      }, selector)
+    /**
+     * The shortcut's icon is painted in Redmine's colour (`redmine`, the pressed pin's), not in the
+     * Graphite of a plain icon next to it (`plain`): the host's button classes must not win.
+     */
+    const expectRedmineIcon = async (shortcut: string, plain: string, redmine: string) => {
+      const plainColour = await eventually(() => iconColour(plain), (value) => value !== null, `the icon of ${plain}`)
+      await eventually(() => iconColour(shortcut), (value) => value === redmine && value !== plainColour, `${shortcut} painted ${redmine}, not ${plainColour}`)
+    }
+    await connected(server)
+    await openRedmineView()
+    await expect(byTestId('redmine-summary')).toHaveAttribute('data-phase', 'ready')
+
+    // 1. #4012's detail: not pinned; the pin button pins it, and that detail shows no shortcut to itself.
+    // Pressed, its icon takes Redmine's colour (unpressed it is the back button's plain Graphite).
+    await fillValue(SEARCH, '4012')
+    await expectRowIds([4012])
+    await browser.keys('Enter')
+    await expectDetailOf(4012)
+    await expectFullViewDetail(4012, SUBJECT_4012)
+    await $(inDetail('redmine-detail-status')).waitForDisplayed()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'false')
+    const unpressedColour = await iconColour(PIN)
+    expect(unpressedColour).toBe(await iconColour(inDetail('redmine-back')))
+    await $(PIN).click()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'true')
+    const redmineColour = await eventually(() => iconColour(PIN), (value) => value !== null && value !== unpressedColour, 'the pressed pin in Redmine’s colour')
+    if (redmineColour === null) throw new Error('no pin icon')
+    await expectCount(SHORTCUT, 0)
+
+    // 2. Esc back to the panel: its header has the shortcut, named after the pinned issue.
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '4012')
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await expectMode('expanded')
+    await $(PANEL_SHORTCUT).waitForDisplayed()
+    await expect($(PANEL_SHORTCUT)).toHaveAttribute('aria-label', `Abrir #4012 ${SUBJECT_4012}`)
+    // In Redmine's colour, not the gear's next to it.
+    await expectRedmineIcon(PANEL_SHORTCUT, `${PANEL_SHORTCUT} + button`, redmineColour)
+
+    // 3. Another view (Notes) has it in its header too, and it opens #4012's detail in the Redmine view.
+    await clickCard('integration-notes')
+    await expectMode('notes')
+    await $(NOTES_SHORTCUT).waitForDisplayed()
+    await expectRedmineIcon(NOTES_SHORTCUT, '[data-testid="notes-panel"] header [data-testid="notes-add"]', redmineColour)
+    await $(NOTES_SHORTCUT).click()
+    await expectMode('redmine')
+    await expectDetailOf(4012)
+    await expectFullViewDetail(4012, SUBJECT_4012)
+    await expectFocusInDetail(4012)
+    await expectCount(SHORTCUT, 0)
+    // With the search empty, the detail still gets the search size (as when opened from a row): the
+    // capsule fits the whole detail, past the rest height, with nothing to scroll.
+    await eventually(async () => Math.abs((await capsuleBox()).height - ((await panel().getSize('height')) + 2)), (gap) => gap <= 1, 'the capsule fits the shortcut-opened detail')
+    expect((await capsuleBox()).height).toBeGreaterThan(272)
+    // 3b. Esc from a shortcut-opened detail (no row behind it) lands in the search box. From the
+    // list with something typed, the list header's shortcut opens it with the search cleared.
+    await browser.keys('Escape')
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expectValue(SEARCH, '')
+    await eventually(() => isFocused(SEARCH), (focused) => focused, 'the focus in the search box')
+    await fillValue(SEARCH, 'nada')
+    await expectValue(SEARCH, 'nada')
+    await $(LIST_SHORTCUT).click()
+    await expectDetailOf(4012)
+    await expectFullViewDetail(4012, SUBJECT_4012)
+    await expectFocusInDetail(4012)
+    await browser.keys('Escape')
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expectValue(SEARCH, '')
+    await eventually(() => isFocused(SEARCH), (focused) => focused, 'the focus in the search box')
+
+    // 4. #412's detail shows the shortcut to #4012 (in Redmine's colour, not the back button's),
+    // which switches the detail to #4012.
+    await openDetail(412)
+    await expect($(`${DETAIL} header ${SHORTCUT}`)).toHaveAttribute('aria-label', `Abrir #4012 ${SUBJECT_4012}`)
+    await expectRedmineIcon(`${DETAIL} header ${SHORTCUT}`, inDetail('redmine-back'), redmineColour)
+    await $(`${DETAIL} header ${SHORTCUT}`).click()
+    await expectDetailOf(4012)
+    await expectFullViewDetail(4012, SUBJECT_4012)
+    await expectFocusInDetail(4012)
+    await browser.keys('Escape')
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expectValue(SEARCH, '')
+    // Pinning #412 replaces #4012: the shortcut to #4012 is there until it is pinned.
+    await openDetail(412)
+    await expect($(`${DETAIL} header ${SHORTCUT}`)).toHaveAttribute('aria-label', `Abrir #4012 ${SUBJECT_4012}`)
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'false')
+    await $(PIN).click()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'true')
+    await expectCount(SHORTCUT, 0)
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '412')
+    await expect($(LIST_SHORTCUT)).toHaveAttribute('aria-label', `Abrir #412 ${SUBJECT_412}`)
+
+    // 5. Opened from the shortcut and unpinned: no shortcut is left, in the list or in the panel.
+    await $(LIST_SHORTCUT).click()
+    await expectDetailOf(412)
+    await expectFullViewDetail(412, SUBJECT_412)
+    await expectFocusInDetail(412)
+    await $(inDetail('redmine-detail-status')).waitForDisplayed()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'true')
+    await $(PIN).click()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'false')
+    await browser.keys('Escape')
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expectValue(SEARCH, '')
+    await expectCount(SHORTCUT, 0)
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await expectMode('expanded')
+    await $('[data-notch-panel]').waitForDisplayed()
+    await expectCount(PANEL_SHORTCUT, 0)
+
+    // 6. A pinned issue the key can no longer read (403; a 404 is handled alike): opened from the
+    // shortcut, its detail shows the error and the pin is dropped, in the list and in the panel.
+    await clickCard('integration-redmine')
+    await expectMode('redmine')
+    await panel().waitForDisplayed()
+    await openDetail(4012)
+    await $(PIN).click()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'true')
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '4012')
+    await browser.keys('Escape')
+    await expectValue(SEARCH, '')
+    await $(LIST_SHORTCUT).waitForDisplayed()
+    server.hiddenIssues.add(4012)
+    await $(LIST_SHORTCUT).click()
+    await expectDetailOf(4012)
+    await $(inDetail('redmine-detail-error')).waitForDisplayed()
+    await expect($(PIN)).toHaveAttribute('aria-pressed', 'false')
+    await browser.keys('Escape')
+    await expect(panel()).toHaveAttribute('data-body', 'list')
+    await expectCount(SHORTCUT, 0)
+    await browser.keys('Escape')
+    await panel().waitForExist({ reverse: true })
+    await expectMode('expanded')
+    await $('[data-notch-panel]').waitForDisplayed()
+    await expectCount(PANEL_SHORTCUT, 0)
+    expect((await redmineState()).status).toBe('ok')
+
+    expect(server.violations).toEqual([])
+    expectCleanLogs()
+  })
+
   it('a number outside the list is one row, and opens its detail', async () => {
     const server = fake!
     await connected(server)

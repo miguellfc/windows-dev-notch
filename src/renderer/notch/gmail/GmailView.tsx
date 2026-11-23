@@ -7,6 +7,7 @@ import { formatUpdated, gmailBody, returnRowIndex, unreadText, type GmailRecent 
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { GmailSkeleton, GmailStatus } from './GmailStatus'
 import { MessageList, messageRow, messageRows } from './MessageList'
 import { MessageReader } from './MessageReader'
@@ -200,6 +201,7 @@ export function GmailView() {
             <RefreshCw size={14} strokeWidth={1.8} aria-hidden="true" />
           </button>
         )}
+        <PinnedIssueShortcut className={live ? '' : 'ml-auto'} />
       </header>
 
       {body === 'loading' ? (

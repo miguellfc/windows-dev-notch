@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { RedmineAlert, RedmineState, RedmineSummary } from '../../shared/redmine/schema'
 import { EMPTY_REDMINE, type RedmineLatch } from '../notch/system/capsule-latch'
+import { togglePin, withSubject, type PinnedIssue } from './redmine/pin'
 import { nextRedmineSession } from './redmine/session'
 
 interface RedmineStoreState {
@@ -16,6 +17,10 @@ interface RedmineStoreState {
   summary: RedmineSummary | null
   /** Whether the last summary query failed; the view shows its retry line. */
   summaryError: boolean
+  /** The issue pinned for quick access (session-only, forgotten with the session); null when none. */
+  pinned: PinnedIssue | null
+  /** An issue the pinned shortcut asked the Redmine view to open; null once consumed. */
+  openTarget: number | null
   /** The view has something under the search box: the capsule takes its taller size. */
   searching: boolean
   /** The view's own height at rest with the summary and the box (the capsule fits it); null: the full rest size. */
@@ -29,6 +34,8 @@ export const useRedmine = create<RedmineStoreState>(() => ({
   redmineAlert: false,
   summary: null,
   summaryError: false,
+  pinned: null,
+  openTarget: null,
   searching: false,
   viewHeight: null,
 }))
@@ -50,6 +57,36 @@ export const setRedmineAlert = (redmineAlert: boolean): void => useRedmine.setSt
 
 /** Whether the Redmine view needs the capsule's taller size. */
 export const setRedmineSearching = (searching: boolean): void => useRedmine.setState({ searching })
+
+/** Pins `issue` (replacing any previous one), or unpins it when it already is the pinned one. */
+export const togglePinnedIssue = (issue: PinnedIssue): void =>
+  useRedmine.setState((store) => ({ pinned: togglePin(store.pinned, issue) }))
+
+/** Unpins only when `id` is the pinned issue; another issue's unpin never drops the current pin. */
+export const unpinIssue = (id: number): void =>
+  useRedmine.setState((store) => (store.pinned?.id === id ? { pinned: null } : store))
+
+/** Keeps the pinned subject fresh after the view re-reads that issue. */
+export const renamePinnedIssue = (id: number, subject: string): void =>
+  useRedmine.setState((store) => {
+    const pinned = withSubject(store.pinned, id, subject)
+    return pinned === store.pinned ? store : { pinned }
+  })
+
+/** The pinned shortcut: asks the Redmine view to open the pinned issue and has main show that view. */
+export const openPinnedIssue = (): void => {
+  const { pinned } = useRedmine.getState()
+  if (pinned === null) return
+  useRedmine.setState({ openTarget: pinned.id })
+  void window.notch.notch.openIntegration({ id: 'redmine' })
+}
+
+/** Consumes the issue the shortcut asked to open (null when none, and after the first take). */
+export const takeOpenTarget = (): number | null => {
+  const { openTarget } = useRedmine.getState()
+  if (openTarget !== null) useRedmine.setState({ openTarget: null })
+  return openTarget
+}
 
 /** The Redmine view reports its content height at rest (null: it fills the full panel). */
 export const setRedmineViewHeight = (viewHeight: number | null): void => useRedmine.setState({ viewHeight })
