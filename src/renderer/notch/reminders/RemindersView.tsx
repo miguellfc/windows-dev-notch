@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { NoticeBanner } from '../../shared/reminders/RemindersNotice'
 import { useT } from '../../shared/use-t'
 import { ReminderForm } from './ReminderForm'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { headerIconButton } from './styles'
 import { ReminderList } from './ReminderList'
 
@@ -77,6 +78,7 @@ export function RemindersView() {
             >
               {t('reminders.view.seeAll')}
             </button>
+            <PinnedIssueShortcut />
           </header>
           <NoticeBanner />
           <ReminderList onFocusLost={() => (addButton.current ?? panel.current)?.focus()} />

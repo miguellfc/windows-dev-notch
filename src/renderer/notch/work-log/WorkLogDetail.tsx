@@ -9,6 +9,7 @@ import { liveTotalMs } from '../../shared/work-log-store'
 import { isLiveEntry, workLogDates } from '../../shared/work-log/format'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton, primaryButton, secondaryButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { StatusPill } from './WorkLogList'
 
 /** How long "Copiado" stays after a copy. */
@@ -212,6 +213,7 @@ export function WorkLogDetail({
         <h2 data-testid="work-log-detail-title" title={entry.title} className="ml-1.5 min-w-0 flex-1 truncate text-body font-medium text-chalk">
           {entry.title}
         </h2>
+        <PinnedIssueShortcut />
       </header>
       <div className="flex shrink-0 items-center gap-2 px-1">
         <span className="tabular min-w-0 flex-1 truncate text-label text-graphite">{meta}</span>

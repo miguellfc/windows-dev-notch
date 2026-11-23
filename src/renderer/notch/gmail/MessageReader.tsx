@@ -6,6 +6,7 @@ import { attachmentsText, formatFullDate, senderParts, subjectText } from '../..
 import { useInFlight } from '../../shared/reminders/use-in-flight'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { DeleteConfirm } from './DeleteConfirm'
 
 type Load = { kind: 'loading' } | { kind: 'gone' } | { kind: 'error' } | { kind: 'ready'; detail: GmailMessageDetail }
@@ -173,6 +174,7 @@ export function MessageReader({
             </time>
           </div>
         )}
+        <PinnedIssueShortcut className="ml-auto mt-1" />
       </header>
 
       {load.kind === 'loading' && (

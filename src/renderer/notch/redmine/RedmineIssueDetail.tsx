@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Pin, PinOff } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type Ref } from 'react'
 import { localDate } from '../../../shared/code-review/contributions'
 import type { MessageKey } from '../../../shared/i18n/messages'
@@ -7,8 +7,10 @@ import type { Language } from '../../../shared/settings/schema'
 import { shownStatus, statusChoices, writeRefusal, type WriteRefusal } from '../../shared/redmine/detail'
 import { hoursLong, parseHours, spentLine } from '../../shared/redmine/format'
 import { locale } from '../../shared/locale'
+import { renamePinnedIssue, togglePinnedIssue, unpinIssue, useRedmine } from '../../shared/redmine-store'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from './PinnedIssueShortcut'
 
 /** The write a task-section refusal answers, so Retry repeats it. */
 type TaskWrite = { readonly kind: 'status'; readonly statusId: number } | { readonly kind: 'estimate' }
@@ -197,12 +199,20 @@ export function RedmineIssueDetail({
     if (issueResult.ok) {
       setDetail(issueResult.data)
       onIssue?.(issueResult.data)
+      renamePinnedIssue(id, issueResult.data.subject)
     }
     if (activitiesResult.ok) {
       setActivities(activitiesResult.data)
       setActivityId((previous) => previous ?? (activitiesResult.data.find((a) => a.isDefault) ?? activitiesResult.data[0])?.id ?? null)
     }
     setLoadFailed(!issueResult.ok || !activitiesResult.ok)
+    // After the setters, so the failure line never waits on this extra query. Only Redmine's "not
+    // found" drops the pin; a network failure keeps it.
+    if (!issueResult.ok && useRedmine.getState().pinned?.id === id) {
+      const answer = await window.notch.redmine.findIssue({ id })
+      if (read !== reads.current) return
+      if (answer.ok && !answer.data.found) unpinIssue(id)
+    }
   }, [id, onIssue])
 
   useEffect(() => {
@@ -214,6 +224,7 @@ export function RedmineIssueDetail({
   }, [load])
 
   const shown = detail ?? issue
+  const pinnedHere = useRedmine((store) => store.pinned?.id === id)
   const statusId = shownStatus(statusDraft, taskBusy, detail?.status.id ?? null)
   const statuses = detail ? statusChoices(detail) : []
   const estimate = estimateText ?? fieldHours(detail?.estimatedHours ?? null, language)
@@ -333,6 +344,23 @@ export function RedmineIssueDetail({
             {shown?.subject ?? ''}
           </span>
         </h2>
+        <PinnedIssueShortcut currentId={id} />
+        <button
+          type="button"
+          data-testid="redmine-pin"
+          aria-pressed={pinnedHere}
+          onClick={() => togglePinnedIssue({ id, subject: shown?.subject ?? '' })}
+          aria-label={t(pinnedHere ? 'redmine.pin.unpin' : 'redmine.pin.pin')}
+          title={t(pinnedHere ? 'redmine.pin.unpin' : 'redmine.pin.pin')}
+          className={headerIconButton}
+        >
+          {/* Tinted on the icon: `headerIconButton`'s own text colour would win on the button. */}
+          {pinnedHere ? (
+            <PinOff size={14} strokeWidth={1.8} aria-hidden="true" className="text-[color:var(--int)]" />
+          ) : (
+            <Pin size={14} strokeWidth={1.8} aria-hidden="true" />
+          )}
+        </button>
       </header>
 
       <div className={`-mx-1 flex min-h-0 flex-col gap-2 overflow-y-auto px-1 pb-0.5 transition-opacity duration-150 ${dimmed ? 'opacity-70' : ''}`}>

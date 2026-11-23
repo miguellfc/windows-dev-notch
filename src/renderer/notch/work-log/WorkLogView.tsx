@@ -7,6 +7,7 @@ import { useT } from '../../shared/use-t'
 import { setWorkLogViewHeight, useWorkLog } from '../../shared/work-log-store'
 import { UNDO_MS } from '../notes/UndoBar'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { WorkLogDetail } from './WorkLogDetail'
 import { entryRow, entryRows, WorkLogList } from './WorkLogList'
 
@@ -175,6 +176,7 @@ export function WorkLogView() {
             </button>
             <ClipboardList size={14} strokeWidth={1.8} aria-hidden="true" className="ml-1.5 shrink-0 text-[color:var(--int)]" />
             <h2 className="ml-1 shrink-0 text-body font-medium text-chalk">{t('integration.workLog')}</h2>
+            <PinnedIssueShortcut className="ml-auto" />
           </header>
           {entries.length === 0 ? (
             <div role="status" data-testid="work-log-empty" className="flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">

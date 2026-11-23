@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import { useNotes } from '../../shared/notes-store'
 import { useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from '../redmine/PinnedIssueShortcut'
 import { NoteEditor } from './NoteEditor'
 import { NoteList } from './NoteList'
 import { UNDO_MS, UndoBar } from './UndoBar'
@@ -157,6 +158,7 @@ export function NotesView() {
                 className="field h-7 w-full pl-7 pr-2 text-small text-chalk placeholder:text-graphite [&::-webkit-search-cancel-button]:hidden"
               />
             </label>
+            <PinnedIssueShortcut />
           </header>
           <NotesNotice />
           <NoteList

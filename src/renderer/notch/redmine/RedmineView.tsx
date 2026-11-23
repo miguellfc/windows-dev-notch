@@ -7,10 +7,11 @@ import { REDMINE_SIZES } from '../../../shared/notch/geometry'
 import { RedmineMark } from '../../shared/brand-icons'
 import { formatUpdated } from '../../shared/gmail/format'
 import { searchStep, settleSearch, truncatedSearchHint, type SearchResult, type SettledSearch } from '../../shared/redmine/search'
-import { loadSummary, setRedmineSearching, setRedmineViewHeight, useRedmine } from '../../shared/redmine-store'
+import { loadSummary, setRedmineSearching, setRedmineViewHeight, takeOpenTarget, useRedmine } from '../../shared/redmine-store'
 import { useClock } from '../../shared/use-clock'
 import { useLanguage, useT } from '../../shared/use-t'
 import { headerIconButton } from '../reminders/styles'
+import { PinnedIssueShortcut } from './PinnedIssueShortcut'
 import { RedmineIssueDetail } from './RedmineIssueDetail'
 import { issueRow, issueRows, RedmineIssueList } from './RedmineIssueList'
 import { RedmineSummary } from './RedmineSummary'
@@ -94,6 +95,7 @@ export function RedmineView() {
   const language = useLanguage()
   const now = useClock()
   const state = useRedmine((store) => store.state)
+  const openTarget = useRedmine((store) => store.openTarget)
   const [list, setList] = useState<IssueList | null>(null)
   // The last `issues()` call failed: without a list yet the view offers Retry instead of loading forever.
   const [listFailed, setListFailed] = useState(false)
@@ -216,6 +218,21 @@ export function RedmineView() {
     panel.current?.focus()
   })
 
+  // The pinned shortcut asked for an issue: open its detail with the search cleared, whether the
+  // view just mounted or was already open (another issue's detail remounts through its key). A
+  // layout effect, so the list never paints in between; only with a session, so the reset of
+  // `live` (which runs after layout effects) cannot undo it. Declared after the focus effects:
+  // layout effects run in order, so `'detail'` survives to the commit that mounts the detail.
+  useLayoutEffect(() => {
+    if (openTarget === null || !live) return
+    const id = takeOpenTarget()
+    if (id === null) return
+    setQuery('')
+    setFresh(null)
+    pendingFocus.current = 'detail'
+    setPickedId(id)
+  }, [openTarget, live])
+
   const refresh = () => {
     if (resting) return
     setResting(true)
@@ -233,10 +250,14 @@ export function RedmineView() {
     setFresh(null)
   }
 
-  /** One step back: from the detail to its row (the search intact), then an empty search, then the integrations row. */
+  /**
+   * One step back: from the detail to its row (the search intact), then an empty search, then the
+   * integrations row. A detail with no row behind it (opened from the pinned shortcut, the search
+   * cleared) lands in the search box instead.
+   */
   const stepBack = () => {
     if (pickedId !== null) {
-      pendingFocus.current = pickedId
+      pendingFocus.current = opened ? pickedId : 'search'
       setPickedId(null)
     } else if (query !== '') {
       pendingFocus.current = 'search'
@@ -295,8 +316,10 @@ export function RedmineView() {
   const openId = pickedId
   const opened = openId === null ? undefined : rows?.find((issue) => issue.id === openId)
   const typed = live && body !== 'error' && query.trim() !== ''
-  // A list that failed to load needs the taller capsule for its notice under the full summary.
-  const searching = typed || (live && body === 'error')
+  // A list that failed to load needs the taller capsule for its notice under the full summary. An
+  // open detail always takes the taller size too: one opened from the pinned-issue shortcut has an
+  // empty search, and the rest size would leave it scrolling.
+  const searching = typed || (live && body === 'error') || (live && openId !== null)
 
   // Before paint, so the capsule and its content change size together.
   useLayoutEffect(() => {
@@ -372,6 +395,7 @@ export function RedmineView() {
                 <RefreshCw size={14} strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
+            <PinnedIssueShortcut className={live ? '' : 'ml-auto'} />
           </header>
 
           <div className={`flex min-h-0 flex-col gap-1.5 ${fitted ? '' : 'flex-1'}`}>
